@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Админ-панель Тюряга 2.0</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #1a1a2e; color: white; font-family: system-ui, sans-serif; }
+        .admin-layout { display: flex; min-height: 100vh; }
+        .sidebar { width: 260px; background: #0f0f1a; padding: 20px 0; position: fixed; height: 100vh; overflow-y: auto; border-right: 1px solid #2a2a4a; }
+        .sidebar-header { padding: 0 20px 20px; border-bottom: 1px solid #2a2a4a; margin-bottom: 20px; }
+        .sidebar-header h2 { color: #e94560; font-size: 20px; }
+        .sidebar-nav { display: flex; flex-direction: column; gap: 5px; }
+        .nav-item { padding: 12px 20px; display: flex; align-items: center; gap: 12px; cursor: pointer; transition: 0.2s; color: #aaa; border-left: 3px solid transparent; }
+        .nav-item:hover { background: #1a1a2e; color: white; }
+        .nav-item.active { background: #1a1a2e; color: #e94560; border-left-color: #e94560; }
+        .main-content { margin-left: 260px; flex: 1; padding: 20px; }
+        h1 { color: #e94560; margin-bottom: 20px; }
+        h2 { color: #f1c40f; margin: 20px 0 15px; }
+        h3 { color: #e94560; margin: 15px 0 10px; }
+        .login-box { background: #16213e; padding: 30px; border-radius: 20px; max-width: 400px; margin: 100px auto; text-align: center; }
+        input, select, textarea { padding: 12px; margin: 10px 0; background: #0f3460; border: none; border-radius: 8px; color: white; font-size: 14px; }
+        input { width: 100%; }
+        textarea { width: 100%; min-height: 100px; resize: vertical; }
+        button { padding: 12px 20px; background: #e94560; border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; transition: opacity 0.2s; margin: 5px; }
+        button:hover { opacity: 0.9; }
+        .btn-green { background: #28a745; }
+        .btn-red { background: #dc3545; }
+        .btn-blue { background: #007bff; }
+        .btn-purple { background: #9b59b6; }
+        .btn-warning { background: #ffc107; color: #333; }
+        .btn-gold { background: #f1c40f; color: #333; }
+        .btn-cyan { background: #17a2b8; }
+        .table-container { overflow-x: auto; background: #16213e; border-radius: 15px; padding: 15px; margin-top: 20px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #333; }
+        th { background: #0f3460; position: sticky; top: 0; }
+        .banned { background: rgba(220, 53, 69, 0.2); }
+        .status-badge { padding: 4px 10px; border-radius: 20px; font-size: 12px; display: inline-block; }
+        .status-active { background: #28a745; }
+        .status-banned { background: #dc3545; }
+        .status-won { background: #28a745; }
+        .status-lost { background: #dc3545; }
+        .actions { display: flex; flex-wrap: wrap; gap: 5px; }
+        .actions button { padding: 5px 10px; font-size: 12px; margin: 0; }
+        .filter-bar { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
+        .filter-bar input { width: 200px; margin: 0; }
+        .stats-panel { background: #16213e; padding: 15px; border-radius: 15px; margin-bottom: 20px; display: flex; gap: 20px; flex-wrap: wrap; }
+        .stat-card { background: #0f3460; padding: 10px 20px; border-radius: 10px; }
+        .stat-card span { font-size: 24px; font-weight: bold; color: #e94560; }
+        .pending-attack { background: #e74c3c; padding: 10px; border-radius: 10px; margin-bottom: 10px; }
+        .active-war { background: #e67e22; padding: 10px; border-radius: 10px; margin-bottom: 10px; border-left: 4px solid #f1c40f; }
+        .quest-card, .shop-item-card { background: #0f3460; padding: 15px; border-radius: 12px; margin-bottom: 15px; transition: 0.2s; }
+        .quest-card:hover, .shop-item-card:hover { background: #1a4a7a; transform: translateY(-2px); }
+        .quest-header, .shop-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
+        hr { margin: 20px 0; border-color: #333; }
+        .settings-card { background: #0f3460; padding: 20px; border-radius: 12px; margin-bottom: 20px; }
+        .view-toggle { display: flex; gap: 10px; margin-bottom: 15px; }
+        .view-btn { padding: 8px 15px; background: #0f3460; border: none; border-radius: 20px; color: white; cursor: pointer; }
+        .view-btn.active { background: #e94560; }
+        .player-card, .clan-card { background: #0f3460; border-radius: 12px; padding: 15px; margin-bottom: 12px; transition: 0.2s; }
+        .player-card:hover, .clan-card:hover { background: #1a4a7a; transform: translateY(-2px); }
+        .player-card-header, .clan-card-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
+        .player-stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; margin: 10px 0; font-size: 13px; }
+        .war-card { background: #0f3460; border-radius: 10px; padding: 12px; margin-bottom: 10px; border-left: 4px solid; }
+        .war-card.won { border-left-color: #28a745; }
+        .war-card.lost { border-left-color: #dc3545; }
+        .war-card.cancelled { border-left-color: #ffc107; }
+        .treasury-card { background: #0f3460; border-radius: 10px; padding: 12px; margin-bottom: 10px; transition: 0.2s; }
+        .treasury-card:hover { background: #1a4a7a; }
+        .grid-view { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 15px; }
+        .category-filter { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        .cat-btn { padding: 8px 16px; background: #0f3460; border: none; border-radius: 20px; color: white; cursor: pointer; transition: 0.2s; }
+        .cat-btn:hover { background: #1a4a7a; }
+        .cat-btn.active { background: #e94560; }
+        .quest-actions, .shop-actions { display: flex; gap: 10px; margin-top: 10px; justify-content: flex-end; }
+        @media (max-width: 768px) { .sidebar { transform: translateX(-100%); transition: 0.3s; z-index: 1000; } .sidebar.open { transform: translateX(0); } .main-content { margin-left: 0; } .menu-toggle { display: block; position: fixed; top: 20px; left: 20px; z-index: 1001; background: #e94560; padding: 10px; border-radius: 8px; } }
+        .menu-toggle { display: none; }
+        .save-btn { background: #28a745; margin-top: 10px; }
+        .item-preview-img { max-width: 80px; max-height: 80px; border-radius: 12px; object-fit: cover; margin-top: 5px; }
+    </style>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+</head>
+<body>
+    <div id="app"></div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyCAHzMos_d5EjUrePFnWAnoVB4sMTcpX2g",
+            authDomain: "gamezona-34ece.firebaseapp.com",
+            projectId: "gamezona-34ece",
+            storageBucket: "gamezona-34ece.firebasestorage.app",
+            messagingSenderId: "259235549072",
+            appId: "1:259235549072:web:d60b8315665d77fbe56d15"
+        };
+        
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        
+        let players = [];
+        let allClans = [];
+        let warHistory = [];
+        let pendingAttacks = [];
+        let activeWarsList = [];
+        let treasuryHistory = [];
+        let adminPassword = 'admin123';
+        let filterText = '';
+        let activeTab = 'players';
+        let dailyQuests = [];
+        let premiumQuests = [];
+        let shopItems = [];
+        let attackCooldownHours = 12;
+        let warDurationHours = 12;
+        let clanCreationCost = 3000;
+        let clanMaxMembers = 10;
+        let cardGameCost = 200; // Стоимость игры в карты в папиросах
+        let gameTips = [];
+        let maintenanceMode = false;
+        let maintenanceMessage = '';
+        let playersViewMode = 'cards';
+        let clansViewMode = 'cards';
+        let warsViewMode = 'cards';
+        let shopCategory = 'all';
+        
+        function calculatePlayerPower(player) {
+            return Math.floor((player.level * 15) + (player.authority / 100) + ((player.stats?.strength || 10) * 2) + ((player.stats?.defense || 5) * 1.5) + (player.stats?.critical || 5) + (player.energy / 20));
+        }
+        
+        async function loginAdmin() {
+            const pass = document.getElementById('adminPass').value;
+            if (pass !== adminPassword) {
+                alert('Неверный пароль! По умолчанию: admin123');
+                return;
+            }
+            await loadData();
+            renderAdminPanel();
+        }
+        
+        async function loadData() {
+            await loadPlayers();
+            await loadClans();
+            await loadWarHistory();
+            await loadPendingAttacks();
+            await loadActiveWars();
+            await loadTreasuryHistory();
+            await loadQuests();
+            await loadShopItems();
+            await loadGameSettings();
+            await loadTips();
+            await loadMaintenanceMode();
+        }
+        
+        async function loadActiveWars() {
+            const snapshot = await db.collection('activeWars').get();
+            activeWarsList = [];
+            snapshot.forEach(doc => activeWarsList.push({ id: doc.id, ...doc.data() }));
+        }
+        
+        async function loadGameSettings() {
+            const settingsDoc = await db.collection('config').doc('gameSettings').get();
+            if (settingsDoc.exists) {
+                attackCooldownHours = settingsDoc.data().attackCooldownHours || 12;
+                warDurationHours = settingsDoc.data().warDurationHours || 12;
+                clanCreationCost = settingsDoc.data().clanCreationCost || 3000;
+                clanMaxMembers = settingsDoc.data().clanMaxMembers || 10;
+                cardGameCost = settingsDoc.data().cardGameCost || 200;
+            }
+        }
+        
+        async function saveGameSettings() {
+            await db.collection('config').doc('gameSettings').set({
+                attackCooldownHours: attackCooldownHours,
+                warDurationHours: warDurationHours,
+                clanCreationCost: clanCreationCost,
+                clanMaxMembers: clanMaxMembers,
+                cardGameCost: cardGameCost
+            });
+            alert('Настройки сохранены!');
+        }
+        
+        async function loadMaintenanceMode() {
+            const maintDoc = await db.collection('config').doc('maintenance').get();
+            if (maintDoc.exists) {
+                maintenanceMode = maintDoc.data().enabled || false;
+                maintenanceMessage = maintDoc.data().message || 'Технические работы. Зайдите позже!';
+            } else {
+                maintenanceMode = false;
+                maintenanceMessage = 'Технические работы. Зайдите позже!';
+            }
+        }
+        
+        async function setMaintenanceMode(enabled, message) {
+            await db.collection('config').doc('maintenance').set({
+                enabled: enabled,
+                message: message || maintenanceMessage,
+                updatedAt: Date.now()
+            });
+            maintenanceMode = enabled;
+            if (message) maintenanceMessage = message;
+            alert(`Режим техобслуживания ${enabled ? 'ВКЛЮЧЕН' : 'ОТКЛЮЧЕН'}`);
+            renderAdminPanel();
+        }
+        
+        async function fullGameReset() {
+            if (!confirm('ПОЛНЫЙ СБРОС ИГРЫ! Это удалит ВСЕХ игроков, кланы, историю войн, казну. Продолжить?')) return;
+            if (!confirm('ЕЩЕ РАЗ! Вы уверены? Данные будут потеряны НАВСЕГДА!')) return;
+            const playersSnap = await db.collection('players').get();
+            for (const doc of playersSnap.docs) await db.collection('players').doc(doc.id).delete();
+            const clansSnap = await db.collection('clans').get();
+            for (const doc of clansSnap.docs) await db.collection('clans').doc(doc.id).delete();
+            const warSnap = await db.collection('warHistory').get();
+            for (const doc of warSnap.docs) await db.collection('warHistory').doc(doc.id).delete();
+            const attacksSnap = await db.collection('scheduledAttacks').get();
+            for (const doc of attacksSnap.docs) await db.collection('scheduledAttacks').doc(doc.id).delete();
+            await db.collection('config').doc('treasury').set({ totalRubles: 0 });
+            const treasurySnap = await db.collection('treasuryHistory').get();
+            for (const doc of treasurySnap.docs) await db.collection('treasuryHistory').doc(doc.id).delete();
+            await db.collection('activeWars').get().then(snap => snap.forEach(doc => doc.ref.delete()));
+            alert('ИГРА ПОЛНОСТЬЮ ОБНУЛЕНА!');
+            await loadData();
+            renderAdminPanel();
+        }
+        
+        async function deleteAllPlayers() {
+            if (!confirm('УДАЛИТЬ ВСЕХ ИГРОКОВ? Это действие необратимо!')) return;
+            const snapshot = await db.collection('players').get();
+            for (const doc of snapshot.docs) await db.collection('players').doc(doc.id).delete();
+            alert('Все игроки удалены!');
+            await loadPlayers();
+            renderAdminPanel();
+        }
+        
+        async function resetAllPlayers() {
+            if (!confirm('ОБНУЛИТЬ ВСЕХ ИГРОКОВ?')) return;
+            const snapshot = await db.collection('players').get();
+            for (const doc of snapshot.docs) {
+                await db.collection('players').doc(doc.id).update({
+                    level: 1, authority: 0, authorityToNext: 1000, energy: 100, maxEnergy: 100,
+                    rubles: 0, cigarettes: 50, tattoos: [], equipped: { weapon: 'камень', armor: 'роба', accessory: 'чифирная кружка' },
+                    stats: { strength: 10, defense: 5, critical: 5 }, totalCrimes: 0
+                });
+            }
+            alert('Все игроки обнулены!');
+            await loadPlayers();
+            renderAdminPanel();
+        }
+        
+        async function loadTips() {
+            const tipsDoc = await db.collection('config').doc('tips').get();
+            if (tipsDoc.exists && tipsDoc.data().list) gameTips = tipsDoc.data().list;
+            else { gameTips = ["💡 Дела приносят больше ресурсов с высоким уровнем!", "💡 Вступай в клан для бонусов!", "💡 Шахту можно улучшать за папиросы!"]; await saveTips(); }
+        }
+        
+        async function saveTips() { await db.collection('config').doc('tips').set({ list: gameTips }); }
+        async function addTip() { const newTip = prompt('Введите новую подсказку:'); if (newTip && newTip.trim()) { gameTips.push(newTip.trim()); await saveTips(); renderAdminPanel(); } }
+        async function deleteTip(index) { if (confirm('Удалить подсказку?')) { gameTips.splice(index, 1); await saveTips(); renderAdminPanel(); } }
+        
+        async function loadPlayers() {
+            const snapshot = await db.collection('players').get();
+            players = [];
+            for (const doc of snapshot.docs) { const p = { id: doc.id, ...doc.data() }; p.power = calculatePlayerPower(p); players.push(p); }
+            players.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        }
+        
+        async function loadClans() {
+            const snapshot = await db.collection('clans').get();
+            allClans = [];
+            for (const doc of snapshot.docs) {
+                const clan = { id: doc.id, ...doc.data() };
+                let totalPower = 0, totalCigarettes = 0, totalRubles = 0;
+                for (const memberId of clan.membersIds || []) {
+                    const player = players.find(p => p.id === memberId);
+                    if (player && !player.isBanned) {
+                        totalPower += player.power || calculatePlayerPower(player);
+                        totalCigarettes += player.cigarettes || 0;
+                        totalRubles += player.rubles || 0;
+                    }
+                }
+                clan.totalPower = totalPower; clan.totalCigarettes = totalCigarettes; clan.totalRubles = totalRubles;
+                allClans.push(clan);
+            }
+            allClans.sort((a, b) => b.totalPower - a.totalPower);
+        }
+        
+        async function loadWarHistory() {
+            const snapshot = await db.collection('warHistory').orderBy('timestamp', 'desc').limit(200).get();
+            warHistory = [];
+            snapshot.forEach(doc => warHistory.push({ id: doc.id, ...doc.data() }));
+        }
+        
+        async function loadPendingAttacks() {
+            const snapshot = await db.collection('scheduledAttacks').where('status', '==', 'pending').get();
+            pendingAttacks = [];
+            snapshot.forEach(doc => pendingAttacks.push({ id: doc.id, ...doc.data() }));
+            pendingAttacks.sort((a, b) => a.scheduledTime - b.scheduledTime);
+        }
+        
+        async function loadTreasuryHistory() {
+            const snapshot = await db.collection('treasuryHistory').orderBy('timestamp', 'desc').limit(200).get();
+            treasuryHistory = [];
+            snapshot.forEach(doc => treasuryHistory.push({ id: doc.id, ...doc.data() }));
+        }
+        
+        async function loadQuests() {
+            const questsDoc = await db.collection('config').doc('quests').get();
+            if (questsDoc.exists) { const data = questsDoc.data(); dailyQuests = data.daily || []; premiumQuests = data.premium || []; }
+            else {
+                dailyQuests = [{ id: 'd1', title: 'Сделать 5 дел', description: 'Совершите 5 успешных дел', requirement: 5, reward: 20, type: 'cigarettes' }];
+                premiumQuests = [{ id: 'p1', title: 'Вступить в клан', description: 'Вступите в любой клан', requirement: 1, reward: 100, type: 'rubles' }];
+                await saveQuests();
+            }
+        }
+        
+        async function saveQuests() { await db.collection('config').doc('quests').set({ daily: dailyQuests, premium: premiumQuests }); }
+        
+        async function loadShopItems() {
+            const shopDoc = await db.collection('config').doc('shop').get();
+            if (shopDoc.exists && shopDoc.data().items) shopItems = shopDoc.data().items;
+            else {
+                shopItems = [
+                    { id: '1', name: 'Финка', price: 100, currency: 'rubles', category: 'weapon', type: 'equipment', slot: 'weapon', stat: 'strength', bonus: 5, desc: 'Сила +5', imageUrl: '' },
+                    { id: '2', name: 'Наколка "Крест"', price: 50, currency: 'cigarettes', category: 'tattoos', type: 'tattoo', desc: '+2 авторитета за дело', imageUrl: '' },
+                    { id: '3', name: 'Чифир', price: 30, currency: 'cigarettes', category: 'consumables', type: 'consumable', energyRestore: 30, desc: '+30 энергии', imageUrl: '' },
+                    { id: '4', name: 'Бронежилет', price: 500, currency: 'rubles', category: 'armor', type: 'equipment', slot: 'armor', stat: 'defense', bonus: 10, desc: 'Защита +10', imageUrl: '' }
+                ];
+                await saveShopItems();
+            }
+        }
+        async function saveShopItems() { await db.collection('config').doc('shop').set({ items: shopItems }); }
+        async function addShopItem() {
+            shopItems.push({ id: Date.now().toString(), name: 'Новый предмет', price: 100, currency: 'cigarettes', category: 'weapon', type: 'equipment', slot: 'weapon', stat: 'strength', bonus: 5, desc: 'Описание', imageUrl: '' });
+            await saveShopItems(); renderAdminPanel();
+        }
+        async function updateShopItem(index, field, value) { shopItems[index][field] = value; await saveShopItems(); renderAdminPanel(); }
+        async function deleteShopItem(index) { if (confirm('Удалить предмет?')) { shopItems.splice(index, 1); await saveShopItems(); renderAdminPanel(); } }
+        async function addQuest(type) {
+            const newQuest = { id: type === 'daily' ? `d${dailyQuests.length+1}` : `p${premiumQuests.length+1}`, title: 'Новое задание', description: 'Описание', requirement: 10, reward: 50, type: 'cigarettes' };
+            if (type === 'daily') dailyQuests.push(newQuest); else premiumQuests.push(newQuest);
+            await saveQuests(); renderAdminPanel();
+        }
+        async function updateQuest(type, index, field, value) { if (type === 'daily') dailyQuests[index][field] = value; else premiumQuests[index][field] = value; await saveQuests(); renderAdminPanel(); }
+        async function deleteQuest(type, index) { if (confirm('Удалить задание?')) { if (type === 'daily') dailyQuests.splice(index,1); else premiumQuests.splice(index,1); await saveQuests(); renderAdminPanel(); } }
+        async function getTreasuryTotal() { const doc = await db.collection('config').doc('treasury').get(); return doc.exists ? doc.data().totalRubles || 0 : 0; }
+        
+        async function rewardClans() {
+            const topClans = [...allClans].sort((a,b)=>b.totalPower - a.totalPower).slice(0,5);
+            const treasuryTotal = await getTreasuryTotal();
+            if (treasuryTotal === 0) { alert('В казне нет средств!'); return; }
+            const rewards = [0.35,0.25,0.2,0.12,0.08];
+            for (let i=0; i<topClans.length; i++) {
+                const rewardAmount = Math.floor(treasuryTotal * rewards[i]);
+                if (rewardAmount>0 && topClans[i].membersIds) {
+                    const sharePerMember = Math.floor(rewardAmount / topClans[i].membersIds.length);
+                    for (const memberId of topClans[i].membersIds) await db.collection('players').doc(memberId).update({ rubles: firebase.firestore.FieldValue.increment(sharePerMember) });
+                }
+            }
+            await db.collection('config').doc('treasury').set({ totalRubles: 0 });
+            await db.collection('treasuryHistory').add({ type: 'reward', timestamp: Date.now(), totalDistributed: treasuryTotal });
+            alert('Награждение завершено!'); await loadData(); renderAdminPanel();
+        }
+        
+        async function clearWarHistory() { if (confirm('Очистить историю войн?')) { const snapshot = await db.collection('warHistory').get(); for (const doc of snapshot.docs) await doc.ref.delete(); alert('Очищено!'); await loadWarHistory(); renderAdminPanel(); } }
+        async function deleteAllScheduledAttacks() { if (confirm('Удалить все запланированные атаки?')) { const snapshot = await db.collection('scheduledAttacks').get(); for (const doc of snapshot.docs) await doc.ref.delete(); alert('Удалены!'); await loadPendingAttacks(); renderAdminPanel(); } }
+        async function cancelPendingAttack(attackId) { if (confirm('Отменить атаку?')) { const attackDoc = await db.collection('scheduledAttacks').doc(attackId).get(); if (attackDoc.exists) { const attack = attackDoc.data(); await db.collection('warHistory').add({ attackerClanId: attack.attackerClanId, attackerClanName: attack.attackerClanName, defenderClanId: attack.defenderClanId, defenderClanName: attack.defenderClanName, attackerWon: false, cancelled: true, timestamp: Date.now(), message: 'Атака отменена администратором' }); await db.collection('scheduledAttacks').doc(attackId).delete(); alert('Отменено!'); } await loadPendingAttacks(); await loadWarHistory(); renderAdminPanel(); } }
+        async function banPlayer(playerId, hours, reason) { const updateData = { isBanned: true, banReason: reason || 'Нарушение' }; if (hours>0 && hours!=='0') updateData.banUntil = Date.now() + (parseInt(hours)*3600000); else updateData.banUntil = null; await db.collection('players').doc(playerId).update(updateData); alert('Забанен!'); await loadPlayers(); renderAdminPanel(); }
+        async function unbanPlayer(playerId) { await db.collection('players').doc(playerId).update({ isBanned: false, banReason: null, banUntil: null }); alert('Бан снят!'); await loadPlayers(); renderAdminPanel(); }
+        async function resetPlayer(playerId) { if (!confirm('Обнулить прогресс?')) return; await db.collection('players').doc(playerId).update({ level:1, authority:0, authorityToNext:1000, energy:100, maxEnergy:100, rubles:0, cigarettes:50, tattoos:[], equipped:{ weapon:'камень', armor:'роба', accessory:'чифирная кружка' }, stats:{ strength:10, defense:5, critical:5 }, totalCrimes:0 }); alert('Обнулен!'); await loadPlayers(); renderAdminPanel(); }
+        async function deletePlayer(playerId) { if (!confirm('Удалить игрока?')) return; await db.collection('players').doc(playerId).delete(); alert('Удален!'); await loadPlayers(); renderAdminPanel(); }
+        async function changePassword() { const newPassword = prompt('Введите новый пароль:'); if (newPassword) adminPassword = newPassword; alert('Пароль изменен!'); }
+        async function addRublesToPlayer(playerId) { const amount = prompt('Сколько рублей?'); if (amount && !isNaN(parseInt(amount))) { await db.collection('players').doc(playerId).update({ rubles: firebase.firestore.FieldValue.increment(parseInt(amount)) }); alert(`+${amount}₽`); await loadPlayers(); renderAdminPanel(); } }
+        async function addCigarettesToPlayer(playerId) { const amount = prompt('Сколько папирос?'); if (amount && !isNaN(parseInt(amount))) { await db.collection('players').doc(playerId).update({ cigarettes: firebase.firestore.FieldValue.increment(parseInt(amount)) }); alert(`+${amount}🚬`); await loadPlayers(); renderAdminPanel(); } }
+        async function setPlayerCaste(playerId, currentCaste) { const newCaste = prompt('Введите новую касту (Блатные, Мужики, Фраер):', currentCaste); if (newCaste && ['Блатные','Мужики','Фраер'].includes(newCaste)) { await db.collection('players').doc(playerId).update({ caste: newCaste }); alert(`Каста изменена на ${newCaste}`); await loadPlayers(); renderAdminPanel(); } }
+        async function setPlayerLevel(playerId, currentLevel) { const newLevel = prompt('Введите новый уровень (1-100):', currentLevel); if (newLevel && !isNaN(parseInt(newLevel)) && parseInt(newLevel) >= 1 && parseInt(newLevel) <= 100) { await db.collection('players').doc(playerId).update({ level: parseInt(newLevel) }); alert(`Уровень изменен на ${newLevel}`); await loadPlayers(); renderAdminPanel(); } }
+        async function addToTreasury() { const amount = prompt('Сколько рублей добавить в общак?'); if (amount && !isNaN(parseInt(amount))) { const treasuryRef = db.collection('config').doc('treasury'); const treasuryDoc = await treasuryRef.get(); if (treasuryDoc.exists) await treasuryRef.update({ totalRubles: firebase.firestore.FieldValue.increment(parseInt(amount)) }); else await treasuryRef.set({ totalRubles: parseInt(amount) }); await db.collection('treasuryHistory').add({ type: 'admin_add', amount: parseInt(amount), timestamp: Date.now(), adminName: 'Администратор', clanName: 'Система' }); alert(`Добавлено ${amount}₽`); renderAdminPanel(); } }
+        async function saveCardGameCost() { const val = parseInt(document.getElementById('cardGameCost')?.value); if (val > 0 && val < 10000) { cardGameCost = val; await saveGameSettings(); renderAdminPanel(); alert('Стоимость игры в карты сохранена!'); } else { alert('Введите корректную сумму (1-9999)'); } }
+        
+        function getFilteredPlayers() { if (!filterText) return players; return players.filter(p => p.username.toLowerCase().includes(filterText.toLowerCase())); }
+        function formatTimeRemaining(ms) { if (ms <= 0) return 'Сейчас'; const hours = Math.floor(ms / 3600000); const minutes = Math.floor((ms % 3600000) / 60000); return `${hours}ч ${minutes}м`; }
+        
+        function formatDefenseTime(ms) {
+            if (ms <= 0) return '';
+            const hours = Math.floor(ms / 3600000);
+            const minutes = Math.floor((ms % 3600000) / 60000);
+            if (hours > 0) return ` (еще ${hours}ч ${minutes}м)`;
+            return ` (еще ${minutes}м)`;
+        }
+        
+        async function exportDatabase() {
+            try {
+                const playersSnap = await db.collection('players').get();
+                const clansSnap = await db.collection('clans').get();
+                const warSnap = await db.collection('warHistory').get();
+                const attacksSnap = await db.collection('scheduledAttacks').get();
+                const treasuryDoc = await db.collection('config').doc('treasury').get();
+                const treasurySnap = await db.collection('treasuryHistory').get();
+                const activeWarsSnap = await db.collection('activeWars').get();
+                const gameSettingsDoc = await db.collection('config').doc('gameSettings').get();
+                const questsDoc = await db.collection('config').doc('quests').get();
+                const shopDoc = await db.collection('config').doc('shop').get();
+                const tipsDoc = await db.collection('config').doc('tips').get();
+                const maintenanceDoc = await db.collection('config').doc('maintenance').get();
+                
+                const exportData = {
+                    players: playersSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+                    clans: clansSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+                    warHistory: warSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+                    scheduledAttacks: attacksSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+                    treasury: treasuryDoc.exists ? treasuryDoc.data() : { totalRubles: 0 },
+                    treasuryHistory: treasurySnap.docs.map(d => ({ id: d.id, ...d.data() })),
+                    activeWars: activeWarsSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+                    gameSettings: gameSettingsDoc.exists ? gameSettingsDoc.data() : {},
+                    quests: questsDoc.exists ? questsDoc.data() : {},
+                    shop: shopDoc.exists ? shopDoc.data() : {},
+                    tips: tipsDoc.exists ? tipsDoc.data() : {},
+                    maintenance: maintenanceDoc.exists ? maintenanceDoc.data() : {}
+                };
+                
+                const dataStr = JSON.stringify(exportData, null, 2);
+                const blob = new Blob([dataStr], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `tyuryaga_backup_${new Date().toISOString().slice(0,19)}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+                alert('База данных экспортирована!');
+            } catch (e) {
+                alert('Ошибка экспорта: ' + e.message);
+            }
+        }
+        
+        async function importDatabase() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'application/json';
+            input.onchange = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = async (event) => {
+                    try {
+                        const data = JSON.parse(event.target.result);
+                        if (!confirm('Импорт заменит ВСЕ данные в игре! Вы уверены?')) return;
+                        
+                        // Очистка существующих коллекций
+                        const collections = ['players', 'clans', 'warHistory', 'scheduledAttacks', 'treasuryHistory', 'activeWars'];
+                        for (const coll of collections) {
+                            const snap = await db.collection(coll).get();
+                            for (const doc of snap.docs) await doc.ref.delete();
+                        }
+                        
+                        // Импорт данных
+                        if (data.players) for (const item of data.players) await db.collection('players').doc(item.id).set(item);
+                        if (data.clans) for (const item of data.clans) await db.collection('clans').doc(item.id).set(item);
+                        if (data.warHistory) for (const item of data.warHistory) await db.collection('warHistory').doc(item.id).set(item);
+                        if (data.scheduledAttacks) for (const item of data.scheduledAttacks) await db.collection('scheduledAttacks').doc(item.id).set(item);
+                        if (data.treasuryHistory) for (const item of data.treasuryHistory) await db.collection('treasuryHistory').doc(item.id).set(item);
+                        if (data.activeWars) for (const item of data.activeWars) await db.collection('activeWars').doc(item.id).set(item);
+                        if (data.treasury) await db.collection('config').doc('treasury').set(data.treasury);
+                        if (data.gameSettings) await db.collection('config').doc('gameSettings').set(data.gameSettings);
+                        if (data.quests) await db.collection('config').doc('quests').set(data.quests);
+                        if (data.shop) await db.collection('config').doc('shop').set(data.shop);
+                        if (data.tips) await db.collection('config').doc('tips').set(data.tips);
+                        if (data.maintenance) await db.collection('config').doc('maintenance').set(data.maintenance);
+                        
+                        alert('Импорт успешно завершен!');
+                        await loadData();
+                        renderAdminPanel();
+                    } catch (err) {
+                        alert('Ошибка импорта: ' + err.message);
+                    }
+                };
+                reader.readAsText(file);
+            };
+            input.click();
+        }
+        
+        function renderAdminPanel() {
+            const filtered = getFilteredPlayers();
+            const totalPlayers = players.length, bannedCount = players.filter(p=>p.isBanned).length, activeCount = totalPlayers - bannedCount;
+            const totalClans = allClans.length, totalPowerAll = allClans.reduce((s,c)=>s+(c.totalPower||0),0);
+            getTreasuryTotal().then(treasuryTotal => {
+                let html = `<div class="admin-layout"><div class="sidebar" id="sidebar"><div class="sidebar-header"><h2>🏛️ Тюряга 2.0</h2><p style="font-size:12px;color:#888">Админ-панель</p></div><div class="sidebar-nav">`;
+                const tabs = [{id:'players', icon:'👥', label:'Игроки'},{id:'clans', icon:'🏰', label:'Кланы'},{id:'wars', icon:'⚔️', label:'Войны'},{id:'pending', icon:'⏳', label:'Атаки'},{id:'treasury', icon:'💰', label:'Казна'},{id:'quests', icon:'📋', label:'Задания'},{id:'shop', icon:'🏪', label:'Магазин'},{id:'tips', icon:'💡', label:'Подсказки'},{id:'settings', icon:'⚙️', label:'Настройки'}];
+                tabs.forEach(tab => { html += `<div class="nav-item ${activeTab===tab.id?'active':''}" onclick="setTab('${tab.id}')"><span>${tab.icon}</span><span>${tab.label}</span></div>`; });
+                html += `</div></div><div class="main-content"><div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; margin-bottom:20px"><h1>👑 Админ-панель ${maintenanceMode ? '<span style="background:#ffc107; color:#333; padding:5px 15px; border-radius:30px; font-size:14px">🔧 ТЕХОБСЛУЖИВАНИЕ</span>' : ''}</h1><button class="btn-blue" onclick="document.querySelector(\'.sidebar\').classList.toggle(\'open\')" style="display:none" id="menuToggle">☰ Меню</button></div>
+                <div class="stats-panel"><div class="stat-card">👥 Игроков: <span>${totalPlayers}</span></div><div class="stat-card">✅ Активных: <span>${activeCount}</span></div><div class="stat-card">🔨 Забаненных: <span>${bannedCount}</span></div><div class="stat-card">🏰 Кланов: <span>${totalClans}</span></div><div class="stat-card">⚔️ Общая мощь: <span>${totalPowerAll}</span></div><div class="stat-card">💰 В казне: <span>${treasuryTotal}₽</span></div><div class="stat-card">⚔️ Активных войн: <span>${activeWarsList.length}</span></div><div class="stat-card">⏳ Запланировано: <span>${pendingAttacks.length}</span></div></div>
+                <div class="filter-bar"><input type="text" id="filterInput" placeholder="🔍 Поиск по нику..." onkeyup="filterPlayers()" value="${escapeHtml(filterText)}"><button class="btn-blue" onclick="loadData()">🔄 Обновить</button><button class="btn-purple" onclick="changePassword()">🔑 Сменить пароль</button><button class="btn-cyan" onclick="addToTreasury()">💰 Добавить в общак</button></div>`;
+                
+                if (activeTab === 'players') {
+                    html += `<div class="view-toggle"><button class="view-btn ${playersViewMode==='cards'?'active':''}" onclick="setPlayersViewMode('cards')">📇 Карточки</button><button class="view-btn ${playersViewMode==='table'?'active':''}" onclick="setPlayersViewMode('table')">📋 Таблица</button></div>`;
+                    if (playersViewMode === 'cards') {
+                        html += `<div class="grid-view">`;
+                        for (const p of filtered) {
+                            let casteIcon = p.caste === 'Блатные' ? '👑' : (p.caste === 'Мужики' ? '🔨' : '🐑');
+                            const clanName = allClans.find(c=>c.id===p.clanId)?.name || (p.clanId ? p.clanId.substring(0,6) : '—');
+                            html += `<div class="player-card" style="${p.isBanned ? 'opacity:0.7; border:1px solid #dc3545' : ''}"><div class="player-card-header"><div><strong>${casteIcon} ${escapeHtml(p.username)}</strong> <span style="color:#aaa">(ур. ${p.level||1})</span></div><div><span class="status-badge ${p.isBanned?'status-banned':'status-active'}">${p.isBanned?'ЗАБАНЕН':'АКТИВЕН'}</span></div></div>
+                                <div class="player-stats-grid"><div>💪 ${p.stats?.strength||10}</div><div>🛡️ ${p.stats?.defense||5}</div><div>⚡ ${p.stats?.critical||5}%</div><div>⚔️ Мощь: ${p.power||0}</div><div>🏆 Авторитет: ${p.authority||0}</div><div>🚬 ${p.cigarettes||0}</div><div>💰 ${p.rubles||0}</div><div>🏰 Клан: ${clanName}</div><div>🎭 Каста: ${p.caste||'Фраер'}</div></div><div class="actions">`;
+                            if (!p.isBanned) html += `<select id="hours_${p.id}" style="width:70px; margin:0"><option value="0">Навсегда</option><option value="1">1 час</option><option value="24">1 день</option><option value="168">7 дней</option></select><input type="text" id="reason_${p.id}" placeholder="Причина" style="width:90px; margin:0"><button class="btn-red" onclick="banPlayer('${p.id}', document.getElementById('hours_${p.id}').value, document.getElementById('reason_${p.id}').value)">🔨 Бан</button>`;
+                            else html += `<button class="btn-green" onclick="unbanPlayer('${p.id}')">✅ Разбан</button>`;
+                            html += `<button class="btn-warning" onclick="resetPlayer('${p.id}')">🔄 Обнулить</button><button class="btn-cyan" onclick="addRublesToPlayer('${p.id}')">💰 +Рубли</button><button class="btn-cyan" onclick="addCigarettesToPlayer('${p.id}')">🚬 +Папиросы</button><button class="btn-purple" onclick="setPlayerCaste('${p.id}', '${p.caste||'Фраер'}')">👑 Сменить касту</button><button class="btn-blue" onclick="setPlayerLevel('${p.id}', ${p.level||1})">⭐ Изменить уровень</button><button class="btn-blue" onclick="deletePlayer('${p.id}')">🗑️ Удалить</button></div></div>`;
+                        }
+                        if (filtered.length === 0) html += `<div style="text-align:center; padding:20px; color:#aaa">Нет игроков</div>`;
+                        html += `</div>`;
+                    } else { 
+                        html += `<div class="table-container"><table><thead><tr><th>Ник</th><th>Уровень</th><th>Мощь</th><th>💰</th><th>🚬</th><th>Клан</th><th>Статус</th><th>Действия</th></tr></thead><tbody>`;
+                        for (const p of filtered) {
+                            html += `<tr><td>${escapeHtml(p.username)}</td><td>${p.level||1}</td><td>${p.power||0}</td><td>${p.rubles||0}</td><td>${p.cigarettes||0}</td><td>${allClans.find(c=>c.id===p.clanId)?.name||'—'}</td><td><span class="status-badge ${p.isBanned?'status-banned':'status-active'}">${p.isBanned?'Бан':'Активен'}</span></td><td class="actions"><button class="btn-red" onclick="banPlayer('${p.id}',0,'')">Бан</button><button class="btn-green" onclick="unbanPlayer('${p.id}')">Разбан</button><button class="btn-warning" onclick="resetPlayer('${p.id}')">Обнулить</button><button class="btn-blue" onclick="setPlayerLevel('${p.id}', ${p.level||1})">⭐ Уровень</button></td></tr>`;
+                        }
+                        html += `</tbody></table></div>`;
+                    }
+                } else if (activeTab === 'clans') {
+                    html += `<div class="view-toggle"><button class="view-btn ${clansViewMode==='cards'?'active':''}" onclick="setClansViewMode('cards')">📇 Карточки</button><button class="view-btn ${clansViewMode==='table'?'active':''}" onclick="setClansViewMode('table')">📋 Таблица</button></div>`;
+                    if (clansViewMode === 'cards') {
+                        html += `<div class="grid-view">`;
+                        for (const c of allClans) {
+                            const defenseActive = c.defenseUntil && c.defenseUntil > Date.now();
+                            const defenseTimeLeft = defenseActive ? c.defenseUntil - Date.now() : 0;
+                            html += `<div class="clan-card"><div class="player-card-header"><div><strong>🏰 ${escapeHtml(c.name)}</strong><br><span style="font-size:12px">Лидер: ${escapeHtml(c.leader)}</span></div><div>👥 ${c.members?.length||0}</div></div><div class="player-stats-grid"><div>⚔️ Мощь: ${c.totalPower||0}</div><div>🚬: ${c.totalCigarettes||0}</div><div>💰: ${c.totalRubles||0}</div><div>🛡️ ${defenseActive ? 'Активна' + formatDefenseTime(defenseTimeLeft) : 'Нет защиты'}</div></div></div>`;
+                        }
+                        html += `</div>`;
+                    } else { html += `<div class="table-container"><table><thead><tr><th>Название</th><th>Лидер</th><th>Участников</th><th>Мощь</th><th>🚬</th><th>💰</th><th>Защита</th></tr></thead><tbody>${allClans.map(c=>{ const defenseActive = c.defenseUntil && c.defenseUntil > Date.now(); const defenseTimeLeft = defenseActive ? c.defenseUntil - Date.now() : 0; return `<tr><td><strong>${escapeHtml(c.name)}</strong></td><td>${escapeHtml(c.leader)}</td><td>${c.members?.length||0}</td><td>${c.totalPower||0}</td><td>${c.totalCigarettes||0}</td><td>${c.totalRubles||0}</td><td>${defenseActive ? 'Активна' + formatDefenseTime(defenseTimeLeft) : '—'}</td></tr>`; }).join('')}</tbody></table></div>`; }
+                } else if (activeTab === 'wars') {
+                    html += `<div style="margin-bottom:15px"><button class="btn-warning" onclick="clearWarHistory()">🗑️ Очистить историю</button><button class="btn-blue" onclick="setWarsViewMode('cards')">📇 Карточки</button><button class="btn-blue" onclick="setWarsViewMode('table')">📋 Таблица</button></div>`;
+                    if (warsViewMode === 'cards') {
+                        html += `<div class="grid-view">`;
+                        // Исправлено: теперь каждая война отображается один раз
+                        const uniqueWars = [];
+                        const warMap = new Map();
+                        for (const w of warHistory.slice(0,50)) {
+                            const key = `${w.timestamp}-${w.attackerClanName}-${w.defenderClanName}`;
+                            if (!warMap.has(key)) {
+                                warMap.set(key, w);
+                                uniqueWars.push(w);
+                            }
+                        }
+                        for (const w of uniqueWars) {
+                            const isCancelled = w.cancelled;
+                            let resultClass = isCancelled ? 'cancelled' : (w.attackerWon ? 'won' : 'lost');
+                            let resultText = isCancelled ? `❌ ОТМЕНА: ${w.attackerClanName} → ${w.defenderClanName}` : (w.attackerWon ? `🏆 ${w.attackerClanName} победил` : `💀 ${w.defenderClanName} победил`);
+                            html += `<div class="war-card ${resultClass}"><div><strong>${new Date(w.timestamp).toLocaleString()}</strong></div><div>${resultText}</div>${!isCancelled ? `<div>📦 Украдено: 🚬 ${w.stolenCigarettes||0} | 💰 ${w.stolenRubles||0}</div>` : `<div style="color:#ffc107">⚠️ ${w.message||'Отменено'}</div>`}</div>`;
+                        }
+                        if (uniqueWars.length === 0) html += `<div style="text-align:center; padding:20px; color:#aaa">Нет записей о войнах</div>`;
+                        html += `</div>`;
+                    } else { 
+                        html += `<div class="table-container"><table><thead><tr><th>Дата</th><th>Атакующий</th><th>Защитник</th><th>Результат</th><th>Украдено</th></tr></thead><tbody>`;
+                        const uniqueWars = [];
+                        const warMap = new Map();
+                        for (const w of warHistory.slice(0,50)) {
+                            const key = `${w.timestamp}-${w.attackerClanName}-${w.defenderClanName}`;
+                            if (!warMap.has(key)) {
+                                warMap.set(key, w);
+                                uniqueWars.push(w);
+                            }
+                        }
+                        for (const w of uniqueWars) {
+                            html += `<tr><td>${new Date(w.timestamp).toLocaleString()}</td><td>${escapeHtml(w.attackerClanName)}</td><td>${escapeHtml(w.defenderClanName)}</td><td>${w.cancelled?'Отменена':(w.attackerWon?'Победа атаки':'Поражение')}</td><td>🚬${w.stolenCigarettes||0} 💰${w.stolenRubles||0}</td></tr>`;
+                        }
+                        html += `</tbody></tr></div>`;
+                    }
+                } else if (activeTab === 'pending') {
+                    html += `<div><h3>⚔️ Активные войны (в процессе)</h3>`;
+                    if (activeWarsList.length === 0) html += `<div style="background:#16213e; padding:15px; border-radius:10px; margin-bottom:20px">Нет активных войн</div>`;
+                    else for (const war of activeWarsList) {
+                        const remaining = (war.endTime || Date.now()+3600000) - Date.now();
+                        html += `<div class="active-war"><div><strong>⚔️ ${escapeHtml(war.attackerClanName)}</strong> атакует <strong>${escapeHtml(war.defenderClanName)}</strong></div><div>⏳ Осталось: ${formatTimeRemaining(remaining)}</div><div>📅 Начало: ${new Date(war.startTime).toLocaleString()}</div></div>`;
+                    }
+                    html += `<h3>⏳ Запланированные атаки</h3><div style="margin-bottom:15px"><button class="btn-warning" onclick="deleteAllScheduledAttacks()">🗑️ Удалить все</button></div>`;
+                    if (pendingAttacks.length === 0) html += `<div style="background:#16213e; padding:20px; border-radius:15px; text-align:center; color:#aaa">Нет запланированных атак</div>`;
+                    else for (const attack of pendingAttacks) {
+                        const remaining = attack.scheduledTime - Date.now();
+                        html += `<div class="pending-attack"><div><strong>🏰 ${escapeHtml(attack.attackerClanName)}</strong> → <strong>${escapeHtml(attack.defenderClanName)}</strong></div><div>⏰ Через: ${formatTimeRemaining(remaining)}</div><div>📅 ${new Date(attack.scheduledTime).toLocaleString()}</div><button class="btn-red" onclick="cancelPendingAttack('${attack.id}')">❌ Отменить</button></div>`;
+                    }
+                } else if (activeTab === 'treasury') {
+                    html += `<div class="stats-panel"><button class="btn-gold" onclick="rewardClans()">🏆 Наградить топ-5 кланов</button></div><div class="grid-view">`;
+                    for (const h of treasuryHistory) {
+                        if (h.type === 'reward') html += `<div class="treasury-card" style="background:#2c3e50"><div><strong>🏆 НАГРАЖДЕНИЕ КЛАНОВ</strong></div><div>💰 Сумма: ${h.totalDistributed}₽</div><div>📅 ${new Date(h.timestamp).toLocaleString()}</div></div>`;
+                        else if (h.type === 'admin_add') html += `<div class="treasury-card"><div><strong>💰 Администратор</strong> <span style="color:#aaa">(Система)</span></div><div>➕ Пополнение: +${h.amount}₽</div><div>📅 ${new Date(h.timestamp).toLocaleString()}</div></div>`;
+                        else if (h.type === 'player_donate') html += `<div class="treasury-card"><div><strong>👤 ${escapeHtml(h.playerName || 'Игрок')}</strong> <span style="color:#aaa">(Клан: ${escapeHtml(h.clanName || '—')})</span></div><div>📦 Скинул в общак: ${h.amount}₽</div><div>📅 ${new Date(h.timestamp).toLocaleString()}</div></div>`;
+                        else html += `<div class="treasury-card"><div><strong>📝 ${h.type || 'Запись'}</strong></div><div>💰 Сумма: ${h.amount||h.totalDistributed||'?'}</div><div>📅 ${new Date(h.timestamp).toLocaleString()}</div></div>`;
+                    }
+                    if (treasuryHistory.length===0) html += `<div style="text-align:center;padding:20px;color:#aaa">Нет записей о пополнениях</div>`;
+                    html += `</div>`;
+                } else if (activeTab === 'shop') {
+                    const categories = {all:'📦 Все товары', weapon:'🔪 Оружие', armor:'👕 Одежда', accessory:'💍 Аксессуары', tattoos:'💉 Наколки', consumables:'🍺 Расходники'};
+                    html += `<div style="margin-bottom:20px"><button class="btn-green" onclick="addShopItem()">➕ Добавить предмет</button></div>`;
+                    html += `<div class="category-filter">`;
+                    for (const [key, label] of Object.entries(categories)) {
+                        html += `<button class="cat-btn ${shopCategory===key?'active':''}" onclick="setShopCategory('${key}')">${label}</button>`;
+                    }
+                    html += `</div><div class="grid-view">`;
+                    const filteredItems = shopCategory === 'all' ? shopItems : shopItems.filter(i=>i.category===shopCategory);
+                    if (filteredItems.length === 0) {
+                        html += `<div style="text-align:center; padding:40px; background:#16213e; border-radius:15px; color:#aaa">Нет товаров в этой категории</div>`;
+                    } else {
+                        for (let i=0; i<filteredItems.length; i++) {
+                            const item = filteredItems[i];
+                            const origIndex = shopItems.findIndex(si=>si.id===item.id);
+                            const categoryName = categories[item.category] || item.category;
+                            html += `<div class="shop-item-card">
+                                <div class="shop-header">
+                                    <div><strong>${categoryName}</strong><br><span style="font-size:18px">${escapeHtml(item.name)}</span></div>
+                                    <button class="btn-red" onclick="deleteShopItem(${origIndex})">🗑️ Удалить</button>
+                                </div>
+                                ${item.imageUrl ? `<div style="text-align:center; margin-bottom:10px"><img src="${escapeHtml(item.imageUrl)}" class="item-preview-img" onerror="this.style.display='none'" alt="Превью"></div>` : ''}
+                                <div><label>🖼️ URL картинки:</label> <input id="shop_image_${origIndex}" value="${escapeHtml(item.imageUrl || '')}" placeholder="https://example.com/image.png"></div>
+                                <div><label>📝 Название:</label> <input id="shop_name_${origIndex}" value="${escapeHtml(item.name)}" placeholder="Название"></div>
+                                <div><label>📖 Описание:</label> <input id="shop_desc_${origIndex}" value="${escapeHtml(item.desc)}" placeholder="Описание"></div>
+                                <div style="display:flex; gap:15px; flex-wrap:wrap">
+                                    <div><label>💰 Цена:</label> <input id="shop_price_${origIndex}" type="number" value="${item.price}" style="width:100px"></div>
+                                    <div><label>💱 Валюта:</label> <select id="shop_currency_${origIndex}"><option value="cigarettes" ${item.currency==='cigarettes'?'selected':''}>🚬 Папиросы</option><option value="rubles" ${item.currency==='rubles'?'selected':''}>💰 Рубли</option></select></div>
+                                    <div><label>📂 Категория:</label> <select id="shop_category_${origIndex}"><option value="weapon" ${item.category==='weapon'?'selected':''}>🔪 Оружие</option><option value="armor" ${item.category==='armor'?'selected':''}>👕 Одежда</option><option value="accessory" ${item.category==='accessory'?'selected':''}>💍 Аксессуар</option><option value="tattoos" ${item.category==='tattoos'?'selected':''}>💉 Наколки</option><option value="consumables" ${item.category==='consumables'?'selected':''}>🍺 Расходники</option></select></div>
+                                </div>
+                                ${item.type==='equipment' ? `<div style="display:flex; gap:15px; flex-wrap:wrap; margin-top:10px">
+                                    <div><label>⚙️ Слот:</label> <select id="shop_slot_${origIndex}"><option value="weapon" ${item.slot==='weapon'?'selected':''}>Оружие</option><option value="armor" ${item.slot==='armor'?'selected':''}>Одежда</option><option value="accessory" ${item.slot==='accessory'?'selected':''}>Аксессуар</option></select></div>
+                                    <div><label>📊 Стат:</label> <select id="shop_stat_${origIndex}"><option value="strength" ${item.stat==='strength'?'selected':''}>💪 Сила</option><option value="defense" ${item.stat==='defense'?'selected':''}>🛡️ Защита</option><option value="critical" ${item.stat==='critical'?'selected':''}>⚡ Крит</option></select></div>
+                                    <div><label>➕ Бонус:</label> <input id="shop_bonus_${origIndex}" type="number" value="${item.bonus||0}" style="width:80px"></div>
+                                </div>` : ''}
+                                ${item.type==='consumable' ? `<div style="display:flex; gap:15px; flex-wrap:wrap; margin-top:10px">
+                                    <div><label>⚡ Восст. энергии:</label> <input id="shop_energy_${origIndex}" type="number" value="${item.energyRestore||0}" style="width:80px"></div>
+                                    <div><label>🚬 +папирос:</label> <input id="shop_cigarettes_${origIndex}" type="number" value="${item.cigarettesGain||0}" style="width:80px"></div>
+                                </div>` : ''}
+                                <button class="save-btn" onclick="saveShopItem(${origIndex})">💾 Сохранить изменения</button>
+                                <div style="margin-top:10px; padding-top:10px; border-top:1px solid #333; color:#aaa; font-size:12px">📌 ${item.name} — ${item.price} ${item.currency==='cigarettes'?'🚬':'💰'}</div>
+                            </div>`;
+                        }
+                    }
+                    html += `</div>`;
+                } else if (activeTab === 'quests') {
+                    html += `<div style="margin-bottom:20px"><button class="btn-green" onclick="addQuest('daily')">➕ Добавить ежедневное</button><button class="btn-purple" onclick="addQuest('premium')">⭐ Добавить премиум</button></div>`;
+                    html += `<h2>📅 Ежедневные задания</h2><div class="grid-view">`;
+                    for (let i=0; i<dailyQuests.length; i++) {
+                        const q = dailyQuests[i];
+                        html += `<div class="quest-card">
+                            <div class="quest-header"><strong>${escapeHtml(q.title)}</strong><button class="btn-red" onclick="deleteQuest('daily',${i})">🗑️ Удалить</button></div>
+                            <div><label>📝 Название:</label> <input id="daily_title_${i}" value="${escapeHtml(q.title)}"></div>
+                            <div><label>📖 Описание:</label> <input id="daily_desc_${i}" value="${escapeHtml(q.description)}"></div>
+                            <div style="display:flex; gap:15px; flex-wrap:wrap">
+                                <div><label>🎯 Требование:</label> <input id="daily_req_${i}" type="number" value="${q.requirement}" style="width:100px"></div>
+                                <div><label>🎁 Награда:</label> <input id="daily_reward_${i}" type="number" value="${q.reward}" style="width:100px"></div>
+                                <div><label>💱 Тип:</label> <select id="daily_type_${i}"><option value="cigarettes" ${q.type==='cigarettes'?'selected':''}>🚬 Папиросы</option><option value="rubles" ${q.type==='rubles'?'selected':''}>💰 Рубли</option></select></div>
+                            </div>
+                            <button class="save-btn" onclick="saveDailyQuest(${i})">💾 Сохранить</button>
+                        </div>`;
+                    }
+                    if (dailyQuests.length === 0) html += `<div style="text-align:center; padding:40px; background:#16213e; border-radius:15px; color:#aaa">Нет ежедневных заданий</div>`;
+                    html += `</div><h2>⭐ Премиум задания</h2><div class="grid-view">`;
+                    for (let i=0; i<premiumQuests.length; i++) {
+                        const q = premiumQuests[i];
+                        html += `<div class="quest-card">
+                            <div class="quest-header"><strong>${escapeHtml(q.title)}</strong><button class="btn-red" onclick="deleteQuest('premium',${i})">🗑️ Удалить</button></div>
+                            <div><label>📝 Название:</label> <input id="premium_title_${i}" value="${escapeHtml(q.title)}"></div>
+                            <div><label>📖 Описание:</label> <input id="premium_desc_${i}" value="${escapeHtml(q.description)}"></div>
+                            <div style="display:flex; gap:15px; flex-wrap:wrap">
+                                <div><label>🎯 Требование:</label> <input id="premium_req_${i}" type="number" value="${q.requirement}" style="width:100px"></div>
+                                <div><label>🎁 Награда:</label> <input id="premium_reward_${i}" type="number" value="${q.reward}" style="width:100px"></div>
+                                <div><label>💱 Тип:</label> <select id="premium_type_${i}"><option value="cigarettes" ${q.type==='cigarettes'?'selected':''}>🚬 Папиросы</option><option value="rubles" ${q.type==='rubles'?'selected':''}>💰 Рубли</option></select></div>
+                            </div>
+                            <button class="save-btn" onclick="savePremiumQuest(${i})">💾 Сохранить</button>
+                        </div>`;
+                    }
+                    if (premiumQuests.length === 0) html += `<div style="text-align:center; padding:40px; background:#16213e; border-radius:15px; color:#aaa">Нет премиум заданий</div>`;
+                    html += `</div>`;
+                } else if (activeTab === 'tips') {
+                    html += `<div><button class="btn-green" onclick="addTip()">➕ Добавить подсказку</button></div><div class="grid-view">${gameTips.map((tip,i)=>`<div class="pending-attack" style="background:#0f3460"><div>💡 ${escapeHtml(tip)}</div><button class="btn-red" onclick="deleteTip(${i})">🗑️ Удалить</button></div>`).join('')}</div>`;
+                } else if (activeTab === 'settings') {
+                    html += `<div class="settings-card"><h3>⚙️ Настройки игры</h3>
+                    <div><label>⏱️ Интервал атак (часы):</label><input type="number" id="attackCooldown" value="${attackCooldownHours}"><button class="btn-green" onclick="saveCooldownSettings()">Сохранить</button></div>
+                    <div><label>⚔️ Длительность войны (часы):</label><input type="number" id="warDuration" value="${warDurationHours}"><button class="btn-green" onclick="saveWarDuration()">Сохранить</button></div>
+                    <div><label>🏰 Стоимость создания клана (🚬):</label><input type="number" id="clanCost" value="${clanCreationCost}"><button class="btn-green" onclick="saveClanCost()">Сохранить</button></div>
+                    <div><label>👥 Максимум игроков в клане:</label><input type="number" id="clanMaxMembers" value="${clanMaxMembers}" min="1" max="100"><button class="btn-green" onclick="saveClanMaxMembers()">Сохранить</button></div>
+                    <hr>
+                    <div><label>🎴 Стоимость игры в карты (🚬):</label><input type="number" id="cardGameCost" value="${cardGameCost}" min="50" max="5000"><button class="btn-green" onclick="saveCardGameCost()">Сохранить</button><p style="font-size:12px; color:#aaa; margin-top:5px">Стоимость одной игры в папиросах (по умолчанию 200)</p></div>
+                    <hr>
+                    <div style="margin:15px 0"><h3>💾 Импорт/Экспорт базы данных</h3><button class="btn-cyan" onclick="exportDatabase()">📤 Экспорт БД в JSON</button><button class="btn-purple" onclick="importDatabase()">📥 Импорт БД из JSON (заменит всё!)</button><p style="font-size:12px; color:#aaa; margin-top:5px">Экспорт сохраняет всех игроков, кланы, историю, магазин, задания и настройки</p></div>
+                    <hr>
+                    <h3>🔧 Техобслуживание</h3><div><input type="text" id="maintenanceMessage" value="${escapeHtml(maintenanceMessage)}" placeholder="Сообщение"><button class="btn-warning" onclick="setMaintenanceMode(true, document.getElementById('maintenanceMessage').value)">ВКЛЮЧИТЬ</button><button class="btn-green" onclick="setMaintenanceMode(false, '')">ВЫКЛЮЧИТЬ</button></div><hr>
+                    <h3 style="color:#dc3545">⚠️ Опасные действия</h3><button class="btn-purple" style="background:#dc3545" onclick="resetAllPlayers()">🔄 ОБНУЛИТЬ ВСЕХ</button><button class="btn-purple" style="background:#dc3545" onclick="deleteAllPlayers()">🗑️ УДАЛИТЬ ВСЕХ</button><button class="btn-purple" style="background:#8b0000" onclick="fullGameReset()">💀 ПОЛНЫЙ СБРОС</button></div>`;
+                }
+                html += `</div></div>`;
+                document.getElementById('app').innerHTML = html;
+                document.getElementById('menuToggle') && (document.getElementById('menuToggle').style.display = window.innerWidth < 768 ? 'block' : 'none');
+            });
+        }
+        
+        window.saveShopItem = async function(index) {
+            const imageUrl = document.getElementById(`shop_image_${index}`)?.value;
+            const name = document.getElementById(`shop_name_${index}`)?.value;
+            const desc = document.getElementById(`shop_desc_${index}`)?.value;
+            const price = parseInt(document.getElementById(`shop_price_${index}`)?.value);
+            const currency = document.getElementById(`shop_currency_${index}`)?.value;
+            const category = document.getElementById(`shop_category_${index}`)?.value;
+            if (name && price) {
+                shopItems[index].imageUrl = imageUrl || '';
+                shopItems[index].name = name;
+                shopItems[index].desc = desc;
+                shopItems[index].price = price;
+                shopItems[index].currency = currency;
+                shopItems[index].category = category;
+                if (shopItems[index].type === 'equipment') {
+                    const slot = document.getElementById(`shop_slot_${index}`)?.value;
+                    const stat = document.getElementById(`shop_stat_${index}`)?.value;
+                    const bonus = parseInt(document.getElementById(`shop_bonus_${index}`)?.value);
+                    if (slot) shopItems[index].slot = slot;
+                    if (stat) shopItems[index].stat = stat;
+                    if (bonus) shopItems[index].bonus = bonus;
+                }
+                if (shopItems[index].type === 'consumable') {
+                    const energyRestore = parseInt(document.getElementById(`shop_energy_${index}`)?.value);
+                    const cigarettesGain = parseInt(document.getElementById(`shop_cigarettes_${index}`)?.value);
+                    if (energyRestore) shopItems[index].energyRestore = energyRestore;
+                    if (cigarettesGain) shopItems[index].cigarettesGain = cigarettesGain;
+                }
+                await saveShopItems();
+                alert('Товар сохранен!');
+                renderAdminPanel();
+            }
+        };
+        
+        window.saveDailyQuest = async function(index) {
+            const title = document.getElementById(`daily_title_${index}`)?.value;
+            const description = document.getElementById(`daily_desc_${index}`)?.value;
+            const requirement = parseInt(document.getElementById(`daily_req_${index}`)?.value);
+            const reward = parseInt(document.getElementById(`daily_reward_${index}`)?.value);
+            const type = document.getElementById(`daily_type_${index}`)?.value;
+            if (title && requirement && reward) {
+                dailyQuests[index].title = title;
+                dailyQuests[index].description = description;
+                dailyQuests[index].requirement = requirement;
+                dailyQuests[index].reward = reward;
+                dailyQuests[index].type = type;
+                await saveQuests();
+                alert('Задание сохранено!');
+                renderAdminPanel();
+            }
+        };
+        
+        window.savePremiumQuest = async function(index) {
+            const title = document.getElementById(`premium_title_${index}`)?.value;
+            const description = document.getElementById(`premium_desc_${index}`)?.value;
+            const requirement = parseInt(document.getElementById(`premium_req_${index}`)?.value);
+            const reward = parseInt(document.getElementById(`premium_reward_${index}`)?.value);
+            const type = document.getElementById(`premium_type_${index}`)?.value;
+            if (title && requirement && reward) {
+                premiumQuests[index].title = title;
+                premiumQuests[index].description = description;
+                premiumQuests[index].requirement = requirement;
+                premiumQuests[index].reward = reward;
+                premiumQuests[index].type = type;
+                await saveQuests();
+                alert('Задание сохранено!');
+                renderAdminPanel();
+            }
+        };
+        
+        async function saveCooldownSettings() { const val = parseInt(document.getElementById('attackCooldown')?.value); if(val>0){ attackCooldownHours=val; await saveGameSettings(); renderAdminPanel(); } }
+        async function saveWarDuration() { const val = parseInt(document.getElementById('warDuration')?.value); if(val>0){ warDurationHours=val; await saveGameSettings(); renderAdminPanel(); } }
+        async function saveClanCost() { const val = parseInt(document.getElementById('clanCost')?.value); if(val>=100){ clanCreationCost=val; await saveGameSettings(); renderAdminPanel(); } }
+        async function saveClanMaxMembers() { const val = parseInt(document.getElementById('clanMaxMembers')?.value); if(val>0 && val<=100){ clanMaxMembers=val; await saveGameSettings(); renderAdminPanel(); } else { alert('Значение должно быть от 1 до 100'); } }
+        function escapeHtml(t) { if(!t) return ''; const div = document.createElement('div'); div.textContent = t; return div.innerHTML; }
+        function filterPlayers() { filterText = document.getElementById('filterInput')?.value || ''; renderAdminPanel(); }
+        function setTab(tab) { activeTab = tab; renderAdminPanel(); }
+        function setPlayersViewMode(m) { playersViewMode=m; renderAdminPanel(); }
+        function setClansViewMode(m) { clansViewMode=m; renderAdminPanel(); }
+        function setWarsViewMode(m) { warsViewMode=m; renderAdminPanel(); }
+        function setShopCategory(c) { shopCategory=c; renderAdminPanel(); }
+        
+        document.getElementById('app').innerHTML = `<div class="login-box"><h1>🔐 Админ-панель</h1><input type="password" id="adminPass" placeholder="Пароль"><button onclick="loginAdmin()" class="btn-red">Войти</button><p style="margin-top:15px;font-size:12px;color:#888">Пароль: admin123</p></div>`;
+        
+        window.banPlayer=banPlayer; window.unbanPlayer=unbanPlayer; window.resetPlayer=resetPlayer; window.deletePlayer=deletePlayer; window.filterPlayers=filterPlayers; window.setTab=setTab;
+        window.setPlayersViewMode=setPlayersViewMode; window.setClansViewMode=setClansViewMode; window.setWarsViewMode=setWarsViewMode; window.setShopCategory=setShopCategory;
+        window.rewardClans=rewardClans; window.cancelPendingAttack=cancelPendingAttack; window.clearWarHistory=clearWarHistory; window.deleteAllScheduledAttacks=deleteAllScheduledAttacks;
+        window.addQuest=addQuest; window.updateQuest=updateQuest; window.deleteQuest=deleteQuest; window.addShopItem=addShopItem; window.updateShopItem=updateShopItem; window.deleteShopItem=deleteShopItem;
+        window.saveCooldownSettings=saveCooldownSettings; window.saveWarDuration=saveWarDuration; window.saveClanCost=saveClanCost; window.saveClanMaxMembers=saveClanMaxMembers; window.saveCardGameCost=saveCardGameCost;
+        window.addRublesToPlayer=addRublesToPlayer; window.addCigarettesToPlayer=addCigarettesToPlayer; window.setPlayerCaste=setPlayerCaste; window.setPlayerLevel=setPlayerLevel;
+        window.addToTreasury=addToTreasury; window.addTip=addTip; window.deleteTip=deleteTip; window.resetAllPlayers=resetAllPlayers; window.deleteAllPlayers=deleteAllPlayers; window.setMaintenanceMode=setMaintenanceMode; window.fullGameReset=fullGameReset;
+        window.saveShopItem = window.saveShopItem; window.saveDailyQuest = window.saveDailyQuest; window.savePremiumQuest = window.savePremiumQuest;
+        window.exportDatabase = exportDatabase; window.importDatabase = importDatabase;
+    </script>
+</body>
+</html>
