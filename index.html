@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Тюрьма 1.0.0.172 - Карта зоны</title>
+    <title>Тюрьма 1.0.0.173 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -1559,7 +1559,7 @@
                 <img class="loading-logo" src="https://sviter-pro.github.io/GameZone/src/test/logo124.png" alt="Тюряга 2.0" onerror="this.src='https://via.placeholder.com/180x180?text=Тюряга+2.0'">
                 <div class="loading-spinner-new"></div>
                 <div class="loading-tip-new" id="loadingTipNew">⚡ Загрузка игрового мира...</div>
-                <div class="loading-version">Тюряга 1.0.0.172 | Зона ждет</div>
+                <div class="loading-version">Тюряга 1.0.0.173 | Зона ждет</div>
             </div>
         `;
         const tipEl = document.getElementById('loadingTipNew');
@@ -1609,24 +1609,29 @@
     
         // Функция обновления бейджа уведомлений на кнопке "Клан"
         function updateClanNotificationBadge() {
+    // Добавляем задержку и проверку, чтобы избежать ошибки при обновлении DOM
+    setTimeout(() => {
         const clanBtn = document.querySelector('.nav-btn[onclick*="switchBottomTab(\'clan\')"]');
-        if (clanBtn) {
-            const existingBadge = clanBtn.querySelector('.badge-count');
-            if (clanQuestReadyCount > 0) {
-                if (existingBadge) {
-                    existingBadge.textContent = clanQuestReadyCount;
-                } else {
-                    const badge = document.createElement('span');
-                    badge.className = 'badge-count';
-                    badge.textContent = clanQuestReadyCount;
-                    clanBtn.style.position = 'relative';
-                    clanBtn.appendChild(badge);
-                }
-            } else if (existingBadge) {
-                existingBadge.remove();
+        if (!clanBtn) return; // Если кнопки нет - выходим
+        
+        const existingBadge = clanBtn.querySelector('.badge-count');
+        
+        if (clanQuestReadyCount > 0) {
+            if (existingBadge) {
+                existingBadge.textContent = clanQuestReadyCount;
+                existingBadge.style.display = 'flex'; // Убедимся что бейдж виден
+            } else {
+                const badge = document.createElement('span');
+                badge.className = 'badge-count';
+                badge.textContent = clanQuestReadyCount;
+                clanBtn.style.position = 'relative';
+                clanBtn.appendChild(badge);
             }
+        } else if (existingBadge) {
+            existingBadge.remove();
         }
-    }
+    }, 10); // Небольшая задержка для безопасности
+}
     
     // Функция обновления бейджа уведомлений на кнопке "Задания"
     function updateQuestsNotificationBadge() {
@@ -4326,32 +4331,46 @@
     }
     
     function checkClanQuestsReady() {
-        let readyCount = 0;
-        const now = Date.now();
-        for (let i = 0; i < clanQuests.length; i++) {
-            const quest = clanQuests[i];
-            // Задание готово к выдаче, если время вышло и оно ещё не получено
-            if (quest.startTime > 0 && !quest.ready && !quest.claimed) {
-                const endTime = quest.startTime + (quest.hours * 60 * 60 * 1000);
-                if (now >= endTime) {
-                    if (!quest.ready) {
-                        quest.ready = true;
-                        readyCount++;
-                        saveClanQuests();
-                        if (settingsNotifications) {
-                            sendTelegramNotification(`🏆 В клане выполнено задание на ${quest.hours} час(а)! Забери награду!`);
-                        }
-                    } else {
-                        readyCount++;
+    let readyCount = 0;
+    const now = Date.now();
+    let changed = false;
+    
+    for (let i = 0; i < clanQuests.length; i++) {
+        const quest = clanQuests[i];
+        if (quest.startTime > 0 && !quest.ready && !quest.claimed) {
+            const endTime = quest.startTime + (quest.hours * 60 * 60 * 1000);
+            if (now >= endTime) {
+                if (!quest.ready) {
+                    quest.ready = true;
+                    readyCount++;
+                    changed = true;
+                    saveClanQuests();
+                    if (settingsNotifications) {
+                        sendTelegramNotification(`🏆 В клане выполнено задание на ${quest.hours} час(а)! Забери награду!`);
                     }
+                } else {
+                    readyCount++;
                 }
-            } else if (quest.ready && !quest.claimed) {
-                // Уже готовое и не полученное задание
-                readyCount++;
             }
+        } else if (quest.ready && !quest.claimed) {
+            readyCount++;
         }
-        return readyCount;
     }
+    
+    // Обновляем глобальный счетчик
+    const oldCount = clanQuestReadyCount;
+    clanQuestReadyCount = readyCount;
+    
+    // Обновляем бейдж ТОЛЬКО если изменилось значение И игра активна
+    if (changed || oldCount !== readyCount) {
+        // Проверяем, что приложение ещё не закрыто и есть currentPlayer
+        if (currentPlayer && document.getElementById('app')) {
+            updateClanNotificationBadge();
+        }
+    }
+    
+    return readyCount;
+}
     
         async function claimClanQuestInternal(questId, clanLevel) {
         const quest = clanQuests.find(q => q.id === questId);
@@ -4409,7 +4428,11 @@
             
             // Обновляем счетчик готовых заданий
             clanQuestReadyCount = checkClanQuestsReady();
-            updateClanNotificationBadge();
+    
+			// Безопасное обновление бейджа
+			if (currentPlayer && document.getElementById('app')) {
+				updateClanNotificationBadge();
+			}
             
             if (document.getElementById('clanFullscreen') && currentClanTab === 'quests') {
                 renderClanQuestsHTML(clanLevel);
