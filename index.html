@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Тюрьма 1.0.0.167 - Карта зоны</title>
+    <title>Тюрьма 1.0.0.168 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -1442,6 +1442,18 @@
     let currentClanTab = 'info';
     let clanQuestReadyCount = 0;
 	
+	    // ========== ГЛОБАЛЬНЫЕ ФУНКЦИИ ДЛЯ HTML ==========
+    window.switchGangTab = function(tab) { currentGangTab = tab; renderGangModal(); };
+    window.handleGangSubTouchStart = function(e) { gangSubTouchStartX = e.changedTouches[0].screenX; };
+    window.handleGangSubTouchEnd = function(e) { 
+        gangSubTouchEndX = e.changedTouches[0].screenX;
+        const diff = gangSubTouchStartX - gangSubTouchEndX;
+        if (Math.abs(diff) < 50) return;
+        if (diff > 0 && currentGangTab === 'recruit') window.switchGangTab('upgrade');
+        if (diff < 0 && currentGangTab === 'upgrade') window.switchGangTab('recruit');
+    };
+    
+	
 	    // ========== ФУНКЦИЯ ДЛЯ ПРОВЕРКИ ЗАВЕРШЕННЫХ ЗАДАНИЙ ==========
     function checkQuestsCompletion() {
         if (!currentPlayer) return 0;
@@ -1908,9 +1920,9 @@
                     <div class="profile-card">
                         <h3 style="margin-bottom:10px;">👥 МОЯ БАНДА</h3>
                         <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px; text-align:center;">
-                            <div><span style="font-size:20px;">👑</span><br>Блатные<br><strong>${gang.blats.fighters || 0} 👥</strong><br><small>ур.${gang.blats.level}</small><br><span style="font-size:10px;">+${blatsGain} в час</span></div>
-                            <div><span style="font-size:20px;">🔨</span><br>Мужики<br><strong>${gang.muzhiks.fighters || 0} 👥</strong><br><small>ур.${gang.muzhiks.level}</small><br><span style="font-size:10px;">+${muzhiksGain} в час</span></div>
-                            <div><span style="font-size:20px;">🐑</span><br>Фраера<br><strong>${gang.fraers.fighters || 0} 👥</strong><br><small>ур.${gang.fraers.level}</small><br><span style="font-size:10px;">+${fraersGain} в час</span></div>
+                            <div><span style="font-size:20px;">👑</span><br>Блатные<br><strong>${gang.blats.fighters || 0} 👥</strong><br><small>ур.${gang.blats.level}</small></div>
+                            <div><span style="font-size:20px;">🔨</span><br>Мужики<br><strong>${gang.muzhiks.fighters || 0} 👥</strong><br><small>ур.${gang.muzhiks.level}</small></div>
+                            <div><span style="font-size:20px;">🐑</span><br>Фраера<br><strong>${gang.fraers.fighters || 0} 👥</strong><br><small>ур.${gang.fraers.level}</small></div>
                         </div>
                     </div>
                     <div class="profile-card">
@@ -5367,28 +5379,156 @@
         }
     }
 
-    // Функция получения стоимости найма в зависимости от типа и уровня (все три ресурса)
+        // ========== НОВАЯ СИСТЕМА СИЗО (ПОЛНОСТЬЮ ПЕРЕПИСАННАЯ) ==========
+    
+    // Получение количества добавляемых зеков за вербовку (уровень = количество)
+    function getRecruitGain(type) {
+        const level = currentPlayer.gang[type].level;
+        return level; // 1 ур = +1 зек, 2 ур = +2 зека
+    }
+    
+    // Получение стоимости улучшения банды
+    function getUpgradeCost(type) {
+        const level = currentPlayer.gang[type].level;
+        let woodCost = 50 * level;
+        let stoneCost = 30 * level;
+        let cigarettesCost = 0;
+        if (level >= 10) {
+            cigarettesCost = 100 * (level - 9);
+        }
+        return { wood: woodCost, stone: stoneCost, cigarettes: cigarettesCost };
+    }
+    
+    // Получение стоимости найма
     function getRecruitCost(type) {
         const level = currentPlayer.gang[type].level;
         let cigarettesCost = 0, woodCost = 0, stoneCost = 0;
-        
         if (type === 'blats') {
-            cigarettesCost = 50 + (level - 1) * 25;
-            woodCost = 20 + (level - 1) * 10;
-            stoneCost = 15 + (level - 1) * 8;
+            cigarettesCost = 25 + (level - 1) * 5;
+            woodCost = 10 + (level - 1) * 3;
+            stoneCost = 8 + (level - 1) * 2;
         } else if (type === 'muzhiks') {
-            cigarettesCost = 30 + (level - 1) * 15;
-            woodCost = 40 + (level - 1) * 20;
-            stoneCost = 20 + (level - 1) * 10;
+            cigarettesCost = 15 + (level - 1) * 3;
+            woodCost = 20 + (level - 1) * 5;
+            stoneCost = 10 + (level - 1) * 2;
         } else {
-            cigarettesCost = 25 + (level - 1) * 12;
-            woodCost = 15 + (level - 1) * 8;
-            stoneCost = 35 + (level - 1) * 18;
+            cigarettesCost = 12 + (level - 1) * 2;
+            woodCost = 8 + (level - 1) * 2;
+            stoneCost = 18 + (level - 1) * 4;
         }
-        
         return { cigarettes: cigarettesCost, wood: woodCost, stone: stoneCost };
     }
-
+    
+    // Проверка активна ли прокачка
+    function isUpgradeActive(gangType) {
+        const upgradeStart = currentPlayer.gang[gangType].upgradeStartTime || 0;
+        const upgradeDuration = currentPlayer.gang[gangType].upgradeDuration || 0;
+        if (upgradeStart === 0 || upgradeDuration === 0) return false;
+        const elapsed = Date.now() - upgradeStart;
+        return elapsed < upgradeDuration;
+    }
+    
+    // Оставшееся время прокачки
+    function getUpgradeRemaining(gangType) {
+        const upgradeStart = currentPlayer.gang[gangType].upgradeStartTime || 0;
+        const upgradeDuration = currentPlayer.gang[gangType].upgradeDuration || 0;
+        if (upgradeStart === 0 || upgradeDuration === 0) return 0;
+        const elapsed = Date.now() - upgradeStart;
+        return Math.max(0, upgradeDuration - elapsed);
+    }
+    
+    // ЗАВЕРШЕНИЕ ПРОКАЧКИ - ПОВЫШАЕТ УРОВЕНЬ БАНДЫ И ИГРОКА
+    async function checkAndCompleteUpgrade(gangType) {
+        if (!currentPlayer) return false;
+        
+        const upgradeStart = currentPlayer.gang[gangType].upgradeStartTime || 0;
+        const upgradeDuration = currentPlayer.gang[gangType].upgradeDuration || 0;
+        
+        // Если нет активной прокачки - выходим
+        if (upgradeStart === 0 || upgradeDuration === 0) return false;
+        
+        const elapsed = Date.now() - upgradeStart;
+        const remaining = upgradeDuration - elapsed;
+        
+        console.log(`Проверка ${gangType}: осталось ${Math.floor(remaining/1000)} сек, активно: ${remaining > 0}`);
+        
+        // Если время вышло
+        if (remaining <= 0) {
+            const oldLevel = currentPlayer.gang[gangType].level;
+            const newLevel = oldLevel + 1;
+            
+            console.log(`🟢 ЗАВЕРШАЕМ ПРОКАЧКУ ${gangType}: ${oldLevel} -> ${newLevel}`);
+            
+            try {
+                // Обновляем банду
+                await playerDocRef.update({
+                    [`gang.${gangType}.level`]: newLevel,
+                    [`gang.${gangType}.upgradeStartTime`]: 0,
+                    [`gang.${gangType}.upgradeDuration`]: 0
+                });
+                currentPlayer.gang[gangType].level = newLevel;
+                currentPlayer.gang[gangType].upgradeStartTime = 0;
+                currentPlayer.gang[gangType].upgradeDuration = 0;
+                
+                // Повышаем уровень игрока
+                const newPlayerLevel = currentPlayer.level + 1;
+                const newMaxEnergy = currentPlayer.maxEnergy + 5;
+                const newStrength = currentPlayer.stats.strength + 3;
+                const newDefense = currentPlayer.stats.defense + 2;
+                
+                await playerDocRef.update({
+                    level: newPlayerLevel,
+                    maxEnergy: newMaxEnergy,
+                    'stats.strength': newStrength,
+                    'stats.defense': newDefense
+                });
+                currentPlayer.level = newPlayerLevel;
+                currentPlayer.maxEnergy = newMaxEnergy;
+                currentPlayer.stats.strength = newStrength;
+                currentPlayer.stats.defense = newDefense;
+                
+                const typeName = gangType === 'blats' ? 'Блатные' : (gangType === 'muzhiks' ? 'Мужики' : 'Фраера');
+                showToast(`✅ ${typeName} улучшены до ${newLevel} уровня! Ваш уровень повышен до ${newPlayerLevel}!`, 'success');
+                
+                if (document.getElementById('gangFullscreen')) {
+                    renderGangModal();
+                }
+                renderUI();
+                return true;
+            } catch(e) {
+                console.error('Ошибка:', e);
+                showToast('Ошибка при завершении прокачки!', 'error');
+            }
+        }
+        return false;
+    }
+    
+    function getRecruitRemaining(gangType) {
+        const lastGather = currentPlayer.gang[gangType].lastGatherTime || 0;
+        let cooldownMs = 2 * 60 * 1000; // 2 минуты база
+        // Увеличиваем время с каждым уровнем на 5%
+        cooldownMs = Math.floor(cooldownMs * (1 + (currentPlayer.gang[gangType].level - 1) * 0.05));
+        const remaining = cooldownMs - (Date.now() - lastGather);
+        return Math.max(0, remaining);
+    }
+    
+    // Можно ли нанимать
+    function canRecruit(type) {
+        if (isUpgradeActive(type)) return false;
+        return getRecruitRemaining(type) <= 0;
+    }
+    
+    function canUpgrade(type) {
+        // Проверяем, не идет ли прокачка
+        if (isUpgradeActive(type)) return false;
+        // Проверяем, не идет ли найм (ожидание найма)
+        const recruitRemaining = getRecruitRemaining(type);
+        if (recruitRemaining > 0) return false;
+        // Если всё ок - можно улучшать
+        return true;
+    }
+    
+    // ВЕРБОВКА (НАЙМ)
     async function collectGangIncome(type) {
         if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); return; }
         if (!currentPlayer.gang) currentPlayer.gang = {};
@@ -5411,20 +5551,18 @@
         }
         
         const cost = getRecruitCost(type);
-        let hasResources = true;
         if (currentPlayer.cigarettes < cost.cigarettes) {
-            showToast(`Не хватает ${cost.cigarettes - currentPlayer.cigarettes} 🚬 для найма!`, 'error');
-            hasResources = false;
+            showToast(`Не хватает ${cost.cigarettes - currentPlayer.cigarettes} 🚬!`, 'error');
+            return;
         }
         if ((currentPlayer.lumber?.wood || 0) < cost.wood) {
-            showToast(`Не хватает ${cost.wood - (currentPlayer.lumber?.wood || 0)} 🪵 для найма!`, 'error');
-            hasResources = false;
+            showToast(`Не хватает ${cost.wood - (currentPlayer.lumber?.wood || 0)} 🪵!`, 'error');
+            return;
         }
         if ((currentPlayer.quarry?.stone || 0) < cost.stone) {
-            showToast(`Не хватает ${cost.stone - (currentPlayer.quarry?.stone || 0)} 🪨 для найма!`, 'error');
-            hasResources = false;
+            showToast(`Не хватает ${cost.stone - (currentPlayer.quarry?.stone || 0)} 🪨!`, 'error');
+            return;
         }
-        if (!hasResources) return;
         
         currentPlayer.cigarettes -= cost.cigarettes;
         currentPlayer.lumber.wood -= cost.wood;
@@ -5436,16 +5574,11 @@
             'quarry.stone': currentPlayer.quarry.stone
         });
         
-        let gain = 1;
-        if (type === 'blats') gain = Math.floor(1 + (gang.blats.level - 1) * 0.5);
-        else if (type === 'muzhiks') gain = Math.floor(1 + (gang.muzhiks.level - 1) * 0.6);
-        else gain = Math.floor(1 + (gang.fraers.level - 1) * 0.4);
-        if (gain < 1) gain = 1;
-        
+        const gain = getRecruitGain(type);
         gang[type].fighters = (gang[type].fighters || 0) + gain;
         
-        let authorityGain = gain * 50;
-        let cigarettesGain = gain * 10;
+        const authorityGain = gain * 50;
+        const cigarettesGain = gain * 10;
         
         currentPlayer.authority += authorityGain;
         currentPlayer.cigarettes += cigarettesGain;
@@ -5459,14 +5592,16 @@
         
         gang[type].lastGatherTime = now;
         
-        showToast(`👥 +${gain} ${type === 'blats' ? 'блатных' : type === 'muzhiks' ? 'мужиков' : 'фраеров'}! (-${cost.cigarettes}🚬 -${cost.wood}🪵 -${cost.stone}🪨) Теперь в команде: ${gang[type].fighters}. +${authorityGain}⭐ авторитета, +${cigarettesGain}🚬`, 'success');
-        renderGangModal();
+        const typeName = type === 'blats' ? 'блатных' : (type === 'muzhiks' ? 'мужиков' : 'фраеров');
+        showToast(`👥 +${gain} ${typeName}! (-${cost.cigarettes}🚬 -${cost.wood}🪵 -${cost.stone}🪨) Теперь в команде: ${gang[type].fighters}. +${authorityGain}⭐ +${cigarettesGain}🚬`, 'success');
+        
+        if (document.getElementById('gangFullscreen')) renderGangModal();
         renderUI();
     }
-
-    function openGangModal() {
+    
+    // ПРОКАЧКА БАНДЫ
+    async function upgradeGangCaste(type) {
         if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); return; }
-        if (!currentPlayer) return;
         
         if (!currentPlayer.gang) {
             currentPlayer.gang = {
@@ -5474,24 +5609,76 @@
                 muzhiks: { level: 1, lastGatherTime: 0, fighters: 0, upgradeStartTime: 0, upgradeDuration: 0 },
                 fraers: { level: 1, lastGatherTime: 0, fighters: 0, upgradeStartTime: 0, upgradeDuration: 0 }
             };
-            playerDocRef.update({ gang: currentPlayer.gang });
-        } else {
-            if (!currentPlayer.gang.blats.upgradeStartTime) currentPlayer.gang.blats.upgradeStartTime = 0;
-            if (!currentPlayer.gang.blats.upgradeDuration) currentPlayer.gang.blats.upgradeDuration = 0;
-            if (!currentPlayer.gang.muzhiks.upgradeStartTime) currentPlayer.gang.muzhiks.upgradeStartTime = 0;
-            if (!currentPlayer.gang.muzhiks.upgradeDuration) currentPlayer.gang.muzhiks.upgradeDuration = 0;
-            if (!currentPlayer.gang.fraers.upgradeStartTime) currentPlayer.gang.fraers.upgradeStartTime = 0;
-            if (!currentPlayer.gang.fraers.upgradeDuration) currentPlayer.gang.fraers.upgradeDuration = 0;
+            await playerDocRef.update({ gang: currentPlayer.gang });
         }
         
-        currentGangTab = 'recruit';
-        renderGangModal();
+        const gang = currentPlayer.gang;
+        if (!gang[type]) {
+            gang[type] = { level: 1, lastGatherTime: 0, fighters: 0, upgradeStartTime: 0, upgradeDuration: 0 };
+            await playerDocRef.update({ [`gang.${type}`]: gang[type] });
+        }
+        
+        if (isUpgradeActive(type)) {
+            showToast('Прокачка уже идет! Дождитесь завершения.', 'warning');
+            return;
+        }
+        
+        const recruitRemaining = getRecruitRemaining(type);
+        if (recruitRemaining > 0) {
+            showToast('Невозможно улучшить во время найма!', 'warning');
+            return;
+        }
+        
+        const currentLevel = gang[type].level;
+        const cost = getUpgradeCost(type);
+        
+        if ((currentPlayer.lumber?.wood || 0) < cost.wood) {
+            showToast(`Не хватает ${cost.wood - (currentPlayer.lumber?.wood || 0)} 🪵!`, 'error');
+            return;
+        }
+        if ((currentPlayer.quarry?.stone || 0) < cost.stone) {
+            showToast(`Не хватает ${cost.stone - (currentPlayer.quarry?.stone || 0)} 🪨!`, 'error');
+            return;
+        }
+        if (cost.cigarettes > 0 && currentPlayer.cigarettes < cost.cigarettes) {
+            showToast(`Не хватает ${cost.cigarettes - currentPlayer.cigarettes} 🚬!`, 'error');
+            return;
+        }
+        
+        if (cost.cigarettes > 0) {
+            await playerDocRef.update({ cigarettes: firebase.firestore.FieldValue.increment(-cost.cigarettes) });
+            currentPlayer.cigarettes -= cost.cigarettes;
+        }
+        await playerDocRef.update({
+            'lumber.wood': firebase.firestore.FieldValue.increment(-cost.wood),
+            'quarry.stone': firebase.firestore.FieldValue.increment(-cost.stone)
+        });
+        currentPlayer.lumber.wood -= cost.wood;
+        currentPlayer.quarry.stone -= cost.stone;
+        
+        // Время прокачки: 2 минуты + 5% за уровень
+        let upgradeDurationMs = 2 * 60 * 1000;
+        upgradeDurationMs = Math.floor(upgradeDurationMs * (1 + (currentLevel - 1) * 0.05));
+        const upgradeStartTime = Date.now();
+        
+        await playerDocRef.update({
+            [`gang.${type}.upgradeStartTime`]: upgradeStartTime,
+            [`gang.${type}.upgradeDuration`]: upgradeDurationMs
+        });
+        gang[type].upgradeStartTime = upgradeStartTime;
+        gang[type].upgradeDuration = upgradeDurationMs;
+        
+        const minutes = Math.floor(upgradeDurationMs / 60000);
+        const seconds = Math.floor((upgradeDurationMs % 60000) / 1000);
+        showToast(`⏳ Начата прокачка! Завершится через ${minutes} мин ${seconds} сек.`, 'success');
+        
+        if (document.getElementById('gangFullscreen')) renderGangModal();
+        renderUI();
     }
     
-    function switchGangTab(tab) {
-        currentGangTab = tab;
-        renderGangModal();
-    }
+    // Переменные для свайпа
+    let gangSubTouchStartX = 0;
+    let gangSubTouchEndX = 0;
     
     function handleGangSubTouchStart(e) {
         gangSubTouchStartX = e.changedTouches[0].screenX;
@@ -5504,69 +5691,31 @@
         if (diff < 0 && currentGangTab === 'upgrade') switchGangTab('recruit');
     }
     
-    let gangSubTouchStartX = 0;
-    let gangSubTouchEndX = 0;
-    
-    function isUpgradeActive(gangType) {
-        const upgradeStart = currentPlayer.gang[gangType].upgradeStartTime || 0;
-        const upgradeDuration = currentPlayer.gang[gangType].upgradeDuration || 0;
-        return upgradeStart > 0 && (Date.now() - upgradeStart) < upgradeDuration;
+    function switchGangTab(tab) {
+        currentGangTab = tab;
+        renderGangModal();
     }
     
-    function getUpgradeRemaining(gangType) {
-        const upgradeStart = currentPlayer.gang[gangType].upgradeStartTime || 0;
-        const upgradeDuration = currentPlayer.gang[gangType].upgradeDuration || 0;
-        if (upgradeStart === 0 || upgradeDuration === 0) return 0;
-        const elapsed = Date.now() - upgradeStart;
-        return Math.max(0, upgradeDuration - elapsed);
-    }
-    
-    async function checkAndCompleteUpgrade(gangType) {
-        const remaining = getUpgradeRemaining(gangType);
-        if (remaining === 0 && isUpgradeActive(gangType)) {
-            const newLevel = currentPlayer.gang[gangType].level + 1;
-            await playerDocRef.update({
-                [`gang.${gangType}.level`]: newLevel,
-                [`gang.${gangType}.upgradeStartTime`]: 0,
-                [`gang.${gangType}.upgradeDuration`]: 0
-            });
-            currentPlayer.gang[gangType].level = newLevel;
-            currentPlayer.gang[gangType].upgradeStartTime = 0;
-            currentPlayer.gang[gangType].upgradeDuration = 0;
-            showToast(`✅ ${gangType === 'blats' ? 'Блатные' : gangType === 'muzhiks' ? 'Мужики' : 'Фраера'} улучшены до ${newLevel} уровня!`, 'success');
-            renderGangModal();
-            renderUI();
-            return true;
+    function openGangModal() {
+        if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); return; }
+        if (!currentPlayer) return;
+        
+        if (!currentPlayer.gang) {
+            currentPlayer.gang = {
+                blats: { level: 1, lastGatherTime: 0, fighters: 0, upgradeStartTime: 0, upgradeDuration: 0 },
+                muzhiks: { level: 1, lastGatherTime: 0, fighters: 0, upgradeStartTime: 0, upgradeDuration: 0 },
+                fraers: { level: 1, lastGatherTime: 0, fighters: 0, upgradeStartTime: 0, upgradeDuration: 0 }
+            };
+            playerDocRef.update({ gang: currentPlayer.gang });
         }
-        return false;
+        currentGangTab = 'recruit';
+        renderGangModal();
     }
     
-    function getRecruitRemaining(gangType) {
-        const lastGather = currentPlayer.gang[gangType].lastGatherTime || 0;
-        let cooldownMs = 2 * 60 * 1000;
-        cooldownMs = Math.floor(cooldownMs * (1 + (currentPlayer.gang[gangType].level - 1) * 0.05));
-        return Math.max(0, cooldownMs - (Date.now() - lastGather));
-    }
-    
-    function renderGangModal() {
+        function renderGangModal() {
         const gang = currentPlayer.gang;
         
-        const getGain = (type) => {
-            let gain = 1;
-            if (type === 'blats') gain = Math.floor(1 + (gang.blats.level - 1) * 0.5);
-            else if (type === 'muzhiks') gain = Math.floor(1 + (gang.muzhiks.level - 1) * 0.6);
-            else gain = Math.floor(1 + (gang.fraers.level - 1) * 0.4);
-            if (gain < 1) gain = 1;
-            return gain;
-        };
-        
-        const getUpgradeCost = (type) => {
-            const level = gang[type].level;
-            const woodCost = 50 * level;
-            const stoneCost = 30 * level;
-            return { wood: woodCost, stone: stoneCost };
-        };
-        
+        // Проверяем завершение прокачек
         checkAndCompleteUpgrade('blats');
         checkAndCompleteUpgrade('muzhiks');
         checkAndCompleteUpgrade('fraers');
@@ -5583,9 +5732,17 @@
         const muzhiksRecruitRemaining = getRecruitRemaining('muzhiks');
         const fraersRecruitRemaining = getRecruitRemaining('fraers');
         
+        const blatsRecruitGain = getRecruitGain('blats');
+        const muzhiksRecruitGain = getRecruitGain('muzhiks');
+        const fraersRecruitGain = getRecruitGain('fraers');
+        
         const blatsCost = getRecruitCost('blats');
         const muzhiksCost = getRecruitCost('muzhiks');
         const fraersCost = getRecruitCost('fraers');
+        
+        const blatsUpgradeCost = getUpgradeCost('blats');
+        const muzhiksUpgradeCost = getUpgradeCost('muzhiks');
+        const fraersUpgradeCost = getUpgradeCost('fraers');
         
         const modalHtml = `
             <div class="gang-fullscreen" id="gangFullscreen">
@@ -5596,8 +5753,8 @@
                 </div>
                 <div class="gang-content-area">
                     <div class="gang-sub-tab-header">
-                        <button class="gang-sub-tab-btn ${currentGangTab === 'recruit' ? 'active' : ''}" onclick="switchGangTab('recruit')">👥 ВЕРБОВКА</button>
-                        <button class="gang-sub-tab-btn ${currentGangTab === 'upgrade' ? 'active' : ''}" onclick="switchGangTab('upgrade')">⬆️ ПРОКАЧКА</button>
+                        <button class="gang-sub-tab-btn ${currentGangTab === 'recruit' ? 'active' : ''}" id="gangTabRecruitBtn">👥 ВЕРБОВКА</button>
+                        <button class="gang-sub-tab-btn ${currentGangTab === 'upgrade' ? 'active' : ''}" id="gangTabUpgradeBtn">⬆️ ПРОКАЧКА</button>
                     </div>
                     <div ontouchstart="handleGangSubTouchStart(event)" ontouchend="handleGangSubTouchEnd(event)">
                         ${currentGangTab === 'recruit' ? `
@@ -5607,14 +5764,11 @@
                                     <div><strong style="font-size:18px;">Блатные</strong><br><small>+10% к силе в бою</small></div>
                                 </div>
                                 <div>📊 Уровень: ${gang.blats.level} | 👥 В команде: <span id="blatsFightersCount">${gang.blats.fighters || 0}</span></div>
-                                <div>➕ Прирост: +${getGain('blats')} чел/час</div>
+                                <div>➕ При вербовке: +${blatsRecruitGain} чел</div>
                                 <div class="bonus-info">💰 Стоимость найма: ${blatsCost.cigarettes}🚬 + ${blatsCost.wood}🪵 + ${blatsCost.stone}🪨</div>
                                 ${blatsUpgradeActive ? `<div class="busy-text">⏳ Идет прокачка! Осталось: <span id="blatsUpgradeTimer" class="timer-text">${formatTimerMinutes(blatsUpgradeRemaining)}</span></div>` : ''}
-                                <div>⏳ До найма: <span id="blatsTimer" class="timer-text">--:--:--</span></div>
-                                <div style="margin-top:15px;">
-                                    <button class="btn-secondary" style="width:100%;" onclick="collectGangIncome('blats')" id="collectBlatsBtn" ${blatsUpgradeActive ? 'disabled' : ''}>👥 Нанять зеков</button>
-                                    ${blatsUpgradeActive ? '<div class="busy-text">Невозможно нанять во время прокачки!</div>' : ''}
-                                </div>
+                                <div>⏳ До найма: <span id="blatsTimer" class="timer-text">${formatTimerMinutes(blatsRecruitRemaining)}</span></div>
+                                <button class="btn-secondary" style="margin-top:15px; width:100%;" id="collectBlatsBtn" ${(!canRecruit('blats') || blatsUpgradeActive) ? 'disabled' : ''}>👥 Нанять зеков (+${blatsRecruitGain} чел)</button>
                             </div>
                             <div class="gang-card">
                                 <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
@@ -5622,14 +5776,11 @@
                                     <div><strong style="font-size:18px;">Мужики</strong><br><small>+5% к добыче в шахте</small></div>
                                 </div>
                                 <div>📊 Уровень: ${gang.muzhiks.level} | 👥 В команде: <span id="muzhiksFightersCount">${gang.muzhiks.fighters || 0}</span></div>
-                                <div>➕ Прирост: +${getGain('muzhiks')} чел/час</div>
-                                <div class="bonus-info">🪵 Стоимость найма: ${muzhiksCost.cigarettes}🚬 + ${muzhiksCost.wood}🪵 + ${muzhiksCost.stone}🪨</div>
+                                <div>➕ При вербовке: +${muzhiksRecruitGain} чел</div>
+                                <div class="bonus-info">💰 Стоимость найма: ${muzhiksCost.cigarettes}🚬 + ${muzhiksCost.wood}🪵 + ${muzhiksCost.stone}🪨</div>
                                 ${muzhiksUpgradeActive ? `<div class="busy-text">⏳ Идет прокачка! Осталось: <span id="muzhiksUpgradeTimer" class="timer-text">${formatTimerMinutes(muzhiksUpgradeRemaining)}</span></div>` : ''}
-                                <div>⏳ До найма: <span id="muzhiksTimer" class="timer-text">--:--:--</span></div>
-                                <div style="margin-top:15px;">
-                                    <button class="btn-secondary" style="width:100%;" onclick="collectGangIncome('muzhiks')" id="collectMuzhiksBtn" ${muzhiksUpgradeActive ? 'disabled' : ''}>👥 Нанять зеков</button>
-                                    ${muzhiksUpgradeActive ? '<div class="busy-text">Невозможно нанять во время прокачки!</div>' : ''}
-                                </div>
+                                <div>⏳ До найма: <span id="muzhiksTimer" class="timer-text">${formatTimerMinutes(muzhiksRecruitRemaining)}</span></div>
+                                <button class="btn-secondary" style="margin-top:15px; width:100%;" id="collectMuzhiksBtn" ${(!canRecruit('muzhiks') || muzhiksUpgradeActive) ? 'disabled' : ''}>👥 Нанять зеков (+${muzhiksRecruitGain} чел)</button>
                             </div>
                             <div class="gang-card">
                                 <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
@@ -5637,14 +5788,11 @@
                                     <div><strong style="font-size:18px;">Фраера</strong><br><small>+5% к авторитету</small></div>
                                 </div>
                                 <div>📊 Уровень: ${gang.fraers.level} | 👥 В команде: <span id="fraersFightersCount">${gang.fraers.fighters || 0}</span></div>
-                                <div>➕ Прирост: +${getGain('fraers')} чел/час</div>
-                                <div class="bonus-info">🪨 Стоимость найма: ${fraersCost.cigarettes}🚬 + ${fraersCost.wood}🪵 + ${fraersCost.stone}🪨</div>
+                                <div>➕ При вербовке: +${fraersRecruitGain} чел</div>
+                                <div class="bonus-info">💰 Стоимость найма: ${fraersCost.cigarettes}🚬 + ${fraersCost.wood}🪵 + ${fraersCost.stone}🪨</div>
                                 ${fraersUpgradeActive ? `<div class="busy-text">⏳ Идет прокачка! Осталось: <span id="fraersUpgradeTimer" class="timer-text">${formatTimerMinutes(fraersUpgradeRemaining)}</span></div>` : ''}
-                                <div>⏳ До найма: <span id="fraersTimer" class="timer-text">--:--:--</span></div>
-                                <div style="margin-top:15px;">
-                                    <button class="btn-secondary" style="width:100%;" onclick="collectGangIncome('fraers')" id="collectFraersBtn" ${fraersUpgradeActive ? 'disabled' : ''}>👥 Нанять зеков</button>
-                                    ${fraersUpgradeActive ? '<div class="busy-text">Невозможно нанять во время прокачки!</div>' : ''}
-                                </div>
+                                <div>⏳ До найма: <span id="fraersTimer" class="timer-text">${formatTimerMinutes(fraersRecruitRemaining)}</span></div>
+                                <button class="btn-secondary" style="margin-top:15px; width:100%;" id="collectFraersBtn" ${(!canRecruit('fraers') || fraersUpgradeActive) ? 'disabled' : ''}>👥 Нанять зеков (+${fraersRecruitGain} чел)</button>
                             </div>
                         ` : `
                             <div class="gang-card">
@@ -5653,12 +5801,11 @@
                                     <div><strong style="font-size:18px;">Блатные</strong><br><small>+10% к силе в бою</small></div>
                                 </div>
                                 <div>📊 Уровень: ${gang.blats.level} | 👥 В команде: ${gang.blats.fighters || 0}</div>
-                                <div>➕ Прирост: +${getGain('blats')} чел/час</div>
+                                <div>➕ При вербовке: +${blatsRecruitGain} чел</div>
                                 ${blatsUpgradeActive ? `<div class="busy-text">⏳ Идет прокачка! Осталось: <span id="blatsUpgradeTimerUpgrade" class="timer-text">${formatTimerMinutes(blatsUpgradeRemaining)}</span></div>` : `
-                                    <div class="bonus-info">🔨 Улучшение до ${gang.blats.level+1} уровня: ${getUpgradeCost('blats').wood} 🪵 + ${getUpgradeCost('blats').stone} 🪨</div>
-                                    <div class="bonus-info">⏳ Время улучшения: ${Math.round((2 * 60 * 1000 * (1 + (gang.blats.level - 1) * 0.1)) / 60000)} мин</div>
-                                    <button class="btn-primary" style="margin-top:10px; width:100%;" onclick="upgradeGangCaste('blats')" ${(currentPlayer.lumber?.wood || 0) < getUpgradeCost('blats').wood || (currentPlayer.quarry?.stone || 0) < getUpgradeCost('blats').stone || blatsRecruitRemaining > 0 ? 'disabled' : ''}>⬆️ Улучшить банду (+${Math.floor(0.5 * (gang.blats.level + 1))} к приросту)</button>
-                                    ${blatsRecruitRemaining > 0 ? '<div class="busy-text">Невозможно улучшить во время найма!</div>' : ''}
+                                    <div class="bonus-info">🔨 Улучшение до ${gang.blats.level+1} уровня: ${blatsUpgradeCost.wood} 🪵 + ${blatsUpgradeCost.stone} 🪨 ${blatsUpgradeCost.cigarettes > 0 ? `+ ${blatsUpgradeCost.cigarettes} 🚬` : ''}</div>
+                                    <div class="bonus-info">✨ После улучшения: уровень игрока +1, сила +3, защита +2, энергия +5</div>
+                                    <button class="btn-primary" style="margin-top:10px; width:100%;" id="upgradeBlatsBtn" ${!canUpgrade('blats') ? 'disabled' : ''}>⬆️ Улучшить банду</button>
                                 `}
                             </div>
                             <div class="gang-card">
@@ -5667,12 +5814,11 @@
                                     <div><strong style="font-size:18px;">Мужики</strong><br><small>+5% к добыче в шахте</small></div>
                                 </div>
                                 <div>📊 Уровень: ${gang.muzhiks.level} | 👥 В команде: ${gang.muzhiks.fighters || 0}</div>
-                                <div>➕ Прирост: +${getGain('muzhiks')} чел/час</div>
+                                <div>➕ При вербовке: +${muzhiksRecruitGain} чел</div>
                                 ${muzhiksUpgradeActive ? `<div class="busy-text">⏳ Идет прокачка! Осталось: <span id="muzhiksUpgradeTimerUpgrade" class="timer-text">${formatTimerMinutes(muzhiksUpgradeRemaining)}</span></div>` : `
-                                    <div class="bonus-info">🔨 Улучшение до ${gang.muzhiks.level+1} уровня: ${getUpgradeCost('muzhiks').wood} 🪵 + ${getUpgradeCost('muzhiks').stone} 🪨</div>
-                                    <div class="bonus-info">⏳ Время улучшения: ${Math.round((2 * 60 * 1000 * (1 + (gang.muzhiks.level - 1) * 0.1)) / 60000)} мин</div>
-                                    <button class="btn-primary" style="margin-top:10px; width:100%;" onclick="upgradeGangCaste('muzhiks')" ${(currentPlayer.lumber?.wood || 0) < getUpgradeCost('muzhiks').wood || (currentPlayer.quarry?.stone || 0) < getUpgradeCost('muzhiks').stone || muzhiksRecruitRemaining > 0 ? 'disabled' : ''}>⬆️ Улучшить банду (+${Math.floor(0.6 * (gang.muzhiks.level + 1))} к приросту)</button>
-                                    ${muzhiksRecruitRemaining > 0 ? '<div class="busy-text">Невозможно улучшить во время найма!</div>' : ''}
+                                    <div class="bonus-info">🔨 Улучшение до ${gang.muzhiks.level+1} уровня: ${muzhiksUpgradeCost.wood} 🪵 + ${muzhiksUpgradeCost.stone} 🪨 ${muzhiksUpgradeCost.cigarettes > 0 ? `+ ${muzhiksUpgradeCost.cigarettes} 🚬` : ''}</div>
+                                    <div class="bonus-info">✨ После улучшения: уровень игрока +1, сила +3, защита +2, энергия +5</div>
+                                    <button class="btn-primary" style="margin-top:10px; width:100%;" id="upgradeMuzhiksBtn" ${!canUpgrade('muzhiks') ? 'disabled' : ''}>⬆️ Улучшить банду</button>
                                 `}
                             </div>
                             <div class="gang-card">
@@ -5681,12 +5827,11 @@
                                     <div><strong style="font-size:18px;">Фраера</strong><br><small>+5% к авторитету</small></div>
                                 </div>
                                 <div>📊 Уровень: ${gang.fraers.level} | 👥 В команде: ${gang.fraers.fighters || 0}</div>
-                                <div>➕ Прирост: +${getGain('fraers')} чел/час</div>
+                                <div>➕ При вербовке: +${fraersRecruitGain} чел</div>
                                 ${fraersUpgradeActive ? `<div class="busy-text">⏳ Идет прокачка! Осталось: <span id="fraersUpgradeTimerUpgrade" class="timer-text">${formatTimerMinutes(fraersUpgradeRemaining)}</span></div>` : `
-                                    <div class="bonus-info">🔨 Улучшение до ${gang.fraers.level+1} уровня: ${getUpgradeCost('fraers').wood} 🪵 + ${getUpgradeCost('fraers').stone} 🪨</div>
-                                    <div class="bonus-info">⏳ Время улучшения: ${Math.round((2 * 60 * 1000 * (1 + (gang.fraers.level - 1) * 0.1)) / 60000)} мин</div>
-                                    <button class="btn-primary" style="margin-top:10px; width:100%;" onclick="upgradeGangCaste('fraers')" ${(currentPlayer.lumber?.wood || 0) < getUpgradeCost('fraers').wood || (currentPlayer.quarry?.stone || 0) < getUpgradeCost('fraers').stone || fraersRecruitRemaining > 0 ? 'disabled' : ''}>⬆️ Улучшить банду (+${Math.floor(0.4 * (gang.fraers.level + 1))} к приросту)</button>
-                                    ${fraersRecruitRemaining > 0 ? '<div class="busy-text">Невозможно улучшить во время найма!</div>' : ''}
+                                    <div class="bonus-info">🔨 Улучшение до ${gang.fraers.level+1} уровня: ${fraersUpgradeCost.wood} 🪵 + ${fraersUpgradeCost.stone} 🪨 ${fraersUpgradeCost.cigarettes > 0 ? `+ ${fraersUpgradeCost.cigarettes} 🚬` : ''}</div>
+                                    <div class="bonus-info">✨ После улучшения: уровень игрока +1, сила +3, защита +2, энергия +5</div>
+                                    <button class="btn-primary" style="margin-top:10px; width:100%;" id="upgradeFraersBtn" ${!canUpgrade('fraers') ? 'disabled' : ''}>⬆️ Улучшить банду</button>
                                 `}
                             </div>
                         `}
@@ -5694,7 +5839,7 @@
                 </div>
                 <div class="gang-bottom-nav">
                     <div class="bottom-nav">
-                        <button class="gang-tab-btn active" onclick="closeGangModal()"><span>←</span><span>Назад</span></button>
+                        <button class="gang-tab-btn active" id="closeGangBtn"><span>←</span><span>Назад</span></button>
                     </div>
                 </div>
             </div>
@@ -5705,130 +5850,23 @@
         document.body.insertAdjacentHTML('beforeend', modalHtml);
         if (tg) tg.BackButton.show();
         
+        // НАВЕШИВАЕМ ОБРАБОТЧИКИ
+        document.getElementById('gangTabRecruitBtn')?.addEventListener('click', () => switchGangTab('recruit'));
+        document.getElementById('gangTabUpgradeBtn')?.addEventListener('click', () => switchGangTab('upgrade'));
+        document.getElementById('closeGangBtn')?.addEventListener('click', () => closeGangModal());
+        
+        document.getElementById('collectBlatsBtn')?.addEventListener('click', () => collectGangIncome('blats'));
+        document.getElementById('collectMuzhiksBtn')?.addEventListener('click', () => collectGangIncome('muzhiks'));
+        document.getElementById('collectFraersBtn')?.addEventListener('click', () => collectGangIncome('fraers'));
+        
+        document.getElementById('upgradeBlatsBtn')?.addEventListener('click', () => upgradeGangCaste('blats'));
+        document.getElementById('upgradeMuzhiksBtn')?.addEventListener('click', () => upgradeGangCaste('muzhiks'));
+        document.getElementById('upgradeFraersBtn')?.addEventListener('click', () => upgradeGangCaste('fraers'));
+        
         startGangTimers();
     }
     
     function startGangTimers() {
-        const gang = currentPlayer.gang;
-        
-        const updateButtons = () => {
-            const now = Date.now();
-            
-            checkAndCompleteUpgrade('blats');
-            checkAndCompleteUpgrade('muzhiks');
-            checkAndCompleteUpgrade('fraers');
-            
-            const blatsFightersSpan = document.getElementById('blatsFightersCount');
-            const muzhiksFightersSpan = document.getElementById('muzhiksFightersCount');
-            const fraersFightersSpan = document.getElementById('fraersFightersCount');
-            if (blatsFightersSpan) blatsFightersSpan.textContent = gang.blats.fighters || 0;
-            if (muzhiksFightersSpan) muzhiksFightersSpan.textContent = gang.muzhiks.fighters || 0;
-            if (fraersFightersSpan) fraersFightersSpan.textContent = gang.fraers.fighters || 0;
-            
-            const blatsLast = gang.blats.lastGatherTime || 0;
-            const muzhiksLast = gang.muzhiks.lastGatherTime || 0;
-            const fraersLast = gang.fraers.lastGatherTime || 0;
-            
-            let blatsCooldown = 2 * 60 * 1000;
-            let muzhiksCooldown = 2 * 60 * 1000;
-            let fraersCooldown = 2 * 60 * 1000;
-            blatsCooldown = Math.floor(blatsCooldown * (1 + (gang.blats.level - 1) * 0.05));
-            muzhiksCooldown = Math.floor(muzhiksCooldown * (1 + (gang.muzhiks.level - 1) * 0.05));
-            fraersCooldown = Math.floor(fraersCooldown * (1 + (gang.fraers.level - 1) * 0.05));
-            
-            const blatsRemaining = Math.max(0, blatsCooldown - (now - blatsLast));
-            const muzhiksRemaining = Math.max(0, muzhiksCooldown - (now - muzhiksLast));
-            const fraersRemaining = Math.max(0, fraersCooldown - (now - fraersLast));
-            
-            const blatsTimerSpan = document.getElementById('blatsTimer');
-            const muzhiksTimerSpan = document.getElementById('muzhiksTimer');
-            const fraersTimerSpan = document.getElementById('fraersTimer');
-            
-            if (blatsTimerSpan) blatsTimerSpan.textContent = formatTimerMinutes(blatsRemaining);
-            if (muzhiksTimerSpan) muzhiksTimerSpan.textContent = formatTimerMinutes(muzhiksRemaining);
-            if (fraersTimerSpan) fraersTimerSpan.textContent = formatTimerMinutes(fraersRemaining);
-            
-            const blatsUpgradeRemaining = getUpgradeRemaining('blats');
-            const muzhiksUpgradeRemaining = getUpgradeRemaining('muzhiks');
-            const fraersUpgradeRemaining = getUpgradeRemaining('fraers');
-            
-            const blatsUpgradeTimerSpan = document.getElementById('blatsUpgradeTimer');
-            const muzhiksUpgradeTimerSpan = document.getElementById('muzhiksUpgradeTimer');
-            const fraersUpgradeTimerSpan = document.getElementById('fraersUpgradeTimer');
-            const blatsUpgradeTimerSpanUpgrade = document.getElementById('blatsUpgradeTimerUpgrade');
-            const muzhiksUpgradeTimerSpanUpgrade = document.getElementById('muzhiksUpgradeTimerUpgrade');
-            const fraersUpgradeTimerSpanUpgrade = document.getElementById('fraersUpgradeTimerUpgrade');
-            
-            if (blatsUpgradeTimerSpan) blatsUpgradeTimerSpan.textContent = formatTimerMinutes(blatsUpgradeRemaining);
-            if (muzhiksUpgradeTimerSpan) muzhiksUpgradeTimerSpan.textContent = formatTimerMinutes(muzhiksUpgradeRemaining);
-            if (fraersUpgradeTimerSpan) fraersUpgradeTimerSpan.textContent = formatTimerMinutes(fraersUpgradeRemaining);
-            if (blatsUpgradeTimerSpanUpgrade) blatsUpgradeTimerSpanUpgrade.textContent = formatTimerMinutes(blatsUpgradeRemaining);
-            if (muzhiksUpgradeTimerSpanUpgrade) muzhiksUpgradeTimerSpanUpgrade.textContent = formatTimerMinutes(muzhiksUpgradeRemaining);
-            if (fraersUpgradeTimerSpanUpgrade) fraersUpgradeTimerSpanUpgrade.textContent = formatTimerMinutes(fraersUpgradeRemaining);
-            
-            const blatsBtn = document.getElementById('collectBlatsBtn');
-            const muzhiksBtn = document.getElementById('collectMuzhiksBtn');
-            const fraersBtn = document.getElementById('collectFraersBtn');
-            const blatsUpgradeActive = isUpgradeActive('blats');
-            const muzhiksUpgradeActive = isUpgradeActive('muzhiks');
-            const fraersUpgradeActive = isUpgradeActive('fraers');
-            
-            if (blatsBtn) {
-                if (blatsUpgradeActive) {
-                    blatsBtn.disabled = true;
-                    blatsBtn.textContent = '⏳ Прокачка...';
-                } else if (blatsRemaining <= 0) {
-                    blatsBtn.disabled = false;
-                    blatsBtn.textContent = '👥 Нанять зеков';
-                } else {
-                    blatsBtn.disabled = true;
-                    blatsBtn.textContent = `⏳ ${formatTimerMinutes(blatsRemaining)}`;
-                }
-            }
-            if (muzhiksBtn) {
-                if (muzhiksUpgradeActive) {
-                    muzhiksBtn.disabled = true;
-                    muzhiksBtn.textContent = '⏳ Прокачка...';
-                } else if (muzhiksRemaining <= 0) {
-                    muzhiksBtn.disabled = false;
-                    muzhiksBtn.textContent = '👥 Нанять зеков';
-                } else {
-                    muzhiksBtn.disabled = true;
-                    muzhiksBtn.textContent = `⏳ ${formatTimerMinutes(muzhiksRemaining)}`;
-                }
-            }
-            if (fraersBtn) {
-                if (fraersUpgradeActive) {
-                    fraersBtn.disabled = true;
-                    fraersBtn.textContent = '⏳ Прокачка...';
-                } else if (fraersRemaining <= 0) {
-                    fraersBtn.disabled = false;
-                    fraersBtn.textContent = '👥 Нанять зеков';
-                } else {
-                    fraersBtn.disabled = true;
-                    fraersBtn.textContent = `⏳ ${formatTimerMinutes(fraersRemaining)}`;
-                }
-            }
-            
-            const blatsUpgradeBtn = document.querySelector('.gang-card .btn-primary[onclick*="upgradeGangCaste(\'blats\'"]');
-            const muzhiksUpgradeBtn = document.querySelector('.gang-card .btn-primary[onclick*="upgradeGangCaste(\'muzhiks\'"]');
-            const fraersUpgradeBtn = document.querySelector('.gang-card .btn-primary[onclick*="upgradeGangCaste(\'fraers\'"]');
-            
-            if (blatsUpgradeBtn) {
-                if (blatsRemaining > 0 || blatsUpgradeActive) blatsUpgradeBtn.disabled = true;
-                else blatsUpgradeBtn.disabled = false;
-            }
-            if (muzhiksUpgradeBtn) {
-                if (muzhiksRemaining > 0 || muzhiksUpgradeActive) muzhiksUpgradeBtn.disabled = true;
-                else muzhiksUpgradeBtn.disabled = false;
-            }
-            if (fraersUpgradeBtn) {
-                if (fraersRemaining > 0 || fraersUpgradeActive) fraersUpgradeBtn.disabled = true;
-                else fraersUpgradeBtn.disabled = false;
-            }
-        };
-        
-        updateButtons();
         if (gangTimers.interval) clearInterval(gangTimers.interval);
         gangTimers.interval = setInterval(() => {
             const modal = document.getElementById('gangFullscreen');
@@ -5836,85 +5874,99 @@
                 if (gangTimers.interval) clearInterval(gangTimers.interval);
                 return;
             }
-            updateButtons();
+            
+            // ПРОВЕРЯЕМ ЗАВЕРШЕНИЕ ПРОКАЧЕК КАЖДУЮ СЕКУНДУ
+            checkAndCompleteUpgrade('blats');
+            checkAndCompleteUpgrade('muzhiks');
+            checkAndCompleteUpgrade('fraers');
+            
+            // Обновляем таймеры найма
+            const blatsRecruitRemaining = getRecruitRemaining('blats');
+            const muzhiksRecruitRemaining = getRecruitRemaining('muzhiks');
+            const fraersRecruitRemaining = getRecruitRemaining('fraers');
+            
+            const blatsTimer = document.getElementById('blatsTimer');
+            const muzhiksTimer = document.getElementById('muzhiksTimer');
+            const fraersTimer = document.getElementById('fraersTimer');
+            if (blatsTimer) blatsTimer.textContent = formatTimerMinutes(blatsRecruitRemaining);
+            if (muzhiksTimer) muzhiksTimer.textContent = formatTimerMinutes(muzhiksRecruitRemaining);
+            if (fraersTimer) fraersTimer.textContent = formatTimerMinutes(fraersRecruitRemaining);
+            
+            // Обновляем таймеры прокачки
+            const blatsUpgradeRemaining = getUpgradeRemaining('blats');
+            const muzhiksUpgradeRemaining = getUpgradeRemaining('muzhiks');
+            const fraersUpgradeRemaining = getUpgradeRemaining('fraers');
+            
+            const blatsUpgradeTimer = document.getElementById('blatsUpgradeTimer');
+            const muzhiksUpgradeTimer = document.getElementById('muzhiksUpgradeTimer');
+            const fraersUpgradeTimer = document.getElementById('fraersUpgradeTimer');
+            const blatsUpgradeTimerUpgrade = document.getElementById('blatsUpgradeTimerUpgrade');
+            const muzhiksUpgradeTimerUpgrade = document.getElementById('muzhiksUpgradeTimerUpgrade');
+            const fraersUpgradeTimerUpgrade = document.getElementById('fraersUpgradeTimerUpgrade');
+            
+            if (blatsUpgradeTimer) blatsUpgradeTimer.textContent = formatTimerMinutes(blatsUpgradeRemaining);
+            if (muzhiksUpgradeTimer) muzhiksUpgradeTimer.textContent = formatTimerMinutes(muzhiksUpgradeRemaining);
+            if (fraersUpgradeTimer) fraersUpgradeTimer.textContent = formatTimerMinutes(fraersUpgradeRemaining);
+            if (blatsUpgradeTimerUpgrade) blatsUpgradeTimerUpgrade.textContent = formatTimerMinutes(blatsUpgradeRemaining);
+            if (muzhiksUpgradeTimerUpgrade) muzhiksUpgradeTimerUpgrade.textContent = formatTimerMinutes(muzhiksUpgradeRemaining);
+            if (fraersUpgradeTimerUpgrade) fraersUpgradeTimerUpgrade.textContent = formatTimerMinutes(fraersUpgradeRemaining);
+            
+            // Обновляем кнопки
+            const blatsUpgradeActive = isUpgradeActive('blats');
+            const muzhiksUpgradeActive = isUpgradeActive('muzhiks');
+            const fraersUpgradeActive = isUpgradeActive('fraers');
+            
+            const blatsBtn = document.getElementById('collectBlatsBtn');
+            const muzhiksBtn = document.getElementById('collectMuzhiksBtn');
+            const fraersBtn = document.getElementById('collectFraersBtn');
+            
+            if (blatsBtn) {
+                if (blatsUpgradeActive) {
+                    blatsBtn.disabled = true;
+                    blatsBtn.textContent = '⏳ Прокачка...';
+                } else if (blatsRecruitRemaining <= 0) {
+                    blatsBtn.disabled = false;
+                    blatsBtn.textContent = `👥 Нанять зеков (+${getRecruitGain('blats')} чел)`;
+                } else {
+                    blatsBtn.disabled = true;
+                    blatsBtn.textContent = `⏳ ${formatTimerMinutes(blatsRecruitRemaining)}`;
+                }
+            }
+            if (muzhiksBtn) {
+                if (muzhiksUpgradeActive) {
+                    muzhiksBtn.disabled = true;
+                    muzhiksBtn.textContent = '⏳ Прокачка...';
+                } else if (muzhiksRecruitRemaining <= 0) {
+                    muzhiksBtn.disabled = false;
+                    muzhiksBtn.textContent = `👥 Нанять зеков (+${getRecruitGain('muzhiks')} чел)`;
+                } else {
+                    muzhiksBtn.disabled = true;
+                    muzhiksBtn.textContent = `⏳ ${formatTimerMinutes(muzhiksRecruitRemaining)}`;
+                }
+            }
+            if (fraersBtn) {
+                if (fraersUpgradeActive) {
+                    fraersBtn.disabled = true;
+                    fraersBtn.textContent = '⏳ Прокачка...';
+                } else if (fraersRecruitRemaining <= 0) {
+                    fraersBtn.disabled = false;
+                    fraersBtn.textContent = `👥 Нанять зеков (+${getRecruitGain('fraers')} чел)`;
+                } else {
+                    fraersBtn.disabled = true;
+                    fraersBtn.textContent = `⏳ ${formatTimerMinutes(fraersRecruitRemaining)}`;
+                }
+            }
         }, 1000);
     }
     
-    function formatCooldownTimeShort(ms) {
-        if (ms <= 0) return "Готово!";
-        const totalSeconds = Math.floor(ms / 1000);
-        const hours = Math.floor(totalSeconds / 3600);
-        const minutes = Math.floor((totalSeconds % 3600) / 60);
-        const seconds = totalSeconds % 60;
-        if (hours > 0) return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-        if (minutes > 0) return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-        return `${seconds}с`;
-    }
-    
-    function getGangCooldownHours(level) {
-        return Math.min(24, 1 + Math.floor(level * 0.15));
-    }
-    
-    async function upgradeGangCaste(type) {
-        if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); return; }
-        if (!currentPlayer.gang) currentPlayer.gang = {};
-        const gang = currentPlayer.gang;
-        if (!gang[type]) gang[type] = { level: 1, lastGatherTime: 0, fighters: 0, upgradeStartTime: 0, upgradeDuration: 0 };
-        
-        if (isUpgradeActive(type)) {
-            showToast('Прокачка уже идет! Дождитесь завершения.', 'warning');
-            return;
-        }
-        
-        const recruitRemaining = getRecruitRemaining(type);
-        if (recruitRemaining > 0) {
-            showToast('Невозможно улучшить во время найма! Дождитесь окончания найма.', 'warning');
-            return;
-        }
-        
-        const currentLevel = gang[type].level;
-        const woodCost = 50 * currentLevel;
-        const stoneCost = 30 * currentLevel;
-        
-        if ((currentPlayer.lumber?.wood || 0) < woodCost) {
-            showToast(`Не хватает ${woodCost - (currentPlayer.lumber?.wood || 0)} 🪵!`, 'error');
-            return;
-        }
-        if ((currentPlayer.quarry?.stone || 0) < stoneCost) {
-            showToast(`Не хватает ${stoneCost - (currentPlayer.quarry?.stone || 0)} 🪨!`, 'error');
-            return;
-        }
-        
-        await playerDocRef.update({
-            'lumber.wood': firebase.firestore.FieldValue.increment(-woodCost),
-            'quarry.stone': firebase.firestore.FieldValue.increment(-stoneCost)
-        });
-        currentPlayer.lumber.wood -= woodCost;
-        currentPlayer.quarry.stone -= stoneCost;
-        
-        let upgradeDurationMs = 2 * 60 * 1000;
-        upgradeDurationMs = Math.floor(upgradeDurationMs * (1 + (currentLevel - 1) * 0.1));
-        const upgradeStartTime = Date.now();
-        
-        await playerDocRef.update({
-            [`gang.${type}.upgradeStartTime`]: upgradeStartTime,
-            [`gang.${type}.upgradeDuration`]: upgradeDurationMs
-        });
-        gang[type].upgradeStartTime = upgradeStartTime;
-        gang[type].upgradeDuration = upgradeDurationMs;
-        
-        showToast(`⏳ Начата прокачка ${type === 'blats' ? 'Блатных' : type === 'muzhiks' ? 'Мужиков' : 'Фраеров'}! Уровень повысится через ${Math.round(upgradeDurationMs / 60000)} мин.`, 'success');
-        renderGangModal();
-        renderUI();
-    }
-    
-    function closeGangModal() {
+function closeGangModal() {
         const modal = document.getElementById('gangFullscreen');
         if (modal) modal.remove();
         if (gangTimers.interval) clearInterval(gangTimers.interval);
         if (tg) tg.BackButton.hide();
         renderUI();
     }
+    window.closeGangModal = closeGangModal;
 
     function openHospitalModal() {
         if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); return; }
@@ -6474,15 +6526,17 @@
                 };
                 await db.collection('players').doc(id).update({ gang: player.gang });
             } else {
-                if (!player.gang.blats.fighters) player.gang.blats.fighters = 0;
-                if (!player.gang.muzhiks.fighters) player.gang.muzhiks.fighters = 0;
-                if (!player.gang.fraers.fighters) player.gang.fraers.fighters = 0;
-                if (!player.gang.blats.upgradeStartTime) player.gang.blats.upgradeStartTime = 0;
-                if (!player.gang.blats.upgradeDuration) player.gang.blats.upgradeDuration = 0;
-                if (!player.gang.muzhiks.upgradeStartTime) player.gang.muzhiks.upgradeStartTime = 0;
-                if (!player.gang.muzhiks.upgradeDuration) player.gang.muzhiks.upgradeDuration = 0;
-                if (!player.gang.fraers.upgradeStartTime) player.gang.fraers.upgradeStartTime = 0;
-                if (!player.gang.fraers.upgradeDuration) player.gang.fraers.upgradeDuration = 0;
+                // ДОБАВЬТЕ ЭТИ ПРОВЕРКИ:
+                if (!player.gang.blats) player.gang.blats = { level: 1, lastGatherTime: 0, fighters: 0, upgradeStartTime: 0, upgradeDuration: 0 };
+                if (!player.gang.muzhiks) player.gang.muzhiks = { level: 1, lastGatherTime: 0, fighters: 0, upgradeStartTime: 0, upgradeDuration: 0 };
+                if (!player.gang.fraers) player.gang.fraers = { level: 1, lastGatherTime: 0, fighters: 0, upgradeStartTime: 0, upgradeDuration: 0 };
+                // Добавляем недостающие поля
+                if (player.gang.blats.upgradeStartTime === undefined) player.gang.blats.upgradeStartTime = 0;
+                if (player.gang.blats.upgradeDuration === undefined) player.gang.blats.upgradeDuration = 0;
+                if (player.gang.muzhiks.upgradeStartTime === undefined) player.gang.muzhiks.upgradeStartTime = 0;
+                if (player.gang.muzhiks.upgradeDuration === undefined) player.gang.muzhiks.upgradeDuration = 0;
+                if (player.gang.fraers.upgradeStartTime === undefined) player.gang.fraers.upgradeStartTime = 0;
+                if (player.gang.fraers.upgradeDuration === undefined) player.gang.fraers.upgradeDuration = 0;
             }
             if (player.injuredFighters === undefined) player.injuredFighters = 0;
             if (player.treatmentEndTime === undefined) player.treatmentEndTime = 0;
