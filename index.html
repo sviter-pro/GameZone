@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Тюрьма 1.0.0.173 - Карта зоны</title>
+    <title>Тюрьма 1.0.0.171 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -1559,7 +1559,7 @@
                 <img class="loading-logo" src="https://sviter-pro.github.io/GameZone/src/test/logo124.png" alt="Тюряга 2.0" onerror="this.src='https://via.placeholder.com/180x180?text=Тюряга+2.0'">
                 <div class="loading-spinner-new"></div>
                 <div class="loading-tip-new" id="loadingTipNew">⚡ Загрузка игрового мира...</div>
-                <div class="loading-version">Тюряга 1.0.0.173 | Зона ждет</div>
+                <div class="loading-version">Тюряга 1.0.0.171 | Зона ждет</div>
             </div>
         `;
         const tipEl = document.getElementById('loadingTipNew');
@@ -1609,27 +1609,24 @@
     
         // Функция обновления бейджа уведомлений на кнопке "Клан"
     function updateClanNotificationBadge() {
-    // Добавляем проверку существования DOM элемента
-    const clanBtn = document.querySelector('.nav-btn[onclick*="switchBottomTab(\'clan\')"]');
-    if (!clanBtn) return;
-    
-    const existingBadge = clanBtn.querySelector('.badge-count');
-    
-    if (clanQuestReadyCount > 0) {
-        if (existingBadge) {
-            existingBadge.textContent = clanQuestReadyCount;
-            existingBadge.style.display = 'flex';
-        } else {
-            const badge = document.createElement('span');
-            badge.className = 'badge-count';
-            badge.textContent = clanQuestReadyCount;
-            clanBtn.style.position = 'relative';
-            clanBtn.appendChild(badge);
+        const clanBtn = document.querySelector('.nav-btn[onclick*="switchBottomTab(\'clan\')"]');
+        if (clanBtn) {
+            const existingBadge = clanBtn.querySelector('.badge-count');
+            if (clanQuestReadyCount > 0) {
+                if (existingBadge) {
+                    existingBadge.textContent = clanQuestReadyCount;
+                } else {
+                    const badge = document.createElement('span');
+                    badge.className = 'badge-count';
+                    badge.textContent = clanQuestReadyCount;
+                    clanBtn.style.position = 'relative';
+                    clanBtn.appendChild(badge);
+                }
+            } else if (existingBadge) {
+                existingBadge.remove();
+            }
         }
-    } else if (existingBadge) {
-        existingBadge.remove();
     }
-}
     
     // Функция обновления бейджа уведомлений на кнопке "Задания"
     function updateQuestsNotificationBadge() {
@@ -4329,69 +4326,48 @@
     }
     
 function checkClanQuestsReady() {
-    let readyCount = 0;
-    const now = Date.now();
-    let changed = false;
-    
-    for (let i = 0; i < clanQuests.length; i++) {
-        const quest = clanQuests[i];
-        if (quest.startTime > 0 && !quest.ready && !quest.claimed) {
-            const endTime = quest.startTime + (quest.hours * 60 * 60 * 1000);
-            if (now >= endTime) {
-                if (!quest.ready) {
-                    quest.ready = true;
-                    readyCount++;
-                    changed = true;
-                    saveClanQuests();
-                    if (settingsNotifications) {
-                        sendTelegramNotification(`🏆 В клане выполнено задание на ${quest.hours} час(а)! Забери награду!`);
+        let readyCount = 0;
+        const now = Date.now();
+        for (let i = 0; i < clanQuests.length; i++) {
+            const quest = clanQuests[i];
+            // Задание готово к выдаче, если время вышло и оно ещё не получено
+            if (quest.startTime > 0 && !quest.ready && !quest.claimed) {
+                const endTime = quest.startTime + (quest.hours * 60 * 60 * 1000);
+                if (now >= endTime) {
+                    if (!quest.ready) {
+                        quest.ready = true;
+                        readyCount++;
+                        saveClanQuests();
+                        if (settingsNotifications) {
+                            sendTelegramNotification(`🏆 В клане выполнено задание на ${quest.hours} час(а)! Забери награду!`);
+                        }
+                    } else {
+                        readyCount++;
                     }
-                } else {
-                    readyCount++;
                 }
+            } else if (quest.ready && !quest.claimed) {
+                // Уже готовое и не полученное задание
+                readyCount++;
             }
-        } else if (quest.ready && !quest.claimed) {
-            readyCount++;
         }
+        return readyCount;
     }
     
-    // Обновляем глобальный счетчик
-    const oldCount = clanQuestReadyCount;
-    clanQuestReadyCount = readyCount;
-    
-    // Обновляем бейдж только если изменилось значение И приложение активно
-    if (changed || oldCount !== readyCount) {
-        // Используем setTimeout для безопасного обновления DOM
-        setTimeout(() => {
-            if (currentPlayer && document.getElementById('app')) {
-                updateClanNotificationBadge();
-            }
-        }, 50);
-    }
-    
-    return readyCount;
-}
-    
-    async function claimClanQuestInternal(questId, clanLevel) {
-    const quest = clanQuests.find(q => q.id === questId);
-    if (!quest) return false;
-    if (questId > clanLevel) {
-        showToast(`Задание требует уровень клана ${questId}!`, 'warning');
-        return false;
-    }
-    if (!quest.ready) {
-        showToast('Задание ещё не выполнено!', 'warning');
-        return false;
-    }
-    if (quest.claimed) {
-        showToast('Награда уже получена!', 'warning');
-        return false;
-    }
-    
-    const reward = quest.reward;
-    if (!reward) return false;
-    
-    try {
+    function claimClanQuestInternal(questId, clanLevel) {
+        const quest = clanQuests.find(q => q.id === questId);
+        if (!quest) return false;
+        if (questId > clanLevel) {
+            showToast(`Задание требует уровень клана ${questId}!`, 'warning');
+            return false;
+        }
+        if (!quest.ready) {
+            showToast('Задание ещё не выполнено!', 'warning');
+            return false;
+        }
+        
+        const reward = quest.reward;
+        if (!reward) return false;
+        
         let updateObj = {};
         if (reward.type === 'cigarettes') {
             currentPlayer.cigarettes += reward.amount;
@@ -4416,34 +4392,29 @@ function checkClanQuestsReady() {
             currentPlayer.mine.makhorka += reward.amount;
             updateObj = { 'mine.makhorka': currentPlayer.mine.makhorka };
         }
-        
         if (Object.keys(updateObj).length > 0) {
-            await playerDocRef.update(updateObj);
+            playerDocRef.update(updateObj);
         }
         
-        // Помечаем задание как полученное
-        quest.claimed = true;
-        saveClanQuests();
-        
         showToast(`🎁 Задание ${quest.hours}ч выполнено! +${reward.amount} ${reward.icon} ${reward.name}`, 'success');
+        
+        // Перезапускаем задание
+        quest.reward = generateRandomReward();
+        quest.startTime = Date.now();
+        quest.ready = false;
+        quest.claimed = false;
+        saveClanQuests();
         
         // Обновляем счетчик готовых заданий
         clanQuestReadyCount = checkClanQuestsReady();
         updateClanNotificationBadge();
         
         if (document.getElementById('clanFullscreen') && currentClanTab === 'quests') {
-            const clan = allClans.find(c => c.id === currentPlayer.clanId);
-            const clanLevelCurrent = clan?.level || 1;
-            renderClanQuestsHTML(clanLevelCurrent);
+            renderClanQuestsHTML(clanLevel);
         }
         renderUI();
         return true;
-    } catch(e) {
-        console.error('Ошибка получения награды:', e);
-        showToast('Ошибка при получении награды!', 'error');
-        return false;
     }
-}
     
     function renderClanQuestsHTML(clanLevel) {
         const container = document.getElementById('clanQuestsContainer');
@@ -4508,29 +4479,28 @@ function checkClanQuestsReady() {
         container.innerHTML = html;
     }
     
-    async function claimClanQuestExternal(questId) {
-    const clan = allClans.find(c => c.id === currentPlayer.clanId);
-    const clanLevel = clan?.level || 1;
-    await claimClanQuestInternal(questId, clanLevel);
-}
-    
-     function startClanQuestsTimer() {
-    if (clanQuestsTimer) clearInterval(clanQuestsTimer);
-    clanQuestsTimer = setInterval(() => {
-        if (!currentPlayer || !currentPlayer.clanId) return;
-        
+    function claimClanQuestExternal(questId) {
         const clan = allClans.find(c => c.id === currentPlayer.clanId);
         const clanLevel = clan?.level || 1;
-        
-        // Проверяем готовые задания
-        const newReadyCount = checkClanQuestsReady();
-        
-        // Обновляем отображение только если окно клана открыто
-        if (document.getElementById('clanFullscreen') && currentClanTab === 'quests') {
-            renderClanQuestsHTML(clanLevel);
-        }
-    }, 1000);
-}
+        claimClanQuestInternal(questId, clanLevel);
+    }
+    
+     function startClanQuestsTimer() {
+        if (clanQuestsTimer) clearInterval(clanQuestsTimer);
+        clanQuestsTimer = setInterval(() => {
+            if (!currentPlayer || !currentPlayer.clanId) return;
+            const clan = allClans.find(c => c.id === currentPlayer.clanId);
+            const clanLevel = clan?.level || 1;
+            const newReadyCount = checkClanQuestsReady();
+            if (newReadyCount !== clanQuestReadyCount) {
+                clanQuestReadyCount = newReadyCount;
+                updateClanNotificationBadge();
+            }
+            if (document.getElementById('clanFullscreen') && currentClanTab === 'quests') {
+                renderClanQuestsHTML(clanLevel);
+            }
+        }, 1000);
+    }
     
     async function openClanFullModal() {
         if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); return; }
@@ -6961,7 +6931,7 @@ function closeGangModal() {
     </div>
     <div class="fixed-bottom-bar">
         <div class="bottom-nav">
-            <button class="nav-btn ${currentBottomTab === 'city' ? 'active' : ''}" onclick="switchBottomTab('city')"><span>🏙️</span><span>Город</span></button>
+            <button class="nav-btn ${currentBottomTab === 'city' ? 'active' : ''}" onclick="switchBottomTab('city')"><img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_1.png" style="width: 50px; height: 88px; object-fit: contain;"><span style="font-size: 0;">Город</span></button>
             <button class="nav-btn ${currentBottomTab === 'treasury' ? 'active' : ''}" onclick="switchBottomTab('treasury')"><span>💰</span><span>Общак</span></button>
             <button class="nav-btn notification-badge ${currentBottomTab === 'clan' ? 'active' : ''}" onclick="switchBottomTab('clan')">
                 <span>👥</span><span>Клан</span>
