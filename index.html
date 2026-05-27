@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Тюрьма 1.0.0.169 - Карта зоны</title>
+    <title>Тюрьма 1.0.0.170 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -1512,6 +1512,31 @@
     let shopUpgradeStartTime = 0;
     let shopUpgradeDuration = 0;
     let shopLevel = 1;
+	
+	// Функция для получения информации о банде игрока
+    function getGangInfoString(player) {
+        if (!player || !player.gang) return "👥 0 бойцов";
+        const blats = player.gang.blats?.fighters || 0;
+        const muzhiks = player.gang.muzhiks?.fighters || 0;
+        const fraers = player.gang.fraers?.fighters || 0;
+        const total = blats + muzhiks + fraers;
+        return `👥 Всего: ${total} (👑${blats} 🔨${muzhiks} 🐑${fraers})`;
+    }
+    
+    function getTotalFighters(player) {
+        if (!player || !player.gang) return 0;
+        return (player.gang.blats?.fighters || 0) + (player.gang.muzhiks?.fighters || 0) + (player.gang.fraers?.fighters || 0);
+    }
+	
+	// Функция для получения строки с бандами (для отображения)
+    function getGangDisplayString(player) {
+        if (!player || !player.gang) return "👥 Банда: 0 бойцов";
+        const blats = player.gang.blats?.fighters || 0;
+        const muzhiks = player.gang.muzhiks?.fighters || 0;
+        const fraers = player.gang.fraers?.fighters || 0;
+        const total = blats + muzhiks + fraers;
+        return `👑 Блатные: ${blats} | 🔨 Мужики: ${muzhiks} | 🐑 Фраера: ${fraers} | 👥 Всего: ${total}`;
+    }
 
     const firebaseConfig = {
         apiKey: "AIzaSyCAHzMos_d5EjUrePFnWAnoVB4sMTcpX2g",
@@ -1534,7 +1559,7 @@
                 <img class="loading-logo" src="https://sviter-pro.github.io/GameZone/src/test/logo124.png" alt="Тюряга 2.0" onerror="this.src='https://via.placeholder.com/180x180?text=Тюряга+2.0'">
                 <div class="loading-spinner-new"></div>
                 <div class="loading-tip-new" id="loadingTipNew">⚡ Загрузка игрового мира...</div>
-                <div class="loading-version">Тюряга 1.0.0.169 | Зона ждет</div>
+                <div class="loading-version">Тюряга 1.0.0.170 | Зона ждет</div>
             </div>
         `;
         const tipEl = document.getElementById('loadingTipNew');
@@ -4139,7 +4164,7 @@
                         <div><strong>📈 Уровень клана:</strong> ${clan.level || 1}</div>
                         <details>
                             <summary style="cursor:pointer; margin-top:15px; padding:8px; background:rgba(233,69,96,0.2); border-radius:20px;">📋 Список участников</summary>
-                            ${membersList.map(m => `<div style="padding:8px 0;">⭐ ${escapeHtml(m.username)} | Ур.${m.level} | 💪${m.stats?.strength || 10} | 🛡️${m.stats?.defense || 5}</div>`).join('')}
+                            ${membersList.map(m => `<div style="padding:8px 0;">⭐ ${escapeHtml(m.username)} | Ур.${m.level} | 💪${m.stats?.strength || 10} | 🛡️${m.stats?.defense || 5}<br><span style="font-size:10px; color:#ffd93d;">${getGangDisplayString(m)}</span></div>`).join('')}
                         </details>
                         ${currentPlayer?.clanId && currentPlayer?.username === currentPlayer?.clanLeader && clanId !== currentPlayer.clanId && !activeWar ? `
                             <div style="margin-top:15px;">
@@ -4237,7 +4262,8 @@
                     members.push({
                         username: m.username, level: m.level, power: calculatePlayerPower(m),
                         strength: m.stats?.strength || 10, defense: m.stats?.defense || 5,
-                        isLeader: m.username === clan.leader, isYou: m.username === currentPlayer.username
+                        isLeader: m.username === clan.leader, isYou: m.username === currentPlayer.username,
+                        gangDisplay: getGangDisplayString(m)
                     });
                 }
             }
@@ -4601,6 +4627,7 @@ function checkClanQuestsReady() {
                             <div class="clan-member-row">
                                 <div><strong>${escapeHtml(m.username)}</strong>${m.isLeader ? '<span style="background:#f1c40f; color:#333; padding:2px 8px; border-radius:20px; font-size:10px; margin-left:8px;">Главарь</span>' : ''}${m.isYou ? '<span style="background:#4caf50; color:white; padding:2px 8px; border-radius:20px; font-size:10px; margin-left:8px;">Вы</span>' : ''}</div>
                                 <div style="font-size:11px; color:#aaa; display:flex; gap:12px;"><span>💪 ${m.strength}</span><span>🛡️ ${m.defense}</span><span>⭐ ${m.level}</span></div>
+                                <div style="font-size:10px; color:#ffd93d; margin-top:4px;">${m.gangDisplay}</div>
                             </div>
                         `).join('')}
                     </div>
