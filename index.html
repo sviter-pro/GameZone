@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Тюрьма 1.0.0.168 - Карта зоны</title>
+    <title>Тюрьма 1.0.0.169 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -1534,7 +1534,7 @@
                 <img class="loading-logo" src="https://sviter-pro.github.io/GameZone/src/test/logo124.png" alt="Тюряга 2.0" onerror="this.src='https://via.placeholder.com/180x180?text=Тюряга+2.0'">
                 <div class="loading-spinner-new"></div>
                 <div class="loading-tip-new" id="loadingTipNew">⚡ Загрузка игрового мира...</div>
-                <div class="loading-version">Тюряга 1.0.0.168 | Зона ждет</div>
+                <div class="loading-version">Тюряга 1.0.0.169 | Зона ждет</div>
             </div>
         `;
         const tipEl = document.getElementById('loadingTipNew');
@@ -1582,9 +1582,9 @@
         }
     }
     
-    // Функция обновления бейджа уведомлений на кнопке "Клан"
+        // Функция обновления бейджа уведомлений на кнопке "Клан"
     function updateClanNotificationBadge() {
-        const clanBtn = document.querySelector('.nav-btn[onclick*="clan"]');
+        const clanBtn = document.querySelector('.nav-btn[onclick*="switchBottomTab(\'clan\')"]');
         if (clanBtn) {
             const existingBadge = clanBtn.querySelector('.badge-count');
             if (clanQuestReadyCount > 0) {
@@ -4299,11 +4299,12 @@
         if (changed) saveClanQuests();
     }
     
-    function checkClanQuestsReady() {
+function checkClanQuestsReady() {
         let readyCount = 0;
         const now = Date.now();
         for (let i = 0; i < clanQuests.length; i++) {
             const quest = clanQuests[i];
+            // Задание готово к выдаче, если время вышло и оно ещё не получено
             if (quest.startTime > 0 && !quest.ready && !quest.claimed) {
                 const endTime = quest.startTime + (quest.hours * 60 * 60 * 1000);
                 if (now >= endTime) {
@@ -4318,6 +4319,9 @@
                         readyCount++;
                     }
                 }
+            } else if (quest.ready && !quest.claimed) {
+                // Уже готовое и не полученное задание
+                readyCount++;
             }
         }
         return readyCount;
@@ -4368,14 +4372,14 @@
         
         showToast(`🎁 Задание ${quest.hours}ч выполнено! +${reward.amount} ${reward.icon} ${reward.name}`, 'success');
         
-        // Перезапускаем задание
+        // Перезапускаем задание (сбрасываем ready и генерируем новую награду, но startTime оставляем тот же? Нет, нужно перезапустить с новым временем)
         quest.reward = generateRandomReward();
-        quest.startTime = Date.now();
+        quest.startTime = Date.now();  // Перезапускаем таймер
         quest.ready = false;
         quest.claimed = false;
         saveClanQuests();
         
-        // Обновляем счетчик
+        // Обновляем счетчик готовых заданий
         clanQuestReadyCount = checkClanQuestsReady();
         updateClanNotificationBadge();
         
