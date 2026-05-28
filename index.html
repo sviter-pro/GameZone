@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Тюрьма 1.0.0.179 - Карта зоны</title>
+    <title>Тюрьма 1.0.0.180 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -204,34 +204,38 @@
     background: rgba(10, 14, 26, 0.95);
     backdrop-filter: blur(16px);
     border-top: 1px solid rgba(233, 69, 96, 0.3);
-    padding: 8px 16px;
-    padding-bottom: max(8px, env(safe-area-inset-bottom));
+    padding: 5px 0; /* ← 5мм сверху и снизу */
+    padding-bottom: max(5px, env(safe-area-inset-bottom));
         }
         .bottom-nav {
             max-width: 500px;
     margin: 0 auto;
     display: flex;
-    justify-content: space-around;
+    justify-content: center; /* ← центр */
     align-items: center;
-    gap: 4px;
+    gap: 16px; /* ← промежуток между кнопками */
         }
 		.nav-btn img {
- width: 65px;  /* Оригинальный размер */
+ width: 55px; /* ← чуть уменьшил для компактности */
     height: auto;
-    max-height: 103px;
+    max-height: 70px;
     object-fit: contain;
-    display: inline-block;
-    vertical-align: middle;
-	-webkit-touch-callout: none;
+    display: block;
+    -webkit-touch-callout: none;
     -webkit-user-select: none;
     user-select: none;
-    pointer-events: auto; /* ← ОСТАВЛЯЕМ auto для кликов */
+    pointer-events: auto;
+    transition: opacity 0.3s ease;
+    opacity: 1;
+}
+.nav-btn img[src=""] {
+    opacity: 0;
 }
         .nav-btn {
             background: transparent;
     border: none;
-    border-radius: 20px;
-    padding: 4px 8px;
+    border-radius: 16px; /* ← скругление под размер */
+    padding: 6px 10px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -241,20 +245,21 @@
     color: #8e8ea0;
     font-size: 12px;
     font-weight: 500;
-    min-width: 70px;
+    min-width: auto; /* ← убираем фикс. ширину */
+    position: relative;
         }
         .nav-btn span:first-child { font-size: 24px; transition: transform 0.2s; }
         .nav-btn span:last-child { font-size: 10px; font-weight: 500; letter-spacing: 0.3px; }
         .nav-btn.active {
-            background: rgba(233, 69, 96, 0.2);
+            background: rgba(233, 69, 96, 0.15); /* ← полупрозрачный фон */
     border: 2px solid rgba(233, 69, 96, 0.8);
-    box-shadow: 0 0 12px rgba(233, 69, 96, 0.6);
+    box-shadow: 0 0 12px rgba(233, 69, 96, 0.5);
     transform: scale(1.02);
         }
         .nav-btn.active span:first-child { transform: scale(1.1); text-shadow: 0 0 8px rgba(233, 69, 96, 0.8); }
-        .nav-btn:active { transform: scale(0.94); background: rgba(233, 69, 96, 0.25); }
+        .nav-btn:active { outline: none; transform: scale(0.94); background: rgba(233, 69, 96, 0.25); }
 .nav-btn.active img {
-    filter: drop-shadow(0 0 8px rgba(233, 69, 96, 0.7));
+    filter: drop-shadow(0 0 8px rgba(233, 69, 96, 0.6));
 }
 
 /* Текст кнопок делаем невидимым, но оставляем для доступности */
@@ -482,23 +487,33 @@
         }
         .notification-badge .badge-count {
             position: absolute;
-            top: -5px;
-            right: -10px;
-            background: #e94560;
-            color: white;
-            border-radius: 50%;
-            min-width: 18px;
-            height: 18px;
-            font-size: 10px;
-            font-weight: bold;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 0 4px;
-            box-shadow: 0 0 5px rgba(233,69,96,0.5);
+    top: -4px;
+    right: -4px;
+    background: #e94560;
+    color: white;
+    border-radius: 50%;
+    min-width: 18px;
+    height: 18px;
+    font-size: 10px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+    box-shadow: 0 0 5px rgba(233,69,96,0.5);
+    z-index: 10;
         }
 
         @media (max-width: 768px) {
+		.bottom-nav {
+        gap: 8px;
+    }
+    .nav-btn img {
+        width: 48px;
+    }
+    .nav-btn {
+        padding: 4px 8px;
+    }
     .game-container { width: 100%; max-width: 100%; }
     .map-wrapper { width: 100%; }
     .map-image { width: 100%; }
@@ -1394,6 +1409,30 @@ img, .nav-btn, .nav-btn img, .building, button {
     -webkit-user-drag: none !important;
     user-drag: none !important;
 }
+
+/* Анимация загрузки картинок */
+.img-loading {
+    opacity: 0.5;
+    background: linear-gradient(90deg, #1a1a2e 0%, #2a2a3e 50%, #1a1a2e 100%);
+    background-size: 200% 100%;
+    animation: loadingShimmer 1s infinite;
+}
+
+@keyframes loadingShimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+.img-loaded {
+    opacity: 1;
+    transition: opacity 0.3s ease;
+}
+
+.img-error {
+    opacity: 0.6;
+    filter: grayscale(0.5);
+    background: #2a2a3e;
+}
     </style>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
@@ -1436,6 +1475,100 @@ img, .nav-btn, .nav-btn img, .building, button {
 })();
 </script>
 <script>
+// ========== ПРОСТОЙ КЭШ КАРТИНОК (БЕЗ CANVAS) ==========
+const IMAGE_CACHE_KEY = 'game_images_cache';
+const IMAGE_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 часа
+
+// Получить кэш
+function getImageCache() {
+    try {
+        const cached = localStorage.getItem(IMAGE_CACHE_KEY);
+        if (cached) {
+            const data = JSON.parse(cached);
+            const now = Date.now();
+            const validEntries = {};
+            for (const [url, entry] of Object.entries(data)) {
+                if (now - entry.timestamp < IMAGE_CACHE_TTL) {
+                    validEntries[url] = entry;
+                }
+            }
+            return validEntries;
+        }
+    } catch(e) {}
+    return {};
+}
+
+// Сохранить URL в кэш (сохраняем сам URL, не dataURL)
+function saveToImageCache(url) {
+    try {
+        const cache = getImageCache();
+        cache[url] = {
+            url: url,
+            timestamp: Date.now()
+        };
+        const entries = Object.entries(cache);
+        if (entries.length > 50) {
+            entries.sort((a, b) => a[1].timestamp - b[1].timestamp);
+            for (let i = 0; i < entries.length - 50; i++) {
+                delete cache[entries[i][0]];
+            }
+        }
+        localStorage.setItem(IMAGE_CACHE_KEY, JSON.stringify(cache));
+    } catch(e) {}
+}
+
+// Проверить, есть ли URL в кэше
+function isInImageCache(url) {
+    const cache = getImageCache();
+    return !!cache[url];
+}
+
+// Загрузить картинку с проверкой кэша (простая версия)
+function loadImageWithCache(imgElement, originalUrl, fallbackUrl) {
+    if (!imgElement) return;
+    
+    // Если URL уже в кэше или картинка уже загружена
+    if (isInImageCache(originalUrl) || imgElement.getAttribute('data-cached') === 'true') {
+        imgElement.src = originalUrl;
+        imgElement.classList.remove('img-loading');
+        imgElement.classList.add('img-loaded');
+        return;
+    }
+    
+    imgElement.classList.add('img-loading');
+    
+    const tempImg = new Image();
+    tempImg.onload = () => {
+        imgElement.src = originalUrl;
+        imgElement.classList.remove('img-loading');
+        imgElement.classList.add('img-loaded');
+        imgElement.setAttribute('data-cached', 'true');
+        saveToImageCache(originalUrl);
+    };
+    tempImg.onerror = () => {
+        if (fallbackUrl && fallbackUrl !== originalUrl) {
+            loadImageWithCache(imgElement, fallbackUrl, null);
+        } else {
+            imgElement.classList.remove('img-loading');
+            imgElement.classList.add('img-error');
+            imgElement.src = fallbackUrl || originalUrl;
+        }
+    };
+    tempImg.src = originalUrl;
+}
+
+// Загрузить все картинки на странице
+function loadAllCachedImages() {
+    document.querySelectorAll('img[data-src]').forEach(img => {
+        const src = img.getAttribute('data-src');
+        const fallback = img.getAttribute('data-fallback');
+        if (src) {
+            loadImageWithCache(img, src, fallback);
+        }
+    });
+}
+</script>
+<script>
     // ========== TELEGRAM WEBAPP INIT ==========
 	window._opening_modal = false;
     let tg = null;
@@ -1461,6 +1594,14 @@ img, .nav-btn, .nav-btn img, .building, button {
         console.log('Not running in Telegram WebApp');
     }
 
+const ALL_IMAGE_URLS = [
+    'https://sviter-pro.github.io/GameZone/src/test/123.png',
+    'https://sviter-pro.github.io/GameZone/src/test/Untitled_1.png',
+    'https://sviter-pro.github.io/GameZone/src/test/Untitled_2.png',
+    'https://sviter-pro.github.io/GameZone/src/test/Untitled_3.png',
+    'https://sviter-pro.github.io/GameZone/src/test/Untitled_4.png',
+    'https://sviter-pro.github.io/GameZone/src/test/Untitled_5.png'
+];
     // ========== ПЕРЕМЕННЫЕ ==========
     let cardGameActive = false, cardGameInterval = null, cardGameStartTime = 0, cardGameDuration = 30 * 60 * 1000;
     let cardGameTimerUpdate = null, currentCardImage = null, cardGameBonusPercent = 0, cardGameModalOpen = false;
@@ -1692,7 +1833,7 @@ async function safeOpenModal(modalName, openFunction) {
                 <img class="loading-logo" src="https://sviter-pro.github.io/GameZone/src/test/logo124.png" alt="Тюряга 2.0" onerror="this.src='https://via.placeholder.com/180x180?text=Тюряга+2.0'">
                 <div class="loading-spinner-new"></div>
                 <div class="loading-tip-new" id="loadingTipNew">⚡ Загрузка игрового мира...</div>
-                <div class="loading-version">Тюряга 1.0.0.179 | Зона ждет</div>
+                <div class="loading-version">Тюряга 1.0.0.180 | Зона ждет</div>
             </div>
         `;
         const tipEl = document.getElementById('loadingTipNew');
@@ -6865,6 +7006,21 @@ function closeGangModal() {
     function startEnergyTimer() { if (energyInterval) clearInterval(energyInterval); energyInterval = setInterval(async () => { if (currentPlayer && currentPlayer.energy < currentPlayer.maxEnergy) { const newEnergy = Math.min(currentPlayer.maxEnergy, currentPlayer.energy + 1); currentPlayer.energy = newEnergy; if (playerDocRef) await playerDocRef.update({ energy: newEnergy }); renderUI(); } }, 60000); }
     
     async function startGame(id, name) {
+	// Принудительная загрузка всех картинок нижней панели
+setTimeout(() => {
+    const allImages = [
+        'https://sviter-pro.github.io/GameZone/src/test/Untitled_1.png',
+        'https://sviter-pro.github.io/GameZone/src/test/Untitled_2.png',
+        'https://sviter-pro.github.io/GameZone/src/test/Untitled_3.png',
+        'https://sviter-pro.github.io/GameZone/src/test/Untitled_4.png',
+        'https://sviter-pro.github.io/GameZone/src/test/Untitled_5.png'
+    ];
+    
+    allImages.forEach(src => {
+        const img = new Image();
+        img.src = src;
+    });
+}, 500);
         showLoadingScreen();
 		// ПРИНУДИТЕЛЬНОЕ ОТКЛЮЧЕНИЕ КОНТЕКСТНОГО МЕНЮ ДЛЯ ВСЕХ ЭЛЕМЕНТОВ
 document.body.style.webkitTouchCallout = 'none';
@@ -7028,6 +7184,8 @@ document.addEventListener('touchstart', (e) => {
             // Запускаем таймер заданий клана
             startClanQuestsTimer();
         } catch(e) { console.error(e); hideLoadingScreen(); alert('Ошибка загрузки игры: ' + e.message); showLoginForm(); }
+		
+
     }
     
     function renderUI() {
@@ -7322,20 +7480,20 @@ document.addEventListener('touchstart', (e) => {
     <div class="fixed-bottom-bar">
     <div class="bottom-nav">
         <button class="nav-btn ${currentBottomTab === 'city' ? 'active' : ''}" onclick="switchBottomTab('city')">
-            <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_1.png" alt="Город" draggable="false" ontouchstart="return true;">
+            <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_1.png" alt="Город" draggable="false">
         </button>
         <button class="nav-btn ${currentBottomTab === 'treasury' ? 'active' : ''}" onclick="openTreasuryModal()">
-            <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_3.png" alt="Общак" draggable="false" ontouchstart="return true;">
+            <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_3.png" alt="Общак" draggable="false">
         </button>
         <button class="nav-btn notification-badge ${currentBottomTab === 'clan' ? 'active' : ''}" onclick="openClanFullModal()">
-            <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_2.png" alt="Клан" draggable="false" ontouchstart="return true;">
+            <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_2.png" alt="Клан" draggable="false">
             ${clanQuestReadyCount > 0 ? `<span class="badge-count">${clanQuestReadyCount}</span>` : ''}
         </button>
         <button class="nav-btn ${currentBottomTab === 'war' ? 'active' : ''}" onclick="openAttackModal()">
-            <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_4.png" alt="Война" draggable="false" ontouchstart="return true;">
+            <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_4.png" alt="Война" draggable="false">
         </button>
         <button class="nav-btn notification-badge ${currentBottomTab === 'quests' ? 'active' : ''}" onclick="openQuestsModal()">
-            <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_5.png" alt="Задания" draggable="false" ontouchstart="return true;">
+            <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_5.png" alt="Задания" draggable="false">
             ${questNotificationCount > 0 ? `<span class="badge-count">${questNotificationCount}</span>` : ''}
         </button>
     </div>
@@ -7365,7 +7523,12 @@ document.addEventListener('touchstart', (e) => {
             renderUI();
         }, 1000);
     }  // ← ЭТО ДОЛЖНА БЫТЬ ЕДИНСТВЕННАЯ ЗАКРЫВАЮЩАЯ СКОБКА
-        
+    // Загружаем картинки после отрисовки
+if (typeof loadAllCachedImages === 'function') {
+    setTimeout(() => {
+        loadAllCachedImages();
+    }, 100);
+}    
         
     
     function showOldLoginForm() {
