@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Тюрьма 1.0.0.173 - Карта зоны</title>
+    <title>Тюрьма 1.0.0.174 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -1368,31 +1368,27 @@
         input:checked + .toggle-slider:before {
             transform: translateX(26px);
         }
-		/* Запрет выделения и сохранения */
-img, .nav-btn, .bottom-nav, .fixed-bottom-bar {
-    -webkit-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
-    -webkit-tap-highlight-color: transparent;
-    pointer-events: auto; /* клики работают */
-}
-
-/* Запрет контекстного меню на всей панели */
-.fixed-bottom-bar {
-    -webkit-touch-callout: none;
-}
-
-/* Дополнительная защита для всех изображений в приложении */
-img {
+		/* Полная защита от долгого нажатия на всех изображениях */
+img, .nav-btn img, .bottom-nav img, .fixed-bottom-bar img {
     -webkit-touch-callout: none !important;
-    pointer-events: auto;
+    -webkit-user-select: none !important;
+    -khtml-user-select: none !important;
+    -moz-user-select: none !important;
+    -ms-user-select: none !important;
+    user-select: none !important;
+    pointer-events: auto !important;
+}
+
+/* Защита от контекстного меню на всей нижней панели */
+.fixed-bottom-bar, .bottom-nav, .nav-btn {
+    -webkit-touch-callout: none !important;
+    touch-action: manipulation !important;
 }
     </style>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 </head>
-<body oncontextmenu="return false;" ondragstart="return false;" onselectstart="return false;" ontouchstart="return true;">
+<body oncontextmenu="return false;" ondragstart="return false;" onselectstart="return false;" ontouchstart="return true;" style="touch-action: manipulation;">
 <div id="app"></div>
 
 <script>
@@ -1640,7 +1636,7 @@ async function safeOpenModal(modalName, openFunction) {
                 <img class="loading-logo" src="https://sviter-pro.github.io/GameZone/src/test/logo124.png" alt="Тюряга 2.0" onerror="this.src='https://via.placeholder.com/180x180?text=Тюряга+2.0'">
                 <div class="loading-spinner-new"></div>
                 <div class="loading-tip-new" id="loadingTipNew">⚡ Загрузка игрового мира...</div>
-                <div class="loading-version">Тюряга 1.0.0.173 | Зона ждет</div>
+                <div class="loading-version">Тюряга 1.0.0.174 | Зона ждет</div>
             </div>
         `;
         const tipEl = document.getElementById('loadingTipNew');
@@ -7160,27 +7156,25 @@ function closeGangModal() {
         </div>
     </div>
     <div class="fixed-bottom-bar">
-    <div class="fixed-bottom-bar">
     <div class="bottom-nav">
-    <button class="nav-btn ${currentBottomTab === 'city' ? 'active' : ''}" onclick="switchBottomTab('city')">
-        <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_1.png" alt="Город" draggable="false">
-    </button>
-    <button class="nav-btn ${currentBottomTab === 'treasury' ? 'active' : ''}" onclick="openTreasuryModal()">
-        <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_3.png" alt="Общак" draggable="false">
-    </button>
-    <button class="nav-btn notification-badge ${currentBottomTab === 'clan' ? 'active' : ''}" onclick="openClanFullModal()">
-        <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_2.png" alt="Клан" draggable="false">
-        ${clanQuestReadyCount > 0 ? `<span class="badge-count">${clanQuestReadyCount}</span>` : ''}
-    </button>
-    <button class="nav-btn ${currentBottomTab === 'war' ? 'active' : ''}" onclick="openAttackModal()">
-        <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_4.png" alt="Война" draggable="false">
-    </button>
-    <button class="nav-btn notification-badge ${currentBottomTab === 'quests' ? 'active' : ''}" onclick="openQuestsModal()">
-        <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_5.png" alt="Задания" draggable="false">
-        ${questNotificationCount > 0 ? `<span class="badge-count">${questNotificationCount}</span>` : ''}
-    </button>
-</div>
-</div>
+        <button class="nav-btn ${currentBottomTab === 'city' ? 'active' : ''}" onclick="switchBottomTab('city')">
+            <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_1.png" alt="Город" draggable="false">
+        </button>
+        <button class="nav-btn ${currentBottomTab === 'treasury' ? 'active' : ''}" onclick="openTreasuryModal()">
+            <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_3.png" alt="Общак" draggable="false">
+        </button>
+        <button class="nav-btn notification-badge ${currentBottomTab === 'clan' ? 'active' : ''}" onclick="openClanFullModal()">
+            <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_2.png" alt="Клан" draggable="false">
+            ${clanQuestReadyCount > 0 ? `<span class="badge-count">${clanQuestReadyCount}</span>` : ''}
+        </button>
+        <button class="nav-btn ${currentBottomTab === 'war' ? 'active' : ''}" onclick="openAttackModal()">
+            <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_4.png" alt="Война" draggable="false">
+        </button>
+        <button class="nav-btn notification-badge ${currentBottomTab === 'quests' ? 'active' : ''}" onclick="openQuestsModal()">
+            <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_5.png" alt="Задания" draggable="false">
+            ${questNotificationCount > 0 ? `<span class="badge-count">${questNotificationCount}</span>` : ''}
+        </button>
+    </div>
 </div>
     ${toast.show ? `<div class="toast ${toast.type === 'error' ? 'error' : (toast.type === 'success' ? 'success' : 'warning')}">${toast.message}</div>` : ''}
 `;
@@ -7202,23 +7196,7 @@ function closeGangModal() {
             }
             renderUI();
         }, 1000);
-    if (window.mapCountersInterval) clearInterval(window.mapCountersInterval);
-        window.mapCountersInterval = setInterval(() => {
-            if (!currentPlayer) {
-                if (window.mapCountersInterval) clearInterval(window.mapCountersInterval);
-                return;
-            }
-            renderUI();
-        }, 1000);
-		        if (window.mapCountersInterval) clearInterval(window.mapCountersInterval);
-        window.mapCountersInterval = setInterval(() => {
-            if (!currentPlayer) {
-                if (window.mapCountersInterval) clearInterval(window.mapCountersInterval);
-                return;
-            }
-            renderUI();
-        }, 1000);
-    }  
+    }  // ← ЭТО ДОЛЖНА БЫТЬ ЕДИНСТВЕННАЯ ЗАКРЫВАЮЩАЯ СКОБКА
         
         
     
