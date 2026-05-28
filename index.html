@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Тюрьма 1.0.0.177 - Карта зоны</title>
+    <title>Тюрьма 1.0.0.178 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -1379,27 +1379,20 @@
     -webkit-tap-highlight-color: transparent;
 }
 
-/* ФИНАЛЬНАЯ ЗАЩИТА ОТ ДОЛГОГО НАЖАТИЯ */
-.nav-btn, 
-.nav-btn img, 
-.building, 
-.building img,
-.caste-info,
-.settings-btn,
-button,
-[onclick] {
-    -webkit-touch-callout: none !important;
-    -webkit-user-select: none !important;
-    user-select: none !important;
-    touch-action: manipulation !important;
-    -webkit-tap-highlight-color: transparent;
-}
-
-/* Запрет выделения текста и изображений */
+/* МАКСИМАЛЬНАЯ ЗАЩИТА - ЭТО РАБОТАЕТ ДАЖЕ В TELEGRAM WEBVIEW */
 * {
     -webkit-touch-callout: none !important;
     -webkit-user-select: none !important;
     user-select: none !important;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Отключаем контекстное меню на всех изображениях */
+img, .nav-btn, .nav-btn img, .building, button {
+    -webkit-touch-callout: none !important;
+    touch-action: manipulation !important;
+    -webkit-user-drag: none !important;
+    user-drag: none !important;
 }
     </style>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
@@ -1409,6 +1402,18 @@ button,
 <div id="app"></div>
 <script>
     // ========== ПОЛНАЯ ЗАЩИТА ОТ ДОЛГОГО НАЖАТИЯ ==========
+	// Telegram WebApp специфичная защита
+if (tg) {
+    // Отключаем все системные жесты
+    tg.expand();
+    tg.enableClosingConfirmation();
+    
+    // Блокируем контекстное меню в WebView
+    tg.MainButton && tg.MainButton.hide();
+    
+    // Отправляем команду на отключение контекстного меню
+    tg.sendData(JSON.stringify({ type: 'disable_context_menu' }));
+}
     (function() {
         // 1. Блокируем контекстное меню (правый клик)
         document.addEventListener('contextmenu', function(e) {
@@ -1475,6 +1480,7 @@ button,
 </script>
 <script>
     // ========== TELEGRAM WEBAPP INIT ==========
+	window._opening_modal = false;
     let tg = null;
     let tgUser = null;
     let isTelegramWebApp = false;
@@ -1660,10 +1666,20 @@ button,
     }
 	
 	// Универсальная функция для предотвращения двойного открытия модальных окон
-// Универсальная функция для предотвращения двойного открытия модальных окон
+// АТОМАРНАЯ БЛОКИРОВКА - 100% ЗАЩИТА ОТ ДВОЙНЫХ КЛИКОВ
 async function safeOpenModal(modalName, openFunction) {
-    // Проверяем, не открыто ли уже окно (по наличию DOM элемента)
-    const existingModals = [
+    // Генерируем уникальный ключ блокировки для этого окна
+    const lockKey = `modal_lock_${modalName}`;
+    const lockTime = localStorage.getItem(lockKey);
+    
+    // Если блокировка активна (менее 1 секунды назад) - игнорируем
+    if (lockTime && (Date.now() - parseInt(lockTime)) < 1000) {
+        console.log(`[${modalName}] Блокировка активна, пропускаем`);
+        return;
+    }
+    
+    // Проверяем, не открыто ли уже это окно
+    const modalIds = [
         'attackFullscreen', 'attackDetailFullscreen', 'clanFullscreen',
         'questsFullscreen', 'treasuryFullscreen', 'gangFullscreen',
         'shopFullscreen', 'cardgameFullscreen', 'mineFullscreen',
@@ -1671,39 +1687,30 @@ async function safeOpenModal(modalName, openFunction) {
         'hospitalFullscreen', 'casteSelectionFullscreen'
     ];
     
-    // Проверяем по ID
-    for (const modalId of existingModals) {
-        if (document.getElementById(modalId)) {
-            console.log(`[safeOpenModal] Окно ${modalId} уже открыто`);
+    for (const id of modalIds) {
+        if (document.getElementById(id)) {
+            console.log(`[${modalName}] Окно ${id} уже открыто`);
             return;
         }
     }
     
-    // Проверяем модальное окно рейтинга
     if (document.querySelector('.modal')) {
-        console.log(`[safeOpenModal] Модальное окно уже открыто`);
-        return;
-    }
-    
-    // Проверяем флаг блокировки
-    if (isOpeningModal) {
-        console.log(`[safeOpenModal] Блокировка: ${modalName} уже открывается`);
+        console.log(`[${modalName}] Модальное окно уже открыто`);
         return;
     }
     
     // Устанавливаем блокировку
-    isOpeningModal = true;
+    localStorage.setItem(lockKey, Date.now().toString());
     
     try {
         await openFunction();
     } catch (error) {
         console.error(`Ошибка при открытии ${modalName}:`, error);
-        showToast(`Ошибка открытия`, 'error');
     } finally {
-        // Снимаем блокировку через 300ms (достаточно для защиты от двойного клика)
+        // Снимаем блокировку через 1 секунду
         setTimeout(() => {
-            isOpeningModal = false;
-        }, 300);
+            localStorage.removeItem(lockKey);
+        }, 1000);
     }
 }
 
@@ -1728,7 +1735,7 @@ async function safeOpenModal(modalName, openFunction) {
                 <img class="loading-logo" src="https://sviter-pro.github.io/GameZone/src/test/logo124.png" alt="Тюряга 2.0" onerror="this.src='https://via.placeholder.com/180x180?text=Тюряга+2.0'">
                 <div class="loading-spinner-new"></div>
                 <div class="loading-tip-new" id="loadingTipNew">⚡ Загрузка игрового мира...</div>
-                <div class="loading-version">Тюряга 1.0.0.177 | Зона ждет</div>
+                <div class="loading-version">Тюряга 1.0.0.178 | Зона ждет</div>
             </div>
         `;
         const tipEl = document.getElementById('loadingTipNew');
@@ -1981,47 +1988,52 @@ function openQuestsModalWithReset() {
 }
 
     function openInventoryModal() {
-        if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); return; }
-        if (!currentPlayer) return;
-        
-        const modalHtml = `
-            <div class="inventory-fullscreen" id="inventoryFullscreen">
-                <div class="inventory-header-bar">
-                    <div class="inventory-header-content">
-                        <div class="inventory-header-title">📦 ИНВЕНТАРЬ</div>
-                    </div>
-                </div>
-                <div class="inventory-content-area">
-                    <div class="inventory-card">
-                        <h3 style="margin-bottom: 15px;">📦 Экипировка</h3>
-                        <div class="inventory-row">
-                            <span class="inventory-label">🔪 Оружие:</span>
-                            <span class="inventory-value">${currentPlayer.equipped?.weapon || 'камень'}</span>
-                        </div>
-                        <div class="inventory-row">
-                            <span class="inventory-label">👕 Одежда:</span>
-                            <span class="inventory-value">${currentPlayer.equipped?.armor || 'роба'}</span>
-                        </div>
-                        <div class="inventory-row">
-                            <span class="inventory-label">💍 Аксессуар:</span>
-                            <span class="inventory-value">${currentPlayer.equipped?.accessory || 'чифирная кружка'}</span>
-                        </div>
-                    </div>
-                    <div class="inventory-card">
-                        <h3 style="margin-bottom: 15px;">💉 Наколки (${currentPlayer.tattoos?.length || 0})</h3>
-                        ${currentPlayer.tattoos?.length > 0 ? currentPlayer.tattoos.map(t => `<div class="tattoo-item">• ${t}</div>`).join('') : '<div style="color:#aaa; padding:10px; text-align:center;">Нет наколок</div>'}
-                    </div>
-                </div>
-                <div class="inventory-bottom-nav">
-                    <div class="bottom-nav">
-                        <button class="inventory-tab-btn active" onclick="closeInventoryModal()"><span>←</span><span>Назад</span></button>
-                    </div>
+    if (window._opening_modal) { console.log('Блокировка: окно уже открывается'); return; }
+    window._opening_modal = true;
+    
+    if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); window._opening_modal = false; return; }
+    if (!currentPlayer) { window._opening_modal = false; return; }
+    
+    const modalHtml = `
+        <div class="inventory-fullscreen" id="inventoryFullscreen">
+            <div class="inventory-header-bar">
+                <div class="inventory-header-content">
+                    <div class="inventory-header-title">📦 ИНВЕНТАРЬ</div>
                 </div>
             </div>
-        `;
-        document.body.insertAdjacentHTML('beforeend', modalHtml);
-        if (tg) tg.BackButton.show();
-    }
+            <div class="inventory-content-area">
+                <div class="inventory-card">
+                    <h3 style="margin-bottom: 15px;">📦 Экипировка</h3>
+                    <div class="inventory-row">
+                        <span class="inventory-label">🔪 Оружие:</span>
+                        <span class="inventory-value">${currentPlayer.equipped?.weapon || 'камень'}</span>
+                    </div>
+                    <div class="inventory-row">
+                        <span class="inventory-label">👕 Одежда:</span>
+                        <span class="inventory-value">${currentPlayer.equipped?.armor || 'роба'}</span>
+                    </div>
+                    <div class="inventory-row">
+                        <span class="inventory-label">💍 Аксессуар:</span>
+                        <span class="inventory-value">${currentPlayer.equipped?.accessory || 'чифирная кружка'}</span>
+                    </div>
+                </div>
+                <div class="inventory-card">
+                    <h3 style="margin-bottom: 15px;">💉 Наколки (${currentPlayer.tattoos?.length || 0})</h3>
+                    ${currentPlayer.tattoos?.length > 0 ? currentPlayer.tattoos.map(t => `<div class="tattoo-item">• ${t}</div>`).join('') : '<div style="color:#aaa; padding:10px; text-align:center;">Нет наколок</div>'}
+                </div>
+            </div>
+            <div class="inventory-bottom-nav">
+                <div class="bottom-nav">
+                    <button class="inventory-tab-btn active" onclick="closeInventoryModal()"><span>←</span><span>Назад</span></button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    if (tg) tg.BackButton.show();
+    
+    setTimeout(() => { window._opening_modal = false; }, 500);
+}
     
     function closeInventoryModal() {
         const modal = document.getElementById('inventoryFullscreen');
@@ -2138,66 +2150,71 @@ function openQuestsModalWithReset() {
     }
 
     function openProfileModal() {
-        if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); return; }
-        if (!currentPlayer) return;
-        
-        const playerPower = calculatePlayerPower(currentPlayer);
-        const energyPercent = (currentPlayer.energy / currentPlayer.maxEnergy) * 100;
-        const progressPercent = (currentPlayer.authority / currentPlayer.authorityToNext) * 100;
-        
-        const gang = currentPlayer.gang || { blats: { level: 1, fighters: 0 }, muzhiks: { level: 1, fighters: 0 }, fraers: { level: 1, fighters: 0 } };
-        const blatsGain = Math.floor(1 + (gang.blats.level - 1) * 0.5);
-        const muzhiksGain = Math.floor(1 + (gang.muzhiks.level - 1) * 0.6);
-        const fraersGain = Math.floor(1 + (gang.fraers.level - 1) * 0.4);
-        
-        const modalHtml = `
-            <div class="profile-fullscreen" id="profileFullscreen">
-                <div class="profile-header-bar">
-                    <div class="profile-header-content">
-                        <div class="profile-header-title">📊 ПРОФИЛЬ <span id="profileUsername">${currentPlayer.username}</span> <span class="edit-name-icon" onclick="changeUsername()">✏️</span></div>
+    if (window._opening_modal) { console.log('Блокировка: окно уже открывается'); return; }
+    window._opening_modal = true;
+    
+    if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); window._opening_modal = false; return; }
+    if (!currentPlayer) { window._opening_modal = false; return; }
+    
+    const playerPower = calculatePlayerPower(currentPlayer);
+    const energyPercent = (currentPlayer.energy / currentPlayer.maxEnergy) * 100;
+    const progressPercent = (currentPlayer.authority / currentPlayer.authorityToNext) * 100;
+    
+    const gang = currentPlayer.gang || { blats: { level: 1, fighters: 0 }, muzhiks: { level: 1, fighters: 0 }, fraers: { level: 1, fighters: 0 } };
+    const blatsGain = Math.floor(1 + (gang.blats.level - 1) * 0.5);
+    const muzhiksGain = Math.floor(1 + (gang.muzhiks.level - 1) * 0.6);
+    const fraersGain = Math.floor(1 + (gang.fraers.level - 1) * 0.4);
+    
+    const modalHtml = `
+        <div class="profile-fullscreen" id="profileFullscreen">
+            <div class="profile-header-bar">
+                <div class="profile-header-content">
+                    <div class="profile-header-title">📊 ПРОФИЛЬ <span id="profileUsername">${currentPlayer.username}</span> <span class="edit-name-icon" onclick="changeUsername()">✏️</span></div>
+                </div>
+            </div>
+            <div class="profile-content-area">
+                <div class="profile-card">
+                    <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:12px">
+                        <div style="background:rgba(233,69,96,0.15); padding:8px; border-radius:40px; text-align:center;"><div style="font-size:11px; color:#888;">⭐ Уровень</div><div style="font-size:18px; font-weight:700;">${currentPlayer.level}</div></div>
+                        <div style="background:rgba(233,69,96,0.15); padding:8px; border-radius:40px; text-align:center;"><div style="font-size:11px; color:#888;">💪 Мощь</div><div style="font-size:18px; font-weight:700;">${playerPower}</div></div>
+                        <div style="background:rgba(233,69,96,0.15); padding:8px; border-radius:40px; text-align:center;"><div style="font-size:11px; color:#888;">⭐ Авторитет (опыт)</div><div style="font-size:18px; font-weight:700;">${currentPlayer.authority}</div></div>
+                        <div style="background:rgba(233,69,96,0.15); padding:8px; border-radius:40px; text-align:center;"><div style="font-size:11px; color:#888;">🚬 Папиросы</div><div style="font-size:18px; font-weight:700;">${currentPlayer.cigarettes}</div></div>
+                        <div style="background:rgba(233,69,96,0.15); padding:8px; border-radius:40px; text-align:center;"><div style="font-size:11px; color:#888;">💰 Рубли</div><div style="font-size:18px; font-weight:700;">${currentPlayer.rubles}</div></div>
+                        <div style="background:rgba(233,69,96,0.15); padding:8px; border-radius:40px; text-align:center;"><div style="font-size:11px; color:#888;">⚡ Энергия</div><div style="font-size:18px; font-weight:700;">${currentPlayer.energy}/${currentPlayer.maxEnergy}</div></div>
+                        <div style="background:rgba(233,69,96,0.15); padding:8px; border-radius:40px; text-align:center;"><div style="font-size:11px; color:#888;">💪 Сила</div><div style="font-size:18px; font-weight:700;">${currentPlayer.stats.strength}</div></div>
+                        <div style="background:rgba(233,69,96,0.15); padding:8px; border-radius:40px; text-align:center;"><div style="font-size:11px; color:#888;">🛡️ Защита</div><div style="font-size:18px; font-weight:700;">${currentPlayer.stats.defense}</div></div>
+                        <div style="background:rgba(233,69,96,0.15); padding:8px; border-radius:40px; text-align:center;"><div style="font-size:11px; color:#888;">⚡ Крит</div><div style="font-size:18px; font-weight:700;">${currentPlayer.stats.critical}%</div></div>
+                    </div>
+                    <div class="progress-section" style="margin:16px 0;"><div class="progress-label">📈 До уровня: ${currentPlayer.authority} / ${currentPlayer.authorityToNext}</div><div class="progress-bar" style="background:#1e2440; height:8px;"><div style="width:${progressPercent}%; height:100%; background:#e94560; border-radius:10px;"></div></div></div>
+                    <div class="progress-section" style="margin:16px 0;"><div class="progress-label">⚡ Восстановление: ${currentPlayer.energy}/${currentPlayer.maxEnergy}</div><div class="progress-bar" style="background:#1e2440; height:8px;"><div style="width:${energyPercent}%; height:100%; background:#4caf50; border-radius:10px;"></div></div></div>
+                </div>
+                <div class="profile-card">
+                    <h3 style="margin-bottom:10px;">👥 МОЯ БАНДА</h3>
+                    <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px; text-align:center;">
+                        <div><span style="font-size:20px;">👑</span><br>Блатные<br><strong>${gang.blats.fighters || 0} 👥</strong><br><small>ур.${gang.blats.level}</small></div>
+                        <div><span style="font-size:20px;">🔨</span><br>Мужики<br><strong>${gang.muzhiks.fighters || 0} 👥</strong><br><small>ур.${gang.muzhiks.level}</small></div>
+                        <div><span style="font-size:20px;">🐑</span><br>Фраера<br><strong>${gang.fraers.fighters || 0} 👥</strong><br><small>ур.${gang.fraers.level}</small></div>
                     </div>
                 </div>
-                <div class="profile-content-area">
-                    <div class="profile-card">
-                        <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:12px">
-                            <div style="background:rgba(233,69,96,0.15); padding:8px; border-radius:40px; text-align:center;"><div style="font-size:11px; color:#888;">⭐ Уровень</div><div style="font-size:18px; font-weight:700;">${currentPlayer.level}</div></div>
-                            <div style="background:rgba(233,69,96,0.15); padding:8px; border-radius:40px; text-align:center;"><div style="font-size:11px; color:#888;">💪 Мощь</div><div style="font-size:18px; font-weight:700;">${playerPower}</div></div>
-                            <div style="background:rgba(233,69,96,0.15); padding:8px; border-radius:40px; text-align:center;"><div style="font-size:11px; color:#888;">⭐ Авторитет (опыт)</div><div style="font-size:18px; font-weight:700;">${currentPlayer.authority}</div></div>
-                            <div style="background:rgba(233,69,96,0.15); padding:8px; border-radius:40px; text-align:center;"><div style="font-size:11px; color:#888;">🚬 Папиросы</div><div style="font-size:18px; font-weight:700;">${currentPlayer.cigarettes}</div></div>
-                            <div style="background:rgba(233,69,96,0.15); padding:8px; border-radius:40px; text-align:center;"><div style="font-size:11px; color:#888;">💰 Рубли</div><div style="font-size:18px; font-weight:700;">${currentPlayer.rubles}</div></div>
-                            <div style="background:rgba(233,69,96,0.15); padding:8px; border-radius:40px; text-align:center;"><div style="font-size:11px; color:#888;">⚡ Энергия</div><div style="font-size:18px; font-weight:700;">${currentPlayer.energy}/${currentPlayer.maxEnergy}</div></div>
-                            <div style="background:rgba(233,69,96,0.15); padding:8px; border-radius:40px; text-align:center;"><div style="font-size:11px; color:#888;">💪 Сила</div><div style="font-size:18px; font-weight:700;">${currentPlayer.stats.strength}</div></div>
-                            <div style="background:rgba(233,69,96,0.15); padding:8px; border-radius:40px; text-align:center;"><div style="font-size:11px; color:#888;">🛡️ Защита</div><div style="font-size:18px; font-weight:700;">${currentPlayer.stats.defense}</div></div>
-                            <div style="background:rgba(233,69,96,0.15); padding:8px; border-radius:40px; text-align:center;"><div style="font-size:11px; color:#888;">⚡ Крит</div><div style="font-size:18px; font-weight:700;">${currentPlayer.stats.critical}%</div></div>
-                        </div>
-                        <div class="progress-section" style="margin:16px 0;"><div class="progress-label">📈 До уровня: ${currentPlayer.authority} / ${currentPlayer.authorityToNext}</div><div class="progress-bar" style="background:#1e2440; height:8px;"><div style="width:${progressPercent}%; height:100%; background:#e94560; border-radius:10px;"></div></div></div>
-                        <div class="progress-section" style="margin:16px 0;"><div class="progress-label">⚡ Восстановление: ${currentPlayer.energy}/${currentPlayer.maxEnergy}</div><div class="progress-bar" style="background:#1e2440; height:8px;"><div style="width:${energyPercent}%; height:100%; background:#4caf50; border-radius:10px;"></div></div></div>
-                    </div>
-                    <div class="profile-card">
-                        <h3 style="margin-bottom:10px;">👥 МОЯ БАНДА</h3>
-                        <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px; text-align:center;">
-                            <div><span style="font-size:20px;">👑</span><br>Блатные<br><strong>${gang.blats.fighters || 0} 👥</strong><br><small>ур.${gang.blats.level}</small></div>
-                            <div><span style="font-size:20px;">🔨</span><br>Мужики<br><strong>${gang.muzhiks.fighters || 0} 👥</strong><br><small>ур.${gang.muzhiks.level}</small></div>
-                            <div><span style="font-size:20px;">🐑</span><br>Фраера<br><strong>${gang.fraers.fighters || 0} 👥</strong><br><small>ур.${gang.fraers.level}</small></div>
-                        </div>
-                    </div>
-                    <div class="profile-card">
-                        <div style="display: flex; flex-direction: column; gap: 10px;">
-                            <button class="btn-primary" onclick="logoutAccount(); closeProfileModal();">🚪 Выйти из аккаунта</button>
-                            <button class="btn-secondary" onclick="deleteAccount(); closeProfileModal();" style="background: rgba(220, 53, 69, 0.8); border-color: #dc3545;">⚠️ Удалить аккаунт</button>
-                        </div>
-                    </div>
-                </div>
-                <div class="profile-bottom-nav">
-                    <div class="bottom-nav">
-                        <button class="profile-tab-btn active" onclick="closeProfileModal()"><span>←</span><span>Назад</span></button>
+                <div class="profile-card">
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <button class="btn-primary" onclick="logoutAccount(); closeProfileModal();">🚪 Выйти из аккаунта</button>
+                        <button class="btn-secondary" onclick="deleteAccount(); closeProfileModal();" style="background: rgba(220, 53, 69, 0.8); border-color: #dc3545;">⚠️ Удалить аккаунт</button>
                     </div>
                 </div>
             </div>
-        `;
-        document.body.insertAdjacentHTML('beforeend', modalHtml);
-        if (tg) tg.BackButton.show();
-    }
+            <div class="profile-bottom-nav">
+                <div class="bottom-nav">
+                    <button class="profile-tab-btn active" onclick="closeProfileModal()"><span>←</span><span>Назад</span></button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    if (tg) tg.BackButton.show();
+    
+    setTimeout(() => { window._opening_modal = false; }, 500);
+}
     
     function closeProfileModal() {
         const modal = document.getElementById('profileFullscreen');
@@ -2207,41 +2224,46 @@ function openQuestsModalWithReset() {
     }
 
     function openSettingsModal() {
-        if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); return; }
-        if (!currentPlayer) return;
-        
-        const modalHtml = `
-            <div class="settings-fullscreen" id="settingsFullscreen">
-                <div class="settings-header-bar">
-                    <div class="settings-header-content">
-                        <div class="settings-header-title">⚙️ НАСТРОЙКИ</div>
-                    </div>
+    if (window._opening_modal) { console.log('Блокировка: окно уже открывается'); return; }
+    window._opening_modal = true;
+    
+    if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); window._opening_modal = false; return; }
+    if (!currentPlayer) { window._opening_modal = false; return; }
+    
+    const modalHtml = `
+        <div class="settings-fullscreen" id="settingsFullscreen">
+            <div class="settings-header-bar">
+                <div class="settings-header-content">
+                    <div class="settings-header-title">⚙️ НАСТРОЙКИ</div>
                 </div>
-                <div class="settings-content-area">
-                    <div class="settings-card">
-                        <div class="settings-switch">
-                            <span class="settings-switch-label">🔔 Уведомления в бота</span>
-                            <label class="toggle-switch">
-                                <input type="checkbox" id="notificationsToggle" ${settingsNotifications ? 'checked' : ''} onchange="toggleNotifications(this.checked)">
-                                <span class="toggle-slider"></span>
-                            </label>
-                        </div>
-                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:16px 0;">
-                            <button class="btn-primary" onclick="openRankingModal(); closeSettingsModal();">🏆 Рейтинг</button>
-                            <button class="btn-secondary" onclick="openInviteModalFromSettings(); closeSettingsModal();">👥 Пригласить</button>
-                        </div>
+            </div>
+            <div class="settings-content-area">
+                <div class="settings-card">
+                    <div class="settings-switch">
+                        <span class="settings-switch-label">🔔 Уведомления в бота</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="notificationsToggle" ${settingsNotifications ? 'checked' : ''} onchange="toggleNotifications(this.checked)">
+                            <span class="toggle-slider"></span>
+                        </label>
                     </div>
-                </div>
-                <div class="settings-bottom-nav">
-                    <div class="bottom-nav">
-                        <button class="settings-tab-btn active" onclick="closeSettingsModal()"><span>←</span><span>Назад</span></button>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:16px 0;">
+                        <button class="btn-primary" onclick="openRankingModal(); closeSettingsModal();">🏆 Рейтинг</button>
+                        <button class="btn-secondary" onclick="openInviteModalFromSettings(); closeSettingsModal();">👥 Пригласить</button>
                     </div>
                 </div>
             </div>
-        `;
-        document.body.insertAdjacentHTML('beforeend', modalHtml);
-        if (tg) tg.BackButton.show();
-    }
+            <div class="settings-bottom-nav">
+                <div class="bottom-nav">
+                    <button class="settings-tab-btn active" onclick="closeSettingsModal()"><span>←</span><span>Назад</span></button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    if (tg) tg.BackButton.show();
+    
+    setTimeout(() => { window._opening_modal = false; }, 500);
+}
     
     function toggleNotifications(enabled) {
         settingsNotifications = enabled;
@@ -2288,12 +2310,18 @@ function openQuestsModalWithReset() {
     }
 
     function openMineModal() {
-        if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); return; }
-        if (!currentPlayer) return;
-        currentMineTab = 'mine';
-        currentMineSubTab = 'work';
-        renderMineModal();
-    }
+    if (window._opening_modal) { console.log('Блокировка: окно уже открывается'); return; }
+    window._opening_modal = true;
+    
+    if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); window._opening_modal = false; return; }
+    if (!currentPlayer) { window._opening_modal = false; return; }
+    
+    currentMineTab = 'mine';
+    currentMineSubTab = 'work';
+    renderMineModal();
+    
+    setTimeout(() => { window._opening_modal = false; }, 500);
+}
     
     async function addWorkExperience(amount) {
         if (!currentPlayer) return;
@@ -3267,69 +3295,70 @@ function openQuestsModalWithReset() {
     }
     
     function openShopModal() {
-        if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); return; }
-        if (!currentPlayer) return;
-        
-        // Загружаем данные из localStorage
-        loadRandomShopFromStorage();
-        
-        currentShopCategory = 'random';
-        currentShopTab = 'offers';
-        renderShopModal();
-        
-        // Запускаем таймер обновления для рандомных товаров
-        if (window.randomShopTimerInterval) clearInterval(window.randomShopTimerInterval);
-        window.randomShopTimerInterval = setInterval(() => {
-            const modal = document.getElementById('shopFullscreen');
-            if (!modal) {
-                if (window.randomShopTimerInterval) clearInterval(window.randomShopTimerInterval);
-                return;
+    if (window._opening_modal) { console.log('Блокировка: окно уже открывается'); return; }
+    window._opening_modal = true;
+    
+    if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); window._opening_modal = false; return; }
+    if (!currentPlayer) { window._opening_modal = false; return; }
+    
+    loadRandomShopFromStorage();
+    currentShopCategory = 'random';
+    currentShopTab = 'offers';
+    renderShopModal();
+    
+    if (window.randomShopTimerInterval) clearInterval(window.randomShopTimerInterval);
+    window.randomShopTimerInterval = setInterval(() => {
+        const modal = document.getElementById('shopFullscreen');
+        if (!modal) {
+            if (window.randomShopTimerInterval) clearInterval(window.randomShopTimerInterval);
+            return;
+        }
+        if (currentShopTab === 'offers') {
+            const timerEl = document.getElementById('randomUpdateTimer');
+            if (timerEl) {
+                const remaining = getRandomShopUpdateRemaining();
+                timerEl.innerHTML = `<span>🔄 Обновление через: ${formatTimeDetailedWithSeconds(remaining)}</span><button onclick="forceUpdateRandomShop()">🔄 Обновить (200💰)</button>`;
             }
-            if (currentShopTab === 'offers') {
-                const timerEl = document.getElementById('randomUpdateTimer');
-                if (timerEl) {
-                    const remaining = getRandomShopUpdateRemaining();
-                    timerEl.innerHTML = `<span>🔄 Обновление через: ${formatTimeDetailedWithSeconds(remaining)}</span><button onclick="forceUpdateRandomShop()">🔄 Обновить (200💰)</button>`;
+        }
+        if (currentShopTab === 'upgrade') {
+            const timerEl = document.getElementById('shopUpgradeTimer');
+            if (timerEl && isShopUpgradeActive()) {
+                timerEl.textContent = formatTimerMinutes(getShopUpgradeRemaining());
+            }
+        }
+    }, 1000);
+    
+    if (window.shopUpgradeTimerInterval) clearInterval(window.shopUpgradeTimerInterval);
+    window.shopUpgradeTimerInterval = setInterval(() => {
+        const modal = document.getElementById('shopFullscreen');
+        if (!modal) {
+            if (window.shopUpgradeTimerInterval) clearInterval(window.shopUpgradeTimerInterval);
+            return;
+        }
+        checkAndCompleteShopUpgrade();
+        if (currentShopTab === 'upgrade') {
+            const costCigarettes = 100 * shopLevel;
+            const costWood = 50 * shopLevel;
+            const costStone = 30 * shopLevel;
+            const upgradeBtn = document.getElementById('upgradeShopBtn');
+            const upgradeActive = isShopUpgradeActive();
+            const upgradeRemaining = getShopUpgradeRemaining();
+            const timerEl = document.getElementById('shopUpgradeTimer');
+            
+            if (upgradeActive && timerEl) {
+                timerEl.textContent = formatTimerMinutes(upgradeRemaining);
+                if (upgradeBtn) upgradeBtn.disabled = true;
+            } else if (!upgradeActive) {
+                if (timerEl) timerEl.textContent = 'Готово!';
+                if (upgradeBtn) {
+                    upgradeBtn.disabled = (currentPlayer.cigarettes < costCigarettes || (currentPlayer.lumber?.wood || 0) < costWood || (currentPlayer.quarry?.stone || 0) < costStone);
                 }
             }
-            if (currentShopTab === 'upgrade') {
-                const timerEl = document.getElementById('shopUpgradeTimer');
-                if (timerEl && isShopUpgradeActive()) {
-                    timerEl.textContent = formatTimerMinutes(getShopUpgradeRemaining());
-                }
-            }
-        }, 1000);
-        
-        // Запускаем таймер прокачки магазина
-        if (window.shopUpgradeTimerInterval) clearInterval(window.shopUpgradeTimerInterval);
-        window.shopUpgradeTimerInterval = setInterval(() => {
-            const modal = document.getElementById('shopFullscreen');
-            if (!modal) {
-                if (window.shopUpgradeTimerInterval) clearInterval(window.shopUpgradeTimerInterval);
-                return;
-            }
-            checkAndCompleteShopUpgrade();
-            if (currentShopTab === 'upgrade') {
-                const costCigarettes = 100 * shopLevel;
-                const costWood = 50 * shopLevel;
-                const costStone = 30 * shopLevel;
-                const upgradeBtn = document.getElementById('upgradeShopBtn');
-                const upgradeActive = isShopUpgradeActive();
-                const upgradeRemaining = getShopUpgradeRemaining();
-                const timerEl = document.getElementById('shopUpgradeTimer');
-                
-                if (upgradeActive && timerEl) {
-                    timerEl.textContent = formatTimerMinutes(upgradeRemaining);
-                    if (upgradeBtn) upgradeBtn.disabled = true;
-                } else if (!upgradeActive) {
-                    if (timerEl) timerEl.textContent = 'Готово!';
-                    if (upgradeBtn) {
-                        upgradeBtn.disabled = (currentPlayer.cigarettes < costCigarettes || (currentPlayer.lumber?.wood || 0) < costWood || (currentPlayer.quarry?.stone || 0) < costStone);
-                    }
-                }
-            }
-        }, 1000);
-    }
+        }
+    }, 1000);
+    
+    setTimeout(() => { window._opening_modal = false; }, 500);
+}
     
     function forceUpdateRandomShop() {
         updateRandomShopIfNeeded(true);
@@ -3726,23 +3755,28 @@ function openQuestsModalWithReset() {
     }
     
     function openCardGameFullModal() {
-        if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); return; }
-        if (!currentPlayer) return;
-        
-        if (currentPlayer.cardGameUpgradeStartTime && currentPlayer.cardGameUpgradeDuration) {
-            cardGameUpgradeStartTime = currentPlayer.cardGameUpgradeStartTime;
-            cardGameUpgradeDuration = currentPlayer.cardGameUpgradeDuration;
-        }
-        if (currentPlayer.gymUpgradeStartTime && currentPlayer.gymUpgradeDuration) {
-            gymUpgradeStartTime = currentPlayer.gymUpgradeStartTime;
-            gymUpgradeDuration = currentPlayer.gymUpgradeDuration;
-        }
-        
-        currentGameSection = 'cards';
-        currentCardsSubTab = 'game';
-        currentGymTab = 'upgrade';
-        renderGameModal();
+    if (window._opening_modal) { console.log('Блокировка: окно уже открывается'); return; }
+    window._opening_modal = true;
+    
+    if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); window._opening_modal = false; return; }
+    if (!currentPlayer) { window._opening_modal = false; return; }
+    
+    if (currentPlayer.cardGameUpgradeStartTime && currentPlayer.cardGameUpgradeDuration) {
+        cardGameUpgradeStartTime = currentPlayer.cardGameUpgradeStartTime;
+        cardGameUpgradeDuration = currentPlayer.cardGameUpgradeDuration;
     }
+    if (currentPlayer.gymUpgradeStartTime && currentPlayer.gymUpgradeDuration) {
+        gymUpgradeStartTime = currentPlayer.gymUpgradeStartTime;
+        gymUpgradeDuration = currentPlayer.gymUpgradeDuration;
+    }
+    
+    currentGameSection = 'cards';
+    currentCardsSubTab = 'game';
+    currentGymTab = 'upgrade';
+    renderGameModal();
+    
+    setTimeout(() => { window._opening_modal = false; }, 500);
+}
     
     function handleGameTouchStart(e) {
         gameTouchStartX = e.changedTouches[0].screenX;
@@ -4251,40 +4285,44 @@ function openQuestsModalWithReset() {
     }
 
     function openTreasuryModal() {
-        if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); return; }
-        if (!currentPlayer) return;
-        
-        getTreasuryTotal().then(treasuryTotal => {
-            const modalHtml = `
-                <div class="treasury-fullscreen" id="treasuryFullscreen">
-                    <div class="treasury-header-bar">
-                        <div class="treasury-header-content">
-                            <div class="treasury-header-title">💰 ОБЩАК</div>
-                        </div>
+    if (window._opening_modal) { console.log('Блокировка: окно уже открывается'); return; }
+    window._opening_modal = true;
+    
+    if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); window._opening_modal = false; return; }
+    if (!currentPlayer) { window._opening_modal = false; return; }
+    
+    getTreasuryTotal().then(treasuryTotal => {
+        const modalHtml = `
+            <div class="treasury-fullscreen" id="treasuryFullscreen">
+                <div class="treasury-header-bar">
+                    <div class="treasury-header-content">
+                        <div class="treasury-header-title">💰 ОБЩАК</div>
                     </div>
-                    <div class="treasury-content-area">
-                        <div class="treasury-card">
-                            <div style="text-align:center; background:linear-gradient(135deg,#e94560,#c73e54); border-radius:24px; padding:30px; margin-bottom:20px;">
-                                <div style="font-size:14px; opacity:0.8;">Всего в казне</div>
-                                <div style="font-size:48px; font-weight:800;">${treasuryTotal} ₽</div>
-                            </div>
-                            <div style="display:flex; gap:10px; margin-top:15px;">
-                                <input type="number" id="donateAmountInput" placeholder="Сумма" min="1" style="flex:2; padding:12px; background:#1e2440; border:none; border-radius:30px; color:white;">
-                                <button class="btn-primary" onclick="donateToTreasuryFromModal()">💰 Внести</button>
-                            </div>
+                </div>
+                <div class="treasury-content-area">
+                    <div class="treasury-card">
+                        <div style="text-align:center; background:linear-gradient(135deg,#e94560,#c73e54); border-radius:24px; padding:30px; margin-bottom:20px;">
+                            <div style="font-size:14px; opacity:0.8;">Всего в казне</div>
+                            <div style="font-size:48px; font-weight:800;">${treasuryTotal} ₽</div>
                         </div>
-                    </div>
-                    <div class="treasury-bottom-nav">
-                        <div class="bottom-nav">
-                            <button class="treasury-tab-btn active" onclick="closeTreasuryModal()"><span>←</span><span>Назад</span></button>
+                        <div style="display:flex; gap:10px; margin-top:15px;">
+                            <input type="number" id="donateAmountInput" placeholder="Сумма" min="1" style="flex:2; padding:12px; background:#1e2440; border:none; border-radius:30px; color:white;">
+                            <button class="btn-primary" onclick="donateToTreasuryFromModal()">💰 Внести</button>
                         </div>
                     </div>
                 </div>
-            `;
-            document.body.insertAdjacentHTML('beforeend', modalHtml);
-            if (tg) tg.BackButton.show();
-        });
-    }
+                <div class="treasury-bottom-nav">
+                    <div class="bottom-nav">
+                        <button class="treasury-tab-btn active" onclick="closeTreasuryModal()"><span>←</span><span>Назад</span></button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        if (tg) tg.BackButton.show();
+        setTimeout(() => { window._opening_modal = false; }, 500);
+    });
+}
     
 
 function closeTreasuryModal() {
@@ -4324,11 +4362,14 @@ function closeTreasuryModal() {
     }
     
     function openAttackModal() {
-    if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); return; }
-    if (!currentPlayer) return;
+    if (window._opening_modal) { console.log('Блокировка: окно уже открывается'); return; }
+    window._opening_modal = true;
     
-    // Проверяем, не открыто ли уже окно
+    if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); window._opening_modal = false; return; }
+    if (!currentPlayer) { window._opening_modal = false; return; }
+    
     if (document.querySelector('.modal') || document.getElementById('attackDetailFullscreen')) {
+        window._opening_modal = false;
         return;
     }
     
@@ -4339,6 +4380,7 @@ function closeTreasuryModal() {
         if (availableClans.length === 0) {
             hideLoadingScreen();
             showToast('Нет других кланов', 'warning');
+            window._opening_modal = false;
             return;
         }
         
@@ -4369,10 +4411,12 @@ function closeTreasuryModal() {
         document.body.insertAdjacentHTML('beforeend', modalHtml);
         if (tg) tg.BackButton.show();
         hideLoadingScreen();
+        setTimeout(() => { window._opening_modal = false; }, 500);
     }).catch(error => {
         hideLoadingScreen();
         console.error('Ошибка загрузки кланов:', error);
         showToast('Ошибка загрузки списка кланов', 'error');
+        window._opening_modal = false;
     });
 }
     
@@ -4779,8 +4823,11 @@ function checkClanQuestsReady() {
 }
     
     async function openClanFullModal() {
-    if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); return; }
-    if (!currentPlayer) return;
+    if (window._opening_modal) { console.log('Блокировка: окно уже открывается'); return; }
+    window._opening_modal = true;
+    
+    if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); window._opening_modal = false; return; }
+    if (!currentPlayer) { window._opening_modal = false; return; }
     
     if (currentPlayer.level < 3) {
         const modalHtml = `
@@ -4807,14 +4854,13 @@ function checkClanQuestsReady() {
         `;
         document.body.insertAdjacentHTML('beforeend', modalHtml);
         if (tg) tg.BackButton.show();
+        setTimeout(() => { window._opening_modal = false; }, 500);
         return;
     }
     
-    // ПОКАЗЫВАЕМ ЗАГРУЗОЧНЫЙ ЭКРАН СРАЗУ
     showLoadingScreen();
     
     try {
-        // Загружаем данные параллельно для скорости
         await Promise.all([
             loadClanDataFast(),
             currentPlayer.clanId ? loadClanFast() : Promise.resolve()
@@ -4983,10 +5029,12 @@ function checkClanQuestsReady() {
         }
         
         hideLoadingScreen();
+        setTimeout(() => { window._opening_modal = false; }, 500);
     } catch (error) {
         hideLoadingScreen();
         console.error('Ошибка загрузки клана:', error);
         showToast('Ошибка загрузки клана', 'error');
+        window._opening_modal = false;
     }
 }
     
@@ -5228,66 +5276,69 @@ function closeClanFullModal() {
     }
 
     function openQuestsModal() {
-        if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); return; }
-        if (!currentPlayer) return;
-        
-        // Сбрасываем счетчик уведомлений
-        questNotificationCount = 0;
-        updateQuestsNotificationBadge();
-        
-        const modalHtml = `
-            <div class="quests-fullscreen" id="questsFullscreen">
-                <div class="quests-header-bar">
-                    <div class="quests-header-content">
-                        <div class="quests-header-title">📋 ЗАДАНИЯ</div>
-                    </div>
-                </div>
-                <div class="quests-content-area" ontouchstart="handleTouchStart(event)" ontouchend="handleTouchEnd(event)">
-                    <div class="quests-slider">
-                        <div class="quests-page" id="questsStoryPage"></div>
-                        <div class="quests-page" id="questsDailyPage"></div>
-                        <div class="quests-page" id="questsPremiumPage"></div>
-                    </div>
-                </div>
-                <div class="quests-bottom-nav">
-                    <div class="bottom-nav">
-                        <button class="quests-tab-btn ${currentQuestsTab === 0 ? 'active' : ''}" onclick="switchQuestsTab(0)"><span>←</span><span>Назад</span></button>
-                        <button class="quests-tab-btn ${currentQuestsTab === 1 ? 'active' : ''}" onclick="switchQuestsTab(1)"><span>📖</span><span>Сюжет</span></button>
-                        <button class="quests-tab-btn ${currentQuestsTab === 2 ? 'active' : ''}" onclick="switchQuestsTab(2)"><span>📅</span><span>Ежедневно</span></button>
-                        <button class="quests-tab-btn ${currentQuestsTab === 3 ? 'active' : ''}" onclick="switchQuestsTab(3)"><span>⭐</span><span>Премиум</span></button>
-                    </div>
+    if (window._opening_modal) { console.log('Блокировка: окно уже открывается'); return; }
+    window._opening_modal = true;
+    
+    if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); window._opening_modal = false; return; }
+    if (!currentPlayer) { window._opening_modal = false; return; }
+    
+    questNotificationCount = 0;
+    updateQuestsNotificationBadge();
+    
+    const modalHtml = `
+        <div class="quests-fullscreen" id="questsFullscreen">
+            <div class="quests-header-bar">
+                <div class="quests-header-content">
+                    <div class="quests-header-title">📋 ЗАДАНИЯ</div>
                 </div>
             </div>
-        `;
-        document.body.insertAdjacentHTML('beforeend', modalHtml);
-        if (tg) tg.BackButton.show();
-        
+            <div class="quests-content-area" ontouchstart="handleTouchStart(event)" ontouchend="handleTouchEnd(event)">
+                <div class="quests-slider">
+                    <div class="quests-page" id="questsStoryPage"></div>
+                    <div class="quests-page" id="questsDailyPage"></div>
+                    <div class="quests-page" id="questsPremiumPage"></div>
+                </div>
+            </div>
+            <div class="quests-bottom-nav">
+                <div class="bottom-nav">
+                    <button class="quests-tab-btn ${currentQuestsTab === 0 ? 'active' : ''}" onclick="switchQuestsTab(0)"><span>←</span><span>Назад</span></button>
+                    <button class="quests-tab-btn ${currentQuestsTab === 1 ? 'active' : ''}" onclick="switchQuestsTab(1)"><span>📖</span><span>Сюжет</span></button>
+                    <button class="quests-tab-btn ${currentQuestsTab === 2 ? 'active' : ''}" onclick="switchQuestsTab(2)"><span>📅</span><span>Ежедневно</span></button>
+                    <button class="quests-tab-btn ${currentQuestsTab === 3 ? 'active' : ''}" onclick="switchQuestsTab(3)"><span>⭐</span><span>Премиум</span></button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    if (tg) tg.BackButton.show();
+    
+    renderStoryPage();
+    renderDailyPage();
+    renderPremiumPage();
+    initQuestsSlider();
+    
+    if (window.questNotificationInterval) clearInterval(window.questNotificationInterval);
+    window.questNotificationInterval = setInterval(() => {
+        const modal = document.getElementById('questsFullscreen');
+        if (!modal) {
+            if (window.questNotificationInterval) clearInterval(window.questNotificationInterval);
+            return;
+        }
+        const newCompletedCount = checkQuestsCompletion();
+        if (newCompletedCount > questNotificationCount) {
+            questNotificationCount = newCompletedCount;
+            updateQuestsNotificationBadge();
+            if (settingsNotifications && newCompletedCount > 0) {
+                sendTelegramNotification(`📋 У вас появились новые выполненные задания! Зайдите в раздел "Задания" чтобы получить награду.`);
+            }
+        }
         renderStoryPage();
         renderDailyPage();
         renderPremiumPage();
-        initQuestsSlider();
-        
-        // Запускаем таймер обновления уведомлений
-        if (window.questNotificationInterval) clearInterval(window.questNotificationInterval);
-        window.questNotificationInterval = setInterval(() => {
-            const modal = document.getElementById('questsFullscreen');
-            if (!modal) {
-                if (window.questNotificationInterval) clearInterval(window.questNotificationInterval);
-                return;
-            }
-            const newCompletedCount = checkQuestsCompletion();
-            if (newCompletedCount > questNotificationCount) {
-                questNotificationCount = newCompletedCount;
-                updateQuestsNotificationBadge();
-                if (settingsNotifications && newCompletedCount > 0) {
-                    sendTelegramNotification(`📋 У вас появились новые выполненные задания! Зайдите в раздел "Задания" чтобы получить награду.`);
-                }
-            }
-            renderStoryPage();
-            renderDailyPage();
-            renderPremiumPage();
-        }, 5000);
-    }
+    }, 5000);
+    
+    setTimeout(() => { window._opening_modal = false; }, 500);
+}
     
     function renderStoryPage() {
         const container = document.getElementById('questsStoryPage');
@@ -6029,20 +6080,25 @@ function closeClanFullModal() {
     }
     
     function openGangModal() {
-        if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); return; }
-        if (!currentPlayer) return;
-        
-        if (!currentPlayer.gang) {
-            currentPlayer.gang = {
-                blats: { level: 1, lastGatherTime: 0, fighters: 0, upgradeStartTime: 0, upgradeDuration: 0 },
-                muzhiks: { level: 1, lastGatherTime: 0, fighters: 0, upgradeStartTime: 0, upgradeDuration: 0 },
-                fraers: { level: 1, lastGatherTime: 0, fighters: 0, upgradeStartTime: 0, upgradeDuration: 0 }
-            };
-            playerDocRef.update({ gang: currentPlayer.gang });
-        }
-        currentGangTab = 'recruit';
-        renderGangModal();
+    if (window._opening_modal) { console.log('Блокировка: окно уже открывается'); return; }
+    window._opening_modal = true;
+    
+    if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); window._opening_modal = false; return; }
+    if (!currentPlayer) { window._opening_modal = false; return; }
+    
+    if (!currentPlayer.gang) {
+        currentPlayer.gang = {
+            blats: { level: 1, lastGatherTime: 0, fighters: 0, upgradeStartTime: 0, upgradeDuration: 0 },
+            muzhiks: { level: 1, lastGatherTime: 0, fighters: 0, upgradeStartTime: 0, upgradeDuration: 0 },
+            fraers: { level: 1, lastGatherTime: 0, fighters: 0, upgradeStartTime: 0, upgradeDuration: 0 }
+        };
+        playerDocRef.update({ gang: currentPlayer.gang });
     }
+    currentGangTab = 'recruit';
+    renderGangModal();
+    
+    setTimeout(() => { window._opening_modal = false; }, 500);
+}
     
         function renderGangModal() {
         const gang = currentPlayer.gang;
@@ -6301,55 +6357,61 @@ function closeGangModal() {
     window.closeGangModal = closeGangModal;
 
     function openHospitalModal() {
-        if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); return; }
-        if (!currentPlayer) return;
-        
-        if (!currentPlayer.hasHadWar) {
-            showToast('🏥 Больница откроется только после первой войны клана!', 'warning');
-            return;
-        }
-        
-        const injuredFighters = currentPlayer.injuredFighters || 0;
-        const treatmentCost = injuredFighters * 10;
-        const treatmentTime = injuredFighters * 60 * 1000;
-        const canTreat = injuredFighters > 0 && currentPlayer.cigarettes >= treatmentCost;
-        
-        const modalHtml = `
-            <div class="hospital-fullscreen" id="hospitalFullscreen">
-                <div class="hospital-header-bar">
-                    <div class="hospital-header-content">
-                        <div class="hospital-header-title">🏥 БОЛЬНИЦА</div>
-                    </div>
-                </div>
-                <div class="hospital-content-area">
-                    <div class="hospital-card" style="text-align:center;">
-                        <div style="font-size:48px; margin-bottom:10px;">🏥</div>
-                        <div style="font-size:18px; font-weight:700;">Раненых бойцов: ${injuredFighters}</div>
-                        <div class="bonus-info">💊 Лечение 1 бойца: 10🚬</div>
-                        <div class="bonus-info">⏳ Время лечения: 1 мин/боец</div>
-                        ${injuredFighters > 0 ? `
-                            <button class="btn-primary" onclick="treatInjured()" style="margin-top:15px; width:100%;" ${!canTreat ? 'disabled' : ''}>💊 Вылечить всех (${treatmentCost}🚬)</button>
-                            ${treatmentTime > 0 ? `<div class="bonus-info" id="treatmentTimer">⏱️ Время лечения: ${Math.ceil(treatmentTime / 60000)} мин</div>` : ''}
-                        ` : '<div style="color:#4caf50; margin-top:15px;">✅ Все бойцы здоровы!</div>'}
-                    </div>
-                </div>
-                <div class="hospital-bottom-nav">
-                    <div class="bottom-nav">
-                        <button class="hospital-tab-btn active" onclick="closeHospitalModal()"><span>←</span><span>Назад</span></button>
-                    </div>
+    if (window._opening_modal) { console.log('Блокировка: окно уже открывается'); return; }
+    window._opening_modal = true;
+    
+    if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); window._opening_modal = false; return; }
+    if (!currentPlayer) { window._opening_modal = false; return; }
+    
+    if (!currentPlayer.hasHadWar) {
+        showToast('🏥 Больница откроется только после первой войны клана!', 'warning');
+        window._opening_modal = false;
+        return;
+    }
+    
+    const injuredFighters = currentPlayer.injuredFighters || 0;
+    const treatmentCost = injuredFighters * 10;
+    const treatmentTime = injuredFighters * 60 * 1000;
+    const canTreat = injuredFighters > 0 && currentPlayer.cigarettes >= treatmentCost;
+    
+    const modalHtml = `
+        <div class="hospital-fullscreen" id="hospitalFullscreen">
+            <div class="hospital-header-bar">
+                <div class="hospital-header-content">
+                    <div class="hospital-header-title">🏥 БОЛЬНИЦА</div>
                 </div>
             </div>
-        `;
-        
-        const existingModal = document.getElementById('hospitalFullscreen');
-        if (existingModal) existingModal.remove();
-        document.body.insertAdjacentHTML('beforeend', modalHtml);
-        if (tg) tg.BackButton.show();
-        
-        if (currentPlayer.treatmentEndTime && currentPlayer.treatmentEndTime > Date.now()) {
-            startTreatmentTimer();
-        }
+            <div class="hospital-content-area">
+                <div class="hospital-card" style="text-align:center;">
+                    <div style="font-size:48px; margin-bottom:10px;">🏥</div>
+                    <div style="font-size:18px; font-weight:700;">Раненых бойцов: ${injuredFighters}</div>
+                    <div class="bonus-info">💊 Лечение 1 бойца: 10🚬</div>
+                    <div class="bonus-info">⏳ Время лечения: 1 мин/боец</div>
+                    ${injuredFighters > 0 ? `
+                        <button class="btn-primary" onclick="treatInjured()" style="margin-top:15px; width:100%;" ${!canTreat ? 'disabled' : ''}>💊 Вылечить всех (${treatmentCost}🚬)</button>
+                        ${treatmentTime > 0 ? `<div class="bonus-info" id="treatmentTimer">⏱️ Время лечения: ${Math.ceil(treatmentTime / 60000)} мин</div>` : ''}
+                    ` : '<div style="color:#4caf50; margin-top:15px;">✅ Все бойцы здоровы!</div>'}
+                </div>
+            </div>
+            <div class="hospital-bottom-nav">
+                <div class="bottom-nav">
+                    <button class="hospital-tab-btn active" onclick="closeHospitalModal()"><span>←</span><span>Назад</span></button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    const existingModal = document.getElementById('hospitalFullscreen');
+    if (existingModal) existingModal.remove();
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    if (tg) tg.BackButton.show();
+    
+    if (currentPlayer.treatmentEndTime && currentPlayer.treatmentEndTime > Date.now()) {
+        startTreatmentTimer();
     }
+    
+    setTimeout(() => { window._opening_modal = false; }, 500);
+}
     
     function startTreatmentTimer() {
         const timerInterval = setInterval(() => {
@@ -6822,11 +6884,34 @@ function closeGangModal() {
     
     async function startGame(id, name) {
         showLoadingScreen();
-		// Дополнительная защита от долгого нажатия для Telegram WebApp
-		if (tg) {
-		tg.disableVerticalSwipes(); // Если есть такая функция
-		tg.enableClosingConfirmation(); // Подтверждение закрытия
-		}
+		// ПРИНУДИТЕЛЬНОЕ ОТКЛЮЧЕНИЕ КОНТЕКСТНОГО МЕНЮ ДЛЯ ВСЕХ ЭЛЕМЕНТОВ
+document.body.style.webkitTouchCallout = 'none';
+document.body.style.userSelect = 'none';
+
+// Перехватываем и блокируем все возможные события контекстного меню
+document.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    return false;
+}, { capture: true });
+
+document.addEventListener('touchstart', (e) => {
+    const target = e.target;
+    // Если это кнопка или изображение - блокируем долгое нажатие
+    if (target.closest('.nav-btn') || target.closest('.building') || target.closest('img')) {
+        // Не блокируем сразу, а через таймер
+        let timer;
+        const cancelTimer = () => {
+            if (timer) clearTimeout(timer);
+        };
+        timer = setTimeout(() => {
+            e.preventDefault();
+            return false;
+        }, 300);
+        document.addEventListener('touchmove', cancelTimer, { once: true });
+        document.addEventListener('touchend', cancelTimer, { once: true });
+    }
+}, { passive: false });
         try {
             if (!db) throw new Error('Нет подключения к базе данных');
             await loadGameSettings();
