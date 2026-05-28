@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Тюрьма 1.0.0.172 - Карта зоны</title>
+    <title>Тюрьма 1.0.0.173 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -197,11 +197,11 @@
         /* ========== НЕПОДВИЖНАЯ НИЖНЯЯ ПАНЕЛЬ ========== */
         .fixed-bottom-bar {
             position: fixed;
-    bottom: 0; /* убираем negative offset */
+    bottom: 0;
     left: 0;
     right: 0;
     z-index: 1000;
-    background: rgba(10, 14, 26, 0.95); /* фон всей панели */
+    background: rgba(10, 14, 26, 0.95);
     backdrop-filter: blur(16px);
     border-top: 1px solid rgba(233, 69, 96, 0.3);
     padding: 8px 16px;
@@ -216,17 +216,21 @@
     gap: 4px;
         }
 		.nav-btn img {
-    width: 55px;  /* чуть меньше оригинальных 65px */
+ width: 65px;  /* Оригинальный размер */
     height: auto;
-    max-height: 90px;
+    max-height: 103px;
     object-fit: contain;
-    display: block;
-    margin-bottom: 2px;
+    display: inline-block;
+    vertical-align: middle;
+	-webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+    pointer-events: auto; /* ← ОСТАВЛЯЕМ auto для кликов */
 }
         .nav-btn {
             background: transparent;
     border: none;
-    border-radius: 20px; /* скругления под размер */
+    border-radius: 20px;
     padding: 4px 8px;
     display: flex;
     flex-direction: column;
@@ -237,7 +241,7 @@
     color: #8e8ea0;
     font-size: 12px;
     font-weight: 500;
-    min-width: 70px; /* ширина под размер картинки */
+    min-width: 70px;
         }
         .nav-btn span:first-child { font-size: 24px; transition: transform 0.2s; }
         .nav-btn span:last-child { font-size: 10px; font-weight: 500; letter-spacing: 0.3px; }
@@ -1378,11 +1382,17 @@ img, .nav-btn, .bottom-nav, .fixed-bottom-bar {
 .fixed-bottom-bar {
     -webkit-touch-callout: none;
 }
+
+/* Дополнительная защита для всех изображений в приложении */
+img {
+    -webkit-touch-callout: none !important;
+    pointer-events: auto;
+}
     </style>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 </head>
-<body oncontextmenu="return false;" ondragstart="return false;" onselectstart="return false;">
+<body oncontextmenu="return false;" ondragstart="return false;" onselectstart="return false;" ontouchstart="return true;">
 <div id="app"></div>
 
 <script>
@@ -1469,6 +1479,11 @@ img, .nav-btn, .bottom-nav, .fixed-bottom-bar {
     let clanQuestsTimer = null;
     let currentClanTab = 'info';
     let clanQuestReadyCount = 0;
+	
+	// Флаги для защиты от двойного открытия окон
+	let isOpeningModal = false;
+	let modalOpenTime = 0;
+	const MODAL_OPEN_DELAY = 500; // миллисекунд
 	
 	    // ========== ГЛОБАЛЬНЫЕ ФУНКЦИИ ДЛЯ HTML ==========
     window.switchGangTab = function(tab) { currentGangTab = tab; renderGangModal(); };
@@ -1565,6 +1580,44 @@ img, .nav-btn, .bottom-nav, .fixed-bottom-bar {
         const total = blats + muzhiks + fraers;
         return `👑 Блатные: ${blats} | 🔨 Мужики: ${muzhiks} | 🐑 Фраера: ${fraers} | 👥 Всего: ${total}`;
     }
+	
+	// Универсальная функция для предотвращения двойного открытия модальных окон
+async function safeOpenModal(modalName, openFunction) {
+    const now = Date.now();
+    if (isOpeningModal || (now - modalOpenTime) < MODAL_OPEN_DELAY) {
+        console.log(`[safeOpenModal] Блокировка: ${modalName} уже открывается`);
+        return;
+    }
+    
+    const existingModals = [
+        'attackFullscreen', 'attackDetailFullscreen', 'clanFullscreen',
+        'questsFullscreen', 'treasuryFullscreen', 'gangFullscreen',
+        'shopFullscreen', 'cardgameFullscreen', 'mineFullscreen',
+        'profileFullscreen', 'settingsFullscreen', 'inventoryFullscreen',
+        'hospitalFullscreen', 'modal'
+    ];
+    
+    for (const modalId of existingModals) {
+        if (document.getElementById(modalId) || (modalId === 'modal' && document.querySelector('.modal'))) {
+            console.log(`[safeOpenModal] Окно ${modalId} уже открыто`);
+            return;
+        }
+    }
+    
+    isOpeningModal = true;
+    modalOpenTime = now;
+    
+    try {
+        await openFunction();
+    } catch (error) {
+        console.error(`Ошибка при открытии ${modalName}:`, error);
+        showToast(`Ошибка открытия`, 'error');
+    } finally {
+        setTimeout(() => {
+            isOpeningModal = false;
+        }, MODAL_OPEN_DELAY);
+    }
+}
 
     const firebaseConfig = {
         apiKey: "AIzaSyCAHzMos_d5EjUrePFnWAnoVB4sMTcpX2g",
@@ -1587,7 +1640,7 @@ img, .nav-btn, .bottom-nav, .fixed-bottom-bar {
                 <img class="loading-logo" src="https://sviter-pro.github.io/GameZone/src/test/logo124.png" alt="Тюряга 2.0" onerror="this.src='https://via.placeholder.com/180x180?text=Тюряга+2.0'">
                 <div class="loading-spinner-new"></div>
                 <div class="loading-tip-new" id="loadingTipNew">⚡ Загрузка игрового мира...</div>
-                <div class="loading-version">Тюряга 1.0.0.172 | Зона ждет</div>
+                <div class="loading-version">Тюряга 1.0.0.173 | Зона ждет</div>
             </div>
         `;
         const tipEl = document.getElementById('loadingTipNew');
@@ -1746,39 +1799,98 @@ img, .nav-btn, .bottom-nav, .fixed-bottom-bar {
             }
         };
     }
+	// Функция-обёртка для открытия клана с авто-сбросом на Город при закрытии
+function openClanFullModalWithReset(previousTab = 'city') {
+    // Сохраняем текущую вкладку в глобальную переменную для восстановления
+    window._pendingResetTab = previousTab;
+    openClanFullModal();
+}
+
+// Функция-обёртка для открытия Общака
+function openTreasuryModalWithReset() {
+    openTreasuryModal();
+    // После закрытия модалки вернёмся на Город
+    const checkInterval = setInterval(() => {
+        const modal = document.getElementById('treasuryFullscreen');
+        if (!modal) {
+            clearInterval(checkInterval);
+            currentBottomTab = 'city';
+            renderUI();
+        }
+    }, 100);
+}
+
+// Функция-обёртка для открытия Сходки/Войны
+function openAttackMenuWithReset() {
+    openAttackMenu();
+    const checkInterval = setInterval(() => {
+        const modal = document.querySelector('.modal');
+        const detailModal = document.getElementById('attackDetailFullscreen');
+        if (!modal && !detailModal) {
+            clearInterval(checkInterval);
+            currentBottomTab = 'city';
+            renderUI();
+        }
+    }, 100);
+}
+
+// Функция-обёртка для открытия Заданий
+function openQuestsModalWithReset() {
+    openQuestsModal();
+    const checkInterval = setInterval(() => {
+        const modal = document.getElementById('questsFullscreen');
+        if (!modal) {
+            clearInterval(checkInterval);
+            currentBottomTab = 'city';
+            renderUI();
+        }
+    }, 100);
+}
     
     // Функция для нижней панели (клан доступен с 3 уровня - показываем информационное окно)
     function switchBottomTab(tab) {
-        if (tab === 'clan') {
-            if (currentPlayer && currentPlayer.level < 3) {
-                showToast('Клан доступен с 3 уровня!', 'warning');
-                return;
-            }
-            // Сбрасываем счетчик уведомлений при открытии клана
-            clanQuestReadyCount = 0;
-            updateClanNotificationBadge();
-            openClanFullModal();
+    if (tab === 'clan') {
+        if (currentPlayer && currentPlayer.level < 3) {
+            showToast('Клан доступен с 3 уровня!', 'warning');
             return;
         }
-        if (tab === 'quests') {
-            // Сбрасываем счетчик уведомлений при открытии заданий
-            questNotificationCount = 0;
-            updateQuestsNotificationBadge();
-        }
+        // Сбрасываем счетчик уведомлений при открытии клана
+        clanQuestReadyCount = 0;
+        updateClanNotificationBadge();
+        // Сохраняем текущую вкладку, чтобы потом вернуть
+        const previousTab = currentBottomTab;
         currentBottomTab = tab;
         renderUI();
-        if (tab === 'city') {
-            showToast('🏙️ Вы в Городе', 'success');
-        } else if (tab === 'treasury') {
-            openTreasuryModal();
-        } else if (tab === 'war') {
-            if (currentPlayer && currentPlayer.clanId && currentPlayer.username === currentPlayer.clanLeader) openAttackMenuFromButton();
-            else if (currentPlayer && currentPlayer.clanId) showToast('Только главарь клана может начинать войны!', 'warning');
-            else showToast('Вступите в клан, чтобы участвовать в войнах!', 'warning');
-        } else if (tab === 'quests') {
-            openQuestsModal();
-        }
+        // Используем безопасное открытие
+        safeOpenModal('clan', () => openClanFullModalWithReset(previousTab));
+        return;
     }
+    if (tab === 'quests') {
+        questNotificationCount = 0;
+        updateQuestsNotificationBadge();
+        safeOpenModal('quests', () => openQuestsModalWithReset());
+        return;
+    }
+    if (tab === 'treasury') {
+        safeOpenModal('treasury', () => openTreasuryModalWithReset());
+        return;
+    }
+    if (tab === 'war') {
+        if (currentPlayer && currentPlayer.clanId && currentPlayer.username === currentPlayer.clanLeader) {
+            safeOpenModal('war', () => openAttackMenuWithReset());
+        } else if (currentPlayer && currentPlayer.clanId) {
+            showToast('Только главарь клана может начинать войны!', 'warning');
+        } else {
+            showToast('Вступите в клан, чтобы участвовать в войнах!', 'warning');
+        }
+        return;
+    }
+    if (tab === 'city') {
+        currentBottomTab = tab;
+        renderUI();
+        showToast('🏙️ Вы в Городе', 'success');
+    }
+}
 
     function openInventoryModal() {
         if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); return; }
@@ -4086,12 +4198,14 @@ img, .nav-btn, .bottom-nav, .fixed-bottom-bar {
         });
     }
     
-    function closeTreasuryModal() {
-        const modal = document.getElementById('treasuryFullscreen');
-        if (modal) modal.remove();
-        if (tg) tg.BackButton.hide();
-        renderUI();
-    }
+
+function closeTreasuryModal() {
+    const modal = document.getElementById('treasuryFullscreen');
+    if (modal) modal.remove();
+    if (tg) tg.BackButton.hide();
+    currentBottomTab = 'city';  // ← ДОБАВЬ ЭТУ СТРОКУ
+    renderUI();                  // ← И ЭТУ
+}
     
     async function donateToTreasuryFromModal() {
         if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); return; }
@@ -4122,50 +4236,66 @@ img, .nav-btn, .bottom-nav, .fixed-bottom-bar {
     }
     
     function openAttackModal() {
-        if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); return; }
-        if (!currentPlayer) return;
-        
-        loadClanDataFast().then(() => {
-            const availableClans = allClans.filter(c => c.id !== currentPlayer?.clanId);
-            if (availableClans.length === 0) {
-                showToast('Нет других кланов', 'warning');
-                return;
-            }
-            
-            const modalHtml = `
-                <div class="modal">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <div class="modal-title">⚔️ СХОДКА</div>
-                            <button class="close-btn" onclick="closeModal()">✕</button>
-                        </div>
-                        <div style="max-height: 400px; overflow-y: auto;">
-                            ${availableClans.slice(0,20).map(clan => {
-                                const isDefended = clan.defenseUntil && clan.defenseUntil > Date.now();
-                                return `
-                                    <div class="clan-card-item" onclick="viewClanDetailsFromModal('${clan.id}')">
-                                        <strong>🏰 ${escapeHtml(clan.name)}${isDefended ? ' 🛡️' : ''}</strong><br>
-                                        <small>👑 ${escapeHtml(clan.leader)} | 👥 ${clan.members?.length || 0} | 📈 ур.${clan.level || 1}</small>
-                                    </div>
-                                `;
-                            }).join('')}
-                        </div>
-                    </div>
-                </div>
-            `;
-            const existingModal = document.querySelector('.modal');
-            if (existingModal) existingModal.remove();
-            document.body.insertAdjacentHTML('beforeend', modalHtml);
-            if (tg) tg.BackButton.show();
-        });
+    if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); return; }
+    if (!currentPlayer) return;
+    
+    // Проверяем, не открыто ли уже окно
+    if (document.querySelector('.modal') || document.getElementById('attackDetailFullscreen')) {
+        return;
     }
     
+    showLoadingScreen();
+    
+    loadClanDataFast().then(() => {
+        const availableClans = allClans.filter(c => c.id !== currentPlayer?.clanId);
+        if (availableClans.length === 0) {
+            hideLoadingScreen();
+            showToast('Нет других кланов', 'warning');
+            return;
+        }
+        
+        const modalHtml = `
+            <div class="modal">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <div class="modal-title">⚔️ СХОДКА</div>
+                        <button class="close-btn" onclick="closeModal()">✕</button>
+                    </div>
+                    <div style="max-height: 400px; overflow-y: auto;">
+                        ${availableClans.slice(0,20).map(clan => {
+                            const isDefended = clan.defenseUntil && clan.defenseUntil > Date.now();
+                            return `
+                                <div class="clan-card-item" onclick="viewClanDetailsFromModal('${clan.id}')">
+                                    <strong>🏰 ${escapeHtml(clan.name)}${isDefended ? ' 🛡️' : ''}</strong><br>
+                                    <small>👑 ${escapeHtml(clan.leader)} | 👥 ${clan.members?.length || 0} | 📈 ур.${clan.level || 1}</small>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        const existingModal = document.querySelector('.modal');
+        if (existingModal) existingModal.remove();
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        if (tg) tg.BackButton.show();
+        hideLoadingScreen();
+    }).catch(error => {
+        hideLoadingScreen();
+        console.error('Ошибка загрузки кланов:', error);
+        showToast('Ошибка загрузки списка кланов', 'error');
+    });
+}
+    
     function closeAttackModal() {
-        const modal = document.querySelector('.modal');
-        if (modal) modal.remove();
-        if (tg) tg.BackButton.hide();
-        renderUI();
-    }
+    const modal = document.querySelector('.modal');
+    if (modal) modal.remove();
+    if (chatUnsubscribe) chatUnsubscribe();
+    if (tg) tg.BackButton.hide();
+    currentBottomTab = 'city';  // ← ДОБАВЬ ЭТУ СТРОКУ
+    renderUI();                  // ← И ЭТУ
+}
     
     async function viewClanDetailsFromModal(clanId) {
         if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); return; }
@@ -4561,38 +4691,47 @@ function checkClanQuestsReady() {
 }
     
     async function openClanFullModal() {
-        if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); return; }
-        if (!currentPlayer) return;
-        
-        if (currentPlayer.level < 3) {
-            const modalHtml = `
-                <div class="clan-fullscreen" id="clanFullscreen">
-                    <div class="clan-header-bar">
-                        <div class="clan-header-content">
-                            <div class="clan-header-title">👥 КЛАН</div>
-                        </div>
-                    </div>
-                    <div class="clan-content-area">
-                        <div class="clan-card" style="text-align:center;">
-                            <div style="font-size:48px; margin-bottom:15px;">🏰</div>
-                            <div style="font-size:18px; font-weight:700; margin-bottom:10px;">Клан доступен с 3 уровня!</div>
-                            <div class="bonus-info" style="background:#e94560; color:white;">⚠️ Ваш текущий уровень: ${currentPlayer.level}</div>
-                            <div class="bonus-info" style="margin-top:15px;">Достигните 3 уровня, чтобы создавать или вступать в кланы, а также получать клановые задания!</div>
-                        </div>
-                    </div>
-                    <div class="clan-bottom-nav">
-                        <div class="bottom-nav">
-                            <button class="clan-tab-btn active" onclick="closeClanFullModal()"><span>←</span><span>Назад</span></button>
-                        </div>
+    if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); return; }
+    if (!currentPlayer) return;
+    
+    if (currentPlayer.level < 3) {
+        const modalHtml = `
+            <div class="clan-fullscreen" id="clanFullscreen">
+                <div class="clan-header-bar">
+                    <div class="clan-header-content">
+                        <div class="clan-header-title">👥 КЛАН</div>
                     </div>
                 </div>
-            `;
-            document.body.insertAdjacentHTML('beforeend', modalHtml);
-            if (tg) tg.BackButton.show();
-            return;
-        }
+                <div class="clan-content-area">
+                    <div class="clan-card" style="text-align:center;">
+                        <div style="font-size:48px; margin-bottom:15px;">🏰</div>
+                        <div style="font-size:18px; font-weight:700; margin-bottom:10px;">Клан доступен с 3 уровня!</div>
+                        <div class="bonus-info" style="background:#e94560; color:white;">⚠️ Ваш текущий уровень: ${currentPlayer.level}</div>
+                        <div class="bonus-info" style="margin-top:15px;">Достигните 3 уровня, чтобы создавать или вступать в кланы, а также получать клановые задания!</div>
+                    </div>
+                </div>
+                <div class="clan-bottom-nav">
+                    <div class="bottom-nav">
+                        <button class="clan-tab-btn active" onclick="closeClanFullModal()"><span>←</span><span>Назад</span></button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        if (tg) tg.BackButton.show();
+        return;
+    }
+    
+    // ПОКАЗЫВАЕМ ЗАГРУЗОЧНЫЙ ЭКРАН СРАЗУ
+    showLoadingScreen();
+    
+    try {
+        // Загружаем данные параллельно для скорости
+        await Promise.all([
+            loadClanDataFast(),
+            currentPlayer.clanId ? loadClanFast() : Promise.resolve()
+        ]);
         
-        await loadClanDataFast();
         const clanInfo = currentPlayer.clanId ? await loadClanFast() : null;
         const hasClan = currentPlayer.clanId;
         const clanLevel = (clanInfo?.level || 1);
@@ -4754,7 +4893,14 @@ function checkClanQuestsReady() {
                 renderClanQuestsHTML(clanLevel);
             }, 1000);
         }
+        
+        hideLoadingScreen();
+    } catch (error) {
+        hideLoadingScreen();
+        console.error('Ошибка загрузки клана:', error);
+        showToast('Ошибка загрузки клана', 'error');
     }
+}
     
     function switchClanTab(tab) {
         currentClanTab = tab;
@@ -4783,13 +4929,21 @@ function checkClanQuestsReady() {
         }
     }
     
-    function closeClanFullModal() {
-        const modal = document.getElementById('clanFullscreen');
-        if (modal) modal.remove();
-        if (window.clanQuestsTimerInterval) clearInterval(window.clanQuestsTimerInterval);
-        if (tg) tg.BackButton.hide();
-        renderUI();
+function closeClanFullModal() {
+    const modal = document.getElementById('clanFullscreen');
+    if (modal) modal.remove();
+    if (window.clanQuestsTimerInterval) clearInterval(window.clanQuestsTimerInterval);
+    if (tg) tg.BackButton.hide();
+    
+    // Возвращаем активную кнопку на "Город"
+    currentBottomTab = 'city';
+    renderUI();
+    
+    // Если был сохранён предыдущий таб - используем его, иначе Город
+    if (window._pendingResetTab) {
+        window._pendingResetTab = null;
     }
+}
     
     async function createClanFromModal() {
         if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); return; }
@@ -5181,15 +5335,16 @@ function checkClanQuestsReady() {
     }
     
     function closeQuestsModal() {
-        const modal = document.getElementById('questsFullscreen');
-        if (modal) modal.remove();
-        if (window.questNotificationInterval) clearInterval(window.questNotificationInterval);
-        if (tg) tg.BackButton.hide();
-        currentQuestsTab = 1;
-        // Сбрасываем счетчик уведомлений
-        questNotificationCount = 0;
-        updateQuestsNotificationBadge();
-    }
+    const modal = document.getElementById('questsFullscreen');
+    if (modal) modal.remove();
+    if (window.questNotificationInterval) clearInterval(window.questNotificationInterval);
+    if (tg) tg.BackButton.hide();
+    currentQuestsTab = 1;
+    questNotificationCount = 0;
+    updateQuestsNotificationBadge();
+    currentBottomTab = 'city';  // ← ДОБАВЬ ЭТУ СТРОКУ
+    renderUI();                  // ← И ЭТУ
+}
     
     async function claimStoryQuest(questId, reward, type) {
         if (completedQuests.includes(questId)) { showToast('Награда уже получена!', 'warning'); closeQuestsModal(); return; }
@@ -6677,6 +6832,23 @@ function closeGangModal() {
             await restoreGym();
             hideLoadingScreen();
             renderUI();
+			setTimeout(() => {
+        document.querySelectorAll('.fixed-bottom-bar img, .bottom-nav img, .nav-btn').forEach(el => {
+            el.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                return false;
+            });
+            el.addEventListener('dragstart', (e) => {
+                e.preventDefault();
+                return false;
+            });
+        });
+        
+        document.querySelectorAll('img').forEach(img => {
+            img.setAttribute('draggable', 'false');
+            img.addEventListener('contextmenu', (e) => e.preventDefault());
+        });
+    }, 100);
             if (player.caste === 'Блатные' || player.caste === 'Мужики' || player.caste === 'Фраер') {
             } else {
                 isFirstTimeCasteSelection = true;
@@ -6944,10 +7116,10 @@ function closeGangModal() {
     <div class="fixed-top-bar">
         <div class="top-bar-content">
             <div class="left-profile">
-                <div class="caste-info" onclick="openProfileModal()">
-                    <div class="caste-icon">${casteIcon}</div>
-                    <div class="caste-level">Ур. ${currentPlayer.level}</div>
-                </div>
+                <div class="caste-info" onclick="safeOpenModal('profile', () => openProfileModal())">
+    <div class="caste-icon">${casteIcon}</div>
+    <div class="caste-level">Ур. ${currentPlayer.level}</div>
+</div>
             </div>
             <div class="resources-column">
                 <div class="resources-row">
@@ -6963,51 +7135,53 @@ function closeGangModal() {
                     <div class="resource-item"><span>🪨</span><span>${stone}</span></div>
                 </div>
             </div>
-            <button class="settings-btn" onclick="openSettingsModal()">⚙️</button>
+            <button class="settings-btn" onclick="safeOpenModal('settings', () => openSettingsModal())">⚙️</button>
         </div>
     </div>
     <div class="game-container">
         <div class="map-wrapper">
             <img class="map-image" src="https://sviter-pro.github.io/GameZone/src/test/123.png" alt="Карта зоны">
-            <div class="building b1" data-building="b1" onclick="openInventoryModal()"><div class="building-label">Камера</div></div>
-            <div class="building b2" data-building="b2" onclick="openMineModal()">
-                <div class="building-label">Работа</div>
-                ${countersHtmlWork}
-            </div>
-            <div class="building b3" data-building="b3" onclick="openCardGameFullModal()">
-                <div class="building-label">Игровая</div>
-                ${countersHtmlGame}
-            </div>
-            <div class="building b4" data-building="b4" onclick="openShopModal()"><div class="building-label">Магазин</div></div>
-            <div class="building b5" data-building="b5" onclick="openHospitalModal()"><div class="building-label">Больница</div></div>
-            <div class="building b6" data-building="b6" onclick="openAttackModal()"><div class="building-label">Сходка</div></div>
-            <div class="building b7" data-building="b7" onclick="openGangModal()">
-                <div class="building-label">СИЗО</div>
-                ${countersHtml}
-            </div>
+            <div class="building b1" data-building="b1" onclick="safeOpenModal('inventory', () => openInventoryModal())"><div class="building-label">Камера</div></div>
+<div class="building b2" data-building="b2" onclick="safeOpenModal('mine', () => openMineModal())">
+    <div class="building-label">Работа</div>
+    ${countersHtmlWork}
+</div>
+<div class="building b3" data-building="b3" onclick="safeOpenModal('cardgame', () => openCardGameFullModal())">
+    <div class="building-label">Игровая</div>
+    ${countersHtmlGame}
+</div>
+<div class="building b4" data-building="b4" onclick="safeOpenModal('shop', () => openShopModal())"><div class="building-label">Магазин</div></div>
+<div class="building b5" data-building="b5" onclick="safeOpenModal('hospital', () => openHospitalModal())"><div class="building-label">Больница</div></div>
+<div class="building b6" data-building="b6" onclick="safeOpenModal('attack', () => openAttackModal())"><div class="building-label">Сходка</div></div>
+<div class="building b7" data-building="b7" onclick="safeOpenModal('gang', () => openGangModal())">
+    <div class="building-label">СИЗО</div>
+    ${countersHtml}
+</div>
         </div>
     </div>
     <div class="fixed-bottom-bar">
-        <div class="bottom-nav">
+    <div class="fixed-bottom-bar">
+    <div class="bottom-nav">
     <button class="nav-btn ${currentBottomTab === 'city' ? 'active' : ''}" onclick="switchBottomTab('city')">
-        <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_1.png" alt="Город">
+        <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_1.png" alt="Город" draggable="false">
     </button>
-    <button class="nav-btn ${currentBottomTab === 'treasury' ? 'active' : ''}" onclick="switchBottomTab('treasury')">
-        <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_3.png" alt="Общак">
+    <button class="nav-btn ${currentBottomTab === 'treasury' ? 'active' : ''}" onclick="openTreasuryModal()">
+        <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_3.png" alt="Общак" draggable="false">
     </button>
-    <button class="nav-btn notification-badge ${currentBottomTab === 'clan' ? 'active' : ''}" onclick="switchBottomTab('clan')">
-        <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_2.png" alt="Клан">
+    <button class="nav-btn notification-badge ${currentBottomTab === 'clan' ? 'active' : ''}" onclick="openClanFullModal()">
+        <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_2.png" alt="Клан" draggable="false">
         ${clanQuestReadyCount > 0 ? `<span class="badge-count">${clanQuestReadyCount}</span>` : ''}
     </button>
-    <button class="nav-btn ${currentBottomTab === 'war' ? 'active' : ''}" onclick="switchBottomTab('war')">
-        <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_4.png" alt="Война">
+    <button class="nav-btn ${currentBottomTab === 'war' ? 'active' : ''}" onclick="openAttackModal()">
+        <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_4.png" alt="Война" draggable="false">
     </button>
-    <button class="nav-btn notification-badge ${currentBottomTab === 'quests' ? 'active' : ''}" onclick="switchBottomTab('quests')">
-        <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_5.png" alt="Задания">
+    <button class="nav-btn notification-badge ${currentBottomTab === 'quests' ? 'active' : ''}" onclick="openQuestsModal()">
+        <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_5.png" alt="Задания" draggable="false">
         ${questNotificationCount > 0 ? `<span class="badge-count">${questNotificationCount}</span>` : ''}
     </button>
 </div>
-    </div>
+</div>
+</div>
     ${toast.show ? `<div class="toast ${toast.type === 'error' ? 'error' : (toast.type === 'success' ? 'success' : 'warning')}">${toast.message}</div>` : ''}
 `;
         
@@ -7028,7 +7202,25 @@ function closeGangModal() {
             }
             renderUI();
         }, 1000);
-    }
+    if (window.mapCountersInterval) clearInterval(window.mapCountersInterval);
+        window.mapCountersInterval = setInterval(() => {
+            if (!currentPlayer) {
+                if (window.mapCountersInterval) clearInterval(window.mapCountersInterval);
+                return;
+            }
+            renderUI();
+        }, 1000);
+		        if (window.mapCountersInterval) clearInterval(window.mapCountersInterval);
+        window.mapCountersInterval = setInterval(() => {
+            if (!currentPlayer) {
+                if (window.mapCountersInterval) clearInterval(window.mapCountersInterval);
+                return;
+            }
+            renderUI();
+        }, 1000);
+    }  
+        
+        
     
     function showOldLoginForm() {
         showLoginForm();
