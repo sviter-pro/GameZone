@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Тюрьма 1.0.0.174 - Карта зоны</title>
+    <title>Тюрьма 1.0.0.175 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -1368,21 +1368,39 @@
         input:checked + .toggle-slider:before {
             transform: translateX(26px);
         }
-		/* Полная защита от долгого нажатия на всех изображениях */
-img, .nav-btn img, .bottom-nav img, .fixed-bottom-bar img {
+
+/* МАКСИМАЛЬНАЯ ЗАЩИТА ОТ ДОЛГОГО НАЖАТИЯ */
+* {
+    -webkit-touch-callout: none !important;
+    -webkit-user-select: none !important;
+    -moz-user-select: none !important;
+    -ms-user-select: none !important;
+    user-select: none !important;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Блокировка долгого нажатия на всех интерактивных элементах */
+.nav-btn, 
+.nav-btn img, 
+.building, 
+.building img,
+.caste-info,
+.settings-btn,
+button,
+[onclick] {
     -webkit-touch-callout: none !important;
     -webkit-user-select: none !important;
     -khtml-user-select: none !important;
     -moz-user-select: none !important;
     -ms-user-select: none !important;
     user-select: none !important;
-    pointer-events: auto !important;
+    touch-action: manipulation !important;
 }
 
-/* Защита от контекстного меню на всей нижней панели */
-.fixed-bottom-bar, .bottom-nav, .nav-btn {
+/* Дополнительная блокировка для изображений */
+img {
     -webkit-touch-callout: none !important;
-    touch-action: manipulation !important;
+    pointer-events: auto !important;
 }
     </style>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
@@ -1390,7 +1408,44 @@ img, .nav-btn img, .bottom-nav img, .fixed-bottom-bar img {
 </head>
 <body oncontextmenu="return false;" ondragstart="return false;" onselectstart="return false;" ontouchstart="return true;" style="touch-action: manipulation;">
 <div id="app"></div>
-
+<script>
+    // ГЛОБАЛЬНАЯ ЗАЩИТА ОТ ДОЛГОГО НАЖАТИЯ И КОНТЕКСТНОГО МЕНЮ
+    (function() {
+        // Предотвращаем контекстное меню
+        document.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+        }, false);
+        
+        // Предотвращаем долгое нажатие (для мобильных)
+        document.addEventListener('touchstart', function(e) {
+            // Разрешаем обычные клики, но блокируем долгое нажатие
+            let timer;
+            const target = e.target;
+            target.addEventListener('touchmove', function() {
+                if (timer) clearTimeout(timer);
+            }, { once: true });
+            target.addEventListener('touchend', function() {
+                if (timer) clearTimeout(timer);
+            }, { once: true });
+        });
+        
+        // Предотвращаем перетаскивание
+        document.addEventListener('dragstart', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+        }, false);
+        
+        // Блокируем выделение текста при двойном/долгом нажатии
+        document.addEventListener('selectstart', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+        }, false);
+    })();
+</script>
 <script>
     // ========== TELEGRAM WEBAPP INIT ==========
     let tg = null;
@@ -1578,26 +1633,37 @@ img, .nav-btn img, .bottom-nav img, .fixed-bottom-bar img {
     }
 	
 	// Универсальная функция для предотвращения двойного открытия модальных окон
+// Универсальная функция для предотвращения двойного открытия модальных окон
 async function safeOpenModal(modalName, openFunction) {
     const now = Date.now();
-    if (isOpeningModal || (now - modalOpenTime) < MODAL_OPEN_DELAY) {
+    
+    // Увеличим задержку до 800 мс для надёжности
+    if (isOpeningModal || (now - modalOpenTime) < 800) {
         console.log(`[safeOpenModal] Блокировка: ${modalName} уже открывается`);
         return;
     }
     
+    // Проверяем, не открыто ли уже это окно (более жёсткая проверка)
     const existingModals = [
         'attackFullscreen', 'attackDetailFullscreen', 'clanFullscreen',
         'questsFullscreen', 'treasuryFullscreen', 'gangFullscreen',
         'shopFullscreen', 'cardgameFullscreen', 'mineFullscreen',
         'profileFullscreen', 'settingsFullscreen', 'inventoryFullscreen',
-        'hospitalFullscreen', 'modal'
+        'hospitalFullscreen', 'casteSelectionFullscreen'
     ];
     
+    // Проверяем по ID
     for (const modalId of existingModals) {
-        if (document.getElementById(modalId) || (modalId === 'modal' && document.querySelector('.modal'))) {
+        if (document.getElementById(modalId)) {
             console.log(`[safeOpenModal] Окно ${modalId} уже открыто`);
             return;
         }
+    }
+    
+    // Проверяем модальное окно рейтинга и другие с классом .modal
+    if (document.querySelector('.modal')) {
+        console.log(`[safeOpenModal] Модальное окно уже открыто`);
+        return;
     }
     
     isOpeningModal = true;
@@ -1611,7 +1677,7 @@ async function safeOpenModal(modalName, openFunction) {
     } finally {
         setTimeout(() => {
             isOpeningModal = false;
-        }, MODAL_OPEN_DELAY);
+        }, 800); // Увеличил до 800 мс
     }
 }
 
@@ -1636,7 +1702,7 @@ async function safeOpenModal(modalName, openFunction) {
                 <img class="loading-logo" src="https://sviter-pro.github.io/GameZone/src/test/logo124.png" alt="Тюряга 2.0" onerror="this.src='https://via.placeholder.com/180x180?text=Тюряга+2.0'">
                 <div class="loading-spinner-new"></div>
                 <div class="loading-tip-new" id="loadingTipNew">⚡ Загрузка игрового мира...</div>
-                <div class="loading-version">Тюряга 1.0.0.174 | Зона ждет</div>
+                <div class="loading-version">Тюряга 1.0.0.175 | Зона ждет</div>
             </div>
         `;
         const tipEl = document.getElementById('loadingTipNew');
@@ -6730,6 +6796,11 @@ function closeGangModal() {
     
     async function startGame(id, name) {
         showLoadingScreen();
+		// Дополнительная защита от долгого нажатия для Telegram WebApp
+		if (tg) {
+		tg.disableVerticalSwipes(); // Если есть такая функция
+		tg.enableClosingConfirmation(); // Подтверждение закрытия
+		}
         try {
             if (!db) throw new Error('Нет подключения к базе данных');
             await loadGameSettings();
@@ -7187,6 +7258,18 @@ function closeGangModal() {
                 setTimeout(() => { building.classList.remove('active'); }, 1000);
             });
         });
+		
+		// Защита от множественных кликов на кнопках нижней панели
+	document.querySelectorAll('.nav-btn, .building, .caste-info, .settings-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+        // Если окно уже открывается - блокируем клик
+        if (isOpeningModal) {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+        }
+    });
+});
         
         if (window.mapCountersInterval) clearInterval(window.mapCountersInterval);
         window.mapCountersInterval = setInterval(() => {
