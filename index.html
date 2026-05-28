@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Тюрьма 1.0.0.176 - Карта зоны</title>
+    <title>Тюрьма 1.0.0.177 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -1728,7 +1728,7 @@ async function safeOpenModal(modalName, openFunction) {
                 <img class="loading-logo" src="https://sviter-pro.github.io/GameZone/src/test/logo124.png" alt="Тюряга 2.0" onerror="this.src='https://via.placeholder.com/180x180?text=Тюряга+2.0'">
                 <div class="loading-spinner-new"></div>
                 <div class="loading-tip-new" id="loadingTipNew">⚡ Загрузка игрового мира...</div>
-                <div class="loading-version">Тюряга 1.0.0.176 | Зона ждет</div>
+                <div class="loading-version">Тюряга 1.0.0.177 | Зона ждет</div>
             </div>
         `;
         const tipEl = document.getElementById('loadingTipNew');
@@ -7233,7 +7233,7 @@ function closeGangModal() {
     </div>
     <div class="game-container">
         <div class="map-wrapper">
-            <img class="map-image" src="https://sviter-pro.github.io/GameZone/src/test/123.png" alt="Карта зоны">
+            <img class="map-image" src="https://sviter-pro.github.io/GameZone/src/test/123.png" alt="Карта зоны" draggable="false" ontouchstart="return true;">
             <div class="building b1" data-building="b1" onclick="safeOpenModal('inventory', () => openInventoryModal())"><div class="building-label">Камера</div></div>
 <div class="building b2" data-building="b2" onclick="safeOpenModal('mine', () => openMineModal())">
     <div class="building-label">Работа</div>
@@ -7255,20 +7255,20 @@ function closeGangModal() {
     <div class="fixed-bottom-bar">
     <div class="bottom-nav">
         <button class="nav-btn ${currentBottomTab === 'city' ? 'active' : ''}" onclick="switchBottomTab('city')">
-            <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_1.png" alt="Город" draggable="false">
+            <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_1.png" alt="Город" draggable="false" ontouchstart="return true;">
         </button>
         <button class="nav-btn ${currentBottomTab === 'treasury' ? 'active' : ''}" onclick="openTreasuryModal()">
-            <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_3.png" alt="Общак" draggable="false">
+            <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_3.png" alt="Общак" draggable="false" ontouchstart="return true;">
         </button>
         <button class="nav-btn notification-badge ${currentBottomTab === 'clan' ? 'active' : ''}" onclick="openClanFullModal()">
-            <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_2.png" alt="Клан" draggable="false">
+            <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_2.png" alt="Клан" draggable="false" ontouchstart="return true;">
             ${clanQuestReadyCount > 0 ? `<span class="badge-count">${clanQuestReadyCount}</span>` : ''}
         </button>
         <button class="nav-btn ${currentBottomTab === 'war' ? 'active' : ''}" onclick="openAttackModal()">
-            <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_4.png" alt="Война" draggable="false">
+            <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_4.png" alt="Война" draggable="false" ontouchstart="return true;">
         </button>
         <button class="nav-btn notification-badge ${currentBottomTab === 'quests' ? 'active' : ''}" onclick="openQuestsModal()">
-            <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_5.png" alt="Задания" draggable="false">
+            <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_5.png" alt="Задания" draggable="false" ontouchstart="return true;">
             ${questNotificationCount > 0 ? `<span class="badge-count">${questNotificationCount}</span>` : ''}
         </button>
     </div>
