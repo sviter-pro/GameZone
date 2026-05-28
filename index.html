@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Тюрьма 1.0.0.178 - Карта зоны</title>
+    <title>Тюрьма 1.0.0.179 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -1401,82 +1401,39 @@ img, .nav-btn, .nav-btn img, .building, button {
 <body oncontextmenu="return false;" ondragstart="return false;" onselectstart="return false;" ontouchstart="return true;" style="touch-action: manipulation;">
 <div id="app"></div>
 <script>
-    // ========== ПОЛНАЯ ЗАЩИТА ОТ ДОЛГОГО НАЖАТИЯ ==========
-	// Telegram WebApp специфичная защита
-if (tg) {
-    // Отключаем все системные жесты
-    tg.expand();
-    tg.enableClosingConfirmation();
+    // ========== ПРОСТАЯ ЗАЩИТА ОТ ДОЛГОГО НАЖАТИЯ ==========
+(function() {
+    // Блокируем контекстное меню (правый клик)
+    document.addEventListener('contextmenu', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+    }, false);
     
-    // Блокируем контекстное меню в WebView
-    tg.MainButton && tg.MainButton.hide();
+    // Блокируем перетаскивание
+    document.addEventListener('dragstart', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+    }, false);
     
-    // Отправляем команду на отключение контекстного меню
-    tg.sendData(JSON.stringify({ type: 'disable_context_menu' }));
-}
-    (function() {
-        // 1. Блокируем контекстное меню (правый клик)
-        document.addEventListener('contextmenu', function(e) {
+    // Блокируем выделение текста
+    document.addEventListener('selectstart', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+    }, false);
+    
+    // Добавляем защиту всем изображениям
+    document.querySelectorAll('img').forEach(img => {
+        img.setAttribute('draggable', 'false');
+        img.addEventListener('contextmenu', (e) => {
             e.preventDefault();
             e.stopPropagation();
             return false;
-        }, false);
-        
-        // 2. Блокируем перетаскивание
-        document.addEventListener('dragstart', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            return false;
-        }, false);
-        
-        // 3. Блокируем выделение текста
-        document.addEventListener('selectstart', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            return false;
-        }, false);
-        
-        // 4. КЛЮЧЕВОЕ: блокируем долгое нажатие на мобильных устройствах
-        document.addEventListener('touchstart', function(e) {
-            // Проверяем цель - если это кнопка или изображение, блокируем долгое нажатие
-            const target = e.target;
-            const isClickable = target.closest('.nav-btn') || 
-                               target.closest('.building') || 
-                               target.closest('.caste-info') || 
-                               target.closest('.settings-btn') ||
-                               target.tagName === 'IMG';
-            
-            if (isClickable) {
-                // Устанавливаем таймер для определения долгого нажатия
-                let timer;
-                
-                const cancelTimer = () => {
-                    if (timer) clearTimeout(timer);
-                };
-                
-                const onTouchMove = () => cancelTimer();
-                const onTouchEnd = () => cancelTimer();
-                
-                timer = setTimeout(() => {
-                    // Если прошло больше 300ms - блокируем (это долгое нажатие)
-                    e.preventDefault();
-                    e.stopPropagation();
-                    return false;
-                }, 300);
-                
-                target.addEventListener('touchmove', onTouchMove, { once: true });
-                target.addEventListener('touchend', onTouchEnd, { once: true });
-            }
-        }, { passive: false });
-        
-        // 5. Блокируем все попытки вызова контекстного меню через touch
-        document.querySelectorAll('.nav-btn, .building, .caste-info, .settings-btn, img').forEach(el => {
-            el.addEventListener('touchstart', (e) => {
-                // Разрешаем клик, но блокируем долгое нажатие
-                e.stopPropagation();
-            }, { passive: false });
         });
-    })();
+    });
+})();
 </script>
 <script>
     // ========== TELEGRAM WEBAPP INIT ==========
@@ -1735,7 +1692,7 @@ async function safeOpenModal(modalName, openFunction) {
                 <img class="loading-logo" src="https://sviter-pro.github.io/GameZone/src/test/logo124.png" alt="Тюряга 2.0" onerror="this.src='https://via.placeholder.com/180x180?text=Тюряга+2.0'">
                 <div class="loading-spinner-new"></div>
                 <div class="loading-tip-new" id="loadingTipNew">⚡ Загрузка игрового мира...</div>
-                <div class="loading-version">Тюряга 1.0.0.178 | Зона ждет</div>
+                <div class="loading-version">Тюряга 1.0.0.179 | Зона ждет</div>
             </div>
         `;
         const tipEl = document.getElementById('loadingTipNew');
@@ -6808,7 +6765,32 @@ function closeGangModal() {
 
     async function loadAllClans() { if (!db) return; try { const snapshot = await db.collection('clans').get(); allClans = []; for (const doc of snapshot.docs) { const clan = { id: doc.id, ...doc.data() }; let totalPower = 0; for (const memberId of clan.membersIds || []) { const memberDoc = await db.collection('players').doc(memberId).get(); if (memberDoc.exists && !memberDoc.data().isBanned) totalPower += calculatePlayerPower(memberDoc.data()); } clan.totalPower = totalPower; allClans.push(clan); } allClans.sort((a,b) => (b.totalPower||0) - (a.totalPower||0)); } catch(e) { console.error(e); } }
     async function loadAllPlayers() { if (!db) return; try { const snapshot = await db.collection('players').get(); allPlayers = []; for (const doc of snapshot.docs) { const p = doc.data(); if (!p.isBanned) allPlayers.push({ id: doc.id, username: p.username, level: p.level, power: calculatePlayerPower(p), authority: p.authority, strength: p.stats?.strength || 10, defense: p.stats?.defense || 5 }); } } catch(e) { console.error(e); } }
-    async function loadWarHistory() { if (!currentPlayer?.clanId) { warHistory = []; return; } try { const snapshot1 = await db.collection('warHistory').where('attackerClanId', '==', currentPlayer.clanId).orderBy('timestamp', 'desc').limit(50).get(); const snapshot2 = await db.collection('warHistory').where('defenderClanId', '==', currentPlayer.clanId).orderBy('timestamp', 'desc').limit(50).get(); const history = []; snapshot1.forEach(doc => history.push({ id: doc.id, ...doc.data() })); snapshot2.forEach(doc => history.push({ id: doc.id, ...doc.data() })); history.sort((a,b) => b.timestamp - a.timestamp); warHistory = history.slice(0,50); } catch(e) { console.error(e); } }
+    async function loadWarHistory() {
+    if (!currentPlayer?.clanId) { 
+        warHistory = []; 
+        return; 
+    }
+    try {
+        // Временное решение - загружаем без сортировки, чтобы избежать ошибки индекса
+        const snapshot1 = await db.collection('warHistory')
+            .where('attackerClanId', '==', currentPlayer.clanId)
+            .limit(50)
+            .get();
+        const snapshot2 = await db.collection('warHistory')
+            .where('defenderClanId', '==', currentPlayer.clanId)
+            .limit(50)
+            .get();
+        const history = [];
+        snapshot1.forEach(doc => history.push({ id: doc.id, ...doc.data() }));
+        snapshot2.forEach(doc => history.push({ id: doc.id, ...doc.data() }));
+        // Сортируем в памяти после загрузки
+        history.sort((a,b) => b.timestamp - a.timestamp);
+        warHistory = history.slice(0,50);
+    } catch(e) { 
+        console.error(e);
+        warHistory = [];
+    }
+}
     async function loadClan() { if (!currentPlayer.clanId) { clanMembers = []; return; } try { const clanDoc = await db.collection('clans').doc(currentPlayer.clanId).get(); if (clanDoc.exists) { const clan = clanDoc.data(); const members = []; for (const memberId of clan.membersIds || []) { const memberDoc = await db.collection('players').doc(memberId).get(); if (memberDoc.exists) { const m = memberDoc.data(); members.push({ username: m.username, level: m.level, power: calculatePlayerPower(m), strength: m.stats?.strength || 10, defense: m.stats?.defense || 5, critical: m.stats?.critical || 5, energy: m.energy, authority: m.authority, isLeader: m.username === clan.leader, isYou: m.username === currentPlayer.username, telegramId: m.telegramId }); } } clanMembers = members.sort((a,b) => b.power - a.power); } } catch(e) { console.error(e); } }
     async function checkActiveWar() { const warDoc = await db.collection('activeWars').doc('current').get(); if (warDoc.exists) { const war = warDoc.data(); if (war.endTime > Date.now() && (war.attackerClanId === currentPlayer?.clanId || war.defenderClanId === currentPlayer?.clanId)) activeWar = war; else if (war.endTime <= Date.now()) { await executeWarResult(); activeWar = null; } } }
     function startWarTimer() { if (warTimer) clearInterval(warTimer); warTimer = setInterval(async () => { if (activeWar && activeWar.endTime <= Date.now()) await executeWarResult(); renderUI(); }, 1000); }
@@ -7318,7 +7300,7 @@ document.addEventListener('touchstart', (e) => {
     </div>
     <div class="game-container">
         <div class="map-wrapper">
-            <img class="map-image" src="src/test/123.png" alt="Карта зоны" draggable="false" ontouchstart="return true;">
+            <img class="map-image" src="https://sviter-pro.github.io/GameZone/src/test/123.png" alt="Карта зоны" draggable="false" ontouchstart="return true;">
             <div class="building b1" data-building="b1" onclick="safeOpenModal('inventory', () => openInventoryModal())"><div class="building-label">Камера</div></div>
 <div class="building b2" data-building="b2" onclick="safeOpenModal('mine', () => openMineModal())">
     <div class="building-label">Работа</div>
@@ -7340,20 +7322,20 @@ document.addEventListener('touchstart', (e) => {
     <div class="fixed-bottom-bar">
     <div class="bottom-nav">
         <button class="nav-btn ${currentBottomTab === 'city' ? 'active' : ''}" onclick="switchBottomTab('city')">
-            <img src="src/test/Untitled_1.png" alt="Город" draggable="false" ontouchstart="return true;">
+            <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_1.png" alt="Город" draggable="false" ontouchstart="return true;">
         </button>
         <button class="nav-btn ${currentBottomTab === 'treasury' ? 'active' : ''}" onclick="openTreasuryModal()">
-            <img src="src/test/Untitled_3.png" alt="Общак" draggable="false" ontouchstart="return true;">
+            <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_3.png" alt="Общак" draggable="false" ontouchstart="return true;">
         </button>
         <button class="nav-btn notification-badge ${currentBottomTab === 'clan' ? 'active' : ''}" onclick="openClanFullModal()">
-            <img src="src/test/Untitled_2.png" alt="Клан" draggable="false" ontouchstart="return true;">
+            <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_2.png" alt="Клан" draggable="false" ontouchstart="return true;">
             ${clanQuestReadyCount > 0 ? `<span class="badge-count">${clanQuestReadyCount}</span>` : ''}
         </button>
         <button class="nav-btn ${currentBottomTab === 'war' ? 'active' : ''}" onclick="openAttackModal()">
-            <img src="src/test/Untitled_4.png" alt="Война" draggable="false" ontouchstart="return true;">
+            <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_4.png" alt="Война" draggable="false" ontouchstart="return true;">
         </button>
         <button class="nav-btn notification-badge ${currentBottomTab === 'quests' ? 'active' : ''}" onclick="openQuestsModal()">
-            <img src="src/test/Untitled_5.png" alt="Задания" draggable="false" ontouchstart="return true;">
+            <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_5.png" alt="Задания" draggable="false" ontouchstart="return true;">
             ${questNotificationCount > 0 ? `<span class="badge-count">${questNotificationCount}</span>` : ''}
         </button>
     </div>
@@ -7389,6 +7371,36 @@ document.addEventListener('touchstart', (e) => {
     function showOldLoginForm() {
         showLoginForm();
     }
+	
+	function openCardGameUpgradeModal() {
+    // Открываем игровую сразу на вкладке прокачки карт
+    if (window._opening_modal) { 
+        console.log('Блокировка: окно уже открывается'); 
+        return; 
+    }
+    window._opening_modal = true;
+    
+    if (maintenanceMode) { 
+        showToast(maintenanceMessage, 'warning'); 
+        window._opening_modal = false; 
+        return; 
+    }
+    if (!currentPlayer) { 
+        window._opening_modal = false; 
+        return; 
+    }
+    
+    // Устанавливаем нужные вкладки
+    currentGameSection = 'cards';
+    currentCardsSubTab = 'upgrade';
+    
+    // Открываем модальное окно
+    renderGameModal();
+    
+    setTimeout(() => { 
+        window._opening_modal = false; 
+    }, 500);
+}
     
     const savedId = localStorage.getItem('playerId');
     (async function init() {
@@ -7403,7 +7415,6 @@ document.addEventListener('touchstart', (e) => {
         else showLoginForm();
     })();
     
-    window.startCardGame = startCardGame;
     window.openShopModal = openShopModal;
     window.openInventoryModal = openInventoryModal;
     window.openProfileModal = openProfileModal;
@@ -7414,11 +7425,11 @@ document.addEventListener('touchstart', (e) => {
     window.openAttackModal = openAttackModal;
     window.openTreasuryModal = openTreasuryModal;
     window.closeModal = closeModal;
-    window.logout = logout;
+    window.logoutAccount = logoutAccount;
     window.showToast = showToast;
     window.copyInviteCode = copyInviteCode;
     window.claimDailyBonus = claimDailyBonus;
-    window.upgradeCardGame = upgradeCardGame;
+    window.upgradeCardGame = upgradeCardGameFromModal;
     window.openCardGameUpgradeModal = openCardGameUpgradeModal;
     window.startWar = startWar;
     window.surrender = surrender;
@@ -7508,6 +7519,12 @@ document.addEventListener('touchstart', (e) => {
     window.upgradeShop = upgradeShop;
     window.buyRandomItemFromModal = buyRandomItemFromModal;
     window.toggleNotifications = toggleNotifications;
+	window.startCardGame = startCardGameFromModal;
+	window.getRandomCardImage = getRandomCardImage;
+	window.getCardGameBonusFromLevel = getCardGameBonusFromLevel;
+	window.getCardGameEnergyCost = getCardGameEnergyCost;
+	window.getCardGameRewardBonus = getCardGameRewardBonus;
+	window.endCardGame = endCardGame;
 </script>
 </body>
 </html>
