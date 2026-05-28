@@ -7318,7 +7318,7 @@ document.addEventListener('touchstart', (e) => {
     </div>
     <div class="game-container">
         <div class="map-wrapper">
-            <img class="map-image" src="https://sviter-pro.github.io/GameZone/src/test/123.png" alt="Карта зоны" draggable="false" ontouchstart="return true;">
+            <img class="map-image" src="src/test/123.png" alt="Карта зоны" draggable="false" ontouchstart="return true;">
             <div class="building b1" data-building="b1" onclick="safeOpenModal('inventory', () => openInventoryModal())"><div class="building-label">Камера</div></div>
 <div class="building b2" data-building="b2" onclick="safeOpenModal('mine', () => openMineModal())">
     <div class="building-label">Работа</div>
@@ -7340,20 +7340,20 @@ document.addEventListener('touchstart', (e) => {
     <div class="fixed-bottom-bar">
     <div class="bottom-nav">
         <button class="nav-btn ${currentBottomTab === 'city' ? 'active' : ''}" onclick="switchBottomTab('city')">
-            <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_1.png" alt="Город" draggable="false" ontouchstart="return true;">
+            <img src="src/test/Untitled_1.png" alt="Город" draggable="false" ontouchstart="return true;">
         </button>
         <button class="nav-btn ${currentBottomTab === 'treasury' ? 'active' : ''}" onclick="openTreasuryModal()">
-            <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_3.png" alt="Общак" draggable="false" ontouchstart="return true;">
+            <img src="src/test/Untitled_3.png" alt="Общак" draggable="false" ontouchstart="return true;">
         </button>
         <button class="nav-btn notification-badge ${currentBottomTab === 'clan' ? 'active' : ''}" onclick="openClanFullModal()">
-            <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_2.png" alt="Клан" draggable="false" ontouchstart="return true;">
+            <img src="src/test/Untitled_2.png" alt="Клан" draggable="false" ontouchstart="return true;">
             ${clanQuestReadyCount > 0 ? `<span class="badge-count">${clanQuestReadyCount}</span>` : ''}
         </button>
         <button class="nav-btn ${currentBottomTab === 'war' ? 'active' : ''}" onclick="openAttackModal()">
-            <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_4.png" alt="Война" draggable="false" ontouchstart="return true;">
+            <img src="src/test/Untitled_4.png" alt="Война" draggable="false" ontouchstart="return true;">
         </button>
         <button class="nav-btn notification-badge ${currentBottomTab === 'quests' ? 'active' : ''}" onclick="openQuestsModal()">
-            <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_5.png" alt="Задания" draggable="false" ontouchstart="return true;">
+            <img src="src/test/Untitled_5.png" alt="Задания" draggable="false" ontouchstart="return true;">
             ${questNotificationCount > 0 ? `<span class="badge-count">${questNotificationCount}</span>` : ''}
         </button>
     </div>
