@@ -6931,11 +6931,11 @@ function closeGangModal() {
     </div>
     <div class="fixed-bottom-bar">
         <div class="bottom-nav">
-		<button class="nav-btn ${currentBottomTab === 'city' ? 'active' : ''}" onclick="switchBottomTab('city')"><img src="src/test/Untitled_1.png" style="width: 50px; height: 88px; object-fit: contain;"><span style="font-size: 0;">Город</span></button>
-        <button class="nav-btn ${currentBottomTab === 'treasury' ? 'active' : ''}" onclick="switchBottomTab('treasury')"><img src="src/test/Untitled_3.png" style="width: 50px; height: 88px; object-fit: contain;"><span style="font-size: 0;">Общак</span></button>
-        <button class="nav-btn notification-badge ${currentBottomTab === 'clan' ? 'active' : ''}" onclick="switchBottomTab('clan')"><span>👥</span><span>Клан</span>${clanQuestReadyCount > 0 ? `<span class="badge-count"> ${clanQuestReadyCount}</span>` : ''}</button>
-        <button class="nav-btn ${currentBottomTab === 'war' ? 'active' : ''}" onclick="switchBottomTab('war')"><img src="src/test/Untitled_4.png" style="width: 50px; height: 88px; object-fit: contain;"><span style="font-size: 0;">Война</span></button>
-        <button class="nav-btn notification-badge ${currentBottomTab === 'quests' ? 'active' : ''}" onclick="switchBottomTab('quests')"><span>📋</span><span>Задания</span>${questNotificationCount > 0 ? `<span class="badge-count"> ${questNotificationCount}</span>` : ''}</button>
+			<button class="nav-btn ${currentBottomTab === 'city' ? 'active' : ''}" onclick="switchBottomTab('city')"><img src="src/test/Untitled_1.png" style="width: 50px; height: 88px; object-fit: contain;"><span style="font-size: 0;">Город</span></button>
+			<button class="nav-btn ${currentBottomTab === 'treasury' ? 'active' : ''}" onclick="switchBottomTab('treasury')"><img src="src/test/Untitled_3.png" style="width: 50px; height: 88px; object-fit: contain;"><span style="font-size: 0;">Общак</span></button>
+			<button class="nav-btn notification-badge ${currentBottomTab === 'clan' ? 'active' : ''}" onclick="switchBottomTab('clan')"><img src="src/test/Untitled_2.png" style="width: 50px; height: 88px; object-fit: contain;"><span style="font-size: 0;">Клан</span>${clanQuestReadyCount > 0 ? `<span class="badge-count"> ${clanQuestReadyCount}</span>` : ''}</button>
+			<button class="nav-btn ${currentBottomTab === 'war' ? 'active' : ''}" onclick="switchBottomTab('war')"><img src="src/test/Untitled_4.png" style="width: 50px; height: 88px; object-fit: contain;"><span style="font-size: 0;">Война</span></button>
+			<button class="nav-btn notification-badge ${currentBottomTab === 'quests' ? 'active' : ''}" onclick="switchBottomTab('quests')"><img src="src/test/Untitled_5.png" style="width: 50px; height: 88px; object-fit: contain;"><span style="font-size: 0;">Задания</span>${questNotificationCount > 0 ? `<span class="badge-count"> ${questNotificationCount}</span>` : ''}</button>
         </div>
     </div>
     ${toast.show ? `<div class="toast ${toast.type === 'error' ? 'error' : (toast.type === 'success' ? 'success' : 'warning')}">${toast.message}</div>` : ''}
