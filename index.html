@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Тюрьма 1.0.0.175 - Карта зоны</title>
+    <title>Тюрьма 1.0.0.176 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -1379,7 +1379,7 @@
     -webkit-tap-highlight-color: transparent;
 }
 
-/* Блокировка долгого нажатия на всех интерактивных элементах */
+/* ФИНАЛЬНАЯ ЗАЩИТА ОТ ДОЛГОГО НАЖАТИЯ */
 .nav-btn, 
 .nav-btn img, 
 .building, 
@@ -1390,17 +1390,16 @@ button,
 [onclick] {
     -webkit-touch-callout: none !important;
     -webkit-user-select: none !important;
-    -khtml-user-select: none !important;
-    -moz-user-select: none !important;
-    -ms-user-select: none !important;
     user-select: none !important;
     touch-action: manipulation !important;
+    -webkit-tap-highlight-color: transparent;
 }
 
-/* Дополнительная блокировка для изображений */
-img {
+/* Запрет выделения текста и изображений */
+* {
     -webkit-touch-callout: none !important;
-    pointer-events: auto !important;
+    -webkit-user-select: none !important;
+    user-select: none !important;
 }
     </style>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
@@ -1409,41 +1408,69 @@ img {
 <body oncontextmenu="return false;" ondragstart="return false;" onselectstart="return false;" ontouchstart="return true;" style="touch-action: manipulation;">
 <div id="app"></div>
 <script>
-    // ГЛОБАЛЬНАЯ ЗАЩИТА ОТ ДОЛГОГО НАЖАТИЯ И КОНТЕКСТНОГО МЕНЮ
+    // ========== ПОЛНАЯ ЗАЩИТА ОТ ДОЛГОГО НАЖАТИЯ ==========
     (function() {
-        // Предотвращаем контекстное меню
+        // 1. Блокируем контекстное меню (правый клик)
         document.addEventListener('contextmenu', function(e) {
             e.preventDefault();
             e.stopPropagation();
             return false;
         }, false);
         
-        // Предотвращаем долгое нажатие (для мобильных)
-        document.addEventListener('touchstart', function(e) {
-            // Разрешаем обычные клики, но блокируем долгое нажатие
-            let timer;
-            const target = e.target;
-            target.addEventListener('touchmove', function() {
-                if (timer) clearTimeout(timer);
-            }, { once: true });
-            target.addEventListener('touchend', function() {
-                if (timer) clearTimeout(timer);
-            }, { once: true });
-        });
-        
-        // Предотвращаем перетаскивание
+        // 2. Блокируем перетаскивание
         document.addEventListener('dragstart', function(e) {
             e.preventDefault();
             e.stopPropagation();
             return false;
         }, false);
         
-        // Блокируем выделение текста при двойном/долгом нажатии
+        // 3. Блокируем выделение текста
         document.addEventListener('selectstart', function(e) {
             e.preventDefault();
             e.stopPropagation();
             return false;
         }, false);
+        
+        // 4. КЛЮЧЕВОЕ: блокируем долгое нажатие на мобильных устройствах
+        document.addEventListener('touchstart', function(e) {
+            // Проверяем цель - если это кнопка или изображение, блокируем долгое нажатие
+            const target = e.target;
+            const isClickable = target.closest('.nav-btn') || 
+                               target.closest('.building') || 
+                               target.closest('.caste-info') || 
+                               target.closest('.settings-btn') ||
+                               target.tagName === 'IMG';
+            
+            if (isClickable) {
+                // Устанавливаем таймер для определения долгого нажатия
+                let timer;
+                
+                const cancelTimer = () => {
+                    if (timer) clearTimeout(timer);
+                };
+                
+                const onTouchMove = () => cancelTimer();
+                const onTouchEnd = () => cancelTimer();
+                
+                timer = setTimeout(() => {
+                    // Если прошло больше 300ms - блокируем (это долгое нажатие)
+                    e.preventDefault();
+                    e.stopPropagation();
+                    return false;
+                }, 300);
+                
+                target.addEventListener('touchmove', onTouchMove, { once: true });
+                target.addEventListener('touchend', onTouchEnd, { once: true });
+            }
+        }, { passive: false });
+        
+        // 5. Блокируем все попытки вызова контекстного меню через touch
+        document.querySelectorAll('.nav-btn, .building, .caste-info, .settings-btn, img').forEach(el => {
+            el.addEventListener('touchstart', (e) => {
+                // Разрешаем клик, но блокируем долгое нажатие
+                e.stopPropagation();
+            }, { passive: false });
+        });
     })();
 </script>
 <script>
@@ -1635,15 +1662,7 @@ img {
 	// Универсальная функция для предотвращения двойного открытия модальных окон
 // Универсальная функция для предотвращения двойного открытия модальных окон
 async function safeOpenModal(modalName, openFunction) {
-    const now = Date.now();
-    
-    // Увеличим задержку до 800 мс для надёжности
-    if (isOpeningModal || (now - modalOpenTime) < 800) {
-        console.log(`[safeOpenModal] Блокировка: ${modalName} уже открывается`);
-        return;
-    }
-    
-    // Проверяем, не открыто ли уже это окно (более жёсткая проверка)
+    // Проверяем, не открыто ли уже окно (по наличию DOM элемента)
     const existingModals = [
         'attackFullscreen', 'attackDetailFullscreen', 'clanFullscreen',
         'questsFullscreen', 'treasuryFullscreen', 'gangFullscreen',
@@ -1660,14 +1679,20 @@ async function safeOpenModal(modalName, openFunction) {
         }
     }
     
-    // Проверяем модальное окно рейтинга и другие с классом .modal
+    // Проверяем модальное окно рейтинга
     if (document.querySelector('.modal')) {
         console.log(`[safeOpenModal] Модальное окно уже открыто`);
         return;
     }
     
+    // Проверяем флаг блокировки
+    if (isOpeningModal) {
+        console.log(`[safeOpenModal] Блокировка: ${modalName} уже открывается`);
+        return;
+    }
+    
+    // Устанавливаем блокировку
     isOpeningModal = true;
-    modalOpenTime = now;
     
     try {
         await openFunction();
@@ -1675,9 +1700,10 @@ async function safeOpenModal(modalName, openFunction) {
         console.error(`Ошибка при открытии ${modalName}:`, error);
         showToast(`Ошибка открытия`, 'error');
     } finally {
+        // Снимаем блокировку через 300ms (достаточно для защиты от двойного клика)
         setTimeout(() => {
             isOpeningModal = false;
-        }, 800); // Увеличил до 800 мс
+        }, 300);
     }
 }
 
@@ -1702,7 +1728,7 @@ async function safeOpenModal(modalName, openFunction) {
                 <img class="loading-logo" src="https://sviter-pro.github.io/GameZone/src/test/logo124.png" alt="Тюряга 2.0" onerror="this.src='https://via.placeholder.com/180x180?text=Тюряга+2.0'">
                 <div class="loading-spinner-new"></div>
                 <div class="loading-tip-new" id="loadingTipNew">⚡ Загрузка игрового мира...</div>
-                <div class="loading-version">Тюряга 1.0.0.175 | Зона ждет</div>
+                <div class="loading-version">Тюряга 1.0.0.176 | Зона ждет</div>
             </div>
         `;
         const tipEl = document.getElementById('loadingTipNew');
@@ -7258,19 +7284,11 @@ function closeGangModal() {
                 setTimeout(() => { building.classList.remove('active'); }, 1000);
             });
         });
-		
-		// Защита от множественных кликов на кнопках нижней панели
-	document.querySelectorAll('.nav-btn, .building, .caste-info, .settings-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-        // Если окно уже открывается - блокируем клик
-        if (isOpeningModal) {
-            e.preventDefault();
-            e.stopPropagation();
-            return false;
-        }
-    });
-});
-        
+        // Принудительно добавляем защитные атрибуты всем изображениям
+		document.querySelectorAll('img').forEach(img => {
+		img.setAttribute('draggable', 'false');
+		img.setAttribute('ontouchstart', 'return true;');
+		});
         if (window.mapCountersInterval) clearInterval(window.mapCountersInterval);
         window.mapCountersInterval = setInterval(() => {
             if (!currentPlayer) {
