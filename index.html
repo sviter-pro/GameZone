@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Зона 1.0.0.185 - Карта зоны</title>
+    <title>Зона 1.0.0.186 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -5085,6 +5085,97 @@
     transform: scale(1.1);
     text-shadow: 0 0 8px rgba(233,69,96,0.8);
 }
+
+/* ========== СТИЛИ ДЛЯ ЗАЯВОК В КЛАН ========== */
+.clan-requests-title {
+    color: #c9a03d;
+    font-size: 14px;
+    margin-top: 15px;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #8B4513;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.clan-request-card {
+    background: rgba(0,0,0,0.3);
+    border-radius: 16px;
+    padding: 12px;
+    margin-bottom: 10px;
+    border-left: 3px solid #ff9800;
+    transition: all 0.2s;
+}
+
+.clan-request-card:hover {
+    transform: translateX(5px);
+    background: rgba(139,69,19,0.2);
+}
+
+.clan-request-name {
+    font-size: 14px;
+    font-weight: 700;
+    color: #ffd966;
+}
+
+.clan-request-stats {
+    display: flex;
+    gap: 12px;
+    font-size: 11px;
+    margin: 8px 0;
+    flex-wrap: wrap;
+}
+
+.clan-request-stats span {
+    background: rgba(0,0,0,0.5);
+    padding: 2px 8px;
+    border-radius: 20px;
+}
+
+.clan-request-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.clan-request-accept {
+    background: linear-gradient(135deg, #2a5a8c, #1a4a7a);
+    border: 1px solid #7ec8e0;
+    border-radius: 30px;
+    padding: 6px 16px;
+    font-size: 11px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: white;
+}
+
+.clan-request-accept:active {
+    transform: scale(0.95);
+}
+
+.clan-request-reject {
+    background: linear-gradient(135deg, #8B1a1a, #5a0a0a);
+    border: 1px solid #e94560;
+    border-radius: 30px;
+    padding: 6px 16px;
+    font-size: 11px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: white;
+}
+
+.clan-request-reject:active {
+    transform: scale(0.95);
+}
+
+.no-requests {
+    text-align: center;
+    padding: 20px;
+    color: #aaa;
+}
     </style>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
@@ -5513,7 +5604,7 @@
                 <img class="loading-logo" src="https://sviter-pro.github.io/GameZone/src/test/logo124.png" alt="Тюряга 2.0" onerror="this.src='https://via.placeholder.com/180x180?text=Тюряга+2.0'">
                 <div class="loading-spinner-new"></div>
                 <div class="loading-tip-new" id="loadingTipNew">⚡ Загрузка игрового мира...</div>
-                <div class="loading-version">Зона 1.0.0.185 | Зона ждет</div>
+                <div class="loading-version">Зона 1.0.0.186 | Зона ждет</div>
             </div>
         `;
             const tipEl = document.getElementById('loadingTipNew');
@@ -5560,6 +5651,188 @@
                 console.error('Ошибка отправки уведомления:', e);
             }
         }
+		
+// ========== СИСТЕМА ЗАЯВОК В КЛАН ==========
+
+// Отправить заявку
+async function sendJoinRequest(clanId) {
+    if (!currentPlayer) return;
+    if (currentPlayer.clanId) {
+        showToast('Вы уже состоите в клане!', 'warning');
+        return;
+    }
+    
+    const clan = allClans.find(c => c.id === clanId);
+    if (!clan) return;
+    
+    // Проверяем, не отклонена ли заявка
+    const rejectedKey = `rejected_${currentPlayer.id}_${clanId}`;
+    if (localStorage.getItem(rejectedKey)) {
+        showToast('❌ Ваша заявка была отклонена. Попробуйте позже.', 'warning');
+        return;
+    }
+    
+    const requestsRef = db.collection('clanJoinRequests').doc(clanId);
+    const requestsDoc = await requestsRef.get();
+    let requests = requestsDoc.exists ? requestsDoc.data().requests || [] : [];
+    
+    if (requests.find(r => r.playerId === currentPlayer.id)) {
+        showToast('Вы уже отправили заявку в этот клан!', 'warning');
+        return;
+    }
+    
+    const newRequest = {
+        playerId: currentPlayer.id,
+        playerName: currentPlayer.username,
+        playerLevel: currentPlayer.level,
+        playerPower: calculatePlayerPower(currentPlayer),
+        playerCigarettes: currentPlayer.cigarettes,
+        playerRubles: currentPlayer.rubles,
+        playerGang: getGangInfoString(currentPlayer),
+        playerGangDisplay: getGangDisplayString(currentPlayer),
+        status: 'pending',
+        timestamp: Date.now()
+    };
+    
+    requests.push(newRequest);
+    await requestsRef.set({ requests: requests });
+    
+    // Сохраняем в localStorage для быстрого отображения
+    const sentRequests = JSON.parse(localStorage.getItem(`sentRequests_${currentPlayer.id}`) || '[]');
+    sentRequests.push(clanId);
+    localStorage.setItem(`sentRequests_${currentPlayer.id}`, JSON.stringify(sentRequests));
+    
+    showToast(`✅ Заявка отправлена в клан "${clan.name}"!`, 'success');
+    renderUI();
+}
+
+// Принять заявку
+async function acceptJoinRequest(request, clanId) {
+    const clan = allClans.find(c => c.id === clanId);
+    if (!clan) return;
+    
+    if (clan.membersIds && clan.membersIds.length >= clanMaxMembers) {
+        showToast('В клане нет свободных мест!', 'error');
+        return;
+    }
+    
+    // Проверяем, не в клане ли уже игрок
+    const playerRef = db.collection('players').doc(request.playerId);
+    const playerDoc = await playerRef.get();
+    if (playerDoc.exists && playerDoc.data().clanId) {
+        showToast(`Игрок ${request.playerName} уже состоит в клане!`, 'warning');
+        await removeRequestFromClan(request.playerId, clanId);
+        renderUI();
+        return;
+    }
+    
+    try {
+        await playerRef.update({
+            clanId: clanId,
+            clanLeader: clan.leader
+        });
+        
+        await db.collection('clans').doc(clanId).update({
+            members: firebase.firestore.FieldValue.arrayUnion(request.playerName),
+            membersIds: firebase.firestore.FieldValue.arrayUnion(request.playerId)
+        });
+        
+        await removeRequestFromClan(request.playerId, clanId);
+        
+        // Удаляем все заявки этого игрока из других кланов
+        await removeAllPlayerRequests(request.playerId);
+        
+        showToast(`✅ Игрок ${request.playerName} принят в клан!`, 'success');
+        
+        if (currentPlayer.id === request.playerId) {
+            currentPlayer.clanId = clanId;
+            currentPlayer.clanLeader = clan.leader;
+            localStorage.removeItem(`sentRequests_${currentPlayer.id}`);
+        }
+        
+        await loadAllClans();
+        renderUI();
+    } catch(e) {
+        showToast('Ошибка при принятии заявки!', 'error');
+    }
+}
+
+// Отклонить заявку
+async function rejectJoinRequest(request, clanId) {
+    try {
+        await removeRequestFromClan(request.playerId, clanId);
+        localStorage.setItem(`rejected_${request.playerId}_${clanId}`, Date.now().toString());
+        showToast(`❌ Заявка от ${request.playerName} отклонена`, 'warning');
+        
+        if (currentPlayer.id === request.playerId) {
+            const sentRequests = JSON.parse(localStorage.getItem(`sentRequests_${currentPlayer.id}`) || '[]');
+            const newSent = sentRequests.filter(id => id !== clanId);
+            localStorage.setItem(`sentRequests_${currentPlayer.id}`, JSON.stringify(newSent));
+            renderUI();
+        }
+    } catch(e) {
+        showToast('Ошибка при отклонении заявки!', 'error');
+    }
+}
+
+// Удалить заявку из клана
+async function removeRequestFromClan(playerId, clanId) {
+    const requestsRef = db.collection('clanJoinRequests').doc(clanId);
+    const requestsDoc = await requestsRef.get();
+    if (requestsDoc.exists) {
+        let requests = requestsDoc.data().requests || [];
+        requests = requests.filter(r => r.playerId !== playerId);
+        await requestsRef.set({ requests: requests });
+    }
+}
+
+// Удалить все заявки игрока
+async function removeAllPlayerRequests(playerId) {
+    const clansSnapshot = await db.collection('clans').get();
+    for (const clanDoc of clansSnapshot.docs) {
+        await removeRequestFromClan(playerId, clanDoc.id);
+    }
+}
+
+// Загрузить заявки для клана (только pending)
+async function loadClanJoinRequests(clanId) {
+    if (!clanId) return [];
+    try {
+        const requestsRef = db.collection('clanJoinRequests').doc(clanId);
+        const requestsDoc = await requestsRef.get();
+        if (requestsDoc.exists) {
+            const requests = requestsDoc.data().requests || [];
+            return requests.filter(r => r.status === 'pending');
+        }
+    } catch(e) {}
+    return [];
+}
+
+// Проверить, отправлял ли игрок заявку в этот клан
+function hasSentRequestToClan(clanId) {
+    if (!currentPlayer) return false;
+    const sentRequests = JSON.parse(localStorage.getItem(`sentRequests_${currentPlayer.id}`) || '[]');
+    return sentRequests.includes(clanId);
+}
+
+// ========== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ДЛЯ КЛАНА ==========
+
+function getGangInfoString(player) {
+    if (!player || !player.gang) return "👥 0 бойцов";
+    const blats = player.gang.blats?.fighters || 0;
+    const muzhiks = player.gang.muzhiks?.fighters || 0;
+    const fraers = player.gang.fraers?.fighters || 0;
+    const total = blats + muzhiks + fraers;
+    return `👥 Всего: ${total} (👑${blats} 🔨${muzhiks} 🐑${fraers})`;
+}
+
+function getGangDisplayString(player) {
+    if (!player || !player.gang) return "👥 Банда: 0 бойцов";
+    const blats = player.gang.blats?.fighters || 0;
+    const muzhiks = player.gang.muzhiks?.fighters || 0;
+    const fraers = player.gang.fraers?.fighters || 0;
+    return `👑 Блатные: ${blats} | 🔨 Мужики: ${muzhiks} | 🐑 Фраера: ${fraers}`;
+}
 
         // Функция обновления бейджа уведомлений на кнопке "Клан"
         function updateClanNotificationBadge() {
@@ -6239,7 +6512,7 @@
                 
                 <div class="settings-card">
                     <div style="font-size: 13px; color: #aaa; text-align: center;">
-                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.185</div>
+                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.186</div>
                         <div style="font-size: 11px;">⚡ Клановые войны | Бесконечная прокачка</div>
                     </div>
                 </div>
@@ -9145,14 +9418,14 @@
         }
 
         async function openClanFullModal() {
-            if (window._opening_modal) { console.log('Блокировка: окно уже открывается'); return; }
-            window._opening_modal = true;
+    if (window._opening_modal) { return; }
+    window._opening_modal = true;
 
-            if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); window._opening_modal = false; return; }
-            if (!currentPlayer) { window._opening_modal = false; return; }
+    if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); window._opening_modal = false; return; }
+    if (!currentPlayer) { window._opening_modal = false; return; }
 
-            if (currentPlayer.level < 3) {
-                const modalHtml = `
+    if (currentPlayer.level < 3) {
+        const modalHtml = `
             <div class="clan-fullscreen" id="clanFullscreen">
                 <div class="clan-header-bar">
                     <div class="clan-header-content">
@@ -9164,7 +9437,6 @@
                         <div style="font-size:48px; margin-bottom:15px;">🏰</div>
                         <div style="font-size:18px; font-weight:700; margin-bottom:10px;">Клан доступен с 3 уровня!</div>
                         <div class="bonus-info" style="background:#e94560; color:white;">⚠️ Ваш текущий уровень: ${currentPlayer.level}</div>
-                        <div class="bonus-info" style="margin-top:15px;">Достигните 3 уровня, чтобы создавать или вступать в кланы, а также получать клановые задания!</div>
                     </div>
                 </div>
                 <div class="clan-bottom-nav">
@@ -9174,235 +9446,220 @@
                 </div>
             </div>
         `;
-                document.body.insertAdjacentHTML('beforeend', modalHtml);
-                if (tg) tg.BackButton.show();
-                setTimeout(() => { window._opening_modal = false; }, 500);
-                return;
-            }
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        if (tg) tg.BackButton.show();
+        setTimeout(() => { window._opening_modal = false; }, 500);
+        return;
+    }
 
-            showLoadingScreen();
+    showLoadingScreen();
 
-            try {
-                await Promise.all([
-                    loadClanDataFast(),
-                    currentPlayer.clanId ? loadClanFast() : Promise.resolve()
-                ]);
+    try {
+        await Promise.all([loadClanDataFast(), currentPlayer.clanId ? loadClanFast() : Promise.resolve()]);
 
-                const clanInfo = currentPlayer.clanId ? await loadClanFast() : null;
-                const hasClan = currentPlayer.clanId;
-                const clanLevel = (clanInfo?.level || 1);
+        const clanInfo = currentPlayer.clanId ? await loadClanFast() : null;
+        const hasClan = currentPlayer.clanId;
+        const clanLevel = (clanInfo?.level || 1);
 
-                loadClanQuests();
-                if (hasClan) {
-                    startClanQuests(clanLevel);
-                }
-                currentClanTab = 'info';
+        loadClanQuests();
+        if (hasClan) startClanQuests(clanLevel);
+        currentClanTab = 'info';
 
-                let contentHtml = '';
+        let contentHtml = '';
 
-                if (!hasClan) {
-                    contentHtml = `
-        <div id="clanTabs" style="display: flex; gap: 10px; margin-bottom: 20px;">
-            <button class="btn-secondary" style="flex: 1; background: linear-gradient(135deg, #1a3a5c, #0d2a4a); border-color: #4a8caf; color: #7ec8e0;" onclick="switchClanTab('info')">📊 ИНФОРМАЦИЯ</button>
-        </div>
-        <div id="clanInfoContainer" style="display: block;">
-            <div class="no-clan-card">
-                <div class="no-clan-icon">🏢🔒🏢</div>
-                <div class="no-clan-title">ТЫ ЕЩЁ НЕ В КЛАНЕ</div>
-                <div class="no-clan-subtitle">Вступи в братство или создай свой клан, чтобы получить доступ к:</div>
-                <div style="display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; margin: 20px 0;">
-                    <div style="background: rgba(139,69,19,0.2); padding: 5px 12px; border-radius: 30px;">⚔️ КЛАНОВЫЕ ВОЙНЫ</div>
-                    <div style="background: rgba(139,69,19,0.2); padding: 5px 12px; border-radius: 30px;">📋 ТЮРЕМНЫЕ ЗАДАНИЯ</div>
-                    <div style="background: rgba(139,69,19,0.2); padding: 5px 12px; border-radius: 30px;">💰 ОБЩАК КЛАНА</div>
+        if (!hasClan) {
+            contentHtml = `
+                <div id="clanTabs" style="display: flex; gap: 10px; margin-bottom: 20px;">
+                    <button class="btn-secondary" style="flex:1; background:linear-gradient(135deg,#1a3a5c,#0d2a4a);" onclick="switchClanTab('info')">📊 ИНФОРМАЦИЯ</button>
                 </div>
-                <div class="invite-code-box" onclick="copyInviteCode(); showToast('Код скопирован!', 'success');">
-                    📋 ТВОЙ ИНВАЙТ-КОД: <strong>${currentPlayer.inviteCode}</strong> 📋
+                <div id="clanInfoContainer" style="display:block;">
+                    <div class="no-clan-card">
+                        <div class="no-clan-icon">🏢🔒🏢</div>
+                        <div class="no-clan-title">ТЫ ЕЩЁ НЕ В КЛАНЕ</div>
+                        <div class="no-clan-subtitle">Вступи в братство или создай свой клан</div>
+                        <div class="invite-code-box" onclick="copyInviteCode(); showToast('Код скопирован!', 'success');">
+                            📋 ИНВАЙТ-КОД: <strong>${currentPlayer.inviteCode}</strong>
+                        </div>
+                        <button class="create-clan-btn btn-primary" onclick="createClanFromModal(); closeClanFullModal();">
+                            🏰 СОЗДАТЬ КЛАН (${clanCreationCost}🚬)
+                        </button>
+                        <hr style="margin:20px 0; border-color:rgba(139,69,19,0.3);">
+                        <div style="margin-top:15px;">
+                            <div style="color:#c9a03d; margin-bottom:10px;">🔍 ПОИСК КЛАНОВ:</div>
+                            <input type="text" id="clanSearchInput" class="search-clan-input" placeholder="Введи название клана...">
+                            <div id="clanSearchResults" style="max-height:250px; overflow-y:auto; margin-top:10px;"></div>
+                        </div>
+                    </div>
                 </div>
-                <button class="create-clan-btn btn-primary" onclick="createClanFromModal(); closeClanFullModal();" style="cursor: pointer;">
-                    🏰 СОЗДАТЬ КЛАН (${clanCreationCost}🚬)
-                </button>
-                <hr style="margin: 20px 0; border-color: rgba(139,69,19,0.3);">
-                <div style="margin-top: 15px;">
-                    <div style="text-align: left; margin-bottom: 10px; color: #c9a03d;">🔍 ПОИСК КЛАНОВ:</div>
-                    <input type="text" id="clanSearchInput" class="search-clan-input" placeholder="Введи название клана...">
-                    <div id="clanSearchResults" style="max-height: 250px; overflow-y: auto; margin-top: 10px;"></div>
-                </div>
-            </div>
-        </div>
-        <div id="clanQuestsContainer" style="display:none;"></div>
-    `;
+                <div id="clanQuestsContainer" style="display:none;"></div>
+            `;
+        } else {
+            const clanPower = clanMembers.reduce((sum, m) => sum + m.power, 0);
+            const defenseActive = clanInfo?.defenseUntil && clanInfo.defenseUntil > Date.now();
+            const defenseTimeLeft = defenseActive ? formatTimeDetailed(clanInfo.defenseUntil - Date.now()) : '';
+            const nextLevelCost = 1000 * clanLevel;
 
-                } else {
-                    const clanPower = clanMembers.reduce((sum, m) => sum + m.power, 0);
-                    const defenseActive = currentPlayer.defenseUntil && currentPlayer.defenseUntil > Date.now();
-                    const defenseTimeLeft = defenseActive ? formatTimeDetailed(currentPlayer.defenseUntil - Date.now()) : '';
-                    const nextLevelCost = 1000 * clanLevel;
-
-                    let wins = 0, losses = 0;
-                    warHistory.forEach(w => {
-                        if ((w.attackerClanId === currentPlayer.clanId && w.attackerWon) ||
-                            (w.defenderClanId === currentPlayer.clanId && !w.attackerWon)) wins++;
-                        else losses++;
-                    });
-
-                    contentHtml = `
-    <div id="clanTabs" style="display:flex; gap:10px; margin-bottom:15px;">
-        <button id="clanInfoBtn" class="btn-secondary" style="flex:1; background: linear-gradient(135deg, #1a3a5c, #0d2a4a); border-color: #4a8caf; color: #7ec8e0;" onclick="switchClanTab('info')">📊 ИНФОРМАЦИЯ</button>
-        <button id="clanQuestsBtn" class="btn-secondary" style="flex:1; background: linear-gradient(135deg, #5a2d0a, #4a2005); border-color: #c9a03d; color: #ffd966;" onclick="switchClanTab('quests')">📋 ЗАДАНИЯ</button>
-    </div>
-    <div id="clanInfoContainer" style="display:block;">
-        <div class="clan-card">
-            <div style="text-align:center; margin-bottom:15px;">
-                <div style="font-size:36px;">🏰</div>
-                <div style="font-size:20px; font-weight:700;">${escapeHtml(clanInfo?.name || '—')}</div>
-                <div style="font-size:12px; color:#aaa;">Главарь: ${escapeHtml(clanInfo?.leader || '—')}</div>
-            </div>
-            <div class="clan-member-row"><span>⚔️ Мощь клана</span><span style="font-weight:700;">${clanPower}</span></div>
-            <div class="clan-member-row"><span>👥 Участников</span><span>${clanMembers.length}</span></div>
-            <div class="clan-member-row"><span>🏆 Побед в войнах</span><span style="color:#4caf50;">${wins}</span></div>
-            <div class="clan-member-row"><span>💔 Поражений</span><span style="color:#e94560;">${losses}</span></div>
-            <div class="clan-member-row"><span>📈 Уровень клана</span><span style="font-weight:700;">${clanLevel}</span></div>
-            <div class="clan-member-row"><span>💰 Клановые рубли</span><span>${clanInfo?.rubles || 0}</span></div>
-            ${defenseActive ? `<div class="clan-member-row"><span>🛡️ Защита активна</span><span style="color:#4caf50;">${defenseTimeLeft}</span></div>` : ''}
-        </div>
-        <div class="clan-upgrade-section">
-            <div class="clan-upgrade-row">
-                <span>📈 Следующий уровень (${clanLevel + 1})</span>
-                <span>${nextLevelCost}💰</span>
-            </div>
-            <div style="display:flex; gap:10px; margin-top:10px;">
-                <input type="number" id="clanDonateAmount" placeholder="Сумма" min="1" style="flex:2; padding:8px; background:#1e2440; border:none; border-radius:30px; color:white;">
-                <button class="btn-secondary" onclick="donateToClanFromModal()">💰 Внести</button>
-            </div>
-            <div style="font-size:12px; color:#aaa; margin-top:8px;">★ Клан повышает уровень автоматически при накоплении нужной суммы</div>
-        </div>
-        ${currentPlayer.username === currentPlayer.clanLeader ? `
-            <div class="clan-card">
-                <div style="display:flex; gap:10px; flex-wrap:wrap;">
-                    <button class="btn-secondary" style="flex:1;" onclick="toggleDefenseFromModal(); closeClanFullModal();">${defenseActive ? '🛡️ Отключить защиту' : '🛡️ Включить защиту'}</button>
-                    <button class="btn-secondary" style="flex:1;" onclick="copyClanInviteCodeFromModal('${currentPlayer.inviteCode}'); closeClanFullModal();">📋 Реф.ссылка</button>
-                </div>
-            </div>
-        ` : ''}
-        <div class="clan-card">
-            <h3 style="margin-bottom:15px; display: flex; align-items: center; gap: 10px;">
-                <span style="font-size: 22px;">👥</span> 
-                <span>УЧАСТНИКИ КЛАНА</span>
-                <span style="background: #8B4513; padding: 2px 10px; border-radius: 20px; font-size: 12px;">${clanMembers.length} чел.</span>
-            </h3>
-            <div style="max-height: 400px; overflow-y: auto; padding-right: 5px;">
-                ${clanMembers.map((m, idx) => {
-                        const gangMatch = m.gangDisplay.match(/👑 Блатные: (\d+) \| 🔨 Мужики: (\d+) \| 🐑 Фраера: (\d+)/);
-                        const blats = gangMatch ? gangMatch[1] : 0;
-                        const muzhiks = gangMatch ? gangMatch[2] : 0;
-                        const fraers = gangMatch ? gangMatch[3] : 0;
-                        const total = parseInt(blats) + parseInt(muzhiks) + parseInt(fraers);
-
-                        return `
-                        <div class="clan-member-row" id="member-${idx}">
-                            <div class="clan-member-header">
-                                <div class="clan-member-name">
-                                    <strong>${escapeHtml(m.username)}</strong>
-                                    ${m.isLeader ? '<span class="clan-badge leader">👑 ГЛАВАРЬ</span>' : ''}
-                                    ${m.isYou ? '<span class="clan-badge you">✅ ВЫ</span>' : ''}
+            let wins = 0, losses = 0;
+            warHistory.forEach(w => {
+                if ((w.attackerClanId === currentPlayer.clanId && w.attackerWon) ||
+                    (w.defenderClanId === currentPlayer.clanId && !w.attackerWon)) wins++;
+                else losses++;
+            });
+            
+            // Загружаем заявки для главаря
+            let requestsHtml = '';
+            if (currentPlayer.username === currentPlayer.clanLeader) {
+                const requests = await loadClanJoinRequests(currentPlayer.clanId);
+                if (requests.length > 0) {
+                    requestsHtml = `
+                        <div class="clan-card">
+                            <div class="clan-requests-title">📋 ЗАЯВКИ НА ВСТУПЛЕНИЕ (${requests.length})</div>
+                            ${requests.map(req => `
+                                <div class="clan-request-card">
+                                    <div class="clan-request-name">👤 ${escapeHtml(req.playerName)}</div>
+                                    <div class="clan-request-stats">
+                                        <span>⭐ Ур.${req.playerLevel}</span>
+                                        <span>💪 Мощь ${req.playerPower}</span>
+                                        <span>🚬 ${req.playerCigarettes}</span>
+                                        <span>💰 ${req.playerRubles}</span>
+                                    </div>
+                                    <div style="font-size:10px; color:#c9a03d;">${req.playerGangDisplay || req.playerGang}</div>
+                                    <div class="clan-request-actions">
+                                        <button class="clan-request-accept" onclick="acceptJoinRequest(${JSON.stringify(req).replace(/"/g, '&quot;')}, '${currentPlayer.clanId}')">✅ ПРИНЯТЬ</button>
+                                        <button class="clan-request-reject" onclick="rejectJoinRequest(${JSON.stringify(req).replace(/"/g, '&quot;')}, '${currentPlayer.clanId}')">❌ ОТКЛОНИТЬ</button>
+                                    </div>
                                 </div>
-                                <button class="clan-toggle-btn" onclick="event.stopPropagation(); toggleClanMember('member-${idx}')">
-                                    <span class="toggle-icon">▼</span> <span>развернуть</span>
-                                </button>
-                            </div>
-                            <div class="clan-member-stats">
-                                <span>💪 ${m.strength}</span>
-                                <span>🛡️ ${m.defense}</span>
-                                <span>⭐ ${m.level}</span>
-                                <span>⚡ ${m.power}</span>
-                            </div>
-                            <div class="clan-member-gang">
-                                <div class="clan-member-gang-item blats">👑 <strong>${blats}</strong></div>
-                                <div class="clan-member-gang-item muzhiks">🔨 <strong>${muzhiks}</strong></div>
-                                <div class="clan-member-gang-item fraers">🐑 <strong>${fraers}</strong></div>
-                                <div class="clan-member-gang-item" style="background: linear-gradient(135deg, #8B4513, #5a2d0a);">👥 <strong>${total}</strong></div>
-                            </div>
+                            `).join('')}
                         </div>
                     `;
-                    }).join('')}
-            </div>
-        </div>
-        <button class="btn-secondary" onclick="leaveClanFromModal(); closeClanFullModal();" style="width:100%; margin-top:10px;">🚪 Выйти из клана</button>
-    </div>
-               
-                <div id="clanQuestsContainer" style="${currentClanTab === 'quests' ? 'display:block;' : 'display:none;'}"></div>
-            `;
+                } else {
+                    requestsHtml = `<div class="clan-card"><div class="no-requests">📭 Нет заявок</div></div>`;
                 }
+            }
 
-                const modalHtml = `
+            contentHtml = `
+                <div id="clanTabs" style="display:flex; gap:10px; margin-bottom:15px;">
+                    <button id="clanInfoBtn" class="btn-secondary" onclick="switchClanTab('info')">📊 ИНФОРМАЦИЯ</button>
+                    <button id="clanQuestsBtn" class="btn-secondary" onclick="switchClanTab('quests')">📋 ЗАДАНИЯ</button>
+                </div>
+                <div id="clanInfoContainer" style="display:block;">
+                    <div class="clan-card">
+                        <div style="text-align:center;">
+                            <div style="font-size:36px;">🏰</div>
+                            <div style="font-size:20px; font-weight:700;">${escapeHtml(clanInfo?.name || '—')}</div>
+                            <div style="font-size:12px;">Главарь: ${escapeHtml(clanInfo?.leader || '—')}</div>
+                        </div>
+                        <div class="clan-member-row"><span>⚔️ Мощь</span><span>${clanPower}</span></div>
+                        <div class="clan-member-row"><span>👥 Участников</span><span>${clanMembers.length}</span></div>
+                        <div class="clan-member-row"><span>🏆 Побед</span><span>${wins}</span></div>
+                        <div class="clan-member-row"><span>💔 Поражений</span><span>${losses}</span></div>
+                        <div class="clan-member-row"><span>📈 Уровень</span><span>${clanLevel}</span></div>
+                        <div class="clan-member-row"><span>💰 Рубли</span><span>${clanInfo?.rubles || 0}</span></div>
+                        ${defenseActive ? `<div class="clan-member-row"><span>🛡️ Защита</span><span>${defenseTimeLeft}</span></div>` : ''}
+                    </div>
+                    
+                    <div class="clan-upgrade-section">
+                        <div class="clan-upgrade-row"><span>📈 Следующий уровень (${clanLevel+1})</span><span>${nextLevelCost}💰</span></div>
+                        <div style="display:flex; gap:10px;">
+                            <input type="number" id="clanDonateAmount" placeholder="Сумма" style="flex:2; padding:8px; background:#1e2440; border-radius:30px; color:white;">
+                            <button class="btn-secondary" onclick="donateToClanFromModal()">💰 Внести</button>
+                        </div>
+                    </div>
+                    
+                    ${requestsHtml}
+                    
+                    ${currentPlayer.username === currentPlayer.clanLeader ? `
+                        <div class="clan-card">
+                            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                                <button class="btn-secondary" onclick="toggleDefenseFromModal(); closeClanFullModal();">${defenseActive ? '🛡️ Отключить защиту' : '🛡️ Включить защиту'}</button>
+                                <button class="btn-secondary" onclick="copyClanInviteCodeFromModal('${currentPlayer.inviteCode}');">📋 Реф.ссылка</button>
+                            </div>
+                        </div>
+                    ` : ''}
+                    
+                    <div class="clan-card">
+                        <h3>👥 УЧАСТНИКИ (${clanMembers.length})</h3>
+                        <div style="max-height:400px; overflow-y:auto;">
+                            ${clanMembers.map((m, idx) => `
+                                <div class="clan-member-row" id="member-${idx}">
+                                    <div class="clan-member-header">
+                                        <div><strong>${escapeHtml(m.username)}</strong> ${m.isLeader ? '👑' : ''} ${m.isYou ? '(ВЫ)' : ''}</div>
+                                        <button class="clan-toggle-btn" onclick="toggleClanMember('member-${idx}')">▼ развернуть</button>
+                                    </div>
+                                    <div class="clan-member-stats"><span>💪 ${m.strength}</span><span>🛡️ ${m.defense}</span><span>⭐ ${m.level}</span><span>⚡ ${m.power}</span></div>
+                                    <div class="clan-member-gang">${m.gangDisplay || ''}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    
+                    <button class="btn-secondary" onclick="leaveClanFromModal(); closeClanFullModal();" style="width:100%;">🚪 Выйти из клана</button>
+                </div>
+                <div id="clanQuestsContainer" style="display:none;"></div>
+            `;
+        }
+
+        const modalHtml = `
             <div class="clan-fullscreen" id="clanFullscreen">
-                <div class="clan-header-bar">
-                    <div class="clan-header-content">
-                        <div class="clan-header-title">👥 КЛАН</div>
-                    </div>
-                </div>
-                <div class="clan-content-area" id="clanContentArea">
-                    ${contentHtml}
-                </div>
-                <div class="clan-bottom-nav">
-                    <div class="bottom-nav">
-                        <button class="clan-tab-btn active" onclick="closeClanFullModal()"><span>←</span><span>Назад</span></button>
-                    </div>
-                </div>
+                <div class="clan-header-bar"><div class="clan-header-content"><div class="clan-header-title">👥 КЛАН</div></div></div>
+                <div class="clan-content-area">${contentHtml}</div>
+                <div class="clan-bottom-nav"><div class="bottom-nav"><button class="clan-tab-btn active" onclick="closeClanFullModal()"><span>←</span><span>Назад</span></button></div></div>
             </div>
         `;
 
-                document.body.insertAdjacentHTML('beforeend', modalHtml);
-                if (tg) tg.BackButton.show();
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        if (tg) tg.BackButton.show();
 
-                if (!hasClan && currentPlayer.level >= 3) {
-                    const searchInput = document.getElementById('clanSearchInput');
-                    const resultsContainer = document.getElementById('clanSearchResults');
-                    const renderSearch = () => {
-                        const query = searchInput?.value.toLowerCase() || '';
-                        const filtered = allClans.filter(c => c.name.toLowerCase().includes(query));
-                        if (filtered.length === 0) {
-                            resultsContainer.innerHTML = '<div style="color:#aaa; text-align:center; padding:20px;">Нет кланов</div>';
-                            return;
-                        }
-                        resultsContainer.innerHTML = filtered.map(c => `
-                    <div style="background:rgba(30,36,64,0.6); border-radius:20px; padding:14px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
-                        <div><strong>${escapeHtml(c.name)}</strong><br><small>👑 ${escapeHtml(c.leader)} | 👥 ${c.members?.length || 0} уч. | 📈 ур.${c.level || 1}</small></div>
-                        <button class="btn-primary" style="padding:8px 16px;" onclick="joinClanFromModal('${c.id}'); closeClanFullModal();">✚ Вступить</button>
-                    </div>
-                `).join('');
-                    };
-                    if (searchInput) searchInput.oninput = renderSearch;
-                    renderSearch();
+        // Поиск кланов
+        if (!hasClan && currentPlayer.level >= 3) {
+            const searchInput = document.getElementById('clanSearchInput');
+            const resultsContainer = document.getElementById('clanSearchResults');
+            const renderSearch = () => {
+                const query = searchInput?.value.toLowerCase() || '';
+                const filtered = allClans.filter(c => c.name.toLowerCase().includes(query));
+                if (filtered.length === 0) {
+                    resultsContainer.innerHTML = '<div style="text-align:center; padding:20px;">Нет кланов</div>';
+                    return;
                 }
-
-                if (hasClan && currentClanTab === 'quests') {
-                    renderClanQuestsHTML(clanLevel);
-                    if (window.clanQuestsTimerInterval) clearInterval(window.clanQuestsTimerInterval);
-                    window.clanQuestsTimerInterval = setInterval(() => {
-                        const modal = document.getElementById('clanFullscreen');
-                        if (!modal || currentClanTab !== 'quests') {
-                            if (window.clanQuestsTimerInterval) clearInterval(window.clanQuestsTimerInterval);
-                            return;
-                        }
-                        const newReadyCount = checkClanQuestsReady();
-                        if (newReadyCount !== clanQuestReadyCount) {
-                            clanQuestReadyCount = newReadyCount;
-                            updateClanNotificationBadge();
-                        }
-                        renderClanQuestsHTML(clanLevel);
-                    }, 1000);
-                }
-
-                hideLoadingScreen();
-                setTimeout(() => { window._opening_modal = false; }, 500);
-            } catch (error) {
-                hideLoadingScreen();
-                console.error('Ошибка загрузки клана:', error);
-                showToast('Ошибка загрузки клана', 'error');
-                window._opening_modal = false;
-            }
+                resultsContainer.innerHTML = filtered.map(c => {
+                    const hasSent = hasSentRequestToClan(c.id);
+                    const buttonHtml = hasSent 
+                        ? '<button class="btn-primary" disabled style="background:#ff9800; opacity:0.7;">⏳ ЗАПРОС ОТПРАВЛЕН</button>'
+                        : `<button class="btn-primary" style="background:linear-gradient(135deg,#ff9800,#e68a00);" onclick="sendJoinRequest('${c.id}')">📝 ПОДАТЬ ЗАЯВКУ</button>`;
+                    return `
+                        <div style="background:rgba(30,36,64,0.6); border-radius:20px; padding:14px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
+                            <div><strong>${escapeHtml(c.name)}</strong><br><small>👑 ${escapeHtml(c.leader)} | 👥 ${c.members?.length || 0} уч.</small></div>
+                            ${buttonHtml}
+                        </div>
+                    `;
+                }).join('');
+            };
+            if (searchInput) searchInput.oninput = renderSearch;
+            renderSearch();
         }
+
+        if (hasClan && currentClanTab === 'quests') {
+            renderClanQuestsHTML(clanLevel);
+            if (window.clanQuestsTimerInterval) clearInterval(window.clanQuestsTimerInterval);
+            window.clanQuestsTimerInterval = setInterval(() => {
+                const modal = document.getElementById('clanFullscreen');
+                if (!modal || currentClanTab !== 'quests') {
+                    if (window.clanQuestsTimerInterval) clearInterval(window.clanQuestsTimerInterval);
+                    return;
+                }
+                renderClanQuestsHTML(clanLevel);
+            }, 1000);
+        }
+
+        hideLoadingScreen();
+        setTimeout(() => { window._opening_modal = false; }, 500);
+    } catch (error) {
+        hideLoadingScreen();
+        console.error(error);
+        showToast('Ошибка загрузки клана', 'error');
+        window._opening_modal = false;
+    }
+}
 
         function switchClanTab(tab) {
             console.log('switchClanTab вызван, tab:', tab);
@@ -12197,7 +12454,12 @@
         window.getCardGameEnergyCost = getCardGameEnergyCost;
         window.getCardGameRewardBonus = getCardGameRewardBonus;
         window.endCardGame = endCardGame;
+		window.sendJoinRequest = sendJoinRequest;
+		window.acceptJoinRequest = acceptJoinRequest;
+		window.rejectJoinRequest = rejectJoinRequest;
+		window.getGangInfoString = getGangInfoString;
+		window.getGangDisplayString = getGangDisplayString;
+		window.hasSentRequestToClan = hasSentRequestToClan;
     </script>
 </body>
-
 </html>
