@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Тюрьма 1.0.0.181 - Карта зоны</title>
+    <title>Тюрьма 1.0.0.182 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -1687,6 +1687,303 @@ img, .nav-btn, .nav-btn img, .building, button {
 .clan-content-area::-webkit-scrollbar-thumb:hover {
     background: linear-gradient(135deg, #c9a03d, #8B4513);
 }
+/* ========== ТЮРЕМНЫЙ СТИЛЬ ДЛЯ ИНВЕНТАРЯ ========== */
+.inventory-fullscreen {
+    background: linear-gradient(135deg, #0a0a0f 0%, #14141f 100%);
+}
+
+.inventory-header-bar {
+    background: linear-gradient(135deg, #1a1a2a 0%, #0d0d15 100%);
+    border-bottom: 2px solid #8B4513;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+    position: relative;
+}
+
+.inventory-header-bar::before {
+    content: "⛓️";
+    position: absolute;
+    left: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 24px;
+    opacity: 0.3;
+}
+
+.inventory-header-bar::after {
+    content: "⛓️";
+    position: absolute;
+    right: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 24px;
+    opacity: 0.3;
+}
+
+.inventory-header-title {
+    font-size: 20px;
+    font-weight: 800;
+    background: linear-gradient(135deg, #c9a03d, #8B6914);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    text-shadow: 0 2px 5px rgba(0,0,0,0.3);
+    letter-spacing: 2px;
+}
+
+/* Карточки инвентаря */
+.inventory-card {
+    background: rgba(20, 20, 30, 0.9);
+    backdrop-filter: blur(10px);
+    border: 1px solid #8B4513;
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 16px;
+    position: relative;
+    overflow: hidden;
+}
+
+.inventory-card::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #8B4513, #c9a03d, #8B4513);
+}
+
+.inventory-card h3 {
+    color: #c9a03d;
+    font-size: 16px;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid rgba(139,69,19,0.3);
+    padding-bottom: 8px;
+}
+
+/* Строки экипировки */
+.inventory-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    background: rgba(0,0,0,0.3);
+    border-radius: 12px;
+    margin-bottom: 8px;
+    border-left: 3px solid #8B4513;
+}
+
+.inventory-label {
+    color: #c9a03d;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.inventory-value {
+    background: rgba(139,69,19,0.3);
+    padding: 4px 12px;
+    border-radius: 30px;
+    font-size: 12px;
+    color: #ffd966;
+}
+
+/* Наколки */
+.tattoo-item {
+    background: rgba(0,0,0,0.3);
+    padding: 8px 12px;
+    margin-bottom: 6px;
+    border-radius: 30px;
+    font-size: 12px;
+    border-left: 3px solid #8B4513;
+    transition: all 0.2s;
+}
+
+.tattoo-item:hover {
+    transform: translateX(5px);
+    background: rgba(139,69,19,0.2);
+}
+
+/* Кнопка назад */
+.inventory-tab-btn.active {
+    background: linear-gradient(135deg, #8B4513, #5a2d0a) !important;
+    border-color: #c9a03d !important;
+}
+
+/* Скролл для инвентаря */
+.inventory-content-area::-webkit-scrollbar {
+    width: 5px;
+}
+
+.inventory-content-area::-webkit-scrollbar-track {
+    background: #1a1a2a;
+    border-radius: 10px;
+}
+
+.inventory-content-area::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, #8B4513, #c9a03d);
+    border-radius: 10px;
+}
+
+/* Фон с решеткой */
+.inventory-content-area {
+    background-image: repeating-linear-gradient(
+        45deg,
+        rgba(139,69,19,0.03) 0px,
+        rgba(139,69,19,0.03) 2px,
+        transparent 2px,
+        transparent 8px
+    );
+}
+/* ========== ДИЗАЙН ДЛЯ НЕ В КЛАНЕ ========== */
+.no-clan-card {
+    background: rgba(20, 20, 30, 0.9);
+    backdrop-filter: blur(10px);
+    border: 1px solid #8B4513;
+    border-radius: 16px;
+    padding: 30px 20px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.no-clan-card::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #8B4513, #c9a03d, #8B4513);
+}
+
+.no-clan-icon {
+    font-size: 64px;
+    margin-bottom: 15px;
+    filter: drop-shadow(0 0 10px rgba(139,69,19,0.5));
+}
+
+.no-clan-title {
+    font-size: 22px;
+    font-weight: 800;
+    color: #c9a03d;
+    margin-bottom: 10px;
+    letter-spacing: 2px;
+}
+
+.no-clan-subtitle {
+    font-size: 14px;
+    color: #aaa;
+    margin-bottom: 25px;
+}
+
+.invite-code-box {
+    background: rgba(0,0,0,0.5);
+    border: 1px solid #8B4513;
+    border-radius: 40px;
+    padding: 12px 20px;
+    margin: 20px 0;
+    font-family: monospace;
+    font-size: 18px;
+    letter-spacing: 3px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: #ffd966;
+}
+
+.invite-code-box:hover {
+    background: rgba(139,69,19,0.3);
+    border-color: #c9a03d;
+    transform: scale(1.02);
+}
+
+.create-clan-btn {
+    background: linear-gradient(135deg, #8B4513, #5a2d0a);
+    border: 1px solid #c9a03d;
+    border-radius: 40px;
+    padding: 14px;
+    width: 100%;
+    font-weight: 700;
+    letter-spacing: 2px;
+    margin: 10px 0;
+    transition: all 0.2s;
+}
+
+.create-clan-btn:active {
+    transform: scale(0.96);
+}
+
+.search-clan-input {
+    width: 100%;
+    padding: 12px 20px;
+    background: rgba(0,0,0,0.6);
+    border: 1px solid #8B4513;
+    border-radius: 40px;
+    color: white;
+    margin: 15px 0 10px;
+}
+
+.search-clan-input:focus {
+    outline: none;
+    border-color: #c9a03d;
+    box-shadow: 0 0 10px rgba(201,160,61,0.3);
+}
+
+.clan-search-result {
+    background: rgba(30,30,40,0.8);
+    border: 1px solid #8B4513;
+    border-radius: 12px;
+    padding: 12px 15px;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+.clan-search-result:hover {
+    transform: translateX(5px);
+    border-color: #c9a03d;
+    background: rgba(139,69,19,0.2);
+}
+
+.join-clan-btn {
+    background: linear-gradient(135deg, #2a5a8c, #1a4a7a);
+    border: 1px solid #7ec8e0;
+    border-radius: 30px;
+    padding: 6px 16px;
+    font-size: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.join-clan-btn:active {
+    transform: scale(0.95);
+}
+/* Скролл для списка заданий */
+#clanQuestsContainer > div {
+    max-height: 500px;
+    overflow-y: auto;
+    padding-right: 8px;
+}
+
+#clanQuestsContainer > div::-webkit-scrollbar {
+    width: 5px;
+}
+
+#clanQuestsContainer > div::-webkit-scrollbar-track {
+    background: #1a1a2a;
+    border-radius: 10px;
+}
+
+#clanQuestsContainer > div::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, #8B4513, #c9a03d);
+    border-radius: 10px;
+}
     </style>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
@@ -2087,7 +2384,7 @@ async function safeOpenModal(modalName, openFunction) {
                 <img class="loading-logo" src="https://sviter-pro.github.io/GameZone/src/test/logo124.png" alt="Тюряга 2.0" onerror="this.src='https://via.placeholder.com/180x180?text=Тюряга+2.0'">
                 <div class="loading-spinner-new"></div>
                 <div class="loading-tip-new" id="loadingTipNew">⚡ Загрузка игрового мира...</div>
-                <div class="loading-version">Тюряга 1.0.0.181 | Зона ждет</div>
+                <div class="loading-version">Тюряга 1.0.0.82 | Зона ждет</div>
             </div>
         `;
         const tipEl = document.getElementById('loadingTipNew');
@@ -2346,37 +2643,68 @@ function openQuestsModalWithReset() {
     if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); window._opening_modal = false; return; }
     if (!currentPlayer) { window._opening_modal = false; return; }
     
+    // Получаем количество наколок
+    const tattoosCount = currentPlayer.tattoos?.length || 0;
+    
+    // Получаем экипировку с красивыми иконками
+    const weapon = currentPlayer.equipped?.weapon || 'камень';
+    const armor = currentPlayer.equipped?.armor || 'роба';
+    const accessory = currentPlayer.equipped?.accessory || 'чифирная кружка';
+    
+    // Иконки для экипировки
+    const weaponIcons = { 'камень': '🪨', 'нож': '🔪', 'кастет': '👊', 'бита': '🏏', 'пистолет': '🔫' };
+    const armorIcons = { 'роба': '👕', 'кожанка': '🧥', 'броник': '🛡️', 'камуфляж': '🎖️' };
+    const accessoryIcons = { 'чифирная кружка': '☕', 'цепь': '⛓️', 'перстень': '💍', 'часы': '⌚' };
+    
+    const weaponIcon = weaponIcons[weapon] || '🔪';
+    const armorIcon = armorIcons[armor] || '👕';
+    const accessoryIcon = accessoryIcons[accessory] || '💍';
+    
     const modalHtml = `
         <div class="inventory-fullscreen" id="inventoryFullscreen">
             <div class="inventory-header-bar">
                 <div class="inventory-header-content">
-                    <div class="inventory-header-title">📦 ИНВЕНТАРЬ</div>
+                    <div class="inventory-header-title">КАМЕРА</div>
                 </div>
             </div>
             <div class="inventory-content-area">
                 <div class="inventory-card">
-                    <h3 style="margin-bottom: 15px;">📦 Экипировка</h3>
+                    <h3>
+                        <span>🔧</span> 
+                        <span>ЭКИПИРОВКА</span>
+                        <span style="font-size: 10px; color: #8B4513;">⚡ шмонаем по полной</span>
+                    </h3>
                     <div class="inventory-row">
-                        <span class="inventory-label">🔪 Оружие:</span>
-                        <span class="inventory-value">${currentPlayer.equipped?.weapon || 'камень'}</span>
+                        <span class="inventory-label">${weaponIcon} ОРУЖИЕ</span>
+                        <span class="inventory-value">${escapeHtml(weapon)}</span>
                     </div>
                     <div class="inventory-row">
-                        <span class="inventory-label">👕 Одежда:</span>
-                        <span class="inventory-value">${currentPlayer.equipped?.armor || 'роба'}</span>
+                        <span class="inventory-label">${armorIcon} ОДЕЖДА</span>
+                        <span class="inventory-value">${escapeHtml(armor)}</span>
                     </div>
                     <div class="inventory-row">
-                        <span class="inventory-label">💍 Аксессуар:</span>
-                        <span class="inventory-value">${currentPlayer.equipped?.accessory || 'чифирная кружка'}</span>
+                        <span class="inventory-label">${accessoryIcon} АКСЕССУАР</span>
+                        <span class="inventory-value">${escapeHtml(accessory)}</span>
                     </div>
                 </div>
                 <div class="inventory-card">
-                    <h3 style="margin-bottom: 15px;">💉 Наколки (${currentPlayer.tattoos?.length || 0})</h3>
-                    ${currentPlayer.tattoos?.length > 0 ? currentPlayer.tattoos.map(t => `<div class="tattoo-item">• ${t}</div>`).join('') : '<div style="color:#aaa; padding:10px; text-align:center;">Нет наколок</div>'}
+                    <h3>
+                        <span>💉</span> 
+                        <span>НАКОЛКИ (${tattoosCount})</span>
+                        <span style="font-size: 10px; color: #8B4513;">🏆 воровская гордость</span>
+                    </h3>
+                    ${tattoosCount > 0 ? 
+                        currentPlayer.tattoos.map(t => `<div class="tattoo-item">💉 ${escapeHtml(t)}</div>`).join('') : 
+                        '<div style="color:#aaa; padding: 20px; text-align: center;">❌ Нет наколок<br><span style="font-size: 11px;">Купи в магазине у Барыги</span></div>'
+                    }
                 </div>
+                
             </div>
             <div class="inventory-bottom-nav">
                 <div class="bottom-nav">
-                    <button class="inventory-tab-btn active" onclick="closeInventoryModal()"><span>←</span><span>Назад</span></button>
+                    <button class="inventory-tab-btn active" onclick="closeInventoryModal()">
+                        <span>←</span><span>НАЗАД</span>
+                    </button>
                 </div>
             </div>
         </div>
@@ -2388,10 +2716,13 @@ function openQuestsModalWithReset() {
 }
     
     function closeInventoryModal() {
-        const modal = document.getElementById('inventoryFullscreen');
-        if (modal) modal.remove();
-        if (tg) tg.BackButton.hide();
-    }
+    const modal = document.getElementById('inventoryFullscreen');
+    if (modal) modal.remove();
+    if (tg) tg.BackButton.hide();
+    
+    // ВОССТАНАВЛИВАЕМ ОТОБРАЖЕНИЕ ГОРОДА
+    renderUI();
+}
 
     async function changeUsername() {
         if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); return; }
@@ -5140,7 +5471,7 @@ function checkClanQuestsReady() {
             </div>
             <p style="font-size: 12px; color: #c9a03d; margin-top: 10px;">⚡ Выполняй задания — получай ресурсы! ⚡</p>
         </div>
-        <div style="display: flex; flex-direction: column; gap: 12px;">
+        <div style="display: flex; flex-direction: column; gap: 12px; max-height: 500px; overflow-y: auto; padding-right: 8px;">
     `;
     
     for (let i = 0; i < clanQuests.length; i++) {
@@ -5164,12 +5495,23 @@ function checkClanQuestsReady() {
         
         const hoursLeft = Math.floor(remainingMs / (60 * 60 * 1000));
         const minutesLeft = Math.floor((remainingMs % (60 * 60 * 1000)) / (60 * 1000));
-        const formattedTime = isRunning ? `${hoursLeft}ч ${minutesLeft}м` : (quest.ready ? '⚡ ГОТОВО!' : (quest.startTime === 0 ? '🔒 ЗАКРЫТО' : '✅ ЗАВЕРШЕНО'));
+        const secondsLeft = Math.floor((remainingMs % (60 * 1000)) / 1000);
+        
+        let formattedTime = '';
+        if (isRunning) {
+            if (hoursLeft > 0) formattedTime = `${hoursLeft}ч ${minutesLeft}м`;
+            else if (minutesLeft > 0) formattedTime = `${minutesLeft}м ${secondsLeft}с`;
+            else formattedTime = `${secondsLeft}с`;
+        } else if (quest.ready) {
+            formattedTime = '⚡ ГОТОВО!';
+        } else if (quest.startTime === 0) {
+            formattedTime = '🔒 ЗАКРЫТО';
+        } else {
+            formattedTime = '✅ ЗАВЕРШЕНО';
+        }
         
         let rewardHtml = '';
-        let rewardIcon = '';
         if (quest.reward && quest.ready) {
-            rewardIcon = quest.reward.icon;
             rewardHtml = `<div class="clan-quest-reward" style="background: rgba(76,175,80,0.15); padding: 8px; border-radius: 12px; margin: 8px 0;">
                 🎁 НАГРАДА: ${quest.reward.amount} ${quest.reward.icon} ${quest.reward.name}
             </div>`;
@@ -5179,9 +5521,10 @@ function checkClanQuestsReady() {
             rewardHtml = `<div class="clan-quest-reward">🎁 НАГРАДА: ${quest.reward.amount} ${quest.reward.icon} ${quest.reward.name}</div>`;
         }
         
-        const progressPercent = isRunning ? Math.min(100, ((quest.hours * 60 * 60 * 1000 - remainingMs) / (quest.hours * 60 * 60 * 1000)) * 100) : (quest.ready ? 100 : 0);
+        const totalDuration = quest.hours * 60 * 60 * 1000;
+        const elapsed = totalDuration - remainingMs;
+        const progressPercent = isRunning ? Math.min(100, (elapsed / totalDuration) * 100) : (quest.ready ? 100 : 0);
         
-        // Тюремные иконки для разных часов
         const hourIcons = {
             1: '🔨', 2: '⛓️', 3: '🔧', 4: '📦', 5: '🚬',
             6: '💰', 7: '👊', 8: '🏢', 9: '⭐', 10: '💪',
@@ -5196,7 +5539,7 @@ function checkClanQuestsReady() {
                         <span style="font-size: 24px;">${hourIcon}</span>
                         <span>🔰 ${quest.hours} ${getHourWord(quest.hours)}</span>
                     </div>
-                    <div class="clan-quest-timer" style="background: rgba(0,0,0,0.6); padding: 5px 12px; border-radius: 20px; font-weight: bold;">
+                    <div class="clan-quest-timer" style="background: rgba(0,0,0,0.6); padding: 5px 12px; border-radius: 20px; font-weight: bold; font-family: monospace;">
                         ${formattedTime}
                     </div>
                 </div>
@@ -5213,7 +5556,7 @@ function checkClanQuestsReady() {
                     </div>
                 ` : ''}
                 ${canClaim ? `
-                    <button class="clan-claim-btn" onclick="claimClanQuestExternal(${questId})" style="width: 100%; margin-top: 12px; padding: 12px; font-size: 14px;">
+                    <button class="clan-claim-btn" onclick="claimClanQuestExternal(${questId})" style="width: 100%; margin-top: 12px; padding: 12px; font-size: 14px; cursor: pointer;">
                         🎁 ЗАБРАТЬ НАГРАДУ 🎁
                     </button>
                 ` : ''}
@@ -5240,6 +5583,7 @@ function getHourWord(hours) {
     
      function startClanQuestsTimer() {
     if (clanQuestsTimer) clearInterval(clanQuestsTimer);
+    
     clanQuestsTimer = setInterval(() => {
         if (!currentPlayer || !currentPlayer.clanId) return;
         
@@ -5249,9 +5593,13 @@ function getHourWord(hours) {
         // Проверяем готовые задания
         const newReadyCount = checkClanQuestsReady();
         
-        // Обновляем отображение только если окно клана открыто
-        if (document.getElementById('clanFullscreen') && currentClanTab === 'quests') {
-            renderClanQuestsHTML(clanLevel);
+        // Обновляем отображение только если окно клана открыто И активна вкладка заданий
+        const clanModal = document.getElementById('clanFullscreen');
+        if (clanModal && currentClanTab === 'quests') {
+            const questsContainer = document.getElementById('clanQuestsContainer');
+            if (questsContainer && questsContainer.style.display === 'block') {
+                renderClanQuestsHTML(clanLevel);
+            }
         }
     }, 1000);
 }
@@ -5268,7 +5616,7 @@ function getHourWord(hours) {
             <div class="clan-fullscreen" id="clanFullscreen">
                 <div class="clan-header-bar">
                     <div class="clan-header-content">
-                        <div class="clan-header-title">👥 КЛАН</div>
+                        <div class="clan-header-title">КЛАН</div>
                     </div>
                 </div>
                 <div class="clan-content-area">
@@ -5313,27 +5661,37 @@ function getHourWord(hours) {
         let contentHtml = '';
         
         if (!hasClan) {
-            contentHtml = `
-                <div id="clanTabs" style="display:flex; gap:10px; margin-bottom:15px;">
-                    <button class="btn-secondary" style="flex:1; ${currentClanTab === 'info' ? 'background:#e94560;' : ''}" onclick="switchClanTab('info')">📊 ИНФОРМАЦИЯ</button>
+    contentHtml = `
+        <div id="clanTabs" style="display: flex; gap: 10px; margin-bottom: 20px;">
+            <button class="btn-secondary" style="flex: 1; background: linear-gradient(135deg, #1a3a5c, #0d2a4a); border-color: #4a8caf; color: #7ec8e0;" onclick="switchClanTab('info')">📊 ИНФОРМАЦИЯ</button>
+        </div>
+        <div id="clanInfoContainer" style="display: block;">
+            <div class="no-clan-card">
+                <div class="no-clan-icon">🏢🔒🏢</div>
+                <div class="no-clan-title">ТЫ ЕЩЁ НЕ В КЛАНЕ</div>
+                <div class="no-clan-subtitle">Вступи в братство или создай свой клан, чтобы получить доступ к:</div>
+                <div style="display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; margin: 20px 0;">
+                    <div style="background: rgba(139,69,19,0.2); padding: 5px 12px; border-radius: 30px;">⚔️ КЛАНОВЫЕ ВОЙНЫ</div>
+                    <div style="background: rgba(139,69,19,0.2); padding: 5px 12px; border-radius: 30px;">📋 ТЮРЕМНЫЕ ЗАДАНИЯ</div>
+                    <div style="background: rgba(139,69,19,0.2); padding: 5px 12px; border-radius: 30px;">💰 ОБЩАК КЛАНА</div>
                 </div>
-                <div id="clanInfoContainer" style="display:block;">
-                    <div class="clan-card" style="text-align:center;">
-                        <div style="font-size:48px; margin-bottom:15px;">🏰</div>
-                        <div style="font-size:18px; font-weight:700; margin-bottom:10px;">Ты еще не в клане!</div>
-                        <div class="clan-invite-code" onclick="copyInviteCode()" style="margin:15px 0; background:#1e2440; padding:12px; border-radius:20px; font-family:monospace; font-size:18px; text-align:center; cursor:pointer;">
-                            📋 Твой инвайт-код: ${currentPlayer.inviteCode}
-                        </div>
-                        <button class="btn-primary" onclick="createClanFromModal(); closeClanFullModal();" style="width:100%; margin:10px 0;">🏰 Создать клан (${clanCreationCost}🚬)</button>
-                        <hr style="margin:15px 0; border-color:rgba(233,69,96,0.3);">
-                        <div style="margin-top:15px;">
-                            <input type="text" id="clanSearchInput" placeholder="🔍 Название клана для поиска" style="width:100%; padding:12px; background:#1e2440; border:none; border-radius:30px; margin-bottom:10px; color:white;">
-                            <div id="clanSearchResults" style="max-height:300px; overflow-y:auto;"></div>
-                        </div>
-                    </div>
+                <div class="invite-code-box" onclick="copyInviteCode(); showToast('Код скопирован!', 'success');">
+                    📋 ТВОЙ ИНВАЙТ-КОД: <strong>${currentPlayer.inviteCode}</strong> 📋
                 </div>
-                <div id="clanQuestsContainer" style="display:none;"></div>
-            `;
+                <button class="create-clan-btn btn-primary" onclick="createClanFromModal(); closeClanFullModal();" style="cursor: pointer;">
+                    🏰 СОЗДАТЬ КЛАН (${clanCreationCost}🚬)
+                </button>
+                <hr style="margin: 20px 0; border-color: rgba(139,69,19,0.3);">
+                <div style="margin-top: 15px;">
+                    <div style="text-align: left; margin-bottom: 10px; color: #c9a03d;">🔍 ПОИСК КЛАНОВ:</div>
+                    <input type="text" id="clanSearchInput" class="search-clan-input" placeholder="Введи название клана...">
+                    <div id="clanSearchResults" style="max-height: 250px; overflow-y: auto; margin-top: 10px;"></div>
+                </div>
+            </div>
+        </div>
+        <div id="clanQuestsContainer" style="display:none;"></div>
+    `;
+
         } else {
             const clanPower = clanMembers.reduce((sum, m) => sum + m.power, 0);
             const defenseActive = currentPlayer.defenseUntil && currentPlayer.defenseUntil > Date.now();
@@ -5348,103 +5706,90 @@ function getHourWord(hours) {
             });
             
             contentHtml = `
-                <div id="clanTabs" style="display:flex; gap:10px; margin-bottom:15px;">
-                    <button class="btn-secondary" style="flex:1; ${currentClanTab === 'info' ? 'background:#e94560;' : ''}" onclick="switchClanTab('info')">📊 ИНФОРМАЦИЯ</button>
-                    <button class="btn-secondary" style="flex:1; ${currentClanTab === 'quests' ? 'background:#e94560;' : ''}" onclick="switchClanTab('quests')">📋 ЗАДАНИЯ</button>
+    <div id="clanTabs" style="display:flex; gap:10px; margin-bottom:15px;">
+        <button id="clanInfoBtn" class="btn-secondary" style="flex:1; background: linear-gradient(135deg, #1a3a5c, #0d2a4a); border-color: #4a8caf; color: #7ec8e0;" onclick="switchClanTab('info')">📊 ИНФОРМАЦИЯ</button>
+        <button id="clanQuestsBtn" class="btn-secondary" style="flex:1; background: linear-gradient(135deg, #5a2d0a, #4a2005); border-color: #c9a03d; color: #ffd966;" onclick="switchClanTab('quests')">📋 ЗАДАНИЯ</button>
+    </div>
+    <div id="clanInfoContainer" style="display:block;">
+        <div class="clan-card">
+            <div style="text-align:center; margin-bottom:15px;">
+                <div style="font-size:36px;">🏰</div>
+                <div style="font-size:20px; font-weight:700;">${escapeHtml(clanInfo?.name || '—')}</div>
+                <div style="font-size:12px; color:#aaa;">Главарь: ${escapeHtml(clanInfo?.leader || '—')}</div>
+            </div>
+            <div class="clan-member-row"><span>⚔️ Мощь клана</span><span style="font-weight:700;">${clanPower}</span></div>
+            <div class="clan-member-row"><span>👥 Участников</span><span>${clanMembers.length}</span></div>
+            <div class="clan-member-row"><span>🏆 Побед в войнах</span><span style="color:#4caf50;">${wins}</span></div>
+            <div class="clan-member-row"><span>💔 Поражений</span><span style="color:#e94560;">${losses}</span></div>
+            <div class="clan-member-row"><span>📈 Уровень клана</span><span style="font-weight:700;">${clanLevel}</span></div>
+            <div class="clan-member-row"><span>💰 Клановые рубли</span><span>${clanInfo?.rubles || 0}</span></div>
+            ${defenseActive ? `<div class="clan-member-row"><span>🛡️ Защита активна</span><span style="color:#4caf50;">${defenseTimeLeft}</span></div>` : ''}
+        </div>
+        <div class="clan-upgrade-section">
+            <div class="clan-upgrade-row">
+                <span>📈 Следующий уровень (${clanLevel + 1})</span>
+                <span>${nextLevelCost}💰</span>
+            </div>
+            <div style="display:flex; gap:10px; margin-top:10px;">
+                <input type="number" id="clanDonateAmount" placeholder="Сумма" min="1" style="flex:2; padding:8px; background:#1e2440; border:none; border-radius:30px; color:white;">
+                <button class="btn-secondary" onclick="donateToClanFromModal()">💰 Внести</button>
+            </div>
+            <div style="font-size:12px; color:#aaa; margin-top:8px;">★ Клан повышает уровень автоматически при накоплении нужной суммы</div>
+        </div>
+        ${currentPlayer.username === currentPlayer.clanLeader ? `
+            <div class="clan-card">
+                <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                    <button class="btn-secondary" style="flex:1;" onclick="toggleDefenseFromModal(); closeClanFullModal();">${defenseActive ? '🛡️ Отключить защиту' : '🛡️ Включить защиту'}</button>
+                    <button class="btn-secondary" style="flex:1;" onclick="copyClanInviteCodeFromModal('${currentPlayer.inviteCode}'); closeClanFullModal();">📋 Реф.ссылка</button>
                 </div>
-                <div id="clanInfoContainer" style="${currentClanTab === 'info' ? 'display:block;' : 'display:none;'}">
-                    <div class="clan-card">
-                        <div style="text-align:center; margin-bottom:15px;">
-                            <div style="font-size:36px;">🏰</div>
-                            <div style="font-size:20px; font-weight:700;">${escapeHtml(clanInfo?.name || '—')}</div>
-                            <div style="font-size:12px; color:#aaa;">Главарь: ${escapeHtml(clanInfo?.leader || '—')}</div>
-                        </div>
-                        <div class="clan-member-row"><span>⚔️ Мощь клана</span><span style="font-weight:700;">${clanPower}</span></div>
-                        <div class="clan-member-row"><span>👥 Участников</span><span>${clanMembers.length}</span></div>
-                        <div class="clan-member-row"><span>🏆 Побед в войнах</span><span style="color:#4caf50;">${wins}</span></div>
-                        <div class="clan-member-row"><span>💔 Поражений</span><span style="color:#e94560;">${losses}</span></div>
-                        <div class="clan-member-row"><span>📈 Уровень клана</span><span style="font-weight:700;">${clanLevel}</span></div>
-                        <div class="clan-member-row"><span>💰 Клановые рубли</span><span>${clanInfo?.rubles || 0}</span></div>
-                        ${defenseActive ? `<div class="clan-member-row"><span>🛡️ Защита активна</span><span style="color:#4caf50;">${defenseTimeLeft}</span></div>` : ''}
-                    </div>
-                    <div class="clan-upgrade-section">
-                        <div class="clan-upgrade-row">
-                            <span>📈 Следующий уровень (${clanLevel + 1})</span>
-                            <span>${nextLevelCost}💰</span>
-                        </div>
-                        <div style="display:flex; gap:10px; margin-top:10px;">
-                            <input type="number" id="clanDonateAmount" placeholder="Сумма" min="1" style="flex:2; padding:8px; background:#1e2440; border:none; border-radius:30px; color:white;">
-                            <button class="btn-secondary" onclick="donateToClanFromModal()">💰 Внести</button>
-                        </div>
-                        <div style="font-size:12px; color:#aaa; margin-top:8px;">★ Клан повышает уровень автоматически при накоплении нужной суммы</div>
-                    </div>
-                    ${currentPlayer.username === currentPlayer.clanLeader ? `
-                        <div class="clan-card">
-                            <div style="display:flex; gap:10px; flex-wrap:wrap;">
-                                <button class="btn-secondary" style="flex:1;" onclick="toggleDefenseFromModal(); closeClanFullModal();">${defenseActive ? '🛡️ Отключить защиту' : '🛡️ Включить защиту'}</button>
-                                <button class="btn-secondary" style="flex:1;" onclick="copyClanInviteCodeFromModal('${currentPlayer.inviteCode}'); closeClanFullModal();">📋 Реф.ссылка</button>
+            </div>
+        ` : ''}
+        <div class="clan-card">
+            <h3 style="margin-bottom:15px; display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 22px;">👥</span> 
+                <span>УЧАСТНИКИ КЛАНА</span>
+                <span style="background: #8B4513; padding: 2px 10px; border-radius: 20px; font-size: 12px;">${clanMembers.length} чел.</span>
+            </h3>
+            <div style="max-height: 400px; overflow-y: auto; padding-right: 5px;">
+                ${clanMembers.map((m, idx) => {
+                    const gangMatch = m.gangDisplay.match(/👑 Блатные: (\d+) \| 🔨 Мужики: (\d+) \| 🐑 Фраера: (\d+)/);
+                    const blats = gangMatch ? gangMatch[1] : 0;
+                    const muzhiks = gangMatch ? gangMatch[2] : 0;
+                    const fraers = gangMatch ? gangMatch[3] : 0;
+                    const total = parseInt(blats) + parseInt(muzhiks) + parseInt(fraers);
+                    
+                    return `
+                        <div class="clan-member-row" id="member-${idx}">
+                            <div class="clan-member-header">
+                                <div class="clan-member-name">
+                                    <strong>${escapeHtml(m.username)}</strong>
+                                    ${m.isLeader ? '<span class="clan-badge leader">👑 ГЛАВАРЬ</span>' : ''}
+                                    ${m.isYou ? '<span class="clan-badge you">✅ ВЫ</span>' : ''}
+                                </div>
+                                <button class="clan-toggle-btn" onclick="event.stopPropagation(); toggleClanMember('member-${idx}')">
+                                    <span class="toggle-icon">▼</span> <span>развернуть</span>
+                                </button>
+                            </div>
+                            <div class="clan-member-stats">
+                                <span>💪 ${m.strength}</span>
+                                <span>🛡️ ${m.defense}</span>
+                                <span>⭐ ${m.level}</span>
+                                <span>⚡ ${m.power}</span>
+                            </div>
+                            <div class="clan-member-gang">
+                                <div class="clan-member-gang-item blats">👑 <strong>${blats}</strong></div>
+                                <div class="clan-member-gang-item muzhiks">🔨 <strong>${muzhiks}</strong></div>
+                                <div class="clan-member-gang-item fraers">🐑 <strong>${fraers}</strong></div>
+                                <div class="clan-member-gang-item" style="background: linear-gradient(135deg, #8B4513, #5a2d0a);">👥 <strong>${total}</strong></div>
                             </div>
                         </div>
-                    ` : ''}
-                    <div class="clan-card">
-    <h3 style="margin-bottom: 15px; display: flex; align-items: center; justify-content: space-between;">
-        <div style="display: flex; align-items: center; gap: 10px;">
-            <span style="font-size: 22px;">👥</span> 
-            <span style="font-size: 16px;">УЧАСТНИКИ</span>
+                    `;
+                }).join('')}
+            </div>
         </div>
-        <span style="background: #8B4513; padding: 4px 12px; border-radius: 20px; font-size: 12px;">
-            ${clanMembers.length} чел.
-        </span>
-    </h3>
-    <div style="max-height: 400px; overflow-y: auto; padding-right: 5px;">
-        ${clanMembers.map((m, idx) => {
-            // Парсим строку банды
-            const gangMatch = m.gangDisplay.match(/👑 Блатные: (\d+) \| 🔨 Мужики: (\d+) \| 🐑 Фраера: (\d+)/);
-            const blats = gangMatch ? gangMatch[1] : 0;
-            const muzhiks = gangMatch ? gangMatch[2] : 0;
-            const fraers = gangMatch ? gangMatch[3] : 0;
-            const total = parseInt(blats) + parseInt(muzhiks) + parseInt(fraers);
-            
-            return `
-                <div class="clan-member-row" id="member-${idx}">
-                    <div class="clan-member-header">
-                        <div class="clan-member-name">
-                            <strong>${escapeHtml(m.username)}</strong>
-                            ${m.isLeader ? '<span class="clan-badge leader">👑 ГЛАВАРЬ</span>' : ''}
-                            ${m.isYou ? '<span class="clan-badge you">✅ ВЫ</span>' : ''}
-                        </div>
-                        <button class="clan-toggle-btn" onclick="event.stopPropagation(); toggleClanMember('member-${idx}')">
-                            <span class="toggle-icon">▼</span> <span>развернуть</span>
-                        </button>
-                    </div>
-                    <div class="clan-member-stats">
-                        <span>💪 ${m.strength}</span>
-                        <span>🛡️ ${m.defense}</span>
-                        <span>⭐ ${m.level}</span>
-                        <span>⚡ ${m.power}</span>
-                    </div>
-                    <div class="clan-member-gang">
-                        <div class="clan-member-gang-item blats">
-                            👑 <strong>${blats}</strong>
-                        </div>
-                        <div class="clan-member-gang-item muzhiks">
-                            🔨 <strong>${muzhiks}</strong>
-                        </div>
-                        <div class="clan-member-gang-item fraers">
-                            🐑 <strong>${fraers}</strong>
-                        </div>
-                        <div class="clan-member-gang-item" style="background: linear-gradient(135deg, #8B4513, #5a2d0a);">
-                            👥 <strong>${total}</strong>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }).join('')}
+        <button class="btn-secondary" onclick="leaveClanFromModal(); closeClanFullModal();" style="width:100%; margin-top:10px;">🚪 Выйти из клана</button>
     </div>
-</div>
-</div>
-                    <button class="btn-secondary" onclick="leaveClanFromModal(); closeClanFullModal();" style="width:100%; margin-top:10px;">🚪 Выйти из клана</button>
-                </div>
+               
                 <div id="clanQuestsContainer" style="${currentClanTab === 'quests' ? 'display:block;' : 'display:none;'}"></div>
             `;
         }
@@ -5520,46 +5865,90 @@ function getHourWord(hours) {
 }
     
     function switchClanTab(tab) {
-        currentClanTab = tab;
-        const infoContainer = document.getElementById('clanInfoContainer');
-        const questsContainer = document.getElementById('clanQuestsContainer');
-        const tabs = document.querySelectorAll('#clanTabs .btn-secondary');
-        
-        if (infoContainer && questsContainer) {
-            if (tab === 'info') {
-                infoContainer.style.display = 'block';
-                questsContainer.style.display = 'none';
-                if (tabs[0]) tabs[0].style.background = '#e94560';
-                if (tabs[1]) tabs[1].style.background = '';
-            } else {
-                infoContainer.style.display = 'none';
-                questsContainer.style.display = 'block';
-                if (tabs[0]) tabs[0].style.background = '';
-                if (tabs[1]) tabs[1].style.background = '#e94560';
-                let clanLevel = 1;
-                if (currentPlayer.clanId) {
-                    const clan = allClans.find(c => c.id === currentPlayer.clanId);
-                    if (clan) clanLevel = clan.level || 1;
-                }
-                renderClanQuestsHTML(clanLevel);
+    console.log('switchClanTab вызван, tab:', tab);
+    currentClanTab = tab;
+    
+    const infoContainer = document.getElementById('clanInfoContainer');
+    const questsContainer = document.getElementById('clanQuestsContainer');
+    
+    // Находим кнопки по ID для надежности
+    const infoBtn = document.getElementById('clanInfoBtn');
+    const questsBtn = document.getElementById('clanQuestsBtn');
+    
+    console.log('infoContainer:', infoContainer ? 'найден' : 'НЕ НАЙДЕН');
+    console.log('questsContainer:', questsContainer ? 'найден' : 'НЕ НАЙДЕН');
+    
+    if (tab === 'info') {
+        if (infoContainer) infoContainer.style.display = 'block';
+        if (questsContainer) questsContainer.style.display = 'none';
+        if (infoBtn) infoBtn.style.background = 'linear-gradient(135deg, #2a5a8c, #1a4a7a)';
+        if (questsBtn) questsBtn.style.background = '';
+        console.log('Переключено на ИНФОРМАЦИЯ');
+    } else if (tab === 'quests') {
+        if (infoContainer) infoContainer.style.display = 'none';
+        if (questsContainer) {
+            questsContainer.style.display = 'block';
+            
+            // Получаем уровень клана и рендерим задания
+            let clanLevel = 1;
+            if (currentPlayer.clanId) {
+                const clan = allClans.find(c => c.id === currentPlayer.clanId);
+                if (clan) clanLevel = clan.level || 1;
             }
+            console.log('Уровень клана для заданий:', clanLevel);
+            renderClanQuestsHTML(clanLevel);
         }
+        if (infoBtn) infoBtn.style.background = '';
+        if (questsBtn) questsBtn.style.background = 'linear-gradient(135deg, #7a3d15, #6a2d0a)';
+        console.log('Переключено на ЗАДАНИЯ');
     }
+}
     
 function closeClanFullModal() {
+    console.log('closeClanFullModal вызван');
+    
     const modal = document.getElementById('clanFullscreen');
-    if (modal) modal.remove();
-    if (window.clanQuestsTimerInterval) clearInterval(window.clanQuestsTimerInterval);
+    if (modal) {
+        modal.remove();
+        console.log('Модальное окно удалено');
+    }
+    
+    if (window.clanQuestsTimerInterval) {
+        clearInterval(window.clanQuestsTimerInterval);
+        window.clanQuestsTimerInterval = null;
+    }
+    
     if (tg) tg.BackButton.hide();
     
-    // Возвращаем активную кнопку на "Город"
+    // ПРИНУДИТЕЛЬНО ВОССТАНАВЛИВАЕМ ГОРОД
     currentBottomTab = 'city';
-    renderUI();
     
-    // Если был сохранён предыдущий таб - используем его, иначе Город
+    // Полностью пересоздаём UI
+    if (typeof renderUI === 'function') {
+        renderUI();
+        console.log('renderUI выполнен');
+    }
+    
+    // Дополнительная проверка - убеждаемся что нижняя панель видна
+    setTimeout(() => {
+        const bottomBar = document.querySelector('.fixed-bottom-bar');
+        if (bottomBar) {
+            bottomBar.style.display = 'flex';
+        }
+        const app = document.getElementById('app');
+        if (app && !app.querySelector('.fixed-bottom-bar')) {
+            renderUI();
+        }
+    }, 50);
+    
+    document.body.style.overflow = '';
+    document.body.style.position = '';
+    
     if (window._pendingResetTab) {
         window._pendingResetTab = null;
     }
+    
+    window._opening_modal = false;
 }
     
     async function createClanFromModal() {
@@ -6968,7 +7357,16 @@ function closeGangModal() {
 
     function escapeHtml(text) { if (!text) return ''; const div = document.createElement('div'); div.textContent = text; return div.innerHTML; }
     function showToast(msg, type = 'info') { toast = { show: true, message: msg, type: type }; renderUI(); setTimeout(() => { toast = { show: false, message: '', type: '' }; renderUI(); }, 3000); }
-    function closeModal() { const modal = document.querySelector('.modal'); if (modal) modal.remove(); if (chatUnsubscribe) chatUnsubscribe(); if (tg) tg.BackButton.hide(); }
+    function closeModal() {
+    const modal = document.querySelector('.modal');
+    if (modal) modal.remove();
+    if (chatUnsubscribe) chatUnsubscribe();
+    if (tg) tg.BackButton.hide();
+    
+    // Восстанавливаем город
+    currentBottomTab = 'city';
+    renderUI();
+}
     function formatTimeDetailed(ms) {
         if (ms <= 0) return "0:00";
         const totalSeconds = Math.floor(ms / 1000);
