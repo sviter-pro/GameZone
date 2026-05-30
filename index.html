@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Зона 1.0.0.187 - Карта зоны</title>
+    <title>Зона 1.0.0.188 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -5308,6 +5308,70 @@
     border-color: #c9a03d !important;
     box-shadow: 0 5px 20px rgba(0,0,0,0.3);
 }
+/* ========== СВЕРТЫВАНИЕ УЧАСТНИКОВ КЛАНА ========== */
+.clan-member-card .clan-member-details {
+    display: none;
+}
+
+.clan-member-card.expanded .clan-member-details {
+    display: block !important;
+}
+
+.clan-member-card .toggle-icon {
+    transition: transform 0.3s ease;
+    display: inline-block;
+}
+
+.clan-member-card.expanded .toggle-icon {
+    transform: rotate(180deg);
+}
+/* ========== TOAST УВЕДОМЛЕНИЯ ПОВЕРХ ВСЕХ ОКОН ========== */
+.game-toast {
+    position: fixed;
+    bottom: 100px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(135deg, #1a1a2a, #0d0d15);
+    border: 2px solid #c9a03d;
+    color: #ffd966;
+    padding: 12px 24px;
+    border-radius: 50px;
+    font-size: 14px;
+    font-weight: bold;
+    z-index: 20000;
+    box-shadow: 0 5px 25px rgba(0,0,0,0.5);
+    animation: toastFadeIn 0.3s ease;
+    white-space: nowrap;
+    font-family: monospace;
+    letter-spacing: 1px;
+}
+
+.game-toast.error {
+    border-color: #e94560;
+    color: #e94560;
+    background: linear-gradient(135deg, #1a1a2a, #0d0d15);
+}
+
+.game-toast.success {
+    border-color: #4caf50;
+    color: #4caf50;
+}
+
+.game-toast.warning {
+    border-color: #ff9800;
+    color: #ff9800;
+}
+
+@keyframes toastFadeIn {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+}
     </style>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
@@ -5642,7 +5706,7 @@ function startNotificationCheck() {
             console.log("🔔 Периодическая проверка уведомлений...");
             loadNotificationsFromFirebase();
         }
-    }, 30000); // каждые 30 секунд
+    }, 5000); // каждые 5 секунд
 }
 
 function toggleNotificationsModal() {
@@ -6114,7 +6178,7 @@ async function loadNotificationsFromFirebase() {
                 <img class="loading-logo" src="https://sviter-pro.github.io/GameZone/src/test/logo124.png" alt="Тюряга 2.0" onerror="this.src='https://via.placeholder.com/180x180?text=Тюряга+2.0'">
                 <div class="loading-spinner-new"></div>
                 <div class="loading-tip-new" id="loadingTipNew">⚡ Загрузка игрового мира...</div>
-                <div class="loading-version">Зона 1.0.0.187 | Зона ждет</div>
+                <div class="loading-version">Зона 1.0.0.188 | Зона ждет</div>
             </div>
         `;
             const tipEl = document.getElementById('loadingTipNew');
@@ -6209,11 +6273,53 @@ async function sendJoinRequest(clanId) {
     
     // Сохраняем в localStorage для быстрого отображения
     const sentRequests = JSON.parse(localStorage.getItem(`sentRequests_${currentPlayer.id}`) || '[]');
-    sentRequests.push(clanId);
-    localStorage.setItem(`sentRequests_${currentPlayer.id}`, JSON.stringify(sentRequests));
+    if (!sentRequests.includes(clanId)) {
+        sentRequests.push(clanId);
+        localStorage.setItem(`sentRequests_${currentPlayer.id}`, JSON.stringify(sentRequests));
+    }
     
     showToast(`✅ Заявка отправлена в клан "${clan.name}"!`, 'success');
+    
+    // МГНОВЕННО обновляем интерфейс (меняем кнопку)
     renderUI();
+    
+    // Обновляем поиск кланов если открыт
+    const searchResults = document.getElementById('clanSearchResults');
+    if (searchResults) {
+        updateClanSearchResults();
+    }
+}
+
+async function updateClanSearchResults() {
+    const searchInput = document.getElementById('clanSearchInput');
+    const resultsContainer = document.getElementById('clanSearchResults');
+    if (!searchInput || !resultsContainer) return;
+    
+    const query = searchInput.value.toLowerCase() || '';
+    const filtered = allClans.filter(c => c.name.toLowerCase().includes(query));
+    
+    if (filtered.length === 0) {
+        resultsContainer.innerHTML = '<div style="color:#aaa; text-align:center; padding:20px;">Нет кланов</div>';
+        return;
+    }
+    
+    const sentRequests = JSON.parse(localStorage.getItem(`sentRequests_${currentPlayer.id}`) || '[]');
+    
+    resultsContainer.innerHTML = filtered.map(c => {
+        const hasSent = sentRequests.includes(c.id);
+        const buttonHtml = hasSent 
+            ? '<button class="btn-primary" disabled style="background:#666; opacity:0.8; color:#000; border-color:#888;">⏳ ЗАПРОС ПОДАН</button>'
+            : `<button class="btn-primary" style="background:linear-gradient(135deg,#ff9800,#e68a00); color:white;" onclick="sendJoinRequest('${c.id}')">📝 ПОДАТЬ ЗАЯВКУ</button>`;
+        return `
+            <div style="background:rgba(30,36,64,0.6); border-radius:20px; padding:14px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                    <strong>${escapeHtml(c.name)}</strong><br>
+                    <small>👑 ${escapeHtml(c.leader)} | 👥 ${c.members?.length || 0} уч. | 📈 ур.${c.level || 1}</small>
+                </div>
+                ${buttonHtml}
+            </div>
+        `;
+    }).join('');
 }
 
 // Принять заявку
@@ -6226,7 +6332,6 @@ async function acceptJoinRequest(request, clanId) {
         return;
     }
     
-    // Проверяем, не в клане ли уже игрок
     const playerRef = db.collection('players').doc(request.playerId);
     const playerDoc = await playerRef.get();
     if (playerDoc.exists && playerDoc.data().clanId) {
@@ -6237,6 +6342,7 @@ async function acceptJoinRequest(request, clanId) {
     }
     
     try {
+        // Добавляем в клан
         await playerRef.update({
             clanId: clanId,
             clanLeader: clan.leader
@@ -6248,16 +6354,38 @@ async function acceptJoinRequest(request, clanId) {
         });
         
         await removeRequestFromClan(request.playerId, clanId);
-        
-        // Удаляем все заявки этого игрока из других кланов
         await removeAllPlayerRequests(request.playerId);
         
-        showToast(`✅ Игрок ${request.playerName} принят в клан!`, 'success');
+        // ========== УВЕДОМЛЕНИЕ О УСПЕШНОМ ВСТУПЛЕНИИ ==========
+        const notificationId = Date.now();
+        const notificationData = {
+            id: notificationId,
+            type: 'clan',
+            title: '✅ ПРИНЯТ В КЛАН',
+            message: `Вас приняли в клан "${clan.name}"! Добро пожаловать!`,
+            timestamp: notificationId,
+            read: false
+        };
+        
+        const notifRef = db.collection('playerNotifications').doc(request.playerId);
+        const notifDoc = await notifRef.get();
+        if (notifDoc.exists) {
+            await notifRef.update({
+                notifications: firebase.firestore.FieldValue.arrayUnion(notificationData)
+            });
+        } else {
+            await notifRef.set({
+                notifications: [notificationData]
+            });
+        }
+        
+        showToast(`✅ ${request.playerName} принят в клан!`, 'success');
         
         if (currentPlayer.id === request.playerId) {
             currentPlayer.clanId = clanId;
             currentPlayer.clanLeader = clan.leader;
             localStorage.removeItem(`sentRequests_${currentPlayer.id}`);
+            showToast(`🎉 Вас приняли в клан "${clan.name}"!`, 'success');
         }
         
         await loadAllClans();
@@ -6269,11 +6397,41 @@ async function acceptJoinRequest(request, clanId) {
 
 // Отклонить заявку
 async function rejectJoinRequest(request, clanId) {
+    const clan = allClans.find(c => c.id === clanId);
+    if (!clan) return;
+    
     try {
         await removeRequestFromClan(request.playerId, clanId);
+        
+        // Сохраняем отметку об отклонении
         localStorage.setItem(`rejected_${request.playerId}_${clanId}`, Date.now().toString());
+        
+        // ========== УВЕДОМЛЕНИЕ ОБ ОТКАЗЕ ==========
+        const notificationId = Date.now();
+        const notificationData = {
+            id: notificationId,
+            type: 'clan',
+            title: '❌ ЗАЯВКА ОТКЛОНЕНА',
+            message: `Ваша заявка на вступление в клан "${clan.name}" была отклонена главой клана.`,
+            timestamp: notificationId,
+            read: false
+        };
+        
+        const notifRef = db.collection('playerNotifications').doc(request.playerId);
+        const notifDoc = await notifRef.get();
+        if (notifDoc.exists) {
+            await notifRef.update({
+                notifications: firebase.firestore.FieldValue.arrayUnion(notificationData)
+            });
+        } else {
+            await notifRef.set({
+                notifications: [notificationData]
+            });
+        }
+        
         showToast(`❌ Заявка от ${request.playerName} отклонена`, 'warning');
         
+        // Обновляем локальное хранилище для текущего игрока, если это он
         if (currentPlayer.id === request.playerId) {
             const sentRequests = JSON.parse(localStorage.getItem(`sentRequests_${currentPlayer.id}`) || '[]');
             const newSent = sentRequests.filter(id => id !== clanId);
@@ -6761,19 +6919,25 @@ function getGangDisplayString(player) {
         // Функция сворачивания/разворачивания карточки участника
 
         function toggleClanMember(memberId) {
+    console.log("toggleClanMember вызвана для:", memberId);
     const element = document.getElementById(memberId);
-    if (!element) return;
+    if (!element) {
+        console.log("Элемент не найден:", memberId);
+        return;
+    }
     
     const isExpanded = element.classList.contains('expanded');
-    const statsDiv = element.querySelector('.clan-member-stats');
-    const toggleBtn = element.querySelector('.clan-toggle-btn span:last-child');
+    const toggleSpan = element.querySelector('.toggle-text');
+    const toggleIcon = element.querySelector('.toggle-icon');
     
     if (isExpanded) {
         element.classList.remove('expanded');
-        if (toggleBtn) toggleBtn.textContent = 'развернуть';
+        if (toggleSpan) toggleSpan.textContent = 'развернуть';
+        if (toggleIcon) toggleIcon.style.transform = 'rotate(0deg)';
     } else {
         element.classList.add('expanded');
-        if (toggleBtn) toggleBtn.textContent = 'свернуть';
+        if (toggleSpan) toggleSpan.textContent = 'свернуть';
+        if (toggleIcon) toggleIcon.style.transform = 'rotate(180deg)';
     }
 }
 
@@ -7020,7 +7184,7 @@ function getGangDisplayString(player) {
                 
                 <div class="settings-card">
                     <div style="font-size: 13px; color: #aaa; text-align: center;">
-                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.187</div>
+                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.188</div>
                         <div style="font-size: 11px;">⚡ Клановые войны | Бесконечная прокачка</div>
                     </div>
                 </div>
@@ -9393,11 +9557,13 @@ function getGangDisplayString(player) {
             const now = Date.now();
             if (cachedClanData.lastUpdate > now - CACHE_TTL && cachedClanData.allClans.length > 0) {
                 allClans = cachedClanData.allClans;
+				console.log("Кланы загружены из кэша:", allClans.length);
                 return;
             }
             await loadAllClans();
             cachedClanData = { allClans: [...allClans], clanMembers: [], warHistory: [], lastUpdate: now };
-        }
+			console.log("Кланы загружены из Firebase:", allClans.length);
+		}
 
         function openAttackModal() {
             if (window._opening_modal) { console.log('Блокировка: окно уже открывается'); return; }
@@ -9582,32 +9748,73 @@ function getGangDisplayString(player) {
         }
 
         async function loadClanFast() {
-    if (!currentPlayer.clanId) { clanMembers = []; return null; }
-    const clanDoc = await db.collection('clans').doc(currentPlayer.clanId).get();
-    if (clanDoc.exists) {
+    console.log("loadClanFast вызвана, clanId:", currentPlayer?.clanId);
+    
+    if (!currentPlayer?.clanId) { 
+        clanMembers = []; 
+        return null; 
+    }
+    
+    try {
+        const clanDoc = await db.collection('clans').doc(currentPlayer.clanId).get();
+        
+        if (!clanDoc.exists) {
+            console.log("Клан не найден");
+            clanMembers = [];
+            return null;
+        }
+        
         const clan = clanDoc.data();
+        console.log("Клан загружен:", clan.name);
+        
         const members = [];
         for (const memberId of clan.membersIds || []) {
-            const memberDoc = await db.collection('players').doc(memberId).get();
-            if (memberDoc.exists) {
-                const m = memberDoc.data();
-                members.push({
-                    id: memberId,  // ← ЭТО САМОЕ ВАЖНОЕ! ДОБАВЛЯЕМ ID
-                    username: m.username,
-                    level: m.level,
-                    power: calculatePlayerPower(m),
-                    strength: m.stats?.strength || 10,
-                    defense: m.stats?.defense || 5,
-                    isLeader: m.username === clan.leader,
-                    isYou: m.username === currentPlayer.username,
-                    gangDisplay: getGangDisplayString(m)
-                });
+            try {
+                const memberDoc = await db.collection('players').doc(memberId).get();
+                if (memberDoc.exists) {
+                    const m = memberDoc.data();
+                    console.log("Загружен участник:", m.username);
+                    
+                    // Получаем данные о банде
+                    const gang = m.gang || { 
+                        blats: { fighters: 0, level: 1 }, 
+                        muzhiks: { fighters: 0, level: 1 }, 
+                        fraers: { fighters: 0, level: 1 } 
+                    };
+                    
+                    members.push({
+                        id: memberId,  // ВАЖНО: ID для кнопок
+                        username: m.username,
+                        level: m.level,
+                        power: calculatePlayerPower(m),
+                        strength: m.stats?.strength || 10,
+                        defense: m.stats?.defense || 5,
+                        critical: m.stats?.critical || 5,
+                        isLeader: m.username === clan.leader,
+                        isYou: m.username === currentPlayer.username,
+                        // Детальная информация о бойцах
+                        gang: {
+                            blats: { fighters: gang.blats?.fighters || 0, level: gang.blats?.level || 1 },
+                            muzhiks: { fighters: gang.muzhiks?.fighters || 0, level: gang.muzhiks?.level || 1 },
+                            fraers: { fighters: gang.fraers?.fighters || 0, level: gang.fraers?.level || 1 }
+                        },
+                        totalFighters: (gang.blats?.fighters || 0) + (gang.muzhiks?.fighters || 0) + (gang.fraers?.fighters || 0)
+                    });
+                }
+            } catch(e) {
+                console.error("Ошибка загрузки участника:", memberId, e);
             }
         }
+        
         clanMembers = members.sort((a, b) => b.power - a.power);
+        console.log("Загружено участников:", clanMembers.length);
         return clan;
+        
+    } catch(e) {
+        console.error("Ошибка loadClanFast:", e);
+        clanMembers = [];
+        return null;
     }
-    return null;
 }
 
         // Функции для заданий клана (из код 2)
@@ -10091,108 +10298,116 @@ function getGangDisplayString(player) {
                         </div>
                     ` : ''}
                     
-                    <div class="clan-card">
-                        <h3>👥 УЧАСТНИКИ (${clanMembers.length})</h3>
-                        <div style="max-height:400px; overflow-y:auto;">
-                            ${clanMembers.map((m, idx) => {
-    // Извлекаем данные о банде из gangDisplay
-    const gangMatch = (m.gangDisplay || '').match(/👑 Блатные: (\d+) \| 🔨 Мужики: (\d+) \| 🐑 Фраера: (\d+)/);
-    const blats = gangMatch ? gangMatch[1] : 0;
-    const muzhiks = gangMatch ? gangMatch[2] : 0;
-    const fraers = gangMatch ? gangMatch[3] : 0;
-    const totalFighters = parseInt(blats) + parseInt(muzhiks) + parseInt(fraers);
-    
-    return `
-        <div class="clan-member-card" id="member-${idx}" style="
-            background: linear-gradient(135deg, rgba(30,36,64,0.8), rgba(20,20,40,0.9));
-            border-radius: 16px;
-            margin-bottom: 12px;
-            padding: 12px;
-            border: 1px solid rgba(139,69,19,0.3);
-            transition: all 0.2s;
-        ">
-            <!-- ШАПКА С ИМЕНЕМ И БЕЙДЖАМИ -->
-            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; margin-bottom: 10px;">
-                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                    <span style="font-size: 18px; font-weight: bold; color: #ffd966;">${escapeHtml(m.username)}</span>
-                    ${m.isLeader ? '<span style="background: linear-gradient(135deg, #ffd700, #b8860b); color: #1a1a2a; padding: 2px 10px; border-radius: 20px; font-size: 10px; font-weight: bold;">👑 ГЛАВАРЬ</span>' : ''}
-                    ${m.isYou ? '<span style="background: linear-gradient(135deg, #4caf50, #2e7d32); color: white; padding: 2px 10px; border-radius: 20px; font-size: 10px; font-weight: bold;">✅ ВЫ</span>' : ''}
-                </div>
-                <button class="clan-toggle-btn" onclick="toggleClanMember('member-${idx}')" style="
-                    background: rgba(139,69,19,0.4);
-                    border: 1px solid #8B4513;
-                    border-radius: 20px;
-                    padding: 4px 12px;
-                    font-size: 11px;
-                    color: #c9a03d;
-                    cursor: pointer;
+                    
+<div class="clan-card">
+    <h3 style="margin-bottom:15px; display: flex; align-items: center; gap: 10px;">
+        <span style="font-size: 22px;">👥</span> 
+        <span>УЧАСТНИКИ КЛАНА</span>
+        <span style="background: #8B4513; padding: 2px 10px; border-radius: 20px; font-size: 12px;">${clanMembers.length} чел.</span>
+    </h3>
+    <div style="max-height: 500px; overflow-y: auto; padding-right: 5px;">
+        ${clanMembers.map((m, idx) => {
+            // Общее количество бойцов
+            const totalFighters = m.totalFighters || 0;
+            const blats = m.gang?.blats?.fighters || 0;
+            const muzhiks = m.gang?.muzhiks?.fighters || 0;
+            const fraers = m.gang?.fraers?.fighters || 0;
+            
+            return `
+                <div class="clan-member-card" id="member-${idx}" style="
+                    background: linear-gradient(135deg, rgba(30,36,64,0.8), rgba(20,20,40,0.9));
+                    border-radius: 16px;
+                    margin-bottom: 12px;
+                    padding: 12px;
+                    border: 1px solid rgba(139,69,19,0.3);
+                    transition: all 0.2s;
                 ">
-                    <span class="toggle-icon">▼</span> <span>развернуть</span>
-                </button>
-            </div>
-            
-            <!-- СВЕРНУТАЯ СТАТИСТИКА (видна всегда) -->
-            <div style="display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px;">
-                <span style="background: rgba(0,0,0,0.4); padding: 4px 10px; border-radius: 20px;">💪 ${m.strength}</span>
-                <span style="background: rgba(0,0,0,0.4); padding: 4px 10px; border-radius: 20px;">🛡️ ${m.defense}</span>
-                <span style="background: rgba(0,0,0,0.4); padding: 4px 10px; border-radius: 20px;">⭐ ${m.level}</span>
-                <span style="background: rgba(0,0,0,0.4); padding: 4px 10px; border-radius: 20px;">⚡ ${m.power}</span>
-                <span style="background: rgba(139,69,19,0.3); padding: 4px 10px; border-radius: 20px;">👥 ${totalFighters} бойцов</span>
-            </div>
-            
-            <!-- РАЗВЕРНУТАЯ СТАТИСТИКА (скрыта по умолчанию) -->
-            <div class="clan-member-stats" style="display: none; margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(139,69,19,0.2);">
-                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 10px;">
-                    <div style="background: rgba(0,0,0,0.3); border-radius: 12px; padding: 8px; text-align: center;">
-                        <div style="font-size: 20px;">👑</div>
-                        <div style="font-size: 11px; color: #c9a03d;">БЛАТНЫЕ</div>
-                        <div style="font-size: 18px; font-weight: bold; color: #ffd966;">${blats}</div>
+                    <!-- ШАПКА С ИМЕНЕМ И БЕЙДЖАМИ -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; margin-bottom: 10px;">
+                        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                            <span style="font-size: 16px; font-weight: bold; color: #ffd966;">${escapeHtml(m.username)}</span>
+                            ${m.isLeader ? '<span style="background: linear-gradient(135deg, #ffd700, #b8860b); color: #1a1a2a; padding: 2px 10px; border-radius: 20px; font-size: 10px; font-weight: bold;">👑 ГЛАВАРЬ</span>' : ''}
+                            ${m.isYou ? '<span style="background: linear-gradient(135deg, #4caf50, #2e7d32); color: white; padding: 2px 10px; border-radius: 20px; font-size: 10px; font-weight: bold;">✅ ВЫ</span>' : ''}
+                        </div>
+                        <button class="clan-toggle-btn" onclick="toggleClanMember('member-${idx}')" style="
+                            background: rgba(139,69,19,0.4);
+                            border: 1px solid #8B4513;
+                            border-radius: 20px;
+                            padding: 4px 12px;
+                            font-size: 11px;
+                            color: #c9a03d;
+                            cursor: pointer;
+                        ">
+                            <span class="toggle-icon">▼</span> 
+                            <span class="toggle-text">развернуть</span>
+                        </button>
                     </div>
-                    <div style="background: rgba(0,0,0,0.3); border-radius: 12px; padding: 8px; text-align: center;">
-                        <div style="font-size: 20px;">🔨</div>
-                        <div style="font-size: 11px; color: #c9a03d;">МУЖИКИ</div>
-                        <div style="font-size: 18px; font-weight: bold; color: #ffd966;">${muzhiks}</div>
+                    
+                    <!-- СТАТИСТИКА (всегда видна) -->
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; font-size: 12px;">
+                        <span style="background: rgba(0,0,0,0.4); padding: 4px 10px; border-radius: 20px;">💪 ${m.strength}</span>
+                        <span style="background: rgba(0,0,0,0.4); padding: 4px 10px; border-radius: 20px;">🛡️ ${m.defense}</span>
+                        <span style="background: rgba(0,0,0,0.4); padding: 4px 10px; border-radius: 20px;">⭐ ${m.level}</span>
+                        <span style="background: rgba(0,0,0,0.4); padding: 4px 10px; border-radius: 20px;">⚡ ${m.power}</span>
+                        <span style="background: rgba(139,69,19,0.3); padding: 4px 10px; border-radius: 20px;">👥 ${totalFighters} бойцов</span>
                     </div>
-                    <div style="background: rgba(0,0,0,0.3); border-radius: 12px; padding: 8px; text-align: center;">
-                        <div style="font-size: 20px;">🐑</div>
-                        <div style="font-size: 11px; color: #c9a03d;">ФРАЕРА</div>
-                        <div style="font-size: 18px; font-weight: bold; color: #ffd966;">${fraers}</div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- КНОПКИ ГЛАВАРЯ -->
-            ${currentPlayer.username === currentPlayer.clanLeader && !m.isYou ? `
-                <div style="display: flex; gap: 10px; margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(139,69,19,0.2);">
-                    <button onclick="kickFromClan('${m.id}', '${escapeHtml(m.username)}')" style="
-                        flex: 1;
-                        background: linear-gradient(135deg, #8B1a1a, #5a0a0a);
-                        border: 1px solid #e94560;
-                        border-radius: 30px;
-                        padding: 8px;
-                        font-size: 12px;
-                        font-weight: bold;
-                        color: white;
-                        cursor: pointer;
-                    ">❌ ИСКЛЮЧИТЬ</button>
-                    <button onclick="callToWar('${m.id}', '${escapeHtml(m.username)}')" style="
-                        flex: 1;
-                        background: linear-gradient(135deg, #2a5a8c, #1a4a7a);
-                        border: 1px solid #7ec8e0;
-                        border-radius: 30px;
-                        padding: 8px;
-                        font-size: 12px;
-                        font-weight: bold;
-                        color: white;
-                        cursor: pointer;
-                    ">⚔️ ПРИЗВАТЬ</button>
-                </div>
-            ` : ''}
-        </div>
-    `;
-}).join('')}
+                    
+                    <!-- РАЗВЕРНУТАЯ ИНФОРМАЦИЯ (скрыта по умолчанию) -->
+                    <div class="clan-member-details" style="display: none; margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(139,69,19,0.2);">
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 10px;">
+                            <div style="background: rgba(0,0,0,0.3); border-radius: 12px; padding: 8px; text-align: center;">
+                                <div style="font-size: 24px;">👑</div>
+                                <div style="font-size: 11px; color: #c9a03d;">БЛАТНЫЕ</div>
+                                <div style="font-size: 18px; font-weight: bold; color: #ffd966;">${blats}</div>
+                                <div style="font-size: 10px; color: #888;">ур. ${m.gang?.blats?.level || 1}</div>
+                            </div>
+                            <div style="background: rgba(0,0,0,0.3); border-radius: 12px; padding: 8px; text-align: center;">
+                                <div style="font-size: 24px;">🔨</div>
+                                <div style="font-size: 11px; color: #c9a03d;">МУЖИКИ</div>
+                                <div style="font-size: 18px; font-weight: bold; color: #ffd966;">${muzhiks}</div>
+                                <div style="font-size: 10px; color: #888;">ур. ${m.gang?.muzhiks?.level || 1}</div>
+                            </div>
+                            <div style="background: rgba(0,0,0,0.3); border-radius: 12px; padding: 8px; text-align: center;">
+                                <div style="font-size: 24px;">🐑</div>
+                                <div style="font-size: 11px; color: #c9a03d;">ФРАЕРА</div>
+                                <div style="font-size: 18px; font-weight: bold; color: #ffd966;">${fraers}</div>
+                                <div style="font-size: 10px; color: #888;">ур. ${m.gang?.fraers?.level || 1}</div>
+                            </div>
                         </div>
                     </div>
+                    
+                    <!-- КНОПКИ ГЛАВАРЯ -->
+                    ${currentPlayer.username === currentPlayer.clanLeader && !m.isYou ? `
+                        <div style="display: flex; gap: 10px; margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(139,69,19,0.2);">
+                            <button onclick="kickFromClan('${m.id}', '${escapeHtml(m.username)}')" style="
+                                flex: 1;
+                                background: linear-gradient(135deg, #8B1a1a, #5a0a0a);
+                                border: 1px solid #e94560;
+                                border-radius: 30px;
+                                padding: 8px;
+                                font-size: 12px;
+                                font-weight: bold;
+                                color: white;
+                                cursor: pointer;
+                            ">❌ ИСКЛЮЧИТЬ</button>
+                            <button onclick="callToWar('${m.id}', '${escapeHtml(m.username)}')" style="
+                                flex: 1;
+                                background: linear-gradient(135deg, #2a5a8c, #1a4a7a);
+                                border: 1px solid #7ec8e0;
+                                border-radius: 30px;
+                                padding: 8px;
+                                font-size: 12px;
+                                font-weight: bold;
+                                color: white;
+                                cursor: pointer;
+                            ">⚔️ ПРИЗВАТЬ</button>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }).join('')}
+    </div>
+</div>
                     
                     <button class="btn-secondary" onclick="leaveClanFromModal(); closeClanFullModal();" style="width:100%;">🚪 Выйти из клана</button>
                 </div>
@@ -10212,32 +10427,60 @@ function getGangDisplayString(player) {
         if (tg) tg.BackButton.show();
 
         // Поиск кланов
-        if (!hasClan && currentPlayer.level >= 3) {
-            const searchInput = document.getElementById('clanSearchInput');
-            const resultsContainer = document.getElementById('clanSearchResults');
-            const renderSearch = () => {
-                const query = searchInput?.value.toLowerCase() || '';
-                const filtered = allClans.filter(c => c.name.toLowerCase().includes(query));
-                if (filtered.length === 0) {
-                    resultsContainer.innerHTML = '<div style="text-align:center; padding:20px;">Нет кланов</div>';
-                    return;
-                }
-                resultsContainer.innerHTML = filtered.map(c => {
-                    const hasSent = hasSentRequestToClan(c.id);
-                    const buttonHtml = hasSent 
-                        ? '<button class="btn-primary" disabled style="background:#ff9800; opacity:0.7;">⏳ ЗАПРОС ОТПРАВЛЕН</button>'
-                        : `<button class="btn-primary" style="background:linear-gradient(135deg,#ff9800,#e68a00);" onclick="sendJoinRequest('${c.id}')">📝 ПОДАТЬ ЗАЯВКУ</button>`;
-                    return `
-                        <div style="background:rgba(30,36,64,0.6); border-radius:20px; padding:14px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
-                            <div><strong>${escapeHtml(c.name)}</strong><br><small>👑 ${escapeHtml(c.leader)} | 👥 ${c.members?.length || 0} уч.</small></div>
-                            ${buttonHtml}
-                        </div>
-                    `;
-                }).join('');
-            };
-            if (searchInput) searchInput.oninput = renderSearch;
-            renderSearch();
+// ========== ПОИСК КЛАНОВ (ДЛЯ ТЕХ, КТО НЕ В КЛАНЕ) ==========
+if (!hasClan && currentPlayer.level >= 3) {
+    // Получаем элементы DOM
+    const searchInputElement = document.getElementById('clanSearchInput');
+    const resultsContainerElement = document.getElementById('clanSearchResults');
+    
+    // Проверяем, существуют ли элементы
+    if (!searchInputElement) {
+        console.log("Элемент clanSearchInput не найден");
+        return;
+    }
+    if (!resultsContainerElement) {
+        console.log("Элемент clanSearchResults не найден");
+        return;
+    }
+    
+    // Функция обновления результатов поиска
+    const updateSearchResults = () => {
+        const query = searchInputElement.value.toLowerCase() || '';
+        const filtered = allClans.filter(c => c.name.toLowerCase().includes(query));
+        
+        if (filtered.length === 0) {
+            resultsContainerElement.innerHTML = '<div style="color:#aaa; text-align:center; padding:20px;">🔍 Нет кланов</div>';
+            return;
         }
+        
+        // Получаем список отправленных заявок из localStorage
+        const sentRequests = JSON.parse(localStorage.getItem(`sentRequests_${currentPlayer.id}`) || '[]');
+        
+        resultsContainerElement.innerHTML = filtered.map(c => {
+            const hasSent = sentRequests.includes(c.id);
+            const buttonHtml = hasSent 
+                ? '<button class="btn-primary" disabled style="background:#666; opacity:0.7; color:#000; border-color:#888;">⏳ ЗАПРОС ПОДАН</button>'
+                : `<button class="btn-primary" style="background:linear-gradient(135deg,#ff9800,#e68a00); color:white;" onclick="sendJoinRequest('${c.id}')">📝 ПОДАТЬ ЗАЯВКУ</button>`;
+            
+            return `
+                <div style="background:rgba(30,36,64,0.6); border-radius:20px; padding:14px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <strong>${escapeHtml(c.name)}</strong><br>
+                        <small>👑 ${escapeHtml(c.leader)} | 👥 ${c.members?.length || 0} уч. | 📈 ур.${c.level || 1}</small>
+                    </div>
+                    ${buttonHtml}
+                </div>
+            `;
+        }).join('');
+    };
+    
+    // Назначаем обработчик события input
+    searchInputElement.oninput = updateSearchResults;
+    
+    // Выполняем первый поиск
+    updateSearchResults();
+}
+        
 
         if (hasClan && currentClanTab === 'quests') {
             renderClanQuestsHTML(clanLevel);
@@ -10255,10 +10498,10 @@ function getGangDisplayString(player) {
         hideLoadingScreen();
         setTimeout(() => { window._opening_modal = false; }, 500);
     } catch (error) {
-        hideLoadingScreen();
-        console.error(error);
-        showToast('Ошибка загрузки клана', 'error');
-        window._opening_modal = false;
+        console.error("❌ Ошибка загрузки клана:", error);
+    hideLoadingScreen();
+    showToast('Ошибка загрузки клана: ' + error.message, 'error');
+    window._opening_modal = false;
     }
 }
 
@@ -10400,6 +10643,10 @@ function getGangDisplayString(player) {
                 await loadAllClans();
                 renderUI();
             } catch (e) { showToast('Ошибка: ' + e.message, 'error'); }
+			// Уведомление остальным участникам (опционально)
+if (currentPlayer.id !== playerId) {
+    // Можно добавить уведомление главарю
+}
         }
 
         async function toggleDefenseFromModal() {
@@ -11929,8 +12176,24 @@ function getGangDisplayString(player) {
         }
 
         function escapeHtml(text) { if (!text) return ''; const div = document.createElement('div'); div.textContent = text; return div.innerHTML; }
-        function showToast(msg, type = 'info') { toast = { show: true, message: msg, type: type }; renderUI(); setTimeout(() => { toast = { show: false, message: '', type: '' }; renderUI(); }, 3000); }
-        function closeModal() {
+		
+       function showToast(msg, type = 'info') {
+    // Удаляем старый тост если есть
+    const oldToast = document.querySelector('.game-toast');
+    if (oldToast) oldToast.remove();
+    
+    // Создаем новый тост
+    const toast = document.createElement('div');
+    toast.className = `game-toast ${type}`;
+    toast.textContent = msg;
+    document.body.appendChild(toast);
+    
+    // Удаляем через 3 секунды
+    setTimeout(() => {
+        if (toast && toast.parentNode) toast.remove();
+    }, 3000);
+}
+		function closeModal() {
             const modal = document.querySelector('.modal');
             if (modal) modal.remove();
             if (chatUnsubscribe) chatUnsubscribe();
