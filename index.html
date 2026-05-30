@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Зона 1.0.0.188 - Карта зоны</title>
+    <title>Зона 1.0.0.189 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -275,16 +275,15 @@
         /* ========== НЕПОДВИЖНАЯ НИЖНЯЯ ПАНЕЛЬ ========== */
         .fixed-bottom-bar {
             position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            z-index: 1000;
-            background: rgba(10, 14, 26, 0.95);
-            backdrop-filter: blur(16px);
-            border-top: 1px solid rgba(233, 69, 96, 0.3);
-            padding: 5px 0;
-            /* ← 5мм сверху и снизу */
-            padding-bottom: max(5px, env(safe-area-inset-bottom));
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;  /* Должен быть 1000 */
+    background: rgba(10, 14, 26, 0.95);
+    backdrop-filter: blur(16px);
+    border-top: 1px solid rgba(233, 69, 96, 0.3);
+    padding: 5px 0;
+    padding-bottom: max(5px, env(safe-area-inset-bottom));
         }
 
         .bottom-nav {
@@ -5326,6 +5325,7 @@
     transform: rotate(180deg);
 }
 /* ========== TOAST УВЕДОМЛЕНИЯ ПОВЕРХ ВСЕХ ОКОН ========== */
+/* ========== TOAST С ПЕРЕНОСОМ ТЕКСТА ========== */
 .game-toast {
     position: fixed;
     bottom: 100px;
@@ -5334,22 +5334,26 @@
     background: linear-gradient(135deg, #1a1a2a, #0d0d15);
     border: 2px solid #c9a03d;
     color: #ffd966;
-    padding: 12px 24px;
-    border-radius: 50px;
+    padding: 12px 20px;
+    border-radius: 16px;
     font-size: 14px;
     font-weight: bold;
     z-index: 20000;
     box-shadow: 0 5px 25px rgba(0,0,0,0.5);
     animation: toastFadeIn 0.3s ease;
-    white-space: nowrap;
+    max-width: 90vw;
+    width: auto;
+    min-width: 200px;
+    text-align: center;
+    word-wrap: break-word;
+    white-space: normal;
+    line-height: 1.4;
     font-family: monospace;
-    letter-spacing: 1px;
 }
 
 .game-toast.error {
     border-color: #e94560;
     color: #e94560;
-    background: linear-gradient(135deg, #1a1a2a, #0d0d15);
 }
 
 .game-toast.success {
@@ -5371,6 +5375,206 @@
         opacity: 1;
         transform: translateX(-50%) translateY(0);
     }
+}
+
+/* ========== МОДАЛЬНОЕ ОКНО ЧАТА ========== */
+.chat-modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 95%;
+    max-width: 450px;
+    height: 80vh;
+    max-height: 600px;
+    background: linear-gradient(135deg, #0a0a0f, #14141f);
+    border: 2px solid #8B4513;
+    border-radius: 24px;
+    z-index: 10001;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+}
+
+.chat-header {
+    background: linear-gradient(135deg, #1a1a2a, #0d0d15);
+    padding: 12px 16px;
+    border-bottom: 2px solid #8B4513;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.chat-header h3 { font-size: 18px; color: #c9a03d; margin: 0; }
+.chat-header .close-btn {
+    background: rgba(139,69,19,0.3);
+    border: none;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    cursor: pointer;
+    color: white;
+    font-size: 20px;
+}
+
+/* TABS чата */
+.chat-tabs {
+    display: flex;
+    background: rgba(10,14,26,0.95);
+    border-bottom: 1px solid #8B4513;
+}
+.chat-tab {
+    flex: 1;
+    background: transparent;
+    border: none;
+    padding: 12px 0;
+    color: #8e8ea0;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.chat-tab.active {
+    color: #c9a03d;
+    background: rgba(139,69,19,0.2);
+    border-bottom: 2px solid #c9a03d;
+}
+
+/* Контент чата */
+.chat-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.chat-message {
+    background: rgba(30,36,64,0.6);
+    border-radius: 16px;
+    padding: 10px 12px;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    transition: all 0.2s;
+    cursor: pointer;
+}
+.chat-message:hover { background: rgba(139,69,19,0.3); transform: translateX(3px); }
+.chat-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #1a1a2a;
+    border: 1px solid #c9a03d;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+}
+.chat-message-content {
+    flex: 1;
+}
+.chat-message-name {
+    font-size: 13px;
+    font-weight: bold;
+    color: #ffd966;
+    margin-bottom: 4px;
+}
+.chat-message-text {
+    font-size: 12px;
+    color: #ccc;
+    word-wrap: break-word;
+}
+.chat-message-time {
+    font-size: 9px;
+    color: #888;
+    margin-top: 4px;
+}
+.chat-input-area {
+    background: rgba(10,14,26,0.95);
+    border-top: 1px solid #8B4513;
+    padding: 10px;
+    display: flex;
+    gap: 10px;
+}
+.chat-input {
+    flex: 1;
+    background: rgba(30,36,64,0.8);
+    border: 1px solid #8B4513;
+    border-radius: 30px;
+    padding: 10px 15px;
+    color: white;
+    font-size: 13px;
+}
+.chat-send-btn {
+    background: linear-gradient(135deg, #8B4513, #5a2d0a);
+    border: 1px solid #c9a03d;
+    border-radius: 30px;
+    padding: 0 20px;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+}
+.chat-empty {
+    text-align: center;
+    padding: 40px;
+    color: #888;
+}
+
+/* Модальное окно информации о пользователе */
+.user-info-modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 300px;
+    background: linear-gradient(135deg, #0a0a0f, #14141f);
+    border: 2px solid #c9a03d;
+    border-radius: 20px;
+    z-index: 10002;
+    padding: 20px;
+    text-align: center;
+}
+.user-info-modal .close-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(139,69,19,0.3);
+    border: none;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    cursor: pointer;
+    color: white;
+}
+.user-info-avatar {
+    font-size: 60px;
+    margin-bottom: 10px;
+}
+.user-info-name {
+    font-size: 20px;
+    font-weight: bold;
+    color: #ffd966;
+    margin-bottom: 10px;
+}
+.user-info-clan {
+    font-size: 14px;
+    color: #c9a03d;
+    margin-bottom: 5px;
+}
+.user-info-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 15px;
+}
+.user-info-stat {
+    background: rgba(30,36,64,0.6);
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 12px;
 }
     </style>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
@@ -5611,6 +5815,15 @@
         const CACHE_TTL = 30000;
 
         let gangTimers = {};
+		
+// ========== ПЕРЕМЕННЫЕ ДЛЯ ЧАТА ==========
+let chatModalOpen = false;
+let currentChatTab = 'search'; // 'search', 'global', 'clan'
+let globalMessages = [];
+let clanMessages = [];
+let globalChatListener = null;
+let clanChatListener = null;
+let currentViewingUser = null;
 
 		// ========== СИСТЕМА УВЕДОМЛЕНИЙ ==========
 let notifications = [];
@@ -5783,6 +5996,284 @@ function showNotificationsButton() {
     } else if (btn && !currentPlayer) {
         btn.style.display = 'none';
         console.log("🔔 Кнопка уведомлений СКРЫТА (нет игрока)");
+    }
+}
+
+// ========== ФУНКЦИИ ЧАТА ==========
+
+// Показать кнопку чата
+function showChatButton() {
+    console.log("showChatButton вызвана");
+    console.log("currentPlayer:", currentPlayer);
+    
+    // Проверяем, есть ли уже кнопка
+    if (document.getElementById('chatBtn')) {
+        console.log("Кнопка чата уже существует");
+        return;
+    }
+    
+    // Создаем кнопку
+    const btnHtml = `<div class="chat-btn" id="chatBtn" onclick="toggleChatModal()"><span class="chat-icon">💬</span></div>`;
+    document.body.insertAdjacentHTML('beforeend', btnHtml);
+    
+    // Проверяем, создалась ли кнопка
+    const btn = document.getElementById('chatBtn');
+    if (btn) {
+        console.log("Кнопка чата создана успешно");
+        btn.style.display = 'flex';
+    } else {
+        console.log("ОШИБКА: кнопка чата не создалась");
+    }
+}
+
+// Открыть/закрыть окно чата
+function toggleChatModal() {
+    if (chatModalOpen) {
+        closeChatModal();
+    } else {
+        openChatModal();
+    }
+}
+
+function openChatModal() {
+    if (chatModalOpen) return;
+    chatModalOpen = true;
+    renderChatModal();
+    // Подписываемся на чаты
+    subscribeToGlobalChat();
+    if (currentPlayer?.clanId) {
+        subscribeToClanChat();
+    }
+}
+
+function closeChatModal() {
+    const modal = document.getElementById('chatModal');
+    if (modal) modal.remove();
+    chatModalOpen = false;
+    // Отписываемся от чатов
+    if (globalChatListener) globalChatListener();
+    if (clanChatListener) clanChatListener();
+    globalChatListener = null;
+    clanChatListener = null;
+}
+
+// Подписка на чат поиска клана
+function subscribeToSearchChat() {
+    if (searchChatListener) searchChatListener();
+    searchChatListener = db.collection('searchChat')
+        .orderBy('timestamp', 'desc')
+        .limit(100)
+        .onSnapshot((snapshot) => {
+            searchMessages = [];
+            snapshot.forEach(doc => {
+                searchMessages.unshift({ id: doc.id, ...doc.data() });
+            });
+            if (chatModalOpen && currentChatTab === 'search') {
+                renderChatMessages();
+            }
+        });
+}
+
+// Подписка на общий чат
+function subscribeToGlobalChat() {
+    if (globalChatListener) globalChatListener();
+    globalChatListener = db.collection('globalChat')
+        .orderBy('timestamp', 'desc')
+        .limit(100)
+        .onSnapshot((snapshot) => {
+            globalMessages = [];
+            snapshot.forEach(doc => {
+                globalMessages.unshift({ id: doc.id, ...doc.data() });
+            });
+            if (chatModalOpen && currentChatTab === 'global') {
+                renderChatMessages();
+            }
+        });
+}
+
+// Подписка на чат клана
+function subscribeToClanChat() {
+    if (!currentPlayer?.clanId) return;
+    if (clanChatListener) clanChatListener();
+    clanChatListener = db.collection('clanChat')
+        .doc(currentPlayer.clanId)
+        .collection('messages')
+        .orderBy('timestamp', 'desc')
+        .limit(100)
+        .onSnapshot((snapshot) => {
+            clanMessages = [];
+            snapshot.forEach(doc => {
+                clanMessages.unshift({ id: doc.id, ...doc.data() });
+            });
+            if (chatModalOpen && currentChatTab === 'clan') {
+                renderChatMessages();
+            }
+        });
+}
+
+// Отправить сообщение
+async function sendChatMessage() {
+    const input = document.getElementById('chatInput');
+    const message = input?.value.trim();
+    if (!message) return;
+    
+    input.value = '';
+    
+    // Получаем клан игрока
+    let playerClan = 'Без клана';
+    if (currentPlayer.clanId) {
+        const clan = allClans.find(c => c.id === currentPlayer.clanId);
+        if (clan) playerClan = clan.name;
+    }
+    
+    const messageData = {
+        playerId: currentPlayer.id,
+        playerName: currentPlayer.username,
+        playerAvatar: getCurrentAvatarUrl(),
+        message: message,
+        timestamp: Date.now(),
+        playerLevel: currentPlayer.level,
+        playerPower: calculatePlayerPower(currentPlayer),
+        playerClan: playerClan,
+        playerCaste: currentPlayer.caste || 'Фраер'
+    };
+    
+    try {
+        if (currentChatTab === 'search') {
+            await db.collection('searchChat').add(messageData);
+        } else if (currentChatTab === 'global') {
+            await db.collection('globalChat').add(messageData);
+        } else if (currentChatTab === 'clan' && currentPlayer.clanId) {
+            await db.collection('clanChat')
+                .doc(currentPlayer.clanId)
+                .collection('messages')
+                .add(messageData);
+        }
+    } catch(e) {
+        console.error('Ошибка отправки сообщения:', e);
+        showToast('Ошибка отправки!', 'error');
+    }
+}
+
+// Показать информацию о пользователе
+function showUserInfo(playerId, playerName, playerAvatar, playerLevel, playerPower, playerClan, playerCaste) {
+    const modalHtml = `
+        <div class="user-info-modal" id="userInfoModal">
+            <button class="close-btn" onclick="closeUserInfoModal()">✕</button>
+            <div class="user-info-avatar">
+                <img src="${playerAvatar}" style="width: 80px; height: 80px; border-radius: 50%; border: 2px solid #c9a03d;" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3135/3135715.png'">
+            </div>
+            <div class="user-info-name">${escapeHtml(playerName)}</div>
+            <div class="user-info-clan">🏰 ${escapeHtml(playerClan)}</div>
+            <div class="user-info-caste">${playerCaste === 'Блатные' ? '👑' : (playerCaste === 'Мужики' ? '🔨' : '🐑')} ${escapeHtml(playerCaste || 'Фраер')}</div>
+            <div class="user-info-stats">
+                <div class="user-info-stat">⭐ Ур. ${playerLevel}</div>
+                <div class="user-info-stat">💪 Мощь ${playerPower}</div>
+            </div>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+function closeUserInfoModal() {
+    const modal = document.getElementById('userInfoModal');
+    if (modal) modal.remove();
+}
+
+// Рендер окна чата
+function renderChatModal() {
+    const existing = document.getElementById('chatModal');
+    if (existing) existing.remove();
+    
+    const hasClan = !!currentPlayer?.clanId;
+    
+    const modalHtml = `
+        <div class="chat-modal" id="chatModal">
+            <div class="chat-header">
+                <h3>💬 ЧАТЫ</h3>
+                <button class="close-btn" onclick="closeChatModal()">✕</button>
+            </div>
+            <div class="chat-tabs">
+                <button class="chat-tab ${currentChatTab === 'search' ? 'active' : ''}" onclick="switchChatTab('search')">🔍 ПОИСК КЛАНА</button>
+                <button class="chat-tab ${currentChatTab === 'global' ? 'active' : ''}" onclick="switchChatTab('global')">🌍 ОБЩИЙ ЧАТ</button>
+                ${hasClan ? `<button class="chat-tab ${currentChatTab === 'clan' ? 'active' : ''}" onclick="switchChatTab('clan')">🏰 ЧАТ КЛАНА</button>` : ''}
+            </div>
+            <div class="chat-content" id="chatContent">
+                <div id="chatMessagesList"></div>
+            </div>
+            <div class="chat-input-area">
+                <input type="text" id="chatInput" class="chat-input" placeholder="Введите сообщение..." maxlength="200">
+                <button class="chat-send-btn" onclick="sendChatMessage()">➤</button>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    // Рендерим сообщения
+    renderChatMessages();
+}
+
+// Рендер сообщений чата
+function renderChatMessages() {
+    const container = document.getElementById('chatMessagesList');
+    if (!container) return;
+    
+    // Выбираем нужный массив сообщений
+    let messages = [];
+    let emptyText = '';
+    
+    if (currentChatTab === 'search') {
+        messages = searchMessages;
+        emptyText = '🔍 Ищете клан? Напишите "Ищу клан" или просмотрите сообщения других игроков!';
+    } else if (currentChatTab === 'global') {
+        messages = globalMessages;
+        emptyText = '🌍 Общий чат. Общайтесь с другими игроками!';
+    } else if (currentChatTab === 'clan') {
+        messages = clanMessages;
+        emptyText = '🏰 Чат вашего клана. Общайтесь с соклановцами!';
+    }
+    
+    if (messages.length === 0) {
+        container.innerHTML = `<div class="chat-empty">${emptyText}</div>`;
+        return;
+    }
+    
+    container.innerHTML = messages.map(msg => `
+        <div class="chat-message" onclick="showUserInfo('${msg.playerId}', '${escapeHtml(msg.playerName)}', '${msg.playerAvatar}', ${msg.playerLevel}, ${msg.playerPower}, '${escapeHtml(msg.playerClan)}', '${escapeHtml(msg.playerCaste)}')">
+            <div class="chat-avatar">
+                <img src="${msg.playerAvatar}" style="width: 36px; height: 36px; border-radius: 50%;" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3135/3135715.png'">
+            </div>
+            <div class="chat-message-content">
+                <div class="chat-message-name">${escapeHtml(msg.playerName)} 
+                    <span style="font-size: 9px; color: #888;">${msg.playerCaste === 'Блатные' ? '👑' : (msg.playerCaste === 'Мужики' ? '🔨' : '🐑')}</span>
+                    ${msg.playerClan && msg.playerClan !== 'Без клана' ? `<span style="font-size: 9px; color: #c9a03d;"> [${escapeHtml(msg.playerClan)}]</span>` : '<span style="font-size: 9px; color: #888;"> [без клана]</span>'}
+                </div>
+                <div class="chat-message-text">${escapeHtml(msg.message)}</div>
+                <div class="chat-message-time">${new Date(msg.timestamp).toLocaleTimeString()}</div>
+            </div>
+        </div>
+    `).join('');
+    
+    // Скролл вниз
+    container.scrollTop = container.scrollHeight;
+}
+
+// Переключение табов чата
+function switchChatTab(tab) {
+    currentChatTab = tab;
+    renderChatModal();
+    if (tab === 'global') {
+        subscribeToGlobalChat();
+    } else if (tab === 'clan' && currentPlayer?.clanId) {
+        subscribeToClanChat();
+    }
+}
+
+// Добавить кнопку чата в renderUI
+function addChatButtonToUI() {
+    if (currentPlayer) {
+        showChatButton();
     }
 }
 
@@ -6178,7 +6669,7 @@ async function loadNotificationsFromFirebase() {
                 <img class="loading-logo" src="https://sviter-pro.github.io/GameZone/src/test/logo124.png" alt="Тюряга 2.0" onerror="this.src='https://via.placeholder.com/180x180?text=Тюряга+2.0'">
                 <div class="loading-spinner-new"></div>
                 <div class="loading-tip-new" id="loadingTipNew">⚡ Загрузка игрового мира...</div>
-                <div class="loading-version">Зона 1.0.0.188 | Зона ждет</div>
+                <div class="loading-version">Зона 1.0.0.189 | Зона ждет</div>
             </div>
         `;
             const tipEl = document.getElementById('loadingTipNew');
@@ -7184,7 +7675,7 @@ function getGangDisplayString(player) {
                 
                 <div class="settings-card">
                     <div style="font-size: 13px; color: #aaa; text-align: center;">
-                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.188</div>
+                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.189</div>
                         <div style="font-size: 11px;">⚡ Клановые войны | Бесконечная прокачка</div>
                     </div>
                 </div>
@@ -12177,21 +12668,27 @@ if (currentPlayer.id !== playerId) {
 
         function escapeHtml(text) { if (!text) return ''; const div = document.createElement('div'); div.textContent = text; return div.innerHTML; }
 		
-       function showToast(msg, type = 'info') {
-    // Удаляем старый тост если есть
+    function showToast(msg, type = 'info') {
     const oldToast = document.querySelector('.game-toast');
     if (oldToast) oldToast.remove();
     
-    // Создаем новый тост
     const toast = document.createElement('div');
     toast.className = `game-toast ${type}`;
     toast.textContent = msg;
     document.body.appendChild(toast);
     
-    // Удаляем через 3 секунды
+    // Автоматический размер шрифта при длинном тексте
+    if (msg.length > 40) {
+        toast.style.fontSize = '12px';
+        toast.style.padding = '10px 15px';
+    }
+    if (msg.length > 60) {
+        toast.style.fontSize = '11px';
+    }
+    
     setTimeout(() => {
         if (toast && toast.parentNode) toast.remove();
-    }, 3000);
+    }, 3500);
 }
 		function closeModal() {
             const modal = document.querySelector('.modal');
@@ -13064,6 +13561,13 @@ if (currentPlayer.id !== playerId) {
                     clanQuestReadyCount = newReadyCount;
                     updateClanNotificationBadge();
                 }
+			// Показываем кнопку чата (должна быть видна всегда после загрузки игры)
+if (currentPlayer) {
+    console.log("renderUI: вызываем showChatButton");
+    showChatButton();
+} else {
+    console.log("renderUI: currentPlayer нет, кнопка чата не показывается");
+}
             }
 
             document.getElementById('app').innerHTML = `
@@ -13347,6 +13851,16 @@ loadNotifications();
 		window.kickFromClan = kickFromClan;
 		window.callToWar = callToWar;
 		window.addNotificationsButton = addNotificationsButton;
+		window.toggleChatModal = toggleChatModal;
+window.closeChatModal = closeChatModal;
+window.switchChatTab = switchChatTab;
+window.sendChatMessage = sendChatMessage;
+window.showUserInfo = showUserInfo;
+window.closeUserInfoModal = closeUserInfoModal;
+window.showChatButton = showChatButton;
     </script>
+	<div class="chat-btn" id="chatBtn" onclick="toggleChatModal()" style="position: fixed; bottom: 100px; right: 16px; width: 50px; height: 50px; background: rgba(255,255,255,0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 10000; border: 1px solid rgba(255,255,255,0.3);">
+    <span class="chat-icon" style="font-size: 26px; color: white;">💬</span>
+</div>
 </body>
 </html>
