@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Зона 1.0.0.190 - Карта зоны</title>
+    <title>Зона 1.0.0.199 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -917,7 +917,7 @@
         .mine-content-area {
             flex: 1;
             overflow-y: auto;
-            padding: 20px 16px;
+            padding: 0px 16px;
             margin-bottom: 75px;
         }
 
@@ -1127,7 +1127,7 @@
         .hospital-content-area {
             flex: 1;
             overflow-y: auto;
-            padding: 20px 16px;
+            padding: 0px 9px;
             margin-bottom: 75px;
         }
 
@@ -1341,12 +1341,15 @@
             left: 0;
             right: 0;
             bottom: 0;
+            width: 100%;
+            height: 100%;
             background: rgba(0, 0, 0, 0.8);
             backdrop-filter: blur(8px);
             display: flex;
             align-items: center;
             justify-content: center;
             z-index: 20000;
+            overflow-y: auto;
         }
 
         .modal-content {
@@ -1671,7 +1674,7 @@
         .game-tab-content {
             flex: 1;
             overflow-y: auto;
-            padding: 16px;
+            padding: 6px;
         }
 
         .cardgame-card {
@@ -3222,7 +3225,8 @@
             border: 1px solid #8B4513;
             border-radius: 40px;
             padding: 6px 12px;
-            margin-bottom: 15px;
+            margin-bottom: 5px;
+            margin-top: 5px;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -3467,7 +3471,7 @@
             background: transparent;
             border: none;
             border-radius: 50px;
-            padding: 8px 16px;
+            padding: 15px 15px;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -4822,6 +4826,7 @@
 
         .gang-sub-tab-btn {
             flex: 1;
+            margin: 2px;
             background: transparent;
             border: none;
             padding: 12px 0;
@@ -5751,6 +5756,142 @@
             border: 1px solid rgba(255, 255, 255, 0.3);
             transition: all 0.2s;
         }
+
+        /* Исправление для всех модальных окон - центрирование */
+        .mine-fullscreen,
+        .shop-fullscreen,
+        .cardgame-fullscreen,
+        .treasury-fullscreen,
+        .attack-fullscreen,
+        .clan-fullscreen,
+        .profile-fullscreen,
+        .settings-fullscreen,
+        .inventory-fullscreen,
+        .quests-fullscreen,
+        .gang-fullscreen,
+        .hospital-fullscreen,
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            width: 100%;
+            height: 100%;
+            background: #0a0e1a;
+            background-image: radial-gradient(circle at 25% 40%, rgba(233, 69, 96, 0.2) 0%, rgba(10, 14, 26, 0.98) 100%);
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            animation: fadeInModal 0.25s ease-out;
+            transform-origin: center center;
+            overflow-y: auto;
+        }
+
+        @keyframes fadeInModal {
+            from {
+                opacity: 0;
+                transform: scale(0.98);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        /* Исправление для body при открытом модальном окне */
+        body.modal-open {
+            overflow: hidden;
+            position: fixed;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* ========== ОБЩИЙ СТИЛЬ ДЛЯ МОДАЛЬНЫХ ОКОН (РЕЙТИНГ, ПРИГЛАШЕНИЕ) ========== */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(12px);
+            z-index: 20000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: fadeInModal 0.25s ease-out;
+        }
+
+        .modal-window {
+            background: linear-gradient(135deg, #0a0a0f, #14141f);
+            border: 2px solid #8B4513;
+            border-radius: 24px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+            position: relative;
+            animation: modalSlideIn 0.3s ease-out;
+        }
+
+        @keyframes modalSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-30px) scale(0.95);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .modal-window-header {
+            background: linear-gradient(135deg, #1a1a2a, #0d0d15);
+            border-bottom: 2px solid #8B4513;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .modal-window-title {
+            font-size: 18px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #c9a03d, #8B6914);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .modal-window-close {
+            background: rgba(139, 69, 19, 0.3);
+            border: none;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            cursor: pointer;
+            color: white;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .modal-window-close:hover {
+            background: rgba(233, 69, 96, 0.5);
+            transform: scale(1.05);
+        }
+
+        .modal-window-content {
+            padding: 20px;
+        }
     </style>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
@@ -6121,6 +6262,12 @@
             const modal = document.getElementById('notificationsModal');
             if (modal) modal.remove();
             notificationsModalOpen = false;
+
+            // Восстанавливаем скролл body
+            document.body.style.overflow = '';
+            document.body.style.position = '';
+            document.body.style.width = '';
+            document.body.classList.remove('modal-open');
         }
 
         function renderNotificationsModal() {
@@ -6331,6 +6478,12 @@
             if (clanChatListener) clanChatListener();
             globalChatListener = null;
             clanChatListener = null;
+
+            // Восстанавливаем скролл body
+            document.body.style.overflow = '';
+            document.body.style.position = '';
+            document.body.style.width = '';
+            document.body.classList.remove('modal-open');
         }
 
         // Подписка на чат поиска клана
@@ -7304,23 +7457,21 @@
         // Универсальная функция для предотвращения двойного открытия модальных окон
         // АТОМАРНАЯ БЛОКИРОВКА - 100% ЗАЩИТА ОТ ДВОЙНЫХ КЛИКОВ
         async function safeOpenModal(modalName, openFunction) {
-            // Генерируем уникальный ключ блокировки для этого окна
             const lockKey = `modal_lock_${modalName}`;
             const lockTime = localStorage.getItem(lockKey);
 
-            // Если блокировка активна (менее 1 секунды назад) - игнорируем
             if (lockTime && (Date.now() - parseInt(lockTime)) < 1000) {
                 console.log(`[${modalName}] Блокировка активна, пропускаем`);
                 return;
             }
 
-            // Проверяем, не открыто ли уже это окно
             const modalIds = [
                 'attackFullscreen', 'attackDetailFullscreen', 'clanFullscreen',
                 'questsFullscreen', 'treasuryFullscreen', 'gangFullscreen',
                 'shopFullscreen', 'cardgameFullscreen', 'mineFullscreen',
                 'profileFullscreen', 'settingsFullscreen', 'inventoryFullscreen',
-                'hospitalFullscreen', 'casteSelectionFullscreen'
+                'hospitalFullscreen', 'casteSelectionFullscreen', 'avatarModal',
+                'clanInfoModal', 'userInfoModal', 'notificationsModal', 'chatModal'
             ];
 
             for (const id of modalIds) {
@@ -7335,20 +7486,25 @@
                 return;
             }
 
-            // Устанавливаем блокировку
             localStorage.setItem(lockKey, Date.now().toString());
+
+            // Блокируем скролл body
+            document.body.style.overflow = 'hidden';
+            document.body.style.position = 'fixed';
+            document.body.style.width = '100%';
+            document.body.classList.add('modal-open');
 
             try {
                 await openFunction();
             } catch (error) {
                 console.error(`Ошибка при открытии ${modalName}:`, error);
             } finally {
-                // Снимаем блокировку через 1 секунду
                 setTimeout(() => {
                     localStorage.removeItem(lockKey);
                 }, 1000);
             }
         }
+
 
         const firebaseConfig = {
             apiKey: "AIzaSyCAHzMos_d5EjUrePFnWAnoVB4sMTcpX2g",
@@ -7371,7 +7527,7 @@
                 <img class="loading-logo" src="https://sviter-pro.github.io/GameZone/src/test/logo124.png" alt="Тюряга 2.0" onerror="this.src='https://via.placeholder.com/180x180?text=Тюряга+2.0'">
                 <div class="loading-spinner-new"></div>
                 <div class="loading-tip-new" id="loadingTipNew">⚡ Загрузка игрового мира...</div>
-                <div class="loading-version">Зона 1.0.0.190 | Зона ждет</div>
+                <div class="loading-version">Зона 1.0.0.199 | Зона ждет</div>
             </div>
         `;
             const tipEl = document.getElementById('loadingTipNew');
@@ -7790,6 +7946,12 @@
             const modal = document.getElementById('avatarModal');
             if (modal) modal.remove();
             if (tg) tg.BackButton.hide();
+
+            // Восстанавливаем скролл body
+            document.body.style.overflow = '';
+            document.body.style.position = '';
+            document.body.style.width = '';
+            document.body.classList.remove('modal-open');
         }
 
         // Купить аватар
@@ -8081,7 +8243,12 @@
             if (modal) modal.remove();
             if (tg) tg.BackButton.hide();
 
-            // ВОССТАНАВЛИВАЕМ ОТОБРАЖЕНИЕ ГОРОДА
+            // Восстанавливаем скролл body
+            document.body.style.overflow = '';
+            document.body.style.position = '';
+            document.body.style.width = '';
+            document.body.classList.remove('modal-open');
+
             renderUI();
         }
 
@@ -8346,7 +8513,22 @@
             const modal = document.getElementById('profileFullscreen');
             if (modal) modal.remove();
             if (tg) tg.BackButton.hide();
+
+            // Восстанавливаем скролл body
+            document.body.style.overflow = '';
+            document.body.style.position = '';
+            document.body.style.width = '';
+            document.body.classList.remove('modal-open');
+
             renderUI();
+        }
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                showToast('Скопировано!', 'success');
+            }).catch(() => {
+                showToast('Не удалось скопировать', 'error');
+            });
         }
 
         function openSettingsModal() {
@@ -8376,14 +8558,14 @@
                     </div>
                     
                     <div class="settings-buttons">
-                        <button class="settings-rank-btn" onclick="openRankingModal(); closeSettingsModal();">🏆 РЕЙТИНГ</button>
-                        <button class="settings-invite-btn" onclick="openInviteModalFromSettings(); closeSettingsModal();">👥 ПРИГЛАСИТЬ</button>
+                        <button class="settings-rank-btn" onclick="openRankingModal();">🏆 РЕЙТИНГ</button>
+<button class="settings-invite-btn" onclick="openInviteModalFromSettings();">👥 ПРИГЛАСИТЬ</button>
                     </div>
                 </div>
                 
                 <div class="settings-card">
                     <div style="font-size: 13px; color: #aaa; text-align: center;">
-                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.190</div>
+                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.199</div>
                         <div style="font-size: 11px;">⚡ Клановые войны | Бесконечная прокачка</div>
                     </div>
                 </div>
@@ -8411,38 +8593,80 @@
             const modal = document.getElementById('settingsFullscreen');
             if (modal) modal.remove();
             if (tg) tg.BackButton.hide();
+
+            // Закрываем также любые открытые модальные окна
+            const rankingModal = document.querySelector('#rankingModalOverlay');
+            if (rankingModal) rankingModal.remove();
+
+            const inviteModal = document.querySelector('#inviteModalOverlay');
+            if (inviteModal) inviteModal.remove();
+
+            // Восстанавливаем скролл body
+            document.body.style.overflow = '';
+            document.body.style.position = '';
+            document.body.style.width = '';
+            document.body.classList.remove('modal-open');
+
             renderUI();
         }
 
         function openInviteModalFromSettings() {
             if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); return; }
+
             const gameUrl = window.location.href.split('?')[0];
             const refLink = `${gameUrl}?ref=${currentPlayer.inviteCode}`;
             const invitedCount = currentPlayer.invitedPlayers?.length || 0;
             const maxInvites = clanMaxMembers;
 
             const modalHtml = `
-            <div class="modal">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <div class="modal-title">👥 ПРИГЛАСИТЬ ДРУЗЕЙ</div>
-                        <button class="close-btn" onclick="closeModal()">✕</button>
+        <div class="modal-overlay" id="inviteModalOverlay" onclick="if(event.target === this) closeInviteModal()">
+            <div class="modal-window">
+                <div class="modal-window-header">
+                    <div class="modal-window-title">👥 ПРИГЛАСИТЬ ДРУЗЕЙ</div>
+                    <button class="modal-window-close" onclick="closeInviteModal()">✕</button>
+                </div>
+                <div class="modal-window-content">
+                    <div style="background: rgba(139,69,19,0.2); border: 1px solid #8B4513; border-radius: 16px; padding: 15px; margin-bottom: 20px; text-align: center;">
+                        <div style="font-size: 12px; color: #c9a03d; margin-bottom: 8px;">✨ ТВОЯ РЕФЕРАЛЬНАЯ ССЫЛКА ✨</div>
+                        <div style="font-family: monospace; font-size: 12px; word-break: break-all; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 12px; margin: 10px 0; color: #ffd966;">${refLink}</div>
+                        <button class="btn-primary" onclick="copyToClipboard('${refLink}'); showToast('Ссылка скопирована!', 'success'); closeInviteModal();" style="width: 100%;">
+                            📋 КОПИРОВАТЬ ССЫЛКУ
+                        </button>
                     </div>
-                    <div style="background:#1e2440; padding:15px; border-radius:20px; margin-bottom:15px; text-align:center;">
-                        <div style="font-size:12px; color:#aaa;">Твоя реферальная ссылка</div>
-                        <div style="font-family:monospace; font-size:12px; word-break:break-all; margin:10px 0;">${refLink}</div>
-                        <button class="btn-primary" onclick="copyToClipboard('${refLink}'); showToast('Ссылка скопирована!', 'success'); closeModal();">📋 Скопировать ссылку</button>
+                    
+                    <div style="margin-top: 15px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <div style="font-size: 16px; font-weight: 700; color: #c9a03d;">👥 ПРИГЛАШЕННЫЕ ДРУЗЬЯ</div>
+                            <div style="background: #8B4513; padding: 4px 12px; border-radius: 20px; font-size: 12px;">${invitedCount}/${maxInvites}</div>
+                        </div>
+                        <div style="max-height: 250px; overflow-y: auto; padding-right: 5px;">
+                            ${currentPlayer.invitedPlayers?.length > 0 ?
+                    currentPlayer.invitedPlayers.map(f => `
+                                    <div style="background: rgba(30,36,64,0.6); border-radius: 12px; padding: 10px; margin-bottom: 8px; border-left: 3px solid #c9a03d;">
+                                        <span style="color: #ffd966;">👤 ${escapeHtml(f)}</span>
+                                    </div>
+                                `).join('') :
+                    '<div style="text-align: center; padding: 30px; color: #888;">🤝 Пока нет приглашенных друзей</div>'
+                }
+                        </div>
+                        ${invitedCount >= maxInvites ? '<div style="margin-top: 15px; padding: 10px; background: rgba(233,69,96,0.2); border-radius: 12px; text-align: center; font-size: 12px; color: #e94560;">⚠️ Вы достигли лимита приглашений!</div>' : ''}
                     </div>
-                    <h4>👥 Приглашенные друзья (${invitedCount}/${maxInvites})</h4>
-                    ${currentPlayer.invitedPlayers?.length > 0 ? currentPlayer.invitedPlayers.map(f => `<div style="padding:12px; border-bottom:1px solid rgba(255,255,255,0.1);"><span>${escapeHtml(f)}</span></div>`).join('') : '<div style="color:#aaa; padding:10px; text-align:center;">Нет приглашенных друзей</div>'}
-                    ${invitedCount >= maxInvites ? '<div style="color:#ffd93d; text-align:center; margin-top:10px; font-size:12px;">⚠️ Вы достигли лимита приглашений!</div>' : ''}
                 </div>
             </div>
-        `;
-            const existingModal = document.querySelector('.modal');
-            if (existingModal) existingModal.remove();
+        </div>
+    `;
+
+            const existing = document.querySelector('.modal-overlay');
+            if (existing) existing.remove();
+
             document.body.insertAdjacentHTML('beforeend', modalHtml);
             if (tg) tg.BackButton.show();
+        }
+
+        function closeInviteModal() {
+            const modal = document.querySelector('#inviteModalOverlay');
+            if (modal) modal.remove();
+            if (tg) tg.BackButton.hide();
         }
 
         function openMineModal() {
@@ -8708,6 +8932,30 @@
                 const makhorkaProgressPercent = makhorkaUpgradeActive ? Math.min(100, ((Date.now() - currentPlayer.mine.makhorkaUpgradeStartTime) / upgradeDurationMs) * 100) : 0;
 
                 contentHtml = `
+				<div style="background: linear-gradient(135deg, #1a1a2a, #0d0d15); border-radius: 1px; padding: 5px 4px; margin: 9px -15px; border: 1px solid #8B4513; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+        <div style="display: flex; gap: 1px; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                <span style="font-size: 16px;">🚬</span>
+                <span id="mineCigarettesValue" style="font-size: 14px; font-weight: bold; color: #ffd966;">${currentPlayer.cigarettes || 0}</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                <span style="font-size: 16px;">📄</span>
+                <span id="minePaperValue" style="font-size: 14px; font-weight: bold; color: #ffd966;">${currentPlayer.mine?.paper || 0}</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                <span style="font-size: 16px;">🌿</span>
+                <span id="mineMakhorkaValue" style="font-size: 14px; font-weight: bold; color: #ffd966;">${currentPlayer.mine?.makhorka || 0}</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                <span style="font-size: 16px;">🪵</span>
+                <span id="mineWoodValue" style="font-size: 14px; font-weight: bold; color: #ffd966;">${currentPlayer.lumber?.wood || 0}</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                <span style="font-size: 16px;">🪨</span>
+                <span id="mineStoneValue" style="font-size: 14px; font-weight: bold; color: #ffd966;">${currentPlayer.quarry?.stone || 0}</span>
+            </div>
+        </div>
+    </div>
             <div class="mine-sub-tab-header">
                 <button class="mine-sub-tab-btn ${currentMineSubTab === 'work' ? 'active' : ''}" onclick="switchMineSubTab('work')">⛏️ РАБОТАТЬ</button>
                 <button class="mine-sub-tab-btn ${currentMineSubTab === 'upgrade' ? 'active' : ''}" onclick="switchMineSubTab('upgrade')">⬆️ ПРОКАЧКА</button>
@@ -8826,6 +9074,30 @@
                 const progressPercent = upgradeActive ? Math.min(100, ((Date.now() - currentPlayer.lumber.upgradeStartTime) / upgradeDurationMs) * 100) : 0;
 
                 contentHtml = `
+				<div style="background: linear-gradient(135deg, #1a1a2a, #0d0d15); border-radius: 1px; padding: 5px 4px; margin: 9px -15px; border: 1px solid #8B4513; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+        <div style="display: flex; gap: 1px; align-items: center; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                <span style="font-size: 16px;">🚬</span>
+                <span id="mineCigarettesValue" style="font-size: 14px; font-weight: bold; color: #ffd966;">${currentPlayer.cigarettes || 0}</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                <span style="font-size: 16px;">📄</span>
+                <span id="minePaperValue" style="font-size: 14px; font-weight: bold; color: #ffd966;">${currentPlayer.mine?.paper || 0}</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                <span style="font-size: 16px;">🌿</span>
+                <span id="mineMakhorkaValue" style="font-size: 14px; font-weight: bold; color: #ffd966;">${currentPlayer.mine?.makhorka || 0}</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                <span style="font-size: 16px;">🪵</span>
+                <span id="mineWoodValue" style="font-size: 14px; font-weight: bold; color: #ffd966;">${currentPlayer.lumber?.wood || 0}</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                <span style="font-size: 16px;">🪨</span>
+                <span id="mineStoneValue" style="font-size: 14px; font-weight: bold; color: #ffd966;">${currentPlayer.quarry?.stone || 0}</span>
+            </div>
+        </div>
+    </div>
             <div class="mine-sub-tab-header">
                 <button class="mine-sub-tab-btn ${currentMineSubTab === 'work' ? 'active' : ''}" onclick="switchMineSubTab('work')">🪓 РАБОТАТЬ</button>
                 <button class="mine-sub-tab-btn ${currentMineSubTab === 'upgrade' ? 'active' : ''}" onclick="switchMineSubTab('upgrade')">⬆️ ПРОКАЧКА</button>
@@ -8909,6 +9181,30 @@
                 const progressPercent = upgradeActive ? Math.min(100, ((Date.now() - currentPlayer.quarry.upgradeStartTime) / upgradeDurationMs) * 100) : 0;
 
                 contentHtml = `
+				<div style="background: linear-gradient(135deg, #1a1a2a, #0d0d15); border-radius: 1px; padding: 5px 4px; margin: 9px -15px; border: 1px solid #8B4513; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+        <div style="display: flex; gap: 1px; align-items: center; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                <span style="font-size: 16px;">🚬</span>
+                <span id="mineCigarettesValue" style="font-size: 14px; font-weight: bold; color: #ffd966;">${currentPlayer.cigarettes || 0}</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                <span style="font-size: 16px;">📄</span>
+                <span id="minePaperValue" style="font-size: 14px; font-weight: bold; color: #ffd966;">${currentPlayer.mine?.paper || 0}</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                <span style="font-size: 16px;">🌿</span>
+                <span id="mineMakhorkaValue" style="font-size: 14px; font-weight: bold; color: #ffd966;">${currentPlayer.mine?.makhorka || 0}</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                <span style="font-size: 16px;">🪵</span>
+                <span id="mineWoodValue" style="font-size: 14px; font-weight: bold; color: #ffd966;">${currentPlayer.lumber?.wood || 0}</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                <span style="font-size: 16px;">🪨</span>
+                <span id="mineStoneValue" style="font-size: 14px; font-weight: bold; color: #ffd966;">${currentPlayer.quarry?.stone || 0}</span>
+            </div>
+        </div>
+    </div>
             <div class="mine-sub-tab-header">
                 <button class="mine-sub-tab-btn ${currentMineSubTab === 'work' ? 'active' : ''}" onclick="switchMineSubTab('work')">⛏️ РАБОТАТЬ</button>
                 <button class="mine-sub-tab-btn ${currentMineSubTab === 'upgrade' ? 'active' : ''}" onclick="switchMineSubTab('upgrade')">⬆️ ПРОКАЧКА</button>
@@ -9060,10 +9356,10 @@
                         mineBtn.textContent = '⛏️ Прокачка...';
                     } else if (mineWorkRemaining <= 0) {
                         mineBtn.disabled = false;
-                        mineBtn.textContent = '⛏️ Работать (бумага/махорка)';
+                        mineBtn.textContent = '⛏️ РАБОТАТЬ';
                     } else {
                         mineBtn.disabled = true;
-                        mineBtn.textContent = `⛏️ Работать (${formatTimerMinutes(mineWorkRemaining)})`;
+                        mineBtn.textContent = `⛏️ РАБОТАТЬ (${formatTimerMinutes(mineWorkRemaining)})`;
                     }
                 }
                 if (lumberBtn) {
@@ -9072,10 +9368,10 @@
                         lumberBtn.textContent = '🪓 Прокачка...';
                     } else if (lumberWorkRemaining <= 0) {
                         lumberBtn.disabled = false;
-                        lumberBtn.textContent = '🪓 Работать (дерево)';
+                        lumberBtn.textContent = '🪓 РАБОТАТЬ';
                     } else {
                         lumberBtn.disabled = true;
-                        lumberBtn.textContent = `🪓 Работать (${formatTimerMinutes(lumberWorkRemaining)})`;
+                        lumberBtn.textContent = `🪓 РАБОТАТЬ (${formatTimerMinutes(lumberWorkRemaining)})`;
                     }
                 }
                 if (quarryBtn) {
@@ -9084,10 +9380,10 @@
                         quarryBtn.textContent = '⛏️ Прокачка...';
                     } else if (quarryWorkRemaining <= 0) {
                         quarryBtn.disabled = false;
-                        quarryBtn.textContent = '⛏️ Работать (камень)';
+                        quarryBtn.textContent = '⛏️ РАБОТАТЬ';
                     } else {
                         quarryBtn.disabled = true;
-                        quarryBtn.textContent = `⛏️ Работать (${formatTimerMinutes(quarryWorkRemaining)})`;
+                        quarryBtn.textContent = `⛏️ РАБОТАТЬ (${formatTimerMinutes(quarryWorkRemaining)})`;
                     }
                 }
             }, 1000);
@@ -9104,6 +9400,13 @@
             const modal = document.getElementById('mineFullscreen');
             if (modal) modal.remove();
             if (tg) tg.BackButton.hide();
+
+            // Восстанавливаем скролл body
+            document.body.style.overflow = '';
+            document.body.style.position = '';
+            document.body.style.width = '';
+            document.body.classList.remove('modal-open');
+
             renderUI();
         }
 
@@ -9587,6 +9890,9 @@
             currentShopTab = 'offers';
             renderShopModal();
 
+            // Запускаем таймер для обновления ресурсов в магазине
+            startShopTimers();
+
             if (window.randomShopTimerInterval) clearInterval(window.randomShopTimerInterval);
             window.randomShopTimerInterval = setInterval(() => {
                 const modal = document.getElementById('shopFullscreen');
@@ -9660,6 +9966,26 @@
                     <div class="shop-header-title">БАРЫГА</div>
                 </div>
             </div>
+			<div style="background: linear-gradient(135deg, #1a1a2a, #0d0d15); border-radius: 1px; padding: 7px 15px; margin: 3px 4px; border: 1px solid #8B4513; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+        <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                <span style="font-size: 16px;">🚬</span>
+                <span id="shopCigarettesValue" style="font-size: 14px; font-weight: bold; color: #ffd966;">${currentPlayer.cigarettes || 0}</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                <span style="font-size: 16px;">💰</span>
+                <span id="shopRublesValue" style="font-size: 14px; font-weight: bold; color: #ffd966;">${currentPlayer.rubles || 0}</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                <span style="font-size: 16px;">🪵</span>
+                <span id="shopWoodValue" style="font-size: 14px; font-weight: bold; color: #ffd966;">${currentPlayer.lumber?.wood || 0}</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                <span style="font-size: 16px;">🪨</span>
+                <span id="shopStoneValue" style="font-size: 14px; font-weight: bold; color: #ffd966;">${currentPlayer.quarry?.stone || 0}</span>
+            </div>
+        </div>
+    </div>
             <div class="shop-tabs-header">
                 <button class="shop-tab-btn ${currentShopTab === 'offers' ? 'active' : ''}" onclick="switchShopTab('offers')">📦 ТОВАРЫ</button>
                 <button class="shop-tab-btn ${currentShopTab === 'upgrade' ? 'active' : ''}" onclick="switchShopTab('upgrade')">⬆️ ПРОКАЧКА</button>
@@ -9879,7 +10205,15 @@
             if (modal) modal.remove();
             if (window.randomShopTimerInterval) clearInterval(window.randomShopTimerInterval);
             if (window.shopUpgradeTimerInterval) clearInterval(window.shopUpgradeTimerInterval);
+            if (window.shopResourcesInterval) clearInterval(window.shopResourcesInterval);
             if (tg) tg.BackButton.hide();
+
+            // Восстанавливаем скролл body
+            document.body.style.overflow = '';
+            document.body.style.position = '';
+            document.body.style.width = '';
+            document.body.classList.remove('modal-open');
+
             renderUI();
         }
 
@@ -10337,6 +10671,30 @@
             </div>
             <div class="game-tab-content" ontouchstart="handleGameTouchStart(event)" ontouchend="handleGameTouchEnd(event)">
                 ${currentGameSection === 'cards' ? `
+				<div style="background: linear-gradient(135deg, #1a1a2a, #0d0d15); border-radius: 1px; padding: 5px 4px; margin: 9px -15px; border: 1px solid #8B4513; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+        <div style="display: flex; gap: 1px; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                <span style="font-size: 16px;">🚬</span>
+                <span id="mineCigarettesValue" style="font-size: 14px; font-weight: bold; color: #ffd966;">${currentPlayer.cigarettes || 0}</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                <span style="font-size: 16px;">📄</span>
+                <span id="minePaperValue" style="font-size: 14px; font-weight: bold; color: #ffd966;">${currentPlayer.mine?.paper || 0}</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                <span style="font-size: 16px;">🌿</span>
+                <span id="mineMakhorkaValue" style="font-size: 14px; font-weight: bold; color: #ffd966;">${currentPlayer.mine?.makhorka || 0}</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                <span style="font-size: 16px;">🪵</span>
+                <span id="mineWoodValue" style="font-size: 14px; font-weight: bold; color: #ffd966;">${currentPlayer.lumber?.wood || 0}</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                <span style="font-size: 16px;">🪨</span>
+                <span id="mineStoneValue" style="font-size: 14px; font-weight: bold; color: #ffd966;">${currentPlayer.quarry?.stone || 0}</span>
+            </div>
+        </div>
+    </div>
                     <div class="game-tab-header">
                         <button class="game-tab-btn ${currentCardsSubTab === 'game' ? 'active' : ''}" onclick="switchCardsSubTab('game')">🎮 ИГРА</button>
                         <button class="game-tab-btn ${currentCardsSubTab === 'upgrade' ? 'active' : ''}" onclick="switchCardsSubTab('upgrade')">⬆️ ПРОКАЧКА</button>
@@ -10397,7 +10755,31 @@
                             </div>
                         `}
                     </div>
-                ` : `
+                ` : ` 
+				<div style="background: linear-gradient(135deg, #1a1a2a, #0d0d15); border-radius: 1px; padding: 5px 4px; margin: 9px -15px; border: 1px solid #8B4513; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+        <div style="display: flex; gap: 1px; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                <span style="font-size: 16px;">🚬</span>
+                <span id="mineCigarettesValue" style="font-size: 14px; font-weight: bold; color: #ffd966;">${currentPlayer.cigarettes || 0}</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                <span style="font-size: 16px;">📄</span>
+                <span id="minePaperValue" style="font-size: 14px; font-weight: bold; color: #ffd966;">${currentPlayer.mine?.paper || 0}</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                <span style="font-size: 16px;">🌿</span>
+                <span id="mineMakhorkaValue" style="font-size: 14px; font-weight: bold; color: #ffd966;">${currentPlayer.mine?.makhorka || 0}</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                <span style="font-size: 16px;">🪵</span>
+                <span id="mineWoodValue" style="font-size: 14px; font-weight: bold; color: #ffd966;">${currentPlayer.lumber?.wood || 0}</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                <span style="font-size: 16px;">🪨</span>
+                <span id="mineStoneValue" style="font-size: 14px; font-weight: bold; color: #ffd966;">${currentPlayer.quarry?.stone || 0}</span>
+            </div>
+        </div>
+    </div>
                     <div class="game-tab-header">
                         <button class="game-tab-btn ${currentGymTab === 'train' ? 'active' : ''}" onclick="switchGymTab('train')">💪 ТРЕНИРОВКА</button>
                         <button class="game-tab-btn ${currentGymTab === 'upgrade' ? 'active' : ''}" onclick="switchGymTab('upgrade')">⬆️ ПРОКАЧКА</button>
@@ -10719,6 +11101,13 @@
             if (modal) modal.remove();
             if (tg) tg.BackButton.hide();
             currentBottomTab = 'city';  // ← ДОБАВЬ ЭТУ СТРОКУ
+
+            // Восстанавливаем скролл body
+            document.body.style.overflow = '';
+            document.body.style.position = '';
+            document.body.style.width = '';
+            document.body.classList.remove('modal-open');
+
             renderUI();                  // ← И ЭТУ
         }
 
@@ -10829,6 +11218,13 @@
             if (chatUnsubscribe) chatUnsubscribe();
             if (tg) tg.BackButton.hide();
             currentBottomTab = 'city';  // ← ДОБАВЬ ЭТУ СТРОКУ
+
+            // Восстанавливаем скролл body
+            document.body.style.overflow = '';
+            document.body.style.position = '';
+            document.body.style.width = '';
+            document.body.classList.remove('modal-open');
+
             renderUI();                  // ← И ЭТУ
         }
 
@@ -11341,6 +11737,12 @@
             if (window._opening_modal) { return; }
             window._opening_modal = true;
 
+            // Блокируем скролл body ДО создания модалки
+            document.body.style.overflow = 'hidden';
+            document.body.style.position = 'fixed';
+            document.body.style.width = '100%';
+            document.body.classList.add('modal-open');
+
             if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); window._opening_modal = false; return; }
             if (!currentPlayer) { window._opening_modal = false; return; }
 
@@ -11704,6 +12106,28 @@
             }
         }
 
+        // Универсальная функция закрытия модального окна
+        function closeAnyModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.remove();
+            }
+
+            // Восстанавливаем скролл body
+            document.body.style.overflow = '';
+            document.body.style.position = '';
+            document.body.style.width = '';
+            document.body.classList.remove('modal-open');
+
+            if (tg) tg.BackButton.hide();
+
+            // Если нужно вернуться в город
+            if (currentBottomTab !== 'city') {
+                currentBottomTab = 'city';
+                renderUI();
+            }
+        }
+
         function switchClanTab(tab) {
             console.log('switchClanTab вызван, tab:', tab);
             currentClanTab = tab;
@@ -11760,16 +12184,19 @@
 
             if (tg) tg.BackButton.hide();
 
-            // ПРИНУДИТЕЛЬНО ВОССТАНАВЛИВАЕМ ГОРОД
+            // Восстанавливаем скролл body
+            document.body.style.overflow = '';
+            document.body.style.position = '';
+            document.body.style.width = '';
+            document.body.classList.remove('modal-open');
+
             currentBottomTab = 'city';
 
-            // Полностью пересоздаём UI
             if (typeof renderUI === 'function') {
                 renderUI();
                 console.log('renderUI выполнен');
             }
 
-            // Дополнительная проверка - убеждаемся что нижняя панель видна
             setTimeout(() => {
                 const bottomBar = document.querySelector('.fixed-bottom-bar');
                 if (bottomBar) {
@@ -12210,6 +12637,13 @@
             questNotificationCount = 0;
             updateQuestsNotificationBadge();
             currentBottomTab = 'city';  // ← ДОБАВЬ ЭТУ СТРОКУ
+
+            // Восстанавливаем скролл body
+            document.body.style.overflow = '';
+            document.body.style.position = '';
+            document.body.style.width = '';
+            document.body.classList.remove('modal-open');
+
             renderUI();                  // ← И ЭТУ
         }
 
@@ -12871,6 +13305,26 @@
                     <div class="gang-header-title">СИЗО</div>
                 </div>
             </div>
+			    <div style="background: linear-gradient(135deg, #1a1a2a, #0d0d15); border-radius: 2px; padding: 5px 15px; margin-bottom: 5px; border: 1px solid #8B4513; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+        <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                <span style="font-size: 16px;">🚬</span>
+                <span id="gangCigarettesValue" style="font-size: 14px; font-weight: bold; color: #ffd966;">${currentPlayer.cigarettes || 0}</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                <span style="font-size: 16px;">🪨</span>
+                <span id="gangStoneValue" style="font-size: 14px; font-weight: bold; color: #ffd966;">${currentPlayer.quarry?.stone || 0}</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                <span style="font-size: 16px;">🪵</span>
+                <span id="gangWoodValue" style="font-size: 14px; font-weight: bold; color: #ffd966;">${currentPlayer.lumber?.wood || 0}</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                <span style="font-size: 16px;">💰</span>
+                <span id="gangRublesValue" style="font-size: 14px; font-weight: bold; color: #ffd966;">${currentPlayer.rubles || 0}</span>
+            </div>
+        </div>
+    </div>
             <div class="gang-content-area">
                 <div class="gang-sub-tab-header">
                     <button class="gang-sub-tab-btn ${currentGangTab === 'recruit' ? 'active' : ''}" id="gangTabRecruitBtn">👥 ВЕРБОВКА</button>
@@ -13117,6 +13571,7 @@
                     `}
                 </div>
             </div>
+
             <div class="gang-bottom-nav">
                 <div class="bottom-nav">
                     <button class="gang-tab-btn active" id="closeGangBtn"><span>←</span><span>НАЗАД</span></button>
@@ -13153,6 +13608,19 @@
                 if (!modal) {
                     if (gangTimers.interval) clearInterval(gangTimers.interval);
                     return;
+                }
+                // Обновляем панель ресурсов
+                const resourcesPanel = document.querySelector('#gangFullscreen .gang-resources-panel');
+                if (resourcesPanel && currentPlayer) {
+                    const gangCigarettes = document.getElementById('gangCigarettesValue');
+                    const gangStone = document.getElementById('gangStoneValue');
+                    const gangWood = document.getElementById('gangWoodValue');
+                    const gangRubles = document.getElementById('gangRublesValue');
+
+                    if (gangCigarettes && currentPlayer) gangCigarettes.textContent = currentPlayer.cigarettes || 0;
+                    if (gangStone && currentPlayer) gangStone.textContent = currentPlayer.quarry?.stone || 0;
+                    if (gangWood && currentPlayer) gangWood.textContent = currentPlayer.lumber?.wood || 0;
+                    if (gangRubles && currentPlayer) gangRubles.textContent = currentPlayer.rubles || 0;
                 }
 
                 // ПРОВЕРЯЕМ ЗАВЕРШЕНИЕ ПРОКАЧЕК КАЖДУЮ СЕКУНДУ
@@ -13206,7 +13674,7 @@
                         blatsBtn.textContent = '⏳ Прокачка...';
                     } else if (blatsRecruitRemaining <= 0) {
                         blatsBtn.disabled = false;
-                        blatsBtn.textContent = `👥 Нанять зеков (+${getRecruitGain('blats')} чел)`;
+                        blatsBtn.textContent = `👥 НАНЯТЬ ЗЕКОВ (+${getRecruitGain('blats')} ЧЕЛ)`;
                     } else {
                         blatsBtn.disabled = true;
                         blatsBtn.textContent = `⏳ ${formatTimerMinutes(blatsRecruitRemaining)}`;
@@ -13218,7 +13686,7 @@
                         muzhiksBtn.textContent = '⏳ Прокачка...';
                     } else if (muzhiksRecruitRemaining <= 0) {
                         muzhiksBtn.disabled = false;
-                        muzhiksBtn.textContent = `👥 Нанять зеков (+${getRecruitGain('muzhiks')} чел)`;
+                        muzhiksBtn.textContent = `👥 НАНЯТЬ ЗЕКОВ (+${getRecruitGain('muzhiks')} ЧЕЛ)`;
                     } else {
                         muzhiksBtn.disabled = true;
                         muzhiksBtn.textContent = `⏳ ${formatTimerMinutes(muzhiksRecruitRemaining)}`;
@@ -13230,7 +13698,7 @@
                         fraersBtn.textContent = '⏳ Прокачка...';
                     } else if (fraersRecruitRemaining <= 0) {
                         fraersBtn.disabled = false;
-                        fraersBtn.textContent = `👥 Нанять зеков (+${getRecruitGain('fraers')} чел)`;
+                        fraersBtn.textContent = `👥 НАНЯТЬ ЗЕКОВ (+${getRecruitGain('fraers')} ЧЕЛ)`;
                     } else {
                         fraersBtn.disabled = true;
                         fraersBtn.textContent = `⏳ ${formatTimerMinutes(fraersRecruitRemaining)}`;
@@ -13244,6 +13712,13 @@
             if (modal) modal.remove();
             if (gangTimers.interval) clearInterval(gangTimers.interval);
             if (tg) tg.BackButton.hide();
+
+            // Восстанавливаем скролл body
+            document.body.style.overflow = '';
+            document.body.style.position = '';
+            document.body.style.width = '';
+            document.body.classList.remove('modal-open');
+
             renderUI();
         }
         window.closeGangModal = closeGangModal;
@@ -13353,6 +13828,13 @@
             const modal = document.getElementById('hospitalFullscreen');
             if (modal) modal.remove();
             if (tg) tg.BackButton.hide();
+
+            // Восстанавливаем скролл body
+            document.body.style.overflow = '';
+            document.body.style.position = '';
+            document.body.style.width = '';
+            document.body.classList.remove('modal-open');
+
             renderUI();
         }
 
@@ -13404,7 +13886,12 @@
             if (chatUnsubscribe) chatUnsubscribe();
             if (tg) tg.BackButton.hide();
 
-            // Восстанавливаем город
+            // Восстанавливаем скролл body
+            document.body.style.overflow = '';
+            document.body.style.position = '';
+            document.body.style.width = '';
+            document.body.classList.remove('modal-open');
+
             currentBottomTab = 'city';
             renderUI();
         }
@@ -13782,25 +14269,34 @@
         }
 
         function openRankingModal() {
+            if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); return; }
+
             let sortType = 'power';
+
             const modalHtml = `
-            <div class="modal">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <div class="modal-title">🏆 РЕЙТИНГ</div>
-                        <button class="close-btn" onclick="closeModal()">✕</button>
-                    </div>
-                    <div class="sort-buttons" id="sortButtonsRank">
+        <div class="modal-overlay" id="rankingModalOverlay" onclick="if(event.target === this) closeRankingModal()">
+            <div class="modal-window">
+                <div class="modal-window-header">
+                    <div class="modal-window-title">🏆 РЕЙТИНГ ИГРОКОВ</div>
+                    <button class="modal-window-close" onclick="closeRankingModal()">✕</button>
+                </div>
+                <div class="modal-window-content">
+                    <div class="sort-buttons" style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 15px;">
                         <button class="sort-btn" data-sort="power">💪 Мощь</button>
                         <button class="sort-btn" data-sort="strength">💪 Сила</button>
                         <button class="sort-btn" data-sort="authority">⭐ Авторитет</button>
                         <button class="sort-btn" data-sort="level">📈 Уровень</button>
                         <button class="sort-btn" data-sort="defense">🛡️ Защита</button>
                     </div>
-                    <div id="rankListContainer" style="max-height:400px; overflow-y:auto;"></div>
+                    <div id="rankListContainer" style="max-height: 50vh; overflow-y: auto; padding-right: 5px;"></div>
                 </div>
             </div>
-        `;
+        </div>
+    `;
+
+            const existing = document.querySelector('.modal-overlay');
+            if (existing) existing.remove();
+
             document.body.insertAdjacentHTML('beforeend', modalHtml);
             if (tg) tg.BackButton.show();
 
@@ -13811,27 +14307,38 @@
                 else if (sortType === 'authority') list.sort((a, b) => b.authority - a.authority);
                 else if (sortType === 'level') list.sort((a, b) => b.level - a.level);
                 else if (sortType === 'defense') list.sort((a, b) => (b.defense || 0) - (a.defense || 0));
+
                 const container = document.getElementById('rankListContainer');
                 if (!container) return;
+
                 container.innerHTML = list.slice(0, 100).map((p, idx) => `
-                <div style="display:flex; justify-content:space-between; align-items:center; padding:12px; border-bottom:1px solid rgba(255,255,255,0.1);">
-                    <div style="width:40px; font-weight:bold; color:#e94560;">${idx + 1}</div>
-                    <div><strong>${escapeHtml(p.username)}</strong></div>
-                    <div>⭐ ${p.level} ур.</div>
-                    <div>💪 ${p.power}</div>
-                </div>
-            `).join('');
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:12px; border-bottom:1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.2); border-radius: 12px; margin-bottom: 5px;">
+                <div style="width:40px; font-weight:bold; color:#e94560;">${idx + 1}</div>
+                <div><strong style="color: #ffd966;">${escapeHtml(p.username)}</strong></div>
+                <div>⭐ ${p.level} ур.</div>
+                <div>💪 ${p.power}</div>
+            </div>
+        `).join('');
             };
+
             renderRank();
-            document.querySelectorAll('#sortButtonsRank .sort-btn').forEach(btn => {
+
+            document.querySelectorAll('#rankingModalOverlay .sort-btn').forEach(btn => {
                 btn.onclick = () => {
                     sortType = btn.getAttribute('data-sort');
-                    document.querySelectorAll('#sortButtonsRank .sort-btn').forEach(b => b.classList.remove('active'));
+                    document.querySelectorAll('#rankingModalOverlay .sort-btn').forEach(b => b.classList.remove('active'));
                     btn.classList.add('active');
                     renderRank();
                 };
             });
-            document.querySelector('#sortButtonsRank .sort-btn').classList.add('active');
+
+            document.querySelector('#rankingModalOverlay .sort-btn').classList.add('active');
+        }
+
+        function closeRankingModal() {
+            const modal = document.querySelector('#rankingModalOverlay');
+            if (modal) modal.remove();
+            if (tg) tg.BackButton.hide();
         }
 
         function copyInviteCode() { navigator.clipboard.writeText(currentPlayer.inviteCode); showToast('Код скопирован!', 'success'); }
@@ -14418,6 +14925,29 @@
             showLoginForm();
         }
 
+        // Добавьте эту функцию для обновления ресурсов в магазине
+        function startShopTimers() {
+            if (window.shopResourcesInterval) clearInterval(window.shopResourcesInterval);
+            window.shopResourcesInterval = setInterval(() => {
+                const modal = document.getElementById('shopFullscreen');
+                if (!modal) {
+                    if (window.shopResourcesInterval) clearInterval(window.shopResourcesInterval);
+                    return;
+                }
+
+                // Обновляем панель ресурсов в магазине
+                const shopCigarettes = document.getElementById('shopCigarettesValue');
+                const shopRubles = document.getElementById('shopRublesValue');
+                const shopWood = document.getElementById('shopWoodValue');
+                const shopStone = document.getElementById('shopStoneValue');
+
+                if (shopCigarettes && currentPlayer) shopCigarettes.textContent = currentPlayer.cigarettes || 0;
+                if (shopRubles && currentPlayer) shopRubles.textContent = currentPlayer.rubles || 0;
+                if (shopWood && currentPlayer) shopWood.textContent = currentPlayer.lumber?.wood || 0;
+                if (shopStone && currentPlayer) shopStone.textContent = currentPlayer.quarry?.stone || 0;
+            }, 1000);
+        }
+
         function openCardGameUpgradeModal() {
             // Открываем игровую сразу на вкладке прокачки карт
             if (window._opening_modal) {
@@ -14598,5 +15128,4 @@
         window.cancelReply = cancelReply;
     </script>
 </body>
-
 </html>
