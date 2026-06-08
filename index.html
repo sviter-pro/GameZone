@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Зона 1.0.0.200 - Карта зоны</title>
+    <title>Зона 1.0.0.205 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -5892,6 +5892,65 @@
         .modal-window-content {
             padding: 20px;
         }
+		
+		/* Стили для счетчиков на здании СХОДКА (b6) */
+/* ========== СЧЕТЧИКИ БОЕВ НА B6 (СХОДКА) ========== */
+
+.b6 {
+    position: absolute;
+    top: 51%;
+    right: 4%;
+    width: 34%;
+    height: 18%;
+    overflow: visible !important;
+}
+
+.b6 .battle-counters {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    right: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(6px);
+    padding: 4px 6px;
+    border-radius: 12px;
+    z-index: 102;
+    pointer-events: none;
+    font-size: 9px;
+    font-weight: bold;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    text-align: center;
+}
+
+.b6 .battle-active-counter {
+    color: #ff9800;
+    text-shadow: 0 0 3px #ff9800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    font-size: 9px;
+    white-space: nowrap;
+}
+
+.b6 .battle-cooldown-counter {
+    color: #e94560;
+    text-shadow: 0 0 3px #e94560;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    font-size: 9px;
+    white-space: nowrap;
+}
+.battle-counters,
+.battle-active-counter {
+    transition: none !important;
+    animation: none !important;
+}
     </style>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
@@ -6068,6 +6127,206 @@
 
         let chatButtonCheckInterval = null;
         let replyToMessage = null; // { id, playerName, message }
+		
+// ========== ПЕРЕМЕННЫЕ ДЛЯ АКТИВНОГО БОЯ (Firestore синхронизация) ==========
+let activeBattleData = null;
+let activeBattleEndTime = 0;
+let battleCooldownsData = {};
+let activeBattleUnsubscribe = null;
+let battleCountersInterval = null;
+let battleHistoryListener = null;
+
+// Константы
+const BATTLE_COOLDOWN_HOURS = 12;
+const BATTLE_DURATION_BASE = 30000; // 30 секунд базово
+
+// ========== ОБНОВЛЕНИЕ СЧЁТЧИКОВ НА B6 (СХОДКА) ==========
+let lastCountersState = { hasActive: false, hasCooldown: false, activeRemaining: 0, cooldownRemaining: 0 };
+
+// ========== ОБНОВЛЕНИЕ СЧЁТЧИКОВ НА B6 (БЕЗ МИГАНИЯ) ==========
+function updateBattleCountersOnMap() {
+    const b6Element = document.querySelector('.building.b6');
+    if (!b6Element) return;
+    
+    let hasActive = false;
+    let activeRemaining = 0;
+    
+    // Проверяем активный бой
+    if (activeBattleData && activeBattleEndTime > Date.now()) {
+        hasActive = true;
+        activeRemaining = activeBattleEndTime - Date.now();
+    }
+    
+    // Функция форматирования
+    const formatMapTimer = (ms) => {
+        if (ms <= 0) return '';
+        const totalSeconds = Math.floor(ms / 1000);
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        if (minutes > 0) return `${minutes}м ${seconds}с`;
+        return `${seconds}с`;
+    };
+    
+    // Находим или создаём контейнер (НО НЕ ПЕРЕСОЗДАЁМ КАЖДЫЙ РАЗ)
+    let countersDiv = b6Element.querySelector('.battle-counters');
+    
+    if (hasActive) {
+        const newTimerText = `${formatMapTimer(activeRemaining)}`;
+        
+        if (!countersDiv) {
+            // Создаём контейнер только один раз
+            countersDiv = document.createElement('div');
+            countersDiv.className = 'battle-counters';
+            countersDiv.innerHTML = '<div class="battle-active-counter">⚔️ <span class="battle-timer-value"></span></div>';
+            b6Element.appendChild(countersDiv);
+        }
+        
+        // Обновляем только текст внутри span, а не весь innerHTML
+        const timerSpan = countersDiv.querySelector('.battle-timer-value');
+        if (timerSpan) {
+            timerSpan.textContent = newTimerText;
+        } else {
+            // Fallback если структура почему-то не та
+            countersDiv.innerHTML = `<div class="battle-active-counter">⚔️ ${newTimerText}</div>`;
+        }
+        
+        countersDiv.style.display = 'flex';
+    } else {
+        if (countersDiv) {
+            countersDiv.style.display = 'none';
+        }
+    }
+}
+// ========== ЗАПУСК ОБНОВЛЕНИЯ СЧЁТЧИКОВ ==========
+function startBattleCountersOnMap() {
+    if (battleCountersInterval) clearInterval(battleCountersInterval);
+    battleCountersInterval = setInterval(() => {
+        updateBattleCountersOnMap();
+        // Также обновляем кнопки в окне Сходка, если оно открыто
+        updateAttackModalButtons();
+    }, 1000);
+}
+// ========== ОБНОВЛЕНИЕ КНОПОК В ОКНЕ СХОДКА ==========
+function updateAttackModalButtons() {
+    const modal = document.getElementById('attackDetailFullscreen');
+    if (!modal) return;
+    
+    // Обновляем каждую кнопку броска вызова
+    document.querySelectorAll('#attackDetailFullscreen .clan-card-item').forEach(item => {
+        const button = item.querySelector('.btn-primary');
+        if (!button) return;
+        
+        const onclickAttr = button.getAttribute('onclick');
+        if (!onclickAttr) return;
+        
+        // Извлекаем ID противника из onclick
+        const match = onclickAttr.match(/showPlayerForBattle\('([^']+)'/);
+        if (!match) return;
+        const defenderId = match[1];
+        
+        const isOnCooldown = battleCooldownsData[defenderId] && battleCooldownsData[defenderId] > Date.now();
+        const isInBattle = activeBattleData && activeBattleData.defenderId === defenderId && activeBattleEndTime > Date.now();
+        
+        if (isInBattle) {
+            const remaining = activeBattleEndTime - Date.now();
+            button.disabled = true;
+            button.textContent = `⚔️ БОЙ ИДЁТ (${formatBattleTime(remaining)})`;
+            button.style.background = 'linear-gradient(135deg, #ff9800, #e68a00)';
+            button.style.opacity = '0.8';
+        } else if (isOnCooldown) {
+            const remaining = battleCooldownsData[defenderId] - Date.now();
+            button.disabled = true;
+            button.textContent = `⏳ ${formatCooldownTime(remaining)}`;
+            button.style.background = '#8B1a1a';
+            button.style.border = '1px solid #e94560';
+            button.style.opacity = '0.8';
+        } else {
+            button.disabled = false;
+            button.textContent = '⚔️ БРОСИТЬ ВЫЗОВ';
+            button.style.background = 'linear-gradient(135deg, #8B4513, #5a2d0a)';
+            button.style.border = '1px solid #c9a03d';
+            button.style.opacity = '1';
+        }
+    });
+    
+    // Обновляем блок активного боя в модалке
+    const activeBattleBlock = document.getElementById('activeBattleBlock');
+    if (activeBattleBlock) {
+        if (activeBattleData && activeBattleEndTime > Date.now()) {
+            activeBattleBlock.style.display = 'block';
+            const timerSpan = activeBattleBlock.querySelector('#activeBattleTimerDisplay');
+            if (timerSpan) {
+                timerSpan.textContent = formatBattleTime(activeBattleEndTime - Date.now());
+            }
+        } else {
+            activeBattleBlock.style.display = 'none';
+        }
+    }
+}
+// ========== СОХРАНЕНИЕ ИСТОРИИ БОЯ ==========
+async function saveBattleHistory(attackerId, attackerName, defenderId, defenderName, attackerWon, rewards) {
+    try {
+        await db.collection('battleHistory').add({
+            attackerId: attackerId,
+            attackerName: attackerName,
+            defenderId: defenderId,
+            defenderName: defenderName,
+            attackerWon: attackerWon,
+            rewards: rewards,
+            timestamp: Date.now()
+        });
+        console.log('📜 История боя сохранена');
+    } catch (e) {
+        console.error('Ошибка сохранения истории:', e);
+    }
+}
+// ========== СОХРАНЕНИЕ АКТИВНОГО БОЯ ==========
+function saveActiveBattleToLocal() {
+    if (!currentPlayer) return;
+    if (activeBattleData && activeBattleEndTime > Date.now()) {
+        localStorage.setItem(`activeBattle_${currentPlayer.id}`, JSON.stringify({
+            defenderId: activeBattleData.defenderId,
+            defenderName: activeBattleData.defenderName,
+            defenderData: activeBattleData.defenderData,
+            startTime: activeBattleData.startTime,
+            duration: activeBattleData.duration,
+            endTime: activeBattleEndTime
+        }));
+        console.log('💾 Бой сохранён в localStorage');
+    } else {
+        localStorage.removeItem(`activeBattle_${currentPlayer.id}`);
+    }
+}
+
+// ========== ВОССТАНОВЛЕНИЕ АКТИВНОГО БОЯ ==========
+function restoreActiveBattleFromLocal() {
+    if (!currentPlayer) return;
+    const saved = localStorage.getItem(`activeBattle_${currentPlayer.id}`);
+    if (saved) {
+        try {
+            const battle = JSON.parse(saved);
+            if (battle.endTime > Date.now()) {
+                activeBattleData = {
+                    defenderId: battle.defenderId,
+                    defenderName: battle.defenderName,
+                    defenderData: battle.defenderData,
+                    startTime: battle.startTime,
+                    duration: battle.duration
+                };
+                activeBattleEndTime = battle.endTime;
+                updateBattleCountersOnMap();
+                console.log('✅ Бой восстановлен из localStorage');
+                return true;
+            } else {
+                localStorage.removeItem(`activeBattle_${currentPlayer.id}`);
+                console.log('❌ Бой просрочен, удалён');
+            }
+        } catch(e) {
+            console.error('Ошибка восстановления боя:', e);
+        }
+    }
+    return false;
+}
 
         // ========== СИСТЕМА АВАТАРОВ ==========
         const AVAATARS = [
@@ -7527,7 +7786,7 @@
                 <img class="loading-logo" src="https://sviter-pro.github.io/GameZone/src/test/logo124.png" alt="Тюряга 2.0" onerror="this.src='https://via.placeholder.com/180x180?text=Тюряга+2.0'">
                 <div class="loading-spinner-new"></div>
                 <div class="loading-tip-new" id="loadingTipNew">⚡ Загрузка игрового мира...</div>
-                <div class="loading-version">Зона 1.0.0.200 | Зона ждет</div>
+                <div class="loading-version">Зона 1.0.0.205 | Зона ждет</div>
             </div>
         `;
             const tipEl = document.getElementById('loadingTipNew');
@@ -8565,7 +8824,7 @@
                 
                 <div class="settings-card">
                     <div style="font-size: 13px; color: #aaa; text-align: center;">
-                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.200</div>
+                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.205</div>
                         <div style="font-size: 11px;">⚡ Клановые войны | Бесконечная прокачка</div>
                     </div>
                 </div>
@@ -10051,6 +10310,21 @@
             document.body.insertAdjacentHTML('beforeend', modalHtml);
             if (tg) tg.BackButton.show();
         }
+		
+// ========== РАСЧЁТ НАГРАДЫ ПОБЕДИТЕЛЯ ==========
+function calculateBattleRewards(attacker, defender) {
+    const attackerPower = calculatePlayerPower(attacker);
+    const defenderPower = calculatePlayerPower(defender);
+    
+    return {
+        powerStolen: Math.floor(defenderPower * 0.05),
+        authorityStolen: Math.floor(defender.authority * 0.05),
+        strengthStolen: Math.floor((defender.stats?.strength || 10) * 0.10),
+        cigarettesStolen: Math.floor(defender.cigarettes * 0.05),
+        woodStolen: Math.floor((defender.lumber?.wood || 0) * 0.05),
+        stoneStolen: Math.floor((defender.quarry?.stone || 0) * 0.05)
+    };
+}
 
         // Функция покупки рандомного товара (только один раз)
         async function buyRandomItemFromModal(item) {
@@ -11212,21 +11486,712 @@
             });
         }
 
-        function closeAttackModal() {
-            const modal = document.querySelector('.modal');
-            if (modal) modal.remove();
-            if (chatUnsubscribe) chatUnsubscribe();
-            if (tg) tg.BackButton.hide();
-            currentBottomTab = 'city';  // ← ДОБАВЬ ЭТУ СТРОКУ
-
-            // Восстанавливаем скролл body
-            document.body.style.overflow = '';
-            document.body.style.position = '';
-            document.body.style.width = '';
-            document.body.classList.remove('modal-open');
-
-            renderUI();                  // ← И ЭТУ
+        // ========== ЗАКРЫТИЕ PvP ОКНА ==========
+function closeAttackModal() {
+    const modal = document.getElementById('attackDetailFullscreen');
+    if (modal) modal.remove();
+    if (tg) tg.BackButton.hide();
+    
+    // Восстанавливаем скролл body
+    document.body.style.overflow = '';
+    document.body.style.position = '';
+    document.body.style.width = '';
+    document.body.classList.remove('modal-open');
+    
+    currentBottomTab = 'city';
+    renderUI();
+}
+// ========== ФУНКЦИЯ ОБНОВЛЕНИЯ ТАЙМЕРОВ БОЯ (БЕЗ ИНДЕКСА) ==========
+function startBattleTimerWatcher() {
+    if (!currentPlayer) return;
+    
+    // Каждые 5 секунд проверяем активные бои на завершение
+    setInterval(async () => {
+        if (!currentPlayer) return;
+        
+        // Получаем все активные бои для игрока (без фильтрации по endTime)
+        const snapshot = await db.collection('activeBattles')
+            .where('playerId', '==', currentPlayer.id)
+            .get();
+        
+        for (const doc of snapshot.docs) {
+            const battle = doc.data();
+            // Проверяем на месте, не истекло ли время
+            if (battle.endTime <= Date.now()) {
+                console.log('⏰ Бой просрочен, завершаем:', battle.defenderName);
+                await finishBattle(doc.id, battle.defenderId, battle.defenderName);
+            }
         }
+    }, 5000);
+}
+		
+// ========== ОТКРЫТИЕ СХОДКИ (PvP) ==========
+function openAttackModal() {
+    if (window._opening_modal) { console.log('Блокировка: окно уже открывается'); return; }
+    window._opening_modal = true;
+
+    if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); window._opening_modal = false; return; }
+    if (!currentPlayer) { window._opening_modal = false; return; }
+
+    // Получаем список игроков ±2 уровня
+    const minLevel = Math.max(1, currentPlayer.level - 2);
+    const maxLevel = currentPlayer.level + 2;
+    
+    const availablePlayers = allPlayers.filter(p => 
+        p.id !== currentPlayer.id && 
+        p.level >= minLevel && 
+        p.level <= maxLevel &&
+        !p.isBanned
+    );
+    
+    availablePlayers.sort((a, b) => b.level - a.level);
+    
+    // Загружаем кулдауны
+    const savedCooldowns = localStorage.getItem(`battleCooldowns_${currentPlayer.id}`);
+    if (savedCooldowns) {
+        battleCooldownsData = JSON.parse(savedCooldowns);
+        const now = Date.now();
+        for (const [pid, cooldown] of Object.entries(battleCooldownsData)) {
+            if (cooldown <= now) delete battleCooldownsData[pid];
+        }
+        localStorage.setItem(`battleCooldowns_${currentPlayer.id}`, JSON.stringify(battleCooldownsData));
+    }
+    
+    // Функция для расчета мощности игрока
+    const calcPower = (player) => {
+        if (!player) return 0;
+        let gangPower = 0;
+        if (player.gang) {
+            gangPower += (player.gang.blats?.fighters || 0) * 2;
+            gangPower += (player.gang.muzhiks?.fighters || 0) * 1;
+            gangPower += (player.gang.fraers?.fighters || 0) * 1;
+        }
+        return Math.floor(
+            (player.level * 15) + 
+            (player.authority / 100) + 
+            ((player.stats?.strength || 10) * 2) + 
+            ((player.stats?.defense || 5) * 1.5) + 
+            (player.stats?.critical || 5) + 
+            (player.energy / 20) + 
+            gangPower
+        );
+    };
+    
+    const modalHtml = `
+        <div class="attack-fullscreen" id="attackDetailFullscreen" style="background: linear-gradient(135deg, #0a0a0f 0%, #14141f 100%);">
+            <div class="attack-header-bar" style="background: linear-gradient(135deg, #1a1a2a 0%, #0d0d15 100%); border-bottom: 2px solid #8B4513; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5); position: relative;">
+                <div class="attack-header-content" style="max-width: 550px; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
+                    <div class="attack-header-title" style="font-size: 20px; font-weight: 800; background: linear-gradient(135deg, #c9a03d, #8B6914); -webkit-background-clip: text; background-clip: text; color: transparent; text-shadow: 0 2px 5px rgba(0, 0, 0, 0.3); letter-spacing: 2px;">⚔️ СХОДКА</div>
+                </div>
+            </div>
+            <div class="attack-content-area" id="attackContentArea" style="flex: 1; overflow-y: auto; padding: 16px; margin-bottom: 75px; background-image: repeating-linear-gradient(45deg, rgba(139, 69, 19, 0.03) 0px, rgba(139, 69, 19, 0.03) 2px, transparent 2px, transparent 8px);">
+                
+                <!-- БЛОК АКТИВНОГО БОЯ (всегда отображается если есть бой) -->
+                <div id="activeBattleBlock" style="${activeBattleData && activeBattleEndTime > Date.now() ? 'display: block;' : 'display: none;'}">
+                    <div class="clan-card" style="background: rgba(255,152,0,0.15); border: 2px solid #ff9800; margin-bottom: 15px; text-align: center; cursor: pointer;" onclick="openActiveBattleWindow()">
+                        <div style="font-size: 14px; color: #ff9800; font-weight: bold;">⚔️ АКТИВНЫЙ БОЙ ⚔️</div>
+                        <div style="font-size: 16px; color: #ffd966; margin: 5px 0;">Противник: ${activeBattleData ? escapeHtml(activeBattleData.defenderName) : ''}</div>
+                        <div id="globalBattleTimer" class="game-timer" style="font-size: 24px; margin: 10px 0; padding: 8px;">${activeBattleData ? formatBattleTime(activeBattleEndTime - Date.now()) : '00:00'}</div>
+                        <button class="btn-primary" onclick="event.stopPropagation(); openActiveBattleWindow()" style="background: linear-gradient(135deg, #ff9800, #e68a00);">🔗 ВЕРНУТЬСЯ К БОЮ</button>
+                    </div>
+                </div>
+                
+                <div id="playersListContainer" style="max-height: ${activeBattleData && activeBattleEndTime > Date.now() ? '50vh' : '60vh'}; overflow-y: auto; padding-right: 5px;">
+                    ${availablePlayers.map(player => {
+                        const playerPower = calcPower(player);
+                        const isOnCooldown = battleCooldownsData[player.id] && battleCooldownsData[player.id] > Date.now();
+                        const isInBattle = activeBattleData && activeBattleData.defenderId === player.id && activeBattleEndTime > Date.now();
+                        
+                        let buttonHtml = '';
+                        if (isInBattle) {
+                            const remaining = activeBattleEndTime - Date.now();
+                            buttonHtml = `<button class="btn-primary" disabled style="background: linear-gradient(135deg, #ff9800, #e68a00); border: 1px solid #ff9800; border-radius: 30px; padding: 8px 16px; font-size: 12px; font-weight: 700; color: white; opacity: 0.8; white-space: nowrap;">⚔️ БОЙ ИДЁТ (${formatBattleTime(remaining)})</button>`;
+                        } else if (isOnCooldown) {
+                            const remaining = battleCooldownsData[player.id] - Date.now();
+                            buttonHtml = `<button class="btn-primary" disabled style="background: #8B1a1a; border: 1px solid #e94560; border-radius: 30px; padding: 8px 16px; font-size: 12px; font-weight: 700; color: #ffd966; opacity: 0.8; white-space: nowrap;">⏳ ${formatCooldownTime(remaining)}</button>`;
+                        } else {
+                            buttonHtml = `<button class="btn-primary" style="background: linear-gradient(135deg, #8B4513, #5a2d0a); border: 1px solid #c9a03d; border-radius: 30px; padding: 8px 16px; font-size: 12px; font-weight: 700; color: #ffd966; cursor: pointer; white-space: nowrap;" onclick="showPlayerForBattle('${player.id}', '${escapeHtml(player.username)}', ${player.level}, ${playerPower}, ${player.strength || 10}, ${player.defense || 5}, ${player.authority || 0}, ${player.cigarettes || 0}, ${player.wood || 0}, ${player.stone || 0})">⚔️ БРОСИТЬ ВЫЗОВ</button>`;
+                        }
+                        
+                        return `
+                            <div class="clan-card-item" style="background: rgba(20, 20, 30, 0.9); backdrop-filter: blur(10px); border: 1px solid #8B4513; border-radius: 16px; margin-bottom: 12px; padding: 14px; transition: all 0.2s; position: relative; overflow: hidden;">
+                                <div style="position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, #8B4513, #c9a03d, #8B4513);"></div>
+                                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+                                    <div style="flex: 1;">
+                                        <strong style="color: #ffd966; font-size: 16px;">🧨 ${escapeHtml(player.username)}</strong>
+                                        <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px;">
+                                            <div style="background: rgba(0,0,0,0.4); padding: 3px 8px; border-radius: 20px; font-size: 11px;">⭐ Ур.${player.level}</div>
+                                            <div style="background: rgba(0,0,0,0.4); padding: 3px 8px; border-radius: 20px; font-size: 11px;">💪 Мощь: ${playerPower}</div>
+                                            <div style="background: rgba(0,0,0,0.4); padding: 3px 8px; border-radius: 20px; font-size: 11px;">💪 Сила: ${player.strength || 10}</div>
+                                            <div style="background: rgba(0,0,0,0.4); padding: 3px 8px; border-radius: 20px; font-size: 11px;">🛡️ Защита: ${player.defense || 5}</div>
+                                            <div style="background: rgba(0,0,0,0.4); padding: 3px 8px; border-radius: 20px; font-size: 11px;">⭐ Авт.: ${player.authority || 0}</div>
+                                        </div>
+                                        <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 5px;">
+                                            <div style="background: rgba(139,69,19,0.3); padding: 3px 8px; border-radius: 20px; font-size: 11px;">🚬 ${player.cigarettes || 0}</div>
+                                            <div style="background: rgba(139,69,19,0.3); padding: 3px 8px; border-radius: 20px; font-size: 11px;">🪵 ${player.wood || 0}</div>
+                                            <div style="background: rgba(139,69,19,0.3); padding: 3px 8px; border-radius: 20px; font-size: 11px;">🪨 ${player.stone || 0}</div>
+                                        </div>
+                                    </div>
+                                    <div style="margin-left: 10px;">
+                                        ${buttonHtml}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+                <div id="battleInfoContainer" style="display: none;"></div>
+            </div>
+            <div class="attack-bottom-nav" style="position: fixed; bottom: 0; left: 0; right: 0; background: rgba(10, 14, 26, 0.95); backdrop-filter: blur(20px); border-top: 1px solid #8B4513; padding: 8px 16px; padding-bottom: max(8px, env(safe-area-inset-bottom)); z-index: 10001;">
+                <div class="bottom-nav" style="max-width: 550px; margin: 0 auto; display: flex; align-items: center; justify-content: space-around; gap: 8px;">
+                    <button class="attack-tab-btn active" onclick="closeAttackModal()" style="background: transparent; border: none; border-radius: 50px; padding: 8px 16px; display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; transition: all 0.2s; color: #8e8ea0; font-size: 11px; font-weight: 500;"><span>←</span><span>НАЗАД</span></button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    const existingModal = document.getElementById('attackDetailFullscreen');
+    if (existingModal) existingModal.remove();
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    if (tg) tg.BackButton.show();
+    
+    // Запускаем обновление таймера активного боя в реальном времени
+    if (activeBattleData && activeBattleEndTime > Date.now()) {
+        const timerInterval = setInterval(() => {
+            const modal = document.getElementById('attackDetailFullscreen');
+            if (!modal) {
+                clearInterval(timerInterval);
+                return;
+            }
+            const timerElement = document.getElementById('globalBattleTimer');
+            if (timerElement) {
+                const remaining = activeBattleEndTime - Date.now();
+                if (remaining <= 0) {
+                    clearInterval(timerInterval);
+                } else {
+                    timerElement.textContent = formatBattleTime(remaining);
+                }
+            }
+            // Обновляем активный блок
+            const activeBlock = document.getElementById('activeBattleBlock');
+            if (activeBlock) {
+                if (activeBattleData && activeBattleEndTime > Date.now()) {
+                    activeBlock.style.display = 'block';
+                } else {
+                    activeBlock.style.display = 'none';
+                }
+            }
+        }, 1000);
+    }
+    
+    setTimeout(() => { window._opening_modal = false; }, 500);
+}
+// ========== ОТКРЫТИЕ ОКНА АКТИВНОГО БОЯ ==========
+function openActiveBattleWindow() {
+    if (!activeBattleData || activeBattleEndTime <= Date.now()) {
+        showToast('Активный бой не найден или уже завершён!', 'warning');
+        return;
+    }
+    
+    const defender = activeBattleData.defenderData;
+    const remaining = activeBattleEndTime - Date.now();
+    const battleDurationSeconds = Math.floor(remaining / 1000);
+    const battleDurationMinutes = Math.floor(battleDurationSeconds / 60);
+    const battleDurationRemainingSeconds = battleDurationSeconds % 60;
+    const battleDurationText = battleDurationMinutes > 0 ? `${battleDurationMinutes} мин ${battleDurationRemainingSeconds} сек` : `${battleDurationSeconds} сек`;
+    
+    const myPower = calculatePlayerPower(currentPlayer);
+    
+    const battleContainer = document.getElementById('battleInfoContainer');
+    const playersContainer = document.getElementById('playersListContainer');
+    
+    if (playersContainer) playersContainer.style.display = 'none';
+    if (battleContainer) {
+        battleContainer.style.display = 'block';
+        battleContainer.innerHTML = `
+            <div class="clan-card" style="background: rgba(20, 20, 30, 0.9); backdrop-filter: blur(10px); border: 1px solid #8B4513; border-radius: 16px; padding: 20px; text-align: center; position: relative; overflow: hidden;">
+                <div style="position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, #8B4513, #c9a03d, #8B4513);"></div>
+                <div style="font-size: 48px; margin-bottom: 10px;">🔗⚔️🔗</div>
+                <div style="font-size: 18px; font-weight: 700; color: #c9a03d;">ТЮРЕМНАЯ РАЗБОРКА (АКТИВНА)</div>
+                
+                <div style="background: rgba(0,0,0,0.3); border-radius: 16px; padding: 12px; margin: 15px 0;">
+                    <div style="color: #ffd966; font-size: 14px; font-weight: bold;">👤 ВЫ</div>
+                    <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 8px;">
+                        <span style="background: rgba(0,0,0,0.4); padding: 3px 10px; border-radius: 20px;">⭐ Ур.${currentPlayer.level}</span>
+                        <span style="background: rgba(0,0,0,0.4); padding: 3px 10px; border-radius: 20px;">💪 Мощь: ${myPower}</span>
+                        <span style="background: rgba(0,0,0,0.4); padding: 3px 10px; border-radius: 20px;">💪 Сила: ${currentPlayer.stats?.strength || 10}</span>
+                        <span style="background: rgba(0,0,0,0.4); padding: 3px 10px; border-radius: 20px;">🛡️ Защита: ${currentPlayer.stats?.defense || 5}</span>
+                        <span style="background: rgba(0,0,0,0.4); padding: 3px 10px; border-radius: 20px;">⭐ Авт.: ${currentPlayer.authority || 0}</span>
+                    </div>
+                    <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 5px;">
+                        <span style="background: rgba(139,69,19,0.3); padding: 3px 10px; border-radius: 20px;">🚬 ${currentPlayer.cigarettes || 0}</span>
+                        <span style="background: rgba(139,69,19,0.3); padding: 3px 10px; border-radius: 20px;">🪵 ${currentPlayer.lumber?.wood || 0}</span>
+                        <span style="background: rgba(139,69,19,0.3); padding: 3px 10px; border-radius: 20px;">🪨 ${currentPlayer.quarry?.stone || 0}</span>
+                    </div>
+                </div>
+                
+                <div style="font-size: 24px;">⬇️ VS ⬇️</div>
+                
+                <div style="background: rgba(139,69,19,0.2); border-radius: 16px; padding: 12px; margin: 15px 0;">
+                    <div style="color: #c9a03d; font-size: 14px; font-weight: bold;">👤 ПРОТИВНИК</div>
+                    <div style="font-size: 16px; font-weight: bold; color: #ffd966; margin-bottom: 8px;">${escapeHtml(defender.username)}</div>
+                    <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 8px;">
+                        <span style="background: rgba(0,0,0,0.4); padding: 3px 10px; border-radius: 20px;">⭐ Ур.${defender.level}</span>
+                        <span style="background: rgba(0,0,0,0.4); padding: 3px 10px; border-radius: 20px;">💪 Мощь: ${defender.power}</span>
+                        <span style="background: rgba(0,0,0,0.4); padding: 3px 10px; border-radius: 20px;">💪 Сила: ${defender.stats?.strength || 10}</span>
+                        <span style="background: rgba(0,0,0,0.4); padding: 3px 10px; border-radius: 20px;">🛡️ Защита: ${defender.stats?.defense || 5}</span>
+                        <span style="background: rgba(0,0,0,0.4); padding: 3px 10px; border-radius: 20px;">⭐ Авт.: ${defender.authority || 0}</span>
+                    </div>
+                    <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 5px;">
+                        <span style="background: rgba(139,69,19,0.3); padding: 3px 10px; border-radius: 20px;">🚬 ${defender.cigarettes || 0}</span>
+                        <span style="background: rgba(139,69,19,0.3); padding: 3px 10px; border-radius: 20px;">🪵 ${defender.lumber?.wood || 0}</span>
+                        <span style="background: rgba(139,69,19,0.3); padding: 3px 10px; border-radius: 20px;">🪨 ${defender.quarry?.stone || 0}</span>
+                    </div>
+                </div>
+                
+                <div class="bonus-info" style="background: rgba(76, 175, 80, 0.15); border-left: 3px solid #4caf50; padding: 10px 12px; border-radius: 12px; margin: 10px 0; font-size: 12px;">
+                    🏆 НАГРАДА ЗА ПОБЕДУ:<br>
+                    📊 5% МОЩИ | ⭐ 5% АВТОРИТЕТА | 💪 10% СИЛЫ<br>
+                    🚬 5% СИГАРЕТ | 🪵 5% ДРЕВЕСИНЫ | 🪨 5% КАМНЯ
+                </div>
+                
+                <div class="bonus-info" style="background: rgba(139,69,19,0.2); border-left: 3px solid #c9a03d; padding: 10px 12px; border-radius: 12px; margin: 10px 0; font-size: 12px;">
+                    ⏱️ ОСТАЛОСЬ ДО ЗАВЕРШЕНИЯ: ${battleDurationText}
+                </div>
+                
+                <div id="activeBattleTimer" class="game-timer" style="font-size: 32px; font-weight: 800; text-align: center; font-family: monospace; background: rgba(0, 0, 0, 0.5); padding: 12px; border-radius: 20px; margin: 15px 0; color: #ffd966;">${formatBattleTime(remaining)}</div>
+                
+                <button class="btn-secondary" style="background: rgba(30, 36, 64, 0.8); border: 1px solid #8B4513; border-radius: 40px; padding: 12px; width: 100%; margin-top: 10px; font-weight: 700; color: #c9a03d; cursor: pointer;" onclick="cancelBattleSelection()">
+                    ← ВЕРНУТЬСЯ К СПИСКУ
+                </button>
+            </div>
+        `;
+        
+        // Запускаем обновление таймера
+        const timerInterval = setInterval(() => {
+            const modal = document.getElementById('attackDetailFullscreen');
+            if (!modal || !activeBattleData || activeBattleEndTime <= Date.now()) {
+                clearInterval(timerInterval);
+                return;
+            }
+            const timerElement = document.getElementById('activeBattleTimer');
+            if (timerElement) {
+                const remaining = activeBattleEndTime - Date.now();
+                timerElement.textContent = formatBattleTime(remaining);
+            }
+        }, 1000);
+    }
+}
+
+// ========== ПОКАЗ ВЫБРАННОГО ЗЕКА ДЛЯ РАЗБОРКИ ==========
+function showPlayerForBattle(playerId, playerName, playerLevel, playerPower, playerStrength, playerDefense, playerAuthority, playerCigarettes, playerWood, playerStone) {
+    if (activeBattleData && activeBattleEndTime > Date.now()) {
+        showToast('⛓️ У вас уже идет активный бой! Дождитесь окончания.', 'warning');
+        return;
+    }
+    
+    if (battleCooldownsData[playerId] && battleCooldownsData[playerId] > Date.now()) {
+        const remaining = battleCooldownsData[playerId] - Date.now();
+        showToast(`⛓️ Нельзя кидать вызов ${playerName} ещё ${formatCooldownTime(remaining)}!`, 'warning');
+        return;
+    }
+    
+    const levelDiff = Math.abs(currentPlayer.level - playerLevel);
+    if (levelDiff > 2) {
+        showToast(`⛓️ Нельзя кидать вызов зекам с разницей в уровне более 2! (Ваш уровень: ${currentPlayer.level}, уровень противника: ${playerLevel})`, 'warning');
+        return;
+    }
+    
+    const battleDurationMs = (currentPlayer.level + playerLevel) * 10000;
+    const battleDurationSeconds = Math.floor(battleDurationMs / 1000);
+    const battleDurationMinutes = Math.floor(battleDurationSeconds / 60);
+    const battleDurationRemainingSeconds = battleDurationSeconds % 60;
+    const battleDurationText = battleDurationMinutes > 0 ? `${battleDurationMinutes} мин ${battleDurationRemainingSeconds} сек` : `${battleDurationSeconds} сек`;
+    
+    const myPower = calculatePlayerPower(currentPlayer);
+    
+    const playersContainer = document.getElementById('playersListContainer');
+    const battleContainer = document.getElementById('battleInfoContainer');
+    
+    if (playersContainer) playersContainer.style.display = 'none';
+    if (battleContainer) {
+        battleContainer.style.display = 'block';
+        battleContainer.innerHTML = `
+            <div class="clan-card" style="background: rgba(20, 20, 30, 0.9); backdrop-filter: blur(10px); border: 1px solid #8B4513; border-radius: 16px; padding: 20px; text-align: center; position: relative; overflow: hidden;">
+                <div style="position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, #8B4513, #c9a03d, #8B4513);"></div>
+                <div style="font-size: 48px; margin-bottom: 10px;">🔗⚔️🔗</div>
+                <div style="font-size: 18px; font-weight: 700; color: #c9a03d;">ТЮРЕМНАЯ РАЗБОРКА</div>
+                
+                <div style="background: rgba(0,0,0,0.3); border-radius: 16px; padding: 12px; margin: 15px 0;">
+                    <div style="color: #ffd966; font-size: 14px; font-weight: bold;">👤 ВЫ</div>
+                    <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 8px;">
+                        <span style="background: rgba(0,0,0,0.4); padding: 3px 10px; border-radius: 20px;">⭐ Ур.${currentPlayer.level}</span>
+                        <span style="background: rgba(0,0,0,0.4); padding: 3px 10px; border-radius: 20px;">💪 Мощь: ${myPower}</span>
+                        <span style="background: rgba(0,0,0,0.4); padding: 3px 10px; border-radius: 20px;">💪 Сила: ${currentPlayer.stats?.strength || 10}</span>
+                        <span style="background: rgba(0,0,0,0.4); padding: 3px 10px; border-radius: 20px;">🛡️ Защита: ${currentPlayer.stats?.defense || 5}</span>
+                        <span style="background: rgba(0,0,0,0.4); padding: 3px 10px; border-radius: 20px;">⭐ Авт.: ${currentPlayer.authority || 0}</span>
+                    </div>
+                    <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 5px;">
+                        <span style="background: rgba(139,69,19,0.3); padding: 3px 10px; border-radius: 20px;">🚬 ${currentPlayer.cigarettes || 0}</span>
+                        <span style="background: rgba(139,69,19,0.3); padding: 3px 10px; border-radius: 20px;">🪵 ${currentPlayer.lumber?.wood || 0}</span>
+                        <span style="background: rgba(139,69,19,0.3); padding: 3px 10px; border-radius: 20px;">🪨 ${currentPlayer.quarry?.stone || 0}</span>
+                    </div>
+                </div>
+                
+                <div style="font-size: 24px;">⬇️ VS ⬇️</div>
+                
+                <div style="background: rgba(139,69,19,0.2); border-radius: 16px; padding: 12px; margin: 15px 0;">
+                    <div style="color: #c9a03d; font-size: 14px; font-weight: bold;">👤 ПРОТИВНИК</div>
+                    <div style="font-size: 16px; font-weight: bold; color: #ffd966; margin-bottom: 8px;">${escapeHtml(playerName)}</div>
+                    <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 8px;">
+                        <span style="background: rgba(0,0,0,0.4); padding: 3px 10px; border-radius: 20px;">⭐ Ур.${playerLevel}</span>
+                        <span style="background: rgba(0,0,0,0.4); padding: 3px 10px; border-radius: 20px;">💪 Мощь: ${playerPower}</span>
+                        <span style="background: rgba(0,0,0,0.4); padding: 3px 10px; border-radius: 20px;">💪 Сила: ${playerStrength}</span>
+                        <span style="background: rgba(0,0,0,0.4); padding: 3px 10px; border-radius: 20px;">🛡️ Защита: ${playerDefense}</span>
+                        <span style="background: rgba(0,0,0,0.4); padding: 3px 10px; border-radius: 20px;">⭐ Авт.: ${playerAuthority}</span>
+                    </div>
+                    <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 5px;">
+                        <span style="background: rgba(139,69,19,0.3); padding: 3px 10px; border-radius: 20px;">🚬 ${playerCigarettes}</span>
+                        <span style="background: rgba(139,69,19,0.3); padding: 3px 10px; border-radius: 20px;">🪵 ${playerWood}</span>
+                        <span style="background: rgba(139,69,19,0.3); padding: 3px 10px; border-radius: 20px;">🪨 ${playerStone}</span>
+                    </div>
+                </div>
+                
+                <div class="bonus-info" style="background: rgba(76, 175, 80, 0.15); border-left: 3px solid #4caf50; padding: 10px 12px; border-radius: 12px; margin: 10px 0; font-size: 12px;">
+                    🏆 НАГРАДА ЗА ПОБЕДУ:<br>
+                    📊 5% МОЩИ | ⭐ 5% АВТОРИТЕТА | 💪 10% СИЛЫ<br>
+                    🚬 5% СИГАРЕТ | 🪵 5% ДРЕВЕСИНЫ | 🪨 5% КАМНЯ
+                </div>
+                
+                <div class="bonus-info" style="background: rgba(139,69,19,0.2); border-left: 3px solid #c9a03d; padding: 10px 12px; border-radius: 12px; margin: 10px 0; font-size: 12px;">
+                    ⏱️ ДЛИТЕЛЬНОСТЬ БОЯ: ${battleDurationText}
+                </div>
+                
+                <div id="battleTimer" class="game-timer" style="font-size: 32px; font-weight: 800; text-align: center; font-family: monospace; background: rgba(0, 0, 0, 0.5); padding: 12px; border-radius: 20px; margin: 15px 0; color: #ffd966;">${formatBattleTime(battleDurationMs)}</div>
+                
+                <button id="startBattleBtn" class="btn-primary" style="background: linear-gradient(135deg, #8B4513, #5a2d0a); border: 1px solid #c9a03d; border-radius: 40px; padding: 14px; width: 100%; font-weight: 700; font-size: 14px; color: #ffd966; cursor: pointer; transition: all 0.2s;" onclick="startBattle('${playerId}', '${escapeHtml(playerName)}', ${playerLevel}, ${playerPower}, ${playerStrength}, ${playerDefense}, ${playerAuthority}, ${playerCigarettes}, ${playerWood}, ${playerStone}, ${battleDurationMs})">
+                    🔗 НАЧАТЬ РАЗБОРКУ 🔗
+                </button>
+                <button class="btn-secondary" style="background: rgba(30, 36, 64, 0.8); border: 1px solid #8B4513; border-radius: 40px; padding: 12px; width: 100%; margin-top: 10px; font-weight: 700; color: #c9a03d; cursor: pointer;" onclick="cancelBattleSelection()">
+                    ← ВЕРНУТЬСЯ К СПИСКУ
+                </button>
+            </div>
+        `;
+    }
+}
+
+// ========== НАЧАЛО БОЯ ==========
+async function startBattle(defenderId, defenderName, defenderLevel, defenderPower, defenderStrength, defenderDefense, defenderAuthority, defenderCigarettes, defenderWood, defenderStone, battleDurationMs) {
+    if (activeBattleData && activeBattleEndTime > Date.now()) {
+        showToast('⛓️ У вас уже идет активный бой!', 'warning');
+        cancelBattleSelection();
+        return;
+    }
+    
+    if (battleCooldownsData[defenderId] && battleCooldownsData[defenderId] > Date.now()) {
+        const remaining = battleCooldownsData[defenderId] - Date.now();
+        showToast(`⛓️ Нельзя кидать вызов ${defenderName} ещё ${formatCooldownTime(remaining)}!`, 'warning');
+        cancelBattleSelection();
+        return;
+    }
+    
+    const startBtn = document.getElementById('startBattleBtn');
+    if (startBtn) {
+        startBtn.disabled = true;
+        startBtn.textContent = '🔗 РАЗБОРКА НАЧАТА... 🔗';
+        startBtn.style.opacity = '0.6';
+    }
+    
+    const defender = {
+        id: defenderId,
+        username: defenderName,
+        level: defenderLevel,
+        power: defenderPower,
+        stats: { strength: defenderStrength, defense: defenderDefense },
+        authority: defenderAuthority,
+        cigarettes: defenderCigarettes,
+        lumber: { wood: defenderWood },
+        quarry: { stone: defenderStone }
+    };
+    
+    const startTime = Date.now();
+    const endTime = startTime + battleDurationMs;
+    
+    const battleData = {
+        playerId: currentPlayer.id,
+        playerName: currentPlayer.username,
+        defenderId: defenderId,
+        defenderName: defenderName,
+        defenderData: defender,
+        startTime: startTime,
+        duration: battleDurationMs,
+        endTime: endTime,
+        status: 'active'
+    };
+    
+    try {
+        // Сохраняем бой в Firestore
+        const battleRef = await db.collection('activeBattles').add(battleData);
+        
+        activeBattleData = {
+            battleId: battleRef.id,
+            defenderId: defenderId,
+            defenderName: defenderName,
+            defenderData: defender,
+            startTime: startTime,
+            duration: battleDurationMs
+        };
+        activeBattleEndTime = endTime;
+        
+        console.log('✅ Бой создан в Firestore, ID:', battleRef.id);
+        showToast(`🔗 Разборка началась с ${defenderName}! Длительность: ${Math.floor(battleDurationMs / 1000)} сек`, 'success');
+        
+        // Обновляем счётчик на карте
+        updateBattleCountersOnMap();
+        
+        // Закрываем окно выбора и открываем окно с активным боем
+        setTimeout(() => {
+            closeAttackModal();
+            setTimeout(() => openAttackModal(), 100);
+        }, 500);
+        
+    } catch (e) {
+        console.error('Ошибка создания боя:', e);
+        showToast('Ошибка начала боя: ' + e.message, 'error');
+        if (startBtn) {
+            startBtn.disabled = false;
+            startBtn.textContent = '🔗 НАЧАТЬ РАЗБОРКУ 🔗';
+            startBtn.style.opacity = '1';
+        }
+    }
+}
+
+// ========== ЗАВЕРШЕНИЕ БОЯ (ВЫЗЫВАЕТСЯ ПО ТАЙМЕРУ) ==========
+async function finishBattle(battleId, defenderId, defenderName) {
+    console.log('⚔️ ЗАВЕРШЕНИЕ БОЯ с', defenderName, 'Battle ID:', battleId);
+    
+    try {
+        // Получаем актуальные данные игроков
+        const [attackerDoc, defenderDoc] = await Promise.all([
+            db.collection('players').doc(currentPlayer.id).get(),
+            db.collection('players').doc(defenderId).get()
+        ]);
+        
+        if (!attackerDoc.exists || !defenderDoc.exists) {
+            console.error('Игроки не найдены');
+            return;
+        }
+        
+        const attacker = { id: attackerDoc.id, ...attackerDoc.data() };
+        const defender = { id: defenderDoc.id, ...defenderDoc.data() };
+        
+        // Расчёт награды
+        const rewards = calculateBattleRewards(attacker, defender);
+        
+        console.log('🏆 Награда победителю:', rewards);
+        
+        // Обновляем победителя (атакующий)
+        await db.collection('players').doc(currentPlayer.id).update({
+            authority: firebase.firestore.FieldValue.increment(rewards.authorityStolen),
+            'stats.strength': firebase.firestore.FieldValue.increment(rewards.strengthStolen),
+            cigarettes: firebase.firestore.FieldValue.increment(rewards.cigarettesStolen),
+            'lumber.wood': firebase.firestore.FieldValue.increment(rewards.woodStolen),
+            'quarry.stone': firebase.firestore.FieldValue.increment(rewards.stoneStolen)
+        });
+        
+        // Обновляем проигравшего
+        await db.collection('players').doc(defenderId).update({
+            authority: firebase.firestore.FieldValue.increment(-rewards.authorityStolen),
+            'stats.strength': firebase.firestore.FieldValue.increment(-rewards.strengthStolen),
+            cigarettes: firebase.firestore.FieldValue.increment(-rewards.cigarettesStolen),
+            'lumber.wood': firebase.firestore.FieldValue.increment(-rewards.woodStolen),
+            'quarry.stone': firebase.firestore.FieldValue.increment(-rewards.stoneStolen)
+        });
+        
+        // Обновляем локальные данные победителя
+        currentPlayer.cigarettes += rewards.cigarettesStolen;
+        currentPlayer.authority += rewards.authorityStolen;
+        currentPlayer.stats.strength += rewards.strengthStolen;
+        if (!currentPlayer.lumber) currentPlayer.lumber = { wood: 0 };
+        currentPlayer.lumber.wood = (currentPlayer.lumber.wood || 0) + rewards.woodStolen;
+        if (!currentPlayer.quarry) currentPlayer.quarry = { stone: 0 };
+        currentPlayer.quarry.stone = (currentPlayer.quarry.stone || 0) + rewards.stoneStolen;
+        
+        // Кулдаун на повторную атаку этого игрока
+        battleCooldownsData[defenderId] = Date.now() + (BATTLE_COOLDOWN_HOURS * 60 * 60 * 1000);
+        localStorage.setItem(`battleCooldowns_${currentPlayer.id}`, JSON.stringify(battleCooldownsData));
+        
+        // Сохраняем историю боя
+        await saveBattleHistory(
+            currentPlayer.id, currentPlayer.username,
+            defenderId, defenderName,
+            true, rewards
+        );
+        
+        // Удаляем документ боя из Firestore
+        if (battleId) {
+            await db.collection('activeBattles').doc(battleId).delete();
+        }
+        
+        // Показываем результаты
+        showToast(`🏆 ПОБЕДА над ${defenderName}!`, 'success');
+        showToast(`📊 Получено: +${rewards.authorityStolen}⭐ авторитета, +${rewards.strengthStolen}💪 силы`, 'success');
+        showToast(`🚬 +${rewards.cigarettesStolen} сигарет, 🪵 +${rewards.woodStolen} древесины, 🪨 +${rewards.stoneStolen} камня`, 'success');
+        
+        // Уведомление проигравшему
+        const notificationData = {
+            id: Date.now(),
+            type: 'battle',
+            title: '⚔️ ВАС АТАКОВАЛИ!',
+            message: `${currentPlayer.username} победил вас в тюремной разборке! Вы потеряли: ${rewards.authorityStolen}⭐ авторитета, ${rewards.strengthStolen}💪 силы, ${rewards.cigarettesStolen}🚬 сигарет, ${rewards.woodStolen}🪵 древесины, ${rewards.stoneStolen}🪨 камня.`,
+            timestamp: Date.now(),
+            read: false
+        };
+        
+        const notifRef = db.collection('playerNotifications').doc(defenderId);
+        const notifDoc = await notifRef.get();
+        if (notifDoc.exists) {
+            await notifRef.update({ notifications: firebase.firestore.FieldValue.arrayUnion(notificationData) });
+        } else {
+            await notifRef.set({ notifications: [notificationData] });
+        }
+        
+        // Очищаем локальные данные боя
+        activeBattleData = null;
+        activeBattleEndTime = 0;
+        
+        // Обновляем UI
+        updateBattleCountersOnMap();
+        renderUI();
+        
+        // Обновляем окно Сходка если открыто
+        const attackModal = document.getElementById('attackDetailFullscreen');
+        if (attackModal) {
+            // Обновляем кнопки без закрытия окна
+            updateAttackModalButtons();
+        }
+        
+    } catch (e) {
+        console.error('Ошибка завершения боя:', e);
+        showToast('Ошибка завершения боя: ' + e.message, 'error');
+    }
+}
+
+// ========== ЗАКРЫТИЕ PvP ОКНА ==========
+function closeAttackModal() {
+    const modal = document.getElementById('attackDetailFullscreen');
+    if (modal) modal.remove();
+    if (tg) tg.BackButton.hide();
+    
+    // Восстанавливаем скролл body
+    document.body.style.overflow = '';
+    document.body.style.position = '';
+    document.body.style.width = '';
+    document.body.classList.remove('modal-open');
+    
+    currentBottomTab = 'city';
+    renderUI();
+}
+
+// ========== ОТМЕНА ВЫБОРА ==========
+function cancelBattleSelection() {
+    const playersContainer = document.getElementById('playersListContainer');
+    const battleContainer = document.getElementById('battleInfoContainer');
+    
+    if (playersContainer) playersContainer.style.display = 'block';
+    if (battleContainer) battleContainer.style.display = 'none';
+    
+    // Обновляем список игроков
+    const modal = document.getElementById('attackDetailFullscreen');
+    if (modal) {
+        // Обновляем кнопки без закрытия окна
+        updateAttackModalButtons();
+    }
+}
+
+// ========== ФОРМАТИРОВАНИЕ ВРЕМЕНИ ==========
+function formatBattleTime(ms) {
+    if (ms <= 0) return "00:00";
+    const totalSeconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+}
+
+// ========== ПОДПИСКА НА АКТИВНЫЙ БОЙ В FIRESTORE ==========
+function subscribeToActiveBattle() {
+    if (activeBattleUnsubscribe) {
+        activeBattleUnsubscribe();
+        activeBattleUnsubscribe = null;
+    }
+    
+    if (!currentPlayer) return;
+    
+    console.log('📡 Подписываемся на активный бой игрока:', currentPlayer.id);
+    
+    activeBattleUnsubscribe = db.collection('activeBattles')
+        .where('playerId', '==', currentPlayer.id)
+        .onSnapshot((snapshot) => {
+            if (snapshot.empty) {
+                // Нет активного боя
+                if (activeBattleData !== null) {
+                    console.log('❌ Бой завершён (по подписке)');
+                    activeBattleData = null;
+                    activeBattleEndTime = 0;
+                    updateBattleCountersOnMap();
+                    renderUI();
+                }
+                return;
+            }
+            
+            const battleDoc = snapshot.docs[0];
+            const battle = { id: battleDoc.id, ...battleDoc.data() };
+            
+            if (battle.endTime <= Date.now()) {
+                // Бой должен быть завершён, удаляем из Firebase
+                console.log('⏰ Бой просрочен, удаляем из Firebase');
+                battleDoc.ref.delete().catch(console.error);
+                return;
+            }
+            
+            // Обновляем локальные данные
+            const wasNull = activeBattleData === null;
+            activeBattleData = {
+                battleId: battle.id,
+                defenderId: battle.defenderId,
+                defenderName: battle.defenderName,
+                defenderData: battle.defenderData,
+                startTime: battle.startTime,
+                duration: battle.duration
+            };
+            activeBattleEndTime = battle.endTime;
+            
+            if (wasNull) {
+                console.log('🟢 Бой начался (по подписке):', battle.defenderName);
+                updateBattleCountersOnMap();
+                renderUI();
+                showToast(`⚔️ Бой с ${battle.defenderName} начался!`, 'success');
+            } else {
+                updateBattleCountersOnMap();
+            }
+            
+            // Обновляем окно Сходка если открыто
+            const attackModal = document.getElementById('attackDetailFullscreen');
+            if (attackModal) {
+                updateAttackModalButtons();
+                const activeBlock = document.getElementById('activeBattleBlock');
+                if (activeBlock) {
+                    activeBlock.style.display = 'block';
+                    const timerSpan = document.getElementById('globalBattleTimer');
+                    if (timerSpan) {
+                        timerSpan.textContent = formatBattleTime(activeBattleEndTime - Date.now());
+                    }
+                }
+            }
+        }, (error) => {
+            console.error('Ошибка подписки на бой:', error);
+        });
+}
 
         async function viewClanDetailsFromModal(clanId) {
             if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); return; }
@@ -12749,14 +13714,15 @@
             };
         }
         function formatCooldownTime(ms) {
-            if (ms <= 0) return "Готово!";
-            const hours = Math.floor(ms / 3600000);
-            const minutes = Math.floor((ms % 3600000) / 60000);
-            const seconds = Math.floor((ms % 60000) / 1000);
-            if (hours > 0) return `${hours}ч ${minutes}м`;
-            if (minutes > 0) return `${minutes}м ${seconds}с`;
-            return `${seconds}с`;
-        }
+    if (ms <= 0) return "Готово!";
+    const totalSeconds = Math.floor(ms / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    if (hours > 0) return `${hours}ч ${minutes}м`;
+    if (minutes > 0) return `${minutes}м ${seconds}с`;
+    return `${seconds}с`;
+}
         function formatGameTime(ms) {
             if (ms <= 0) return "00:00";
             const totalSeconds = Math.floor(ms / 1000);
@@ -13915,15 +14881,27 @@
             if (minutes > 0) return `${minutes}м ${seconds}с`;
             return `${seconds}с`;
         }
-        function calculatePlayerPower(player) {
-            let gangPower = 0;
-            if (player.gang) {
-                gangPower += (player.gang.blats?.fighters || 0) * 2;
-                gangPower += (player.gang.muzhiks?.fighters || 0) * 1;
-                gangPower += (player.gang.fraers?.fighters || 0) * 1;
-            }
-            return Math.floor((player.level * 15) + (player.authority / 100) + ((player.stats?.strength || 10) * 2) + ((player.stats?.defense || 5) * 1.5) + (player.stats?.critical || 5) + (player.energy / 20) + gangPower);
-        }
+        // ========== РАСЧЁТ МОЩИ ИГРОКА ==========
+function calculatePlayerPower(player) {
+    if (!player) return 0;
+    
+    let gangPower = 0;
+    if (player.gang) {
+        gangPower += (player.gang.blats?.fighters || 0) * 2;
+        gangPower += (player.gang.muzhiks?.fighters || 0) * 1;
+        gangPower += (player.gang.fraers?.fighters || 0) * 1;
+    }
+    
+    return Math.floor(
+        (player.level * 15) + 
+        (player.authority / 100) + 
+        ((player.stats?.strength || 10) * 2) + 
+        ((player.stats?.defense || 5) * 1.5) + 
+        (player.stats?.critical || 5) + 
+        (player.energy / 20) + 
+        gangPower
+    );
+}
         function getMineCooldownHours(level) { return 1 + (level * 0.1667); }
         function getGatherCooldownHours(level) { return 1 + (level * 0.1667); }
         function getExchangeRate(level, type) { return type === 'paper' ? 2 + Math.floor(level / 5) : 1 + Math.floor(level / 10); }
@@ -14219,8 +15197,40 @@
         }
 
         async function loadAllClans() { if (!db) return; try { const snapshot = await db.collection('clans').get(); allClans = []; for (const doc of snapshot.docs) { const clan = { id: doc.id, ...doc.data() }; let totalPower = 0; for (const memberId of clan.membersIds || []) { const memberDoc = await db.collection('players').doc(memberId).get(); if (memberDoc.exists && !memberDoc.data().isBanned) totalPower += calculatePlayerPower(memberDoc.data()); } clan.totalPower = totalPower; allClans.push(clan); } allClans.sort((a, b) => (b.totalPower || 0) - (a.totalPower || 0)); } catch (e) { console.error(e); } }
-        async function loadAllPlayers() { if (!db) return; try { const snapshot = await db.collection('players').get(); allPlayers = []; for (const doc of snapshot.docs) { const p = doc.data(); if (!p.isBanned) allPlayers.push({ id: doc.id, username: p.username, level: p.level, power: calculatePlayerPower(p), authority: p.authority, strength: p.stats?.strength || 10, defense: p.stats?.defense || 5 }); } } catch (e) { console.error(e); } }
-        async function loadWarHistory() {
+        // ========== ЗАГРУЗКА ВСЕХ ИГРОКОВ С ПОЛНЫМИ ДАННЫМИ ==========
+async function loadAllPlayers() {
+    if (!db) return;
+    try {
+        const snapshot = await db.collection('players').get();
+        allPlayers = [];
+        for (const doc of snapshot.docs) {
+            const p = doc.data();
+            if (!p.isBanned) {
+                allPlayers.push({
+                    id: doc.id,
+                    username: p.username,
+                    level: p.level,
+                    power: calculatePlayerPower(p),
+                    authority: p.authority || 0,
+                    strength: p.stats?.strength || 10,
+                    defense: p.stats?.defense || 5,
+                    cigarettes: p.cigarettes || 0,
+                    wood: p.lumber?.wood || 0,
+                    stone: p.quarry?.stone || 0,
+                    critical: p.stats?.critical || 5,
+                    energy: p.energy || 100,
+                    maxEnergy: p.maxEnergy || 100,
+                    clanId: p.clanId || null,
+                    isBanned: p.isBanned || false
+                });
+            }
+        }
+        console.log(`✅ Загружено игроков: ${allPlayers.length}`);
+    } catch (e) {
+        console.error('Ошибка загрузки игроков:', e);
+    }
+}
+		async function loadWarHistory() {
             if (!currentPlayer?.clanId) {
                 warHistory = [];
                 return;
@@ -14346,205 +15356,260 @@
         function startEnergyTimer() { if (energyInterval) clearInterval(energyInterval); energyInterval = setInterval(async () => { if (currentPlayer && currentPlayer.energy < currentPlayer.maxEnergy) { const newEnergy = Math.min(currentPlayer.maxEnergy, currentPlayer.energy + 1); currentPlayer.energy = newEnergy; if (playerDocRef) await playerDocRef.update({ energy: newEnergy }); renderUI(); } }, 60000); }
 
         async function startGame(id, name) {
-            // Принудительная загрузка всех картинок нижней панели
-            setTimeout(() => {
-                const allImages = [
-                    'https://sviter-pro.github.io/GameZone/src/test/Untitled_1.png',
-                    'https://sviter-pro.github.io/GameZone/src/test/Untitled_2.png',
-                    'https://sviter-pro.github.io/GameZone/src/test/Untitled_3.png',
-                    'https://sviter-pro.github.io/GameZone/src/test/Untitled_4.png',
-                    'https://sviter-pro.github.io/GameZone/src/test/Untitled_5.png'
-                ];
+    // Принудительная загрузка всех картинок нижней панели
+    setTimeout(() => {
+        const allImages = [
+            'https://sviter-pro.github.io/GameZone/src/test/Untitled_1.png',
+            'https://sviter-pro.github.io/GameZone/src/test/Untitled_2.png',
+            'https://sviter-pro.github.io/GameZone/src/test/Untitled_3.png',
+            'https://sviter-pro.github.io/GameZone/src/test/Untitled_4.png',
+            'https://sviter-pro.github.io/GameZone/src/test/Untitled_5.png'
+        ];
 
-                allImages.forEach(src => {
-                    const img = new Image();
-                    img.src = src;
-                });
-            }, 500);
-            showLoadingScreen();
-            // ПРИНУДИТЕЛЬНОЕ ОТКЛЮЧЕНИЕ КОНТЕКСТНОГО МЕНЮ ДЛЯ ВСЕХ ЭЛЕМЕНТОВ
-            document.body.style.webkitTouchCallout = 'none';
-            document.body.style.userSelect = 'none';
+        allImages.forEach(src => {
+            const img = new Image();
+            img.src = src;
+        });
+    }, 500);
+    showLoadingScreen();
+    
+    // ПРИНУДИТЕЛЬНОЕ ОТКЛЮЧЕНИЕ КОНТЕКСТНОГО МЕНЮ ДЛЯ ВСЕХ ЭЛЕМЕНТОВ
+    document.body.style.webkitTouchCallout = 'none';
+    document.body.style.userSelect = 'none';
 
-            // Перехватываем и блокируем все возможные события контекстного меню
-            document.addEventListener('contextmenu', (e) => {
+    // Перехватываем и блокируем все возможные события контекстного меню
+    document.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+    }, { capture: true });
+
+    document.addEventListener('touchstart', (e) => {
+        const target = e.target;
+        // Если это кнопка или изображение - блокируем долгое нажатие
+        if (target.closest('.nav-btn') || target.closest('.building') || target.closest('img')) {
+            // Не блокируем сразу, а через таймер
+            let timer;
+            const cancelTimer = () => {
+                if (timer) clearTimeout(timer);
+            };
+            timer = setTimeout(() => {
                 e.preventDefault();
-                e.stopPropagation();
                 return false;
-            }, { capture: true });
-
-            document.addEventListener('touchstart', (e) => {
-                const target = e.target;
-                // Если это кнопка или изображение - блокируем долгое нажатие
-                if (target.closest('.nav-btn') || target.closest('.building') || target.closest('img')) {
-                    // Не блокируем сразу, а через таймер
-                    let timer;
-                    const cancelTimer = () => {
-                        if (timer) clearTimeout(timer);
-                    };
-                    timer = setTimeout(() => {
-                        e.preventDefault();
-                        return false;
-                    }, 300);
-                    document.addEventListener('touchmove', cancelTimer, { once: true });
-                    document.addEventListener('touchend', cancelTimer, { once: true });
-                }
-            }, { passive: false });
-            try {
-                if (!db) throw new Error('Нет подключения к базе данных');
-                await loadGameSettings();
-                await checkMaintenanceMode();
-                await loadAdminShopItems();
-                await loadAdminQuests();
-                const doc = await db.collection('players').doc(id).get();
-                if (!doc.exists) { localStorage.clear(); showLoginForm(); hideLoadingScreen(); return; }
-                let player = { id: doc.id, ...doc.data() };
-                if (!player.mine) player.mine = { paperLevel: 1, makhorkaLevel: 1, lastMineTime: 0, paper: 0, makhorka: 0, paperUpgradeStartTime: 0, paperUpgradeDuration: 0, makhorkaUpgradeStartTime: 0, makhorkaUpgradeDuration: 0 };
-                if (!player.lumber) player.lumber = { level: 1, lastGatherTime: 0, wood: 0, upgradeStartTime: 0, upgradeDuration: 0 };
-                if (!player.quarry) player.quarry = { level: 1, lastGatherTime: 0, stone: 0, upgradeStartTime: 0, upgradeDuration: 0 };
-                if (!player.dailyBonus) player.dailyBonus = { lastClaimDay: 0, lastClaimTime: 0, streak: 0 };
-                if (!player.questsProgress) player.questsProgress = {};
-                if (!player.completedQuests) player.completedQuests = [];
-                if (!player.purchasedItemsCount) player.purchasedItemsCount = {};
-                if (!player.cardGameUpgradeLevel) player.cardGameUpgradeLevel = 1;
-                if (!player.gymLevel) player.gymLevel = 1;
-                if (!player.gymActive) player.gymActive = false;
-                if (!player.gymStartTime) player.gymStartTime = 0;
-                if (!player.gymCooldownUntil) player.gymCooldownUntil = 0;
-                if (!player.cardGameUpgradeStartTime) player.cardGameUpgradeStartTime = 0;
-                if (!player.cardGameUpgradeDuration) player.cardGameUpgradeDuration = 0;
-                if (!player.gymUpgradeStartTime) player.gymUpgradeStartTime = 0;
-                if (!player.gymUpgradeDuration) player.gymUpgradeDuration = 0;
-                if (!player.shopLevel) player.shopLevel = 1;
-                if (!player.shopUpgradeStartTime) player.shopUpgradeStartTime = 0;
-                if (!player.shopUpgradeDuration) player.shopUpgradeDuration = 0;
-                if (!player.purchasedAvatars) player.purchasedAvatars = [1];
-                if (!player.currentAvatar) player.currentAvatar = 1;
-                if (!player.gang) {
-                    player.gang = {
-                        blats: { level: 1, lastGatherTime: 0, fighters: 0, upgradeStartTime: 0, upgradeDuration: 0 },
-                        muzhiks: { level: 1, lastGatherTime: 0, fighters: 0, upgradeStartTime: 0, upgradeDuration: 0 },
-                        fraers: { level: 1, lastGatherTime: 0, fighters: 0, upgradeStartTime: 0, upgradeDuration: 0 }
-                    };
-                    await db.collection('players').doc(id).update({ gang: player.gang });
-                } else {
-                    // ДОБАВЬТЕ ЭТИ ПРОВЕРКИ:
-                    if (!player.gang.blats) player.gang.blats = { level: 1, lastGatherTime: 0, fighters: 0, upgradeStartTime: 0, upgradeDuration: 0 };
-                    if (!player.gang.muzhiks) player.gang.muzhiks = { level: 1, lastGatherTime: 0, fighters: 0, upgradeStartTime: 0, upgradeDuration: 0 };
-                    if (!player.gang.fraers) player.gang.fraers = { level: 1, lastGatherTime: 0, fighters: 0, upgradeStartTime: 0, upgradeDuration: 0 };
-                    // Добавляем недостающие поля
-                    if (player.gang.blats.upgradeStartTime === undefined) player.gang.blats.upgradeStartTime = 0;
-                    if (player.gang.blats.upgradeDuration === undefined) player.gang.blats.upgradeDuration = 0;
-                    if (player.gang.muzhiks.upgradeStartTime === undefined) player.gang.muzhiks.upgradeStartTime = 0;
-                    if (player.gang.muzhiks.upgradeDuration === undefined) player.gang.muzhiks.upgradeDuration = 0;
-                    if (player.gang.fraers.upgradeStartTime === undefined) player.gang.fraers.upgradeStartTime = 0;
-                    if (player.gang.fraers.upgradeDuration === undefined) player.gang.fraers.upgradeDuration = 0;
-                }
-                if (player.injuredFighters === undefined) player.injuredFighters = 0;
-                if (player.treatmentEndTime === undefined) player.treatmentEndTime = 0;
-                if (player.hasHadWar === undefined) player.hasHadWar = false;
-                if (player.clanId) { const clanDoc = await db.collection('clans').doc(player.clanId).get(); if (clanDoc.exists) player.clanLeader = clanDoc.data().leader; }
-                const minutesPassed = Math.floor((Date.now() - (player.lastActive || Date.now())) / 60000);
-                if (minutesPassed > 0) { const newEnergy = Math.min(player.maxEnergy || 100, (player.energy || 100) + minutesPassed); await db.collection('players').doc(id).update({ energy: newEnergy, lastActive: Date.now() }); player.energy = newEnergy; } else { await db.collection('players').doc(id).update({ lastActive: Date.now() }); }
-                currentPlayer = player; playerId = id; playerDocRef = db.collection('players').doc(id);
-                questsProgress = player.questsProgress; completedQuests = player.completedQuests || []; dailyBonus = player.dailyBonus;
-                lastAttackTime = player.lastAttackTime || 0; purchasedItemsCount = player.purchasedItemsCount || {};
-                cardGameUpgradeLevel = player.cardGameUpgradeLevel || 1; cardGameCooldownUntil = player.cardGameCooldownUntil || 0;
-                cardGameUpgradeStartTime = player.cardGameUpgradeStartTime || 0;
-                cardGameUpgradeDuration = player.cardGameUpgradeDuration || 0;
-                gymLevel = player.gymLevel || 1;
-                gymCooldownUntil = player.gymCooldownUntil || 0;
-                gymUpgradeStartTime = player.gymUpgradeStartTime || 0;
-                gymUpgradeDuration = player.gymUpgradeDuration || 0;
-                shopLevel = player.shopLevel || 1;
-                shopUpgradeStartTime = player.shopUpgradeStartTime || 0;
-                shopUpgradeDuration = player.shopUpgradeDuration || 0;
-                startNotificationCheck();
-                setTimeout(() => {
-                    console.log("🔵 Таймер: принудительный вызов showChatButton");
-                    showChatButton();
-                }, 3000);
-                // Загружаем данные магазина из localStorage
-                if (currentPlayer && currentPlayer.id) {
-                    const savedItems = localStorage.getItem(`randomShopItems_${currentPlayer.id}`);
-                    const savedLastUpdate = localStorage.getItem(`randomShopLastUpdate_${currentPlayer.id}`);
-                    const savedPurchased = localStorage.getItem(`purchasedRandomItems_${currentPlayer.id}`);
-
-                    if (savedItems) {
-                        randomShopItems = JSON.parse(savedItems);
-                    }
-                    if (savedLastUpdate) {
-                        randomShopLastUpdate = parseInt(savedLastUpdate);
-                    }
-                    if (savedPurchased) {
-                        purchasedRandomItems = JSON.parse(savedPurchased);
-                    }
-                }
-                // Загружаем настройку уведомлений
-                const savedNotifications = localStorage.getItem('settingsNotifications');
-                if (savedNotifications !== null) {
-                    settingsNotifications = savedNotifications === 'true';
-                }
-
-                if (cardGameCooldownUntil > Date.now()) startCardGameCooldown();
-                await loadAllClans(); await loadAllPlayers(); await loadWarHistory();
-                if (currentPlayer.clanId) await loadClan();
-                await checkActiveWar();
-                generateDynamicQuests(); startEnergyTimer(); startWarTimer();
-                if (currentPlayer.cardGameActive) await restoreCardGame();
-                await restoreGym();
-                hideLoadingScreen();
-                renderUI();
-                setTimeout(() => {
-                    document.querySelectorAll('.fixed-bottom-bar img, .bottom-nav img, .nav-btn').forEach(el => {
-                        el.addEventListener('contextmenu', (e) => {
-                            e.preventDefault();
-                            return false;
-                        });
-                        el.addEventListener('dragstart', (e) => {
-                            e.preventDefault();
-                            return false;
-                        });
-                    });
-
-                    document.querySelectorAll('img').forEach(img => {
-                        img.setAttribute('draggable', 'false');
-                        img.addEventListener('contextmenu', (e) => e.preventDefault());
-                    });
-                }, 100);
-                if (player.caste === 'Блатные' || player.caste === 'Мужики' || player.caste === 'Фраер') {
-                } else {
-                    isFirstTimeCasteSelection = true;
-                }
-                if (isFirstTimeCasteSelection) {
-                    isFirstTimeCasteSelection = false;
-                    showCasteSelectionModal(async (selectedCaste) => {
-                        await playerDocRef.update({ caste: selectedCaste });
-                        currentPlayer.caste = selectedCaste;
-                        await playerDocRef.update({ cigarettes: firebase.firestore.FieldValue.increment(1000) });
-                        currentPlayer.cigarettes += 1000;
-                        showToast(`Ты выбрал касту: ${selectedCaste}! +1000🚬 бонус!`, 'success');
-                        renderUI();
-                    });
-                }
-
-                // Запускаем таймер заданий клана
-                startClanQuestsTimer();
-            } catch (e) {
-                console.error(e);
-                console.log("🔔 startGame: загружаем уведомления...");
-                await loadNotificationsFromFirebase();
-                // Показываем кнопку чата после загрузки игрока
-
-                showChatButton();
-
-                hideLoadingScreen();
-                startChatButtonWatcher();
-                alert('Ошибка загрузки игры: ' + e.message); showLoginForm();
-            }
-
-
+            }, 300);
+            document.addEventListener('touchmove', cancelTimer, { once: true });
+            document.addEventListener('touchend', cancelTimer, { once: true });
         }
+    }, { passive: false });
+    
+    try {
+        if (!db) throw new Error('Нет подключения к базе данных');
+        await loadGameSettings();
+        await checkMaintenanceMode();
+        await loadAdminShopItems();
+        await loadAdminQuests();
+        const doc = await db.collection('players').doc(id).get();
+        if (!doc.exists) { localStorage.clear(); showLoginForm(); hideLoadingScreen(); return; }
+        let player = { id: doc.id, ...doc.data() };
+        
+        // Инициализация структур данных, если их нет
+        if (!player.mine) player.mine = { paperLevel: 1, makhorkaLevel: 1, lastMineTime: 0, paper: 0, makhorka: 0, paperUpgradeStartTime: 0, paperUpgradeDuration: 0, makhorkaUpgradeStartTime: 0, makhorkaUpgradeDuration: 0 };
+        if (!player.lumber) player.lumber = { level: 1, lastGatherTime: 0, wood: 0, upgradeStartTime: 0, upgradeDuration: 0 };
+        if (!player.quarry) player.quarry = { level: 1, lastGatherTime: 0, stone: 0, upgradeStartTime: 0, upgradeDuration: 0 };
+        if (!player.dailyBonus) player.dailyBonus = { lastClaimDay: 0, lastClaimTime: 0, streak: 0 };
+        if (!player.questsProgress) player.questsProgress = {};
+        if (!player.completedQuests) player.completedQuests = [];
+        if (!player.purchasedItemsCount) player.purchasedItemsCount = {};
+        if (!player.cardGameUpgradeLevel) player.cardGameUpgradeLevel = 1;
+        if (!player.gymLevel) player.gymLevel = 1;
+        if (!player.gymActive) player.gymActive = false;
+        if (!player.gymStartTime) player.gymStartTime = 0;
+        if (!player.gymCooldownUntil) player.gymCooldownUntil = 0;
+        if (!player.cardGameUpgradeStartTime) player.cardGameUpgradeStartTime = 0;
+        if (!player.cardGameUpgradeDuration) player.cardGameUpgradeDuration = 0;
+        if (!player.gymUpgradeStartTime) player.gymUpgradeStartTime = 0;
+        if (!player.gymUpgradeDuration) player.gymUpgradeDuration = 0;
+        if (!player.shopLevel) player.shopLevel = 1;
+        if (!player.shopUpgradeStartTime) player.shopUpgradeStartTime = 0;
+        if (!player.shopUpgradeDuration) player.shopUpgradeDuration = 0;
+        if (!player.purchasedAvatars) player.purchasedAvatars = [1];
+        if (!player.currentAvatar) player.currentAvatar = 1;
+        
+        // Инициализация банды
+        if (!player.gang) {
+            player.gang = {
+                blats: { level: 1, lastGatherTime: 0, fighters: 0, upgradeStartTime: 0, upgradeDuration: 0 },
+                muzhiks: { level: 1, lastGatherTime: 0, fighters: 0, upgradeStartTime: 0, upgradeDuration: 0 },
+                fraers: { level: 1, lastGatherTime: 0, fighters: 0, upgradeStartTime: 0, upgradeDuration: 0 }
+            };
+            await db.collection('players').doc(id).update({ gang: player.gang });
+        } else {
+            // Добавляем недостающие поля
+            if (!player.gang.blats) player.gang.blats = { level: 1, lastGatherTime: 0, fighters: 0, upgradeStartTime: 0, upgradeDuration: 0 };
+            if (!player.gang.muzhiks) player.gang.muzhiks = { level: 1, lastGatherTime: 0, fighters: 0, upgradeStartTime: 0, upgradeDuration: 0 };
+            if (!player.gang.fraers) player.gang.fraers = { level: 1, lastGatherTime: 0, fighters: 0, upgradeStartTime: 0, upgradeDuration: 0 };
+            if (player.gang.blats.upgradeStartTime === undefined) player.gang.blats.upgradeStartTime = 0;
+            if (player.gang.blats.upgradeDuration === undefined) player.gang.blats.upgradeDuration = 0;
+            if (player.gang.muzhiks.upgradeStartTime === undefined) player.gang.muzhiks.upgradeStartTime = 0;
+            if (player.gang.muzhiks.upgradeDuration === undefined) player.gang.muzhiks.upgradeDuration = 0;
+            if (player.gang.fraers.upgradeStartTime === undefined) player.gang.fraers.upgradeStartTime = 0;
+            if (player.gang.fraers.upgradeDuration === undefined) player.gang.fraers.upgradeDuration = 0;
+        }
+        
+        if (player.injuredFighters === undefined) player.injuredFighters = 0;
+        if (player.treatmentEndTime === undefined) player.treatmentEndTime = 0;
+        if (player.hasHadWar === undefined) player.hasHadWar = false;
+        
+        if (player.clanId) { 
+            const clanDoc = await db.collection('clans').doc(player.clanId).get(); 
+            if (clanDoc.exists) player.clanLeader = clanDoc.data().leader; 
+        }
+        
+        // Восстановление энергии
+        const minutesPassed = Math.floor((Date.now() - (player.lastActive || Date.now())) / 60000);
+        if (minutesPassed > 0) { 
+            const newEnergy = Math.min(player.maxEnergy || 100, (player.energy || 100) + minutesPassed); 
+            await db.collection('players').doc(id).update({ energy: newEnergy, lastActive: Date.now() }); 
+            player.energy = newEnergy; 
+        } else { 
+            await db.collection('players').doc(id).update({ lastActive: Date.now() }); 
+        }
+        
+        currentPlayer = player; 
+        playerId = id; 
+        playerDocRef = db.collection('players').doc(id);
+        questsProgress = player.questsProgress; 
+        completedQuests = player.completedQuests || []; 
+        dailyBonus = player.dailyBonus;
+        lastAttackTime = player.lastAttackTime || 0; 
+        purchasedItemsCount = player.purchasedItemsCount || {};
+        cardGameUpgradeLevel = player.cardGameUpgradeLevel || 1; 
+        cardGameCooldownUntil = player.cardGameCooldownUntil || 0;
+        cardGameUpgradeStartTime = player.cardGameUpgradeStartTime || 0;
+        cardGameUpgradeDuration = player.cardGameUpgradeDuration || 0;
+        gymLevel = player.gymLevel || 1;
+        gymCooldownUntil = player.gymCooldownUntil || 0;
+        gymUpgradeStartTime = player.gymUpgradeStartTime || 0;
+        gymUpgradeDuration = player.gymUpgradeDuration || 0;
+        shopLevel = player.shopLevel || 1;
+        shopUpgradeStartTime = player.shopUpgradeStartTime || 0;
+        shopUpgradeDuration = player.shopUpgradeDuration || 0;
+        
+        startNotificationCheck();
+        
+        // ========== ВОССТАНОВЛЕНИЕ АКТИВНОГО БОЯ (ТОЛЬКО ОДИН РАЗ) ==========
+        // Подписка на активный бой в Firestore
+subscribeToActiveBattle();
+
+// Запуск наблюдателя таймеров боя
+startBattleTimerWatcher();
+
+// Запуск обновления счётчиков на карте
+startBattleCountersOnMap();
+
+// Загрузка кулдаунов из localStorage
+const savedCooldowns = localStorage.getItem(`battleCooldowns_${currentPlayer.id}`);
+if (savedCooldowns) {
+    battleCooldownsData = JSON.parse(savedCooldowns);
+    const now = Date.now();
+    for (const [pid, cooldown] of Object.entries(battleCooldownsData)) {
+        if (cooldown <= now) delete battleCooldownsData[pid];
+    }
+    localStorage.setItem(`battleCooldowns_${currentPlayer.id}`, JSON.stringify(battleCooldownsData));
+}
+        
+        setTimeout(() => {
+            console.log("🔵 Таймер: принудительный вызов showChatButton");
+            showChatButton();
+        }, 3000);
+        
+        // Загружаем данные магазина из localStorage
+        if (currentPlayer && currentPlayer.id) {
+            const savedItems = localStorage.getItem(`randomShopItems_${currentPlayer.id}`);
+            const savedLastUpdate = localStorage.getItem(`randomShopLastUpdate_${currentPlayer.id}`);
+            const savedPurchased = localStorage.getItem(`purchasedRandomItems_${currentPlayer.id}`);
+
+            if (savedItems) {
+                randomShopItems = JSON.parse(savedItems);
+            }
+            if (savedLastUpdate) {
+                randomShopLastUpdate = parseInt(savedLastUpdate);
+            }
+            if (savedPurchased) {
+                purchasedRandomItems = JSON.parse(savedPurchased);
+            }
+        }
+        
+        // Загружаем настройку уведомлений
+        const savedNotifications = localStorage.getItem('settingsNotifications');
+        if (savedNotifications !== null) {
+            settingsNotifications = savedNotifications === 'true';
+        }
+
+        if (cardGameCooldownUntil > Date.now()) startCardGameCooldown();
+        await loadAllClans(); 
+        await loadAllPlayers(); 
+        await loadWarHistory();
+        if (currentPlayer.clanId) await loadClan();
+        await checkActiveWar();
+        generateDynamicQuests(); 
+        startEnergyTimer(); 
+        startWarTimer();
+        if (currentPlayer.cardGameActive) await restoreCardGame();
+        await restoreGym();
+        hideLoadingScreen();
+        renderUI();
+        
+        setTimeout(() => {
+            document.querySelectorAll('.fixed-bottom-bar img, .bottom-nav img, .nav-btn').forEach(el => {
+                el.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    return false;
+                });
+                el.addEventListener('dragstart', (e) => {
+                    e.preventDefault();
+                    return false;
+                });
+            });
+
+            document.querySelectorAll('img').forEach(img => {
+                img.setAttribute('draggable', 'false');
+                img.addEventListener('contextmenu', (e) => e.preventDefault());
+            });
+        }, 100);
+        
+        // Выбор касты для нового игрока
+        if (player.caste !== 'Блатные' && player.caste !== 'Мужики' && player.caste !== 'Фраер') {
+            isFirstTimeCasteSelection = true;
+        }
+        
+        if (isFirstTimeCasteSelection) {
+            isFirstTimeCasteSelection = false;
+            showCasteSelectionModal(async (selectedCaste) => {
+                await playerDocRef.update({ caste: selectedCaste });
+                currentPlayer.caste = selectedCaste;
+                await playerDocRef.update({ cigarettes: firebase.firestore.FieldValue.increment(1000) });
+                currentPlayer.cigarettes += 1000;
+                showToast(`Ты выбрал касту: ${selectedCaste}! +1000🚬 бонус!`, 'success');
+                renderUI();
+            });
+        }
+
+        // Запускаем таймер заданий клана
+        startClanQuestsTimer();
+        
+    } catch (e) {
+        console.error(e);
+        console.log("🔔 startGame: загружаем уведомления...");
+        await loadNotificationsFromFirebase();
+        showChatButton();
+        hideLoadingScreen();
+        startChatButtonWatcher();
+        alert('Ошибка загрузки игры: ' + e.message); 
+        showLoginForm();
+    }
+}
+
         // Получить детальную информацию о зеках
         function getGangDetails(player) {
             if (!player || !player.gang) {
@@ -14789,6 +15854,8 @@
                 questNotificationCount = newQuestCount;
                 updateQuestsNotificationBadge();
             }
+			// Обновляем счетчики боев на карте
+			updateBattleCountersOnMap();
 
             if (currentPlayer.clanId) {
                 const newReadyCount = checkClanQuestsReady();
@@ -14891,7 +15958,10 @@
                     if (window.mapCountersInterval) clearInterval(window.mapCountersInterval);
                     return;
                 }
-                renderUI();
+                // Обновляем счетчики на карте без полного перерендера
+				updateBattleCountersOnMap();
+				// Полный рендер реже, например раз в 5 секунд или по необходимости
+				// renderUI(); // убираем частый рендер, оставляем только обновление счетчиков
             }, 1000);
         }  // ← ЭТО ДОЛЖНА БЫТЬ ЕДИНСТВЕННАЯ ЗАКРЫВАЮЩАЯ СКОБКА
         // Загружаем картинки после отрисовки
