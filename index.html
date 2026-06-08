@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Зона 1.0.0.205 - Карта зоны</title>
+    <title>Зона 1.0.0.207 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -5951,6 +5951,13 @@
     transition: none !important;
     animation: none !important;
 }
+.attack-sub-tab {
+    transition: all 0.2s ease;
+}
+
+.attack-sub-tab:hover {
+    background: rgba(139, 69, 19, 0.3);
+}
     </style>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
@@ -6134,7 +6141,10 @@ let activeBattleEndTime = 0;
 let battleCooldownsData = {};
 let activeBattleUnsubscribe = null;
 let battleCountersInterval = null;
+let battleHistoryUnsubscribe = null;
+let currentBattleTab = 'fights'; // 'fights' или 'history'
 let battleHistoryListener = null;
+let battleHistoryList = [];
 
 // Константы
 const BATTLE_COOLDOWN_HOURS = 12;
@@ -6292,10 +6302,111 @@ function saveActiveBattleToLocal() {
             duration: activeBattleData.duration,
             endTime: activeBattleEndTime
         }));
-        console.log('💾 Бой сохранён в localStorage');
     } else {
         localStorage.removeItem(`activeBattle_${currentPlayer.id}`);
     }
+}
+// ========== РЕНДЕР ВКЛАДКИ ИСТОРИЯ ==========
+function renderHistoryTab() {
+    const container = document.getElementById('historyListContainer');
+    if (!container) return;
+    
+    // Если данных нет - пытаемся загрузить
+    if (!battleHistoryList || battleHistoryList.length === 0) {
+        container.innerHTML = '<div style="text-align:center; padding:40px; color:#888;">⏳ Загрузка истории...</div>';
+        loadBattleHistoryFromFirebase().then(history => {
+            if (history && history.length > 0) {
+                battleHistoryList = history;
+                container.innerHTML = renderHistoryTabContent();
+            } else {
+                container.innerHTML = '<div style="text-align:center; padding:40px; color:#888;">📭 Нет истории боёв</div>';
+            }
+        });
+        return;
+    }
+    
+    container.innerHTML = renderHistoryTabContent();
+}
+
+function toggleHistoryDetails(element) {
+    const details = element.querySelector('.history-details');
+    if (details) {
+        const isVisible = details.style.display === 'block';
+        details.style.display = isVisible ? 'none' : 'block';
+    }
+}
+function formatHistoryDate(timestamp) {
+    const date = new Date(timestamp);
+    return `${date.getDate()}.${date.getMonth() + 1}.${date.getFullYear()} ${date.getHours()}:${date.getMinutes().toString().padStart(2, '0')}`;
+}
+
+// ========== ПОДПИСКА НА ИСТОРИЮ БОЁВ ==========
+function subscribeToBattleHistory() {
+    if (battleHistoryUnsubscribe) {
+        battleHistoryUnsubscribe();
+        battleHistoryUnsubscribe = null;
+    }
+    
+    if (!currentPlayer) return;
+    
+    console.log('📜 Подписываемся на историю боёв игрока:', currentPlayer.id);
+    
+    // Временное решение - загружаем без сортировки на стороне сервера,
+    // а сортируем на клиенте
+    battleHistoryUnsubscribe = db.collection('battleHistory')
+        .where('attackerId', '==', currentPlayer.id)
+        .limit(100)
+        .onSnapshot((snapshot) => {
+            battleHistoryList = [];
+            snapshot.forEach(doc => {
+                battleHistoryList.push({ id: doc.id, ...doc.data() });
+            });
+            
+            // Также загружаем бои, где игрок защищался
+            db.collection('battleHistory')
+                .where('defenderId', '==', currentPlayer.id)
+                .limit(100)
+                .get()
+                .then((defenderSnapshot) => {
+                    defenderSnapshot.forEach(doc => {
+                        // Проверяем, нет ли уже такого боя
+                        const exists = battleHistoryList.some(b => b.id === doc.id);
+                        if (!exists) {
+                            battleHistoryList.push({ id: doc.id, ...doc.data() });
+                        }
+                    });
+                    
+                    // Сортируем в памяти на клиенте
+                    battleHistoryList.sort((a, b) => b.timestamp - a.timestamp);
+                    
+                    // Сохраняем в localStorage
+                    localStorage.setItem(`battleHistory_${currentPlayer.id}`, JSON.stringify(battleHistoryList));
+                    
+                    console.log('📜 Загружено записей истории:', battleHistoryList.length);
+                    
+                    // Если окно Сходка открыто и активна вкладка "История" - обновляем
+                    if (currentBattleTab === 'history') {
+                        renderHistoryTab();
+                    }
+                });
+        }, (error) => {
+            console.error('Ошибка подписки на историю:', error);
+        });
+}
+// Загрузить историю из localStorage при старте
+function loadBattleHistoryFromLocal() {
+    if (!currentPlayer) return [];
+    const saved = localStorage.getItem(`battleHistory_${currentPlayer.id}`);
+    if (saved) {
+        try {
+            const parsed = JSON.parse(saved);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+                battleHistoryList = parsed;
+                return parsed;
+            }
+        } catch(e) { console.error('Ошибка парсинга истории:', e); }
+    }
+    return [];
 }
 
 // ========== ВОССТАНОВЛЕНИЕ АКТИВНОГО БОЯ ==========
@@ -6315,18 +6426,15 @@ function restoreActiveBattleFromLocal() {
                 };
                 activeBattleEndTime = battle.endTime;
                 updateBattleCountersOnMap();
-                console.log('✅ Бой восстановлен из localStorage');
                 return true;
             } else {
                 localStorage.removeItem(`activeBattle_${currentPlayer.id}`);
-                console.log('❌ Бой просрочен, удалён');
             }
-        } catch(e) {
-            console.error('Ошибка восстановления боя:', e);
-        }
+        } catch(e) { console.error('Ошибка восстановления боя:', e); }
     }
     return false;
 }
+
 
         // ========== СИСТЕМА АВАТАРОВ ==========
         const AVAATARS = [
@@ -7786,7 +7894,7 @@ function restoreActiveBattleFromLocal() {
                 <img class="loading-logo" src="https://sviter-pro.github.io/GameZone/src/test/logo124.png" alt="Тюряга 2.0" onerror="this.src='https://via.placeholder.com/180x180?text=Тюряга+2.0'">
                 <div class="loading-spinner-new"></div>
                 <div class="loading-tip-new" id="loadingTipNew">⚡ Загрузка игрового мира...</div>
-                <div class="loading-version">Зона 1.0.0.205 | Зона ждет</div>
+                <div class="loading-version">Зона 1.0.0.207 | Зона ждет</div>
             </div>
         `;
             const tipEl = document.getElementById('loadingTipNew');
@@ -8824,7 +8932,7 @@ function restoreActiveBattleFromLocal() {
                 
                 <div class="settings-card">
                     <div style="font-size: 13px; color: #aaa; text-align: center;">
-                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.205</div>
+                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.207</div>
                         <div style="font-size: 11px;">⚡ Клановые войны | Бесконечная прокачка</div>
                     </div>
                 </div>
@@ -11527,13 +11635,12 @@ function startBattleTimerWatcher() {
 		
 // ========== ОТКРЫТИЕ СХОДКИ (PvP) ==========
 function openAttackModal() {
-    if (window._opening_modal) { console.log('Блокировка: окно уже открывается'); return; }
+    if (window._opening_modal) { return; }
     window._opening_modal = true;
 
     if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); window._opening_modal = false; return; }
     if (!currentPlayer) { window._opening_modal = false; return; }
 
-    // Получаем список игроков ±2 уровня
     const minLevel = Math.max(1, currentPlayer.level - 2);
     const maxLevel = currentPlayer.level + 2;
     
@@ -11543,10 +11650,8 @@ function openAttackModal() {
         p.level <= maxLevel &&
         !p.isBanned
     );
-    
     availablePlayers.sort((a, b) => b.level - a.level);
     
-    // Загружаем кулдауны
     const savedCooldowns = localStorage.getItem(`battleCooldowns_${currentPlayer.id}`);
     if (savedCooldowns) {
         battleCooldownsData = JSON.parse(savedCooldowns);
@@ -11557,7 +11662,6 @@ function openAttackModal() {
         localStorage.setItem(`battleCooldowns_${currentPlayer.id}`, JSON.stringify(battleCooldownsData));
     }
     
-    // Функция для расчета мощности игрока
     const calcPower = (player) => {
         if (!player) return 0;
         let gangPower = 0;
@@ -11577,74 +11681,101 @@ function openAttackModal() {
         );
     };
     
-    const modalHtml = `
-        <div class="attack-fullscreen" id="attackDetailFullscreen" style="background: linear-gradient(135deg, #0a0a0f 0%, #14141f 100%);">
-            <div class="attack-header-bar" style="background: linear-gradient(135deg, #1a1a2a 0%, #0d0d15 100%); border-bottom: 2px solid #8B4513; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5); position: relative;">
-                <div class="attack-header-content" style="max-width: 550px; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
-                    <div class="attack-header-title" style="font-size: 20px; font-weight: 800; background: linear-gradient(135deg, #c9a03d, #8B6914); -webkit-background-clip: text; background-clip: text; color: transparent; text-shadow: 0 2px 5px rgba(0, 0, 0, 0.3); letter-spacing: 2px;">⚔️ СХОДКА</div>
-                </div>
-            </div>
-            <div class="attack-content-area" id="attackContentArea" style="flex: 1; overflow-y: auto; padding: 16px; margin-bottom: 75px; background-image: repeating-linear-gradient(45deg, rgba(139, 69, 19, 0.03) 0px, rgba(139, 69, 19, 0.03) 2px, transparent 2px, transparent 8px);">
-                
-                <!-- БЛОК АКТИВНОГО БОЯ (всегда отображается если есть бой) -->
-                <div id="activeBattleBlock" style="${activeBattleData && activeBattleEndTime > Date.now() ? 'display: block;' : 'display: none;'}">
-                    <div class="clan-card" style="background: rgba(255,152,0,0.15); border: 2px solid #ff9800; margin-bottom: 15px; text-align: center; cursor: pointer;" onclick="openActiveBattleWindow()">
-                        <div style="font-size: 14px; color: #ff9800; font-weight: bold;">⚔️ АКТИВНЫЙ БОЙ ⚔️</div>
-                        <div style="font-size: 16px; color: #ffd966; margin: 5px 0;">Противник: ${activeBattleData ? escapeHtml(activeBattleData.defenderName) : ''}</div>
-                        <div id="globalBattleTimer" class="game-timer" style="font-size: 24px; margin: 10px 0; padding: 8px;">${activeBattleData ? formatBattleTime(activeBattleEndTime - Date.now()) : '00:00'}</div>
-                        <button class="btn-primary" onclick="event.stopPropagation(); openActiveBattleWindow()" style="background: linear-gradient(135deg, #ff9800, #e68a00);">🔗 ВЕРНУТЬСЯ К БОЮ</button>
+    const playersListHtml = availablePlayers.map(player => {
+        const playerPower = calcPower(player);
+        const isOnCooldown = battleCooldownsData[player.id] && battleCooldownsData[player.id] > Date.now();
+        const isInBattle = activeBattleData && activeBattleData.defenderId === player.id && activeBattleEndTime > Date.now();
+        
+        let buttonHtml = '';
+        if (isInBattle) {
+            const remaining = activeBattleEndTime - Date.now();
+            buttonHtml = `<button class="btn-primary" disabled style="background: linear-gradient(135deg, #ff9800, #e68a00); border: 1px solid #ff9800; border-radius: 30px; padding: 8px 16px; font-size: 12px; font-weight: 700; color: white; opacity: 0.8; white-space: nowrap;">⚔️ БОЙ ИДЁТ (${formatBattleTime(remaining)})</button>`;
+        } else if (isOnCooldown) {
+            const remaining = battleCooldownsData[player.id] - Date.now();
+            buttonHtml = `<button class="btn-primary" disabled style="background: #8B1a1a; border: 1px solid #e94560; border-radius: 30px; padding: 8px 16px; font-size: 12px; font-weight: 700; color: #ffd966; opacity: 0.8; white-space: nowrap;">⏳ ${formatCooldownTime(remaining)}</button>`;
+        } else {
+            buttonHtml = `<button class="btn-primary" style="background: linear-gradient(135deg, #8B4513, #5a2d0a); border: 1px solid #c9a03d; border-radius: 30px; padding: 8px 16px; font-size: 12px; font-weight: 700; color: #ffd966; cursor: pointer; white-space: nowrap;" onclick="showPlayerForBattle('${player.id}', '${escapeHtml(player.username)}', ${player.level}, ${playerPower}, ${player.strength || 10}, ${player.defense || 5}, ${player.authority || 0}, ${player.cigarettes || 0}, ${player.wood || 0}, ${player.stone || 0})">⚔️ БРОСИТЬ ВЫЗОВ</button>`;
+        }
+        
+        return `
+            <div class="clan-card-item" style="background: rgba(20, 20, 30, 0.9); backdrop-filter: blur(10px); border: 1px solid #8B4513; border-radius: 16px; margin-bottom: 12px; padding: 14px; transition: all 0.2s; position: relative; overflow: hidden;">
+                <div style="position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, #8B4513, #c9a03d, #8B4513);"></div>
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+                    <div style="flex: 1;">
+                        <strong style="color: #ffd966; font-size: 16px;">🧨 ${escapeHtml(player.username)}</strong>
+                        <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px;">
+                            <div style="background: rgba(0,0,0,0.4); padding: 3px 8px; border-radius: 20px; font-size: 11px;">⭐ Ур.${player.level}</div>
+                            <div style="background: rgba(0,0,0,0.4); padding: 3px 8px; border-radius: 20px; font-size: 11px;">💪 Мощь: ${playerPower}</div>
+                            <div style="background: rgba(0,0,0,0.4); padding: 3px 8px; border-radius: 20px; font-size: 11px;">💪 Сила: ${player.strength || 10}</div>
+                            <div style="background: rgba(0,0,0,0.4); padding: 3px 8px; border-radius: 20px; font-size: 11px;">🛡️ Защита: ${player.defense || 5}</div>
+                            <div style="background: rgba(0,0,0,0.4); padding: 3px 8px; border-radius: 20px; font-size: 11px;">⭐ Авт.: ${player.authority || 0}</div>
+                        </div>
+                        <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 5px;">
+                            <div style="background: rgba(139,69,19,0.3); padding: 3px 8px; border-radius: 20px; font-size: 11px;">🚬 ${player.cigarettes || 0}</div>
+                            <div style="background: rgba(139,69,19,0.3); padding: 3px 8px; border-radius: 20px; font-size: 11px;">🪵 ${player.wood || 0}</div>
+                            <div style="background: rgba(139,69,19,0.3); padding: 3px 8px; border-radius: 20px; font-size: 11px;">🪨 ${player.stone || 0}</div>
+                        </div>
+                    </div>
+                    <div style="margin-left: 10px;">
+                        ${buttonHtml}
                     </div>
                 </div>
-                
-                <div id="playersListContainer" style="max-height: ${activeBattleData && activeBattleEndTime > Date.now() ? '50vh' : '60vh'}; overflow-y: auto; padding-right: 5px;">
-                    ${availablePlayers.map(player => {
-                        const playerPower = calcPower(player);
-                        const isOnCooldown = battleCooldownsData[player.id] && battleCooldownsData[player.id] > Date.now();
-                        const isInBattle = activeBattleData && activeBattleData.defenderId === player.id && activeBattleEndTime > Date.now();
-                        
-                        let buttonHtml = '';
-                        if (isInBattle) {
-                            const remaining = activeBattleEndTime - Date.now();
-                            buttonHtml = `<button class="btn-primary" disabled style="background: linear-gradient(135deg, #ff9800, #e68a00); border: 1px solid #ff9800; border-radius: 30px; padding: 8px 16px; font-size: 12px; font-weight: 700; color: white; opacity: 0.8; white-space: nowrap;">⚔️ БОЙ ИДЁТ (${formatBattleTime(remaining)})</button>`;
-                        } else if (isOnCooldown) {
-                            const remaining = battleCooldownsData[player.id] - Date.now();
-                            buttonHtml = `<button class="btn-primary" disabled style="background: #8B1a1a; border: 1px solid #e94560; border-radius: 30px; padding: 8px 16px; font-size: 12px; font-weight: 700; color: #ffd966; opacity: 0.8; white-space: nowrap;">⏳ ${formatCooldownTime(remaining)}</button>`;
-                        } else {
-                            buttonHtml = `<button class="btn-primary" style="background: linear-gradient(135deg, #8B4513, #5a2d0a); border: 1px solid #c9a03d; border-radius: 30px; padding: 8px 16px; font-size: 12px; font-weight: 700; color: #ffd966; cursor: pointer; white-space: nowrap;" onclick="showPlayerForBattle('${player.id}', '${escapeHtml(player.username)}', ${player.level}, ${playerPower}, ${player.strength || 10}, ${player.defense || 5}, ${player.authority || 0}, ${player.cigarettes || 0}, ${player.wood || 0}, ${player.stone || 0})">⚔️ БРОСИТЬ ВЫЗОВ</button>`;
-                        }
-                        
-                        return `
-                            <div class="clan-card-item" style="background: rgba(20, 20, 30, 0.9); backdrop-filter: blur(10px); border: 1px solid #8B4513; border-radius: 16px; margin-bottom: 12px; padding: 14px; transition: all 0.2s; position: relative; overflow: hidden;">
-                                <div style="position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, #8B4513, #c9a03d, #8B4513);"></div>
-                                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
-                                    <div style="flex: 1;">
-                                        <strong style="color: #ffd966; font-size: 16px;">🧨 ${escapeHtml(player.username)}</strong>
-                                        <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px;">
-                                            <div style="background: rgba(0,0,0,0.4); padding: 3px 8px; border-radius: 20px; font-size: 11px;">⭐ Ур.${player.level}</div>
-                                            <div style="background: rgba(0,0,0,0.4); padding: 3px 8px; border-radius: 20px; font-size: 11px;">💪 Мощь: ${playerPower}</div>
-                                            <div style="background: rgba(0,0,0,0.4); padding: 3px 8px; border-radius: 20px; font-size: 11px;">💪 Сила: ${player.strength || 10}</div>
-                                            <div style="background: rgba(0,0,0,0.4); padding: 3px 8px; border-radius: 20px; font-size: 11px;">🛡️ Защита: ${player.defense || 5}</div>
-                                            <div style="background: rgba(0,0,0,0.4); padding: 3px 8px; border-radius: 20px; font-size: 11px;">⭐ Авт.: ${player.authority || 0}</div>
-                                        </div>
-                                        <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 5px;">
-                                            <div style="background: rgba(139,69,19,0.3); padding: 3px 8px; border-radius: 20px; font-size: 11px;">🚬 ${player.cigarettes || 0}</div>
-                                            <div style="background: rgba(139,69,19,0.3); padding: 3px 8px; border-radius: 20px; font-size: 11px;">🪵 ${player.wood || 0}</div>
-                                            <div style="background: rgba(139,69,19,0.3); padding: 3px 8px; border-radius: 20px; font-size: 11px;">🪨 ${player.stone || 0}</div>
-                                        </div>
-                                    </div>
-                                    <div style="margin-left: 10px;">
-                                        ${buttonHtml}
-                                    </div>
-                                </div>
-                            </div>
-                        `;
-                    }).join('')}
-                </div>
-                <div id="battleInfoContainer" style="display: none;"></div>
             </div>
-            <div class="attack-bottom-nav" style="position: fixed; bottom: 0; left: 0; right: 0; background: rgba(10, 14, 26, 0.95); backdrop-filter: blur(20px); border-top: 1px solid #8B4513; padding: 8px 16px; padding-bottom: max(8px, env(safe-area-inset-bottom)); z-index: 10001;">
+        `;
+    }).join('');
+    
+    const modalHtml = `
+        <div class="attack-fullscreen" id="attackDetailFullscreen" style="background: linear-gradient(135deg, #0a0a0f 0%, #14141f 100%);">
+            <div class="attack-header-bar" style="background: linear-gradient(135deg, #1a1a2a 0%, #0d0d15 100%); border-bottom: 2px solid #8B4513;">
+                <div class="attack-header-content" style="max-width: 550px; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
+                    <div class="attack-header-title" style="font-size: 20px; font-weight: 800; background: linear-gradient(135deg, #c9a03d, #8B6914); -webkit-background-clip: text; background-clip: text; color: transparent;">⚔️ СХОДКА</div>
+                </div>
+            </div>
+            
+            <!-- ВКЛАДКИ -->
+            <div style="display: flex; background: rgba(10,14,26,0.95); border-bottom: 1px solid #8B4513;">
+                <button id="fightsTabBtn" class="attack-sub-tab ${currentBattleTab === 'fights' ? 'active' : ''}" style="flex: 1; background: transparent; border: none; padding: 12px 0; color: #8e8ea0; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; ${currentBattleTab === 'fights' ? 'color: #c9a03d; background: rgba(139,69,19,0.2); border-bottom: 2px solid #c9a03d;' : ''}">⚔️ БОИ</button>
+                <button id="historyTabBtn" class="attack-sub-tab ${currentBattleTab === 'history' ? 'active' : ''}" style="flex: 1; background: transparent; border: none; padding: 12px 0; color: #8e8ea0; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; ${currentBattleTab === 'history' ? 'color: #c9a03d; background: rgba(139,69,19,0.2); border-bottom: 2px solid #c9a03d;' : ''}">📜 ИСТОРИЯ</button>
+            </div>
+            
+            <div class="attack-content-area" id="attackContentArea" style="flex: 1; overflow-y: auto; padding: 16px; margin-bottom: 75px;">
+                <!-- ВКЛАДКА БОИ -->
+                <div id="fightsContainer" style="display: ${currentBattleTab === 'fights' ? 'block' : 'none'};">
+                    <div id="activeBattleBlock" style="${activeBattleData && activeBattleEndTime > Date.now() ? 'display: block;' : 'display: none;'} margin-bottom: 15px;">
+                        <div class="clan-card" style="background: rgba(255,152,0,0.15); border: 2px solid #ff9800; text-align: center; cursor: pointer;" onclick="openActiveBattleWindow()">
+                            <div style="font-size: 14px; color: #ff9800; font-weight: bold;">⚔️ АКТИВНЫЙ БОЙ ⚔️</div>
+                            <div style="font-size: 16px; color: #ffd966; margin: 5px 0;">Противник: ${activeBattleData ? escapeHtml(activeBattleData.defenderName) : ''}</div>
+                            <div id="globalBattleTimer" class="game-timer" style="font-size: 24px; margin: 10px 0; padding: 8px;">${activeBattleData ? formatBattleTime(activeBattleEndTime - Date.now()) : '00:00'}</div>
+                            <button class="btn-primary" onclick="event.stopPropagation(); openActiveBattleWindow()" style="background: linear-gradient(135deg, #ff9800, #e68a00);">🔗 ВЕРНУТЬСЯ К БОЮ</button>
+                        </div>
+                    </div>
+                    <div id="playersListContainer" class="fight-list" style="max-height: ${activeBattleData && activeBattleEndTime > Date.now() ? '50vh' : '60vh'}; overflow-y: auto; padding-right: 5px;">
+                        ${playersListHtml || '<div style="text-align:center; padding:40px; color:#888;">🔍 Нет доступных противников</div>'}
+                    </div>
+                    <div id="battleInfoContainer" style="display: none;"></div>
+                </div>
+                
+                <!-- ВКЛАДКА ИСТОРИЯ -->
+          
+<!-- ВКЛАДКА ИСТОРИЯ -->
+<div id="historyContainer" style="display: ${currentBattleTab === 'history' ? 'block' : 'none'};">
+    <div id="historyListContainer" style="max-height: 60vh; overflow-y: auto; padding-right: 5px;">
+        ${(function() {
+            // Синхронная проверка для начального рендера
+            if (battleHistoryList && battleHistoryList.length > 0) {
+                return renderHistoryTabContent();
+            } else {
+                return '<div style="text-align:center; padding:40px; color:#888;">⏳ Загрузка истории...</div>';
+            }
+        })()}
+    </div>
+</div>
+            </div>
+            
+            <div class="attack-bottom-nav" style="position: fixed; bottom: 0; left: 0; right: 0; background: rgba(10, 14, 26, 0.95); backdrop-filter: blur(20px); border-top: 1px solid #8B4513; padding: 8px 16px; z-index: 10001;">
                 <div class="bottom-nav" style="max-width: 550px; margin: 0 auto; display: flex; align-items: center; justify-content: space-around; gap: 8px;">
-                    <button class="attack-tab-btn active" onclick="closeAttackModal()" style="background: transparent; border: none; border-radius: 50px; padding: 8px 16px; display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; transition: all 0.2s; color: #8e8ea0; font-size: 11px; font-weight: 500;"><span>←</span><span>НАЗАД</span></button>
+                    <button class="attack-tab-btn active" onclick="closeAttackModal()" style="background: transparent; border: none; border-radius: 50px; padding: 8px 16px; display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; color: #8e8ea0; font-size: 11px;"><span>←</span><span>НАЗАД</span></button>
+                    <button class="attack-tab-btn active" onclick="switchBattleTab('fights')" style="background: transparent; border: none; border-radius: 50px; padding: 8px 16px; display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; color: #8e8ea0; font-size: 11px;"><span>⚔️</span><span>PvP</span></button>
                 </div>
             </div>
         </div>
@@ -11655,36 +11786,148 @@ function openAttackModal() {
     document.body.insertAdjacentHTML('beforeend', modalHtml);
     if (tg) tg.BackButton.show();
     
-    // Запускаем обновление таймера активного боя в реальном времени
+    // Назначаем обработчики вкладок
+    document.getElementById('fightsTabBtn')?.addEventListener('click', () => switchBattleTab('fights'));
+    document.getElementById('historyTabBtn')?.addEventListener('click', () => switchBattleTab('history'));
+    
     if (activeBattleData && activeBattleEndTime > Date.now()) {
-        const timerInterval = setInterval(() => {
-            const modal = document.getElementById('attackDetailFullscreen');
-            if (!modal) {
-                clearInterval(timerInterval);
-                return;
-            }
-            const timerElement = document.getElementById('globalBattleTimer');
-            if (timerElement) {
-                const remaining = activeBattleEndTime - Date.now();
-                if (remaining <= 0) {
-                    clearInterval(timerInterval);
-                } else {
-                    timerElement.textContent = formatBattleTime(remaining);
-                }
-            }
-            // Обновляем активный блок
-            const activeBlock = document.getElementById('activeBattleBlock');
-            if (activeBlock) {
-                if (activeBattleData && activeBattleEndTime > Date.now()) {
-                    activeBlock.style.display = 'block';
-                } else {
-                    activeBlock.style.display = 'none';
-                }
-            }
-        }, 1000);
+        startActiveBattleTimer();
     }
     
     setTimeout(() => { window._opening_modal = false; }, 500);
+}
+function switchBattleTab(tab) {
+    currentBattleTab = tab;
+    
+    const fightsContainer = document.getElementById('fightsContainer');
+    const historyContainer = document.getElementById('historyContainer');
+    const fightsTabBtn = document.getElementById('fightsTabBtn');
+    const historyTabBtn = document.getElementById('historyTabBtn');
+    
+    if (tab === 'fights') {
+        if (fightsContainer) fightsContainer.style.display = 'block';
+        if (historyContainer) historyContainer.style.display = 'none';
+        if (fightsTabBtn) { fightsTabBtn.style.color = '#c9a03d'; fightsTabBtn.style.background = 'rgba(139,69,19,0.2)'; fightsTabBtn.style.borderBottom = '2px solid #c9a03d'; }
+        if (historyTabBtn) { historyTabBtn.style.color = '#8e8ea0'; historyTabBtn.style.background = 'transparent'; historyTabBtn.style.borderBottom = 'none'; }
+    } else {
+        if (fightsContainer) fightsContainer.style.display = 'none';
+        if (historyContainer) historyContainer.style.display = 'block';
+        if (historyTabBtn) { historyTabBtn.style.color = '#c9a03d'; historyTabBtn.style.background = 'rgba(139,69,19,0.2)'; historyTabBtn.style.borderBottom = '2px solid #c9a03d'; }
+        if (fightsTabBtn) { fightsTabBtn.style.color = '#8e8ea0'; fightsTabBtn.style.background = 'transparent'; fightsTabBtn.style.borderBottom = 'none'; }
+        // Принудительно загружаем историю при переключении
+        renderHistoryTab();
+    }
+}
+function startActiveBattleTimer() {
+    const timerInterval = setInterval(() => {
+        const modal = document.getElementById('attackDetailFullscreen');
+        if (!modal) { clearInterval(timerInterval); return; }
+        if (activeBattleData && activeBattleEndTime > Date.now()) {
+            const timerElement = document.getElementById('globalBattleTimer');
+            if (timerElement) timerElement.textContent = formatBattleTime(activeBattleEndTime - Date.now());
+            const activeBlock = document.getElementById('activeBattleBlock');
+            if (activeBlock) activeBlock.style.display = 'block';
+        } else {
+            const activeBlock = document.getElementById('activeBattleBlock');
+            if (activeBlock) activeBlock.style.display = 'none';
+            clearInterval(timerInterval);
+        }
+    }, 1000);
+}
+function renderHistoryTabContent() {
+    // Принудительно загружаем историю из Firebase, если она пустая
+    if (!battleHistoryList || battleHistoryList.length === 0) {
+        // Асинхронная загрузка
+        loadBattleHistoryFromFirebase().then(history => {
+            if (history && history.length > 0) {
+                battleHistoryList = history;
+                renderHistoryTab(); // Обновляем вкладку
+            }
+        });
+        return '<div style="text-align:center; padding:40px; color:#888;">⏳ Загрузка истории...</div>';
+    }
+    
+    if (!battleHistoryList || battleHistoryList.length === 0) {
+        return '<div style="text-align:center; padding:40px; color:#888;">📭 Нет истории боёв</div>';
+    }
+    
+    return battleHistoryList.map(record => {
+        const isVictory = record.attackerWon && record.attackerId === currentPlayer?.id;
+        const resultClass = isVictory ? '#4caf50' : '#e94560';
+        const resultText = isVictory ? 'ПОБЕДА' : 'ПОРАЖЕНИЕ';
+        const vsName = isVictory ? (record.defenderName || 'Неизвестный') : (record.attackerName || 'Неизвестный');
+        const dateStr = formatHistoryDate(record.timestamp);
+        const rewards = record.rewards || {};
+        
+        return `
+            <div class="clan-card-item" style="background: rgba(20, 20, 30, 0.9); backdrop-filter: blur(10px); border: 1px solid #8B4513; border-radius: 16px; margin-bottom: 12px; padding: 14px; cursor: pointer;" onclick="toggleHistoryDetails(this)">
+                <div style="position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, ${resultClass}, #c9a03d);"></div>
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; margin-bottom: 8px;">
+                    <div><span style="color: ${resultClass}; font-weight: bold;">${resultText}</span> <span style="margin: 0 8px">⚔️</span> <span style="color: #ffd966;">против ${escapeHtml(vsName)}</span></div>
+                    <div style="font-size: 11px; color: #888;">${dateStr}</div>
+                </div>
+                <div class="history-details" style="display: none; margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(139,69,19,0.2);">
+                    <div style="font-size: 12px; color: #c9a03d; margin-bottom: 8px;">🏆 НАГРАДЫ:</div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px;">
+                        ${rewards.authorityStolen ? `<div style="background: rgba(0,0,0,0.3); border-radius: 12px; padding: 8px; text-align: center;"><div>⭐</div><div style="font-size: 10px;">Авторитет</div><div style="color: #ffd966;">${isVictory ? '+' : '-'}${Math.abs(rewards.authorityStolen)}</div></div>` : ''}
+                        ${rewards.strengthStolen ? `<div style="background: rgba(0,0,0,0.3); border-radius: 12px; padding: 8px; text-align: center;"><div>💪</div><div style="font-size: 10px;">Сила</div><div style="color: #ffd966;">${isVictory ? '+' : '-'}${Math.abs(rewards.strengthStolen)}</div></div>` : ''}
+                        ${rewards.cigarettesStolen ? `<div style="background: rgba(0,0,0,0.3); border-radius: 12px; padding: 8px; text-align: center;"><div>🚬</div><div style="font-size: 10px;">Сигареты</div><div style="color: #ffd966;">${isVictory ? '+' : '-'}${Math.abs(rewards.cigarettesStolen)}</div></div>` : ''}
+                        ${rewards.woodStolen ? `<div style="background: rgba(0,0,0,0.3); border-radius: 12px; padding: 8px; text-align: center;"><div>🪵</div><div style="font-size: 10px;">Древесина</div><div style="color: #ffd966;">${isVictory ? '+' : '-'}${Math.abs(rewards.woodStolen)}</div></div>` : ''}
+                        ${rewards.stoneStolen ? `<div style="background: rgba(0,0,0,0.3); border-radius: 12px; padding: 8px; text-align: center;"><div>🪨</div><div style="font-size: 10px;">Камень</div><div style="color: #ffd966;">${isVictory ? '+' : '-'}${Math.abs(rewards.stoneStolen)}</div></div>` : ''}
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+// ========== ПРИНУДИТЕЛЬНАЯ ЗАГРУЗКА ИСТОРИИ ИЗ FIRESTORE ==========
+async function loadBattleHistoryFromFirebase() {
+    if (!currentPlayer) return [];
+    
+    console.log('📜 Принудительная загрузка истории боёв из Firebase для:', currentPlayer.id);
+    
+    try {
+        // Загружаем бои, где игрок атаковал
+        const attackerSnapshot = await db.collection('battleHistory')
+            .where('attackerId', '==', currentPlayer.id)
+            .orderBy('timestamp', 'desc')
+            .limit(100)
+            .get();
+        
+        const historyMap = new Map();
+        
+        attackerSnapshot.forEach(doc => {
+            historyMap.set(doc.id, { id: doc.id, ...doc.data() });
+        });
+        
+        // Загружаем бои, где игрок защищался
+        const defenderSnapshot = await db.collection('battleHistory')
+            .where('defenderId', '==', currentPlayer.id)
+            .orderBy('timestamp', 'desc')
+            .limit(100)
+            .get();
+        
+        defenderSnapshot.forEach(doc => {
+            if (!historyMap.has(doc.id)) {
+                historyMap.set(doc.id, { id: doc.id, ...doc.data() });
+            }
+        });
+        
+        // Преобразуем в массив и сортируем
+        const history = Array.from(historyMap.values());
+        history.sort((a, b) => b.timestamp - a.timestamp);
+        
+        // Сохраняем в глобальную переменную и localStorage
+        battleHistoryList = history;
+        localStorage.setItem(`battleHistory_${currentPlayer.id}`, JSON.stringify(history));
+        
+        console.log('📜 Загружено записей истории:', history.length);
+        
+        return history;
+    } catch (e) {
+        console.error('Ошибка загрузки истории:', e);
+        return [];
+    }
 }
 // ========== ОТКРЫТИЕ ОКНА АКТИВНОГО БОЯ ==========
 function openActiveBattleWindow() {
@@ -15500,7 +15743,7 @@ async function loadAllPlayers() {
         // ========== ВОССТАНОВЛЕНИЕ АКТИВНОГО БОЯ (ТОЛЬКО ОДИН РАЗ) ==========
         // Подписка на активный бой в Firestore
 subscribeToActiveBattle();
-
+subscribeToBattleHistory();
 // Запуск наблюдателя таймеров боя
 startBattleTimerWatcher();
 
