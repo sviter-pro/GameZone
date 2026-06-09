@@ -330,9 +330,22 @@
         }
         async function saveShopItems() { await db.collection('config').doc('shop').set({ items: shopItems }); }
         async function addShopItem() {
-            shopItems.push({ id: Date.now().toString(), name: 'Новый предмет', price: 100, currency: 'cigarettes', category: 'weapon', type: 'equipment', slot: 'weapon', stat: 'strength', bonus: 5, desc: 'Описание', imageUrl: '' });
-            await saveShopItems(); renderAdminPanel();
-        }
+    const newId = Date.now().toString();
+    shopItems.push({ 
+        id: newId, 
+        name: 'Новая наколка', 
+        price: 100, 
+        currency: 'cigarettes', 
+        category: 'tattoos',  // ← теперь по умолчанию наколки
+        type: 'tattoo',       // ← тип tattoo
+        desc: 'Наколка дает +2 к силе', 
+        imageUrl: '',
+        stat: 'strength',
+        bonus: 2
+    });
+    await saveShopItems(); 
+    renderAdminPanel();
+}
         async function updateShopItem(index, field, value) { shopItems[index][field] = value; await saveShopItems(); renderAdminPanel(); }
         async function deleteShopItem(index) { if (confirm('Удалить предмет?')) { shopItems.splice(index, 1); await saveShopItems(); renderAdminPanel(); } }
         async function addQuest(type) {
@@ -584,50 +597,113 @@
                     if (treasuryHistory.length===0) html += `<div style="text-align:center;padding:20px;color:#aaa">Нет записей о пополнениях</div>`;
                     html += `</div>`;
                 } else if (activeTab === 'shop') {
-                    const categories = {all:'📦 Все товары', weapon:'🔪 Оружие', armor:'👕 Одежда', accessory:'💍 Аксессуары', tattoos:'💉 Наколки', consumables:'🍺 Расходники'};
-                    html += `<div style="margin-bottom:20px"><button class="btn-green" onclick="addShopItem()">➕ Добавить предмет</button></div>`;
-                    html += `<div class="category-filter">`;
-                    for (const [key, label] of Object.entries(categories)) {
-                        html += `<button class="cat-btn ${shopCategory===key?'active':''}" onclick="setShopCategory('${key}')">${label}</button>`;
-                    }
-                    html += `</div><div class="grid-view">`;
-                    const filteredItems = shopCategory === 'all' ? shopItems : shopItems.filter(i=>i.category===shopCategory);
-                    if (filteredItems.length === 0) {
-                        html += `<div style="text-align:center; padding:40px; background:#16213e; border-radius:15px; color:#aaa">Нет товаров в этой категории</div>`;
-                    } else {
-                        for (let i=0; i<filteredItems.length; i++) {
-                            const item = filteredItems[i];
-                            const origIndex = shopItems.findIndex(si=>si.id===item.id);
-                            const categoryName = categories[item.category] || item.category;
-                            html += `<div class="shop-item-card">
-                                <div class="shop-header">
-                                    <div><strong>${categoryName}</strong><br><span style="font-size:18px">${escapeHtml(item.name)}</span></div>
-                                    <button class="btn-red" onclick="deleteShopItem(${origIndex})">🗑️ Удалить</button>
-                                </div>
-                                ${item.imageUrl ? `<div style="text-align:center; margin-bottom:10px"><img src="${escapeHtml(item.imageUrl)}" class="item-preview-img" onerror="this.style.display='none'" alt="Превью"></div>` : ''}
-                                <div><label>🖼️ URL картинки:</label> <input id="shop_image_${origIndex}" value="${escapeHtml(item.imageUrl || '')}" placeholder="https://example.com/image.png"></div>
-                                <div><label>📝 Название:</label> <input id="shop_name_${origIndex}" value="${escapeHtml(item.name)}" placeholder="Название"></div>
-                                <div><label>📖 Описание:</label> <input id="shop_desc_${origIndex}" value="${escapeHtml(item.desc)}" placeholder="Описание"></div>
-                                <div style="display:flex; gap:15px; flex-wrap:wrap">
-                                    <div><label>💰 Цена:</label> <input id="shop_price_${origIndex}" type="number" value="${item.price}" style="width:100px"></div>
-                                    <div><label>💱 Валюта:</label> <select id="shop_currency_${origIndex}"><option value="cigarettes" ${item.currency==='cigarettes'?'selected':''}>🚬 Папиросы</option><option value="rubles" ${item.currency==='rubles'?'selected':''}>💰 Рубли</option></select></div>
-                                    <div><label>📂 Категория:</label> <select id="shop_category_${origIndex}"><option value="weapon" ${item.category==='weapon'?'selected':''}>🔪 Оружие</option><option value="armor" ${item.category==='armor'?'selected':''}>👕 Одежда</option><option value="accessory" ${item.category==='accessory'?'selected':''}>💍 Аксессуар</option><option value="tattoos" ${item.category==='tattoos'?'selected':''}>💉 Наколки</option><option value="consumables" ${item.category==='consumables'?'selected':''}>🍺 Расходники</option></select></div>
-                                </div>
-                                ${item.type==='equipment' ? `<div style="display:flex; gap:15px; flex-wrap:wrap; margin-top:10px">
-                                    <div><label>⚙️ Слот:</label> <select id="shop_slot_${origIndex}"><option value="weapon" ${item.slot==='weapon'?'selected':''}>Оружие</option><option value="armor" ${item.slot==='armor'?'selected':''}>Одежда</option><option value="accessory" ${item.slot==='accessory'?'selected':''}>Аксессуар</option></select></div>
-                                    <div><label>📊 Стат:</label> <select id="shop_stat_${origIndex}"><option value="strength" ${item.stat==='strength'?'selected':''}>💪 Сила</option><option value="defense" ${item.stat==='defense'?'selected':''}>🛡️ Защита</option><option value="critical" ${item.stat==='critical'?'selected':''}>⚡ Крит</option></select></div>
-                                    <div><label>➕ Бонус:</label> <input id="shop_bonus_${origIndex}" type="number" value="${item.bonus||0}" style="width:80px"></div>
-                                </div>` : ''}
-                                ${item.type==='consumable' ? `<div style="display:flex; gap:15px; flex-wrap:wrap; margin-top:10px">
-                                    <div><label>⚡ Восст. энергии:</label> <input id="shop_energy_${origIndex}" type="number" value="${item.energyRestore||0}" style="width:80px"></div>
-                                    <div><label>🚬 +папирос:</label> <input id="shop_cigarettes_${origIndex}" type="number" value="${item.cigarettesGain||0}" style="width:80px"></div>
-                                </div>` : ''}
-                                <button class="save-btn" onclick="saveShopItem(${origIndex})">💾 Сохранить изменения</button>
-                                <div style="margin-top:10px; padding-top:10px; border-top:1px solid #333; color:#aaa; font-size:12px">📌 ${item.name} — ${item.price} ${item.currency==='cigarettes'?'🚬':'💰'}</div>
-                            </div>`;
-                        }
-                    }
-                    html += `</div>`;
+    const categories = {all:'📦 Все товары', weapon:'🔪 Оружие', armor:'👕 Одежда', accessory:'💍 Аксессуары', tattoos:'💉 НАКОЛКИ', consumables:'🍺 Расходники'};
+    html += `<div style="margin-bottom:20px"><button class="btn-green" onclick="addShopItem()">➕ Добавить предмет</button></div>`;
+    html += `<div class="category-filter">`;
+    for (const [key, label] of Object.entries(categories)) {
+        html += `<button class="cat-btn ${shopCategory===key?'active':''}" onclick="setShopCategory('${key}')">${label}</button>`;
+    }
+    html += `</div><div class="grid-view">`;
+    const filteredItems = shopCategory === 'all' ? shopItems : shopItems.filter(i=>i.category===shopCategory);
+    if (filteredItems.length === 0) {
+        html += `<div style="text-align:center; padding:40px; background:#16213e; border-radius:15px; color:#aaa">Нет товаров в этой категории</div>`;
+    } else {
+        for (let i=0; i<filteredItems.length; i++) {
+            const item = filteredItems[i];
+            const origIndex = shopItems.findIndex(si=>si.id===item.id);
+            const categoryName = categories[item.category] || item.category;
+            
+            // Определяем тип предмета для отображения дополнительных полей
+            const isTattoo = item.type === 'tattoo' || item.category === 'tattoos';
+            const isEquipment = item.type === 'equipment' && !isTattoo;
+            const isConsumable = item.type === 'consumable';
+            
+            html += `<div class="shop-item-card">
+                <div class="shop-header">
+                    <div><strong>${categoryName}</strong><br><span style="font-size:18px">${escapeHtml(item.name)}</span></div>
+                    <button class="btn-red" onclick="deleteShopItem(${origIndex})">🗑️ Удалить</button>
+                </div>
+                ${item.imageUrl ? `<div style="text-align:center; margin-bottom:10px"><img src="${escapeHtml(item.imageUrl)}" class="item-preview-img" onerror="this.style.display='none'" alt="Превью"></div>` : ''}
+                <div><label>🖼️ URL картинки:</label> <input id="shop_image_${origIndex}" value="${escapeHtml(item.imageUrl || '')}" placeholder="https://example.com/image.png"></div>
+                <div><label>📝 Название:</label> <input id="shop_name_${origIndex}" value="${escapeHtml(item.name)}" placeholder="Название"></div>
+                <div><label>📖 Описание:</label> <input id="shop_desc_${origIndex}" value="${escapeHtml(item.desc)}" placeholder="Описание"></div>
+                <div style="display:flex; gap:15px; flex-wrap:wrap">
+                    <div><label>💰 Цена:</label> <input id="shop_price_${origIndex}" type="number" value="${item.price}" style="width:100px"></div>
+                    <div><label>💱 Валюта:</label> <select id="shop_currency_${origIndex}"><option value="cigarettes" ${item.currency==='cigarettes'?'selected':''}>🚬 Папиросы</option><option value="rubles" ${item.currency==='rubles'?'selected':''}>💰 Рубли</option></select></div>
+                    <div><label>📂 Категория:</label> <select id="shop_category_${origIndex}"><option value="weapon" ${item.category==='weapon'?'selected':''}>🔪 Оружие</option><option value="armor" ${item.category==='armor'?'selected':''}>👕 Одежда</option><option value="accessory" ${item.category==='accessory'?'selected':''}>💍 Аксессуар</option><option value="tattoos" ${item.category==='tattoos'?'selected':''}>💉 НАКОЛКИ</option><option value="consumables" ${item.category==='consumables'?'selected':''}>🍺 Расходники</option></select></div>
+                </div>`;
+            
+            // Для НАКОЛОК
+            if (isTattoo) {
+                html += `<div style="display:flex; gap:15px; flex-wrap:wrap; margin-top:10px; background: rgba(139,69,19,0.2); padding:10px; border-radius:12px;">
+                    <div><label>💉 ТИП: НАКОЛКА</label></div>
+                    <div><label>📊 Стат:</label> <select id="shop_stat_${origIndex}">
+                        <option value="strength" ${item.stat==='strength'?'selected':''}>💪 Сила</option>
+                        <option value="defense" ${item.stat==='defense'?'selected':''}>🛡️ Защита</option>
+                        <option value="critical" ${item.stat==='critical'?'selected':''}>⚡ Крит</option>
+                        <option value="" ${!item.stat?'selected':''}>❌ Нет бонуса</option>
+                    </select></div>
+                    <div><label>➕ Бонус:</label> <input id="shop_bonus_${origIndex}" type="number" value="${item.bonus||0}" style="width:80px"></div>
+                    <input type="hidden" id="shop_type_${origIndex}" value="tattoo">
+                </div>`;
+            }
+            // Для ЭКИПИРОВКИ
+            else if (isEquipment) {
+                html += `<div style="display:flex; gap:15px; flex-wrap:wrap; margin-top:10px">
+                    <div><label>⚙️ Тип:</label> <select id="shop_type_${origIndex}">
+                        <option value="equipment" selected>Экипировка</option>
+                    </select></div>
+                    <div><label>⚙️ Слот:</label> <select id="shop_slot_${origIndex}">
+                        <option value="weapon" ${item.slot==='weapon'?'selected':''}>Оружие</option>
+                        <option value="armor" ${item.slot==='armor'?'selected':''}>Одежда</option>
+                        <option value="accessory" ${item.slot==='accessory'?'selected':''}>Аксессуар</option>
+                    </select></div>
+                    <div><label>📊 Стат:</label> <select id="shop_stat_${origIndex}">
+                        <option value="strength" ${item.stat==='strength'?'selected':''}>💪 Сила</option>
+                        <option value="defense" ${item.stat==='defense'?'selected':''}>🛡️ Защита</option>
+                        <option value="critical" ${item.stat==='critical'?'selected':''}>⚡ Крит</option>
+                    </select></div>
+                    <div><label>➕ Бонус:</label> <input id="shop_bonus_${origIndex}" type="number" value="${item.bonus||0}" style="width:80px"></div>
+                </div>`;
+            }
+            // Для РАСХОДНИКОВ
+            else if (isConsumable) {
+                html += `<div style="display:flex; gap:15px; flex-wrap:wrap; margin-top:10px">
+                    <div><label>⚙️ Тип:</label> <select id="shop_type_${origIndex}">
+                        <option value="consumable" selected>Расходник</option>
+                    </select></div>
+                    <div><label>⚡ Восст. энергии:</label> <input id="shop_energy_${origIndex}" type="number" value="${item.energyRestore||0}" style="width:80px"></div>
+                    <div><label>🚬 +папирос:</label> <input id="shop_cigarettes_${origIndex}" type="number" value="${item.cigarettesGain||0}" style="width:80px"></div>
+                </div>`;
+            }
+            // Для РЕСУРСОВ
+            else {
+                html += `<div style="display:flex; gap:15px; flex-wrap:wrap; margin-top:10px">
+                    <div><label>⚙️ Тип:</label> <select id="shop_type_${origIndex}">
+                        <option value="resource" selected>Ресурс</option>
+                    </select></div>
+                    <div><label>📦 Ресурс:</label> <select id="shop_resourceType_${origIndex}">
+                        <option value="cigarettes" ${item.resourceType==='cigarettes'?'selected':''}>🚬 Папиросы</option>
+                        <option value="rubles" ${item.resourceType==='rubles'?'selected':''}>💰 Рубли</option>
+                        <option value="wood" ${item.resourceType==='wood'?'selected':''}>🪵 Древесина</option>
+                        <option value="stone" ${item.resourceType==='stone'?'selected':''}>🪨 Камень</option>
+                        <option value="paper" ${item.resourceType==='paper'?'selected':''}>📄 Бумага</option>
+                        <option value="makhorka" ${item.resourceType==='makhorka'?'selected':''}>🌿 Махорка</option>
+                    </select></div>
+                    <div><label>📦 Количество:</label> <input id="shop_amount_${origIndex}" type="number" value="${item.amount||1}" style="width:80px"></div>
+                </div>`;
+            }
+            
+            html += `<button class="save-btn" onclick="saveShopItem(${origIndex})">💾 Сохранить изменения</button>
+                    <div style="margin-top:10px; padding-top:10px; border-top:1px solid #333; color:#aaa; font-size:12px">
+                        📌 ${item.name} — ${item.price} ${item.currency==='cigarettes'?'🚬':'💰'}
+                        ${isTattoo ? ' | 💉 НАКОЛКА' : (isEquipment ? ` | 🎽 ${item.slot}` : (isConsumable ? ' | 🍺 Расходник' : ' | 📦 Ресурс'))}
+                    </div>
+                </div>`;
+        }
+    }
+    html += `</div>`;
+}
                 } else if (activeTab === 'quests') {
                     html += `<div style="margin-bottom:20px"><button class="btn-green" onclick="addQuest('daily')">➕ Добавить ежедневное</button><button class="btn-purple" onclick="addQuest('premium')">⭐ Добавить премиум</button></div>`;
                     html += `<h2>📅 Ежедневные задания</h2><div class="grid-view">`;
@@ -686,38 +762,81 @@
         }
         
         window.saveShopItem = async function(index) {
-            const imageUrl = document.getElementById(`shop_image_${index}`)?.value;
-            const name = document.getElementById(`shop_name_${index}`)?.value;
-            const desc = document.getElementById(`shop_desc_${index}`)?.value;
-            const price = parseInt(document.getElementById(`shop_price_${index}`)?.value);
-            const currency = document.getElementById(`shop_currency_${index}`)?.value;
-            const category = document.getElementById(`shop_category_${index}`)?.value;
-            if (name && price) {
-                shopItems[index].imageUrl = imageUrl || '';
-                shopItems[index].name = name;
-                shopItems[index].desc = desc;
-                shopItems[index].price = price;
-                shopItems[index].currency = currency;
-                shopItems[index].category = category;
-                if (shopItems[index].type === 'equipment') {
-                    const slot = document.getElementById(`shop_slot_${index}`)?.value;
-                    const stat = document.getElementById(`shop_stat_${index}`)?.value;
-                    const bonus = parseInt(document.getElementById(`shop_bonus_${index}`)?.value);
-                    if (slot) shopItems[index].slot = slot;
-                    if (stat) shopItems[index].stat = stat;
-                    if (bonus) shopItems[index].bonus = bonus;
-                }
-                if (shopItems[index].type === 'consumable') {
-                    const energyRestore = parseInt(document.getElementById(`shop_energy_${index}`)?.value);
-                    const cigarettesGain = parseInt(document.getElementById(`shop_cigarettes_${index}`)?.value);
-                    if (energyRestore) shopItems[index].energyRestore = energyRestore;
-                    if (cigarettesGain) shopItems[index].cigarettesGain = cigarettesGain;
-                }
-                await saveShopItems();
-                alert('Товар сохранен!');
-                renderAdminPanel();
-            }
-        };
+    const imageUrl = document.getElementById(`shop_image_${index}`)?.value;
+    const name = document.getElementById(`shop_name_${index}`)?.value;
+    const desc = document.getElementById(`shop_desc_${index}`)?.value;
+    const price = parseInt(document.getElementById(`shop_price_${index}`)?.value);
+    const currency = document.getElementById(`shop_currency_${index}`)?.value;
+    const category = document.getElementById(`shop_category_${index}`)?.value;
+    const typeSelect = document.getElementById(`shop_type_${index}`);
+    const type = typeSelect ? typeSelect.value : (category === 'tattoos' ? 'tattoo' : 'equipment');
+    
+    if (name && price) {
+        shopItems[index].imageUrl = imageUrl || '';
+        shopItems[index].name = name;
+        shopItems[index].desc = desc;
+        shopItems[index].price = price;
+        shopItems[index].currency = currency;
+        shopItems[index].category = category;
+        shopItems[index].type = type;
+        
+        // Для НАКОЛОК
+        if (type === 'tattoo' || category === 'tattoos') {
+            shopItems[index].type = 'tattoo';
+            const stat = document.getElementById(`shop_stat_${index}`)?.value;
+            const bonus = parseInt(document.getElementById(`shop_bonus_${index}`)?.value);
+            if (stat) shopItems[index].stat = stat;
+            if (bonus) shopItems[index].bonus = bonus;
+            // Удаляем неиспользуемые поля
+            delete shopItems[index].slot;
+            delete shopItems[index].energyRestore;
+            delete shopItems[index].cigarettesGain;
+            delete shopItems[index].resourceType;
+            delete shopItems[index].amount;
+        }
+        // Для ЭКИПИРОВКИ
+        else if (type === 'equipment') {
+            const slot = document.getElementById(`shop_slot_${index}`)?.value;
+            const stat = document.getElementById(`shop_stat_${index}`)?.value;
+            const bonus = parseInt(document.getElementById(`shop_bonus_${index}`)?.value);
+            if (slot) shopItems[index].slot = slot;
+            if (stat) shopItems[index].stat = stat;
+            if (bonus) shopItems[index].bonus = bonus;
+            delete shopItems[index].energyRestore;
+            delete shopItems[index].cigarettesGain;
+            delete shopItems[index].resourceType;
+            delete shopItems[index].amount;
+        }
+        // Для РАСХОДНИКОВ
+        else if (type === 'consumable') {
+            const energyRestore = parseInt(document.getElementById(`shop_energy_${index}`)?.value);
+            const cigarettesGain = parseInt(document.getElementById(`shop_cigarettes_${index}`)?.value);
+            if (energyRestore) shopItems[index].energyRestore = energyRestore;
+            if (cigarettesGain) shopItems[index].cigarettesGain = cigarettesGain;
+            delete shopItems[index].slot;
+            delete shopItems[index].stat;
+            delete shopItems[index].bonus;
+            delete shopItems[index].resourceType;
+            delete shopItems[index].amount;
+        }
+        // Для РЕСУРСОВ
+        else if (type === 'resource') {
+            const resourceType = document.getElementById(`shop_resourceType_${index}`)?.value;
+            const amount = parseInt(document.getElementById(`shop_amount_${index}`)?.value);
+            if (resourceType) shopItems[index].resourceType = resourceType;
+            if (amount) shopItems[index].amount = amount;
+            delete shopItems[index].slot;
+            delete shopItems[index].stat;
+            delete shopItems[index].bonus;
+            delete shopItems[index].energyRestore;
+            delete shopItems[index].cigarettesGain;
+        }
+        
+        await saveShopItems();
+        alert('Товар сохранен!');
+        renderAdminPanel();
+    }
+};
         
         window.saveDailyQuest = async function(index) {
             const title = document.getElementById(`daily_title_${index}`)?.value;
