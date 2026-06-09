@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Зона 1.0.0.212 - Карта зоны</title>
+    <title>Зона 1.0.0.214 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -3314,10 +3314,10 @@
         }
 
         .shop-item-image {
-            width: 70px;
-            height: 70px;
+            width: 140px;
+            height: 140px;
             object-fit: cover;
-            border-radius: 50%;
+            border-radius: 9%;
             border: 2px solid #8B4513;
             margin-bottom: 10px;
             background: #1a1a2a;
@@ -7985,7 +7985,7 @@ function restoreActiveBattleFromLocal() {
                 <img class="loading-logo" src="https://sviter-pro.github.io/GameZone/src/test/logo124.png" alt="Тюряга 2.0" onerror="this.src='https://via.placeholder.com/180x180?text=Тюряга+2.0'">
                 <div class="loading-spinner-new"></div>
                 <div class="loading-tip-new" id="loadingTipNew">⚡ Загрузка игрового мира...</div>
-                <div class="loading-version">Зона 1.0.0.212 | Зона ждет</div>
+                <div class="loading-version">Зона 1.0.0.214 | Зона ждет</div>
             </div>
         `;
             const tipEl = document.getElementById('loadingTipNew');
@@ -8779,6 +8779,11 @@ function openInventoryModal() {
     // Получаем купленные предметы
     const purchasedEquipment = currentPlayer.purchasedEquipment || [];
     
+    // ===== ВАЖНО: Фильтруем ТОЛЬКО купленные предметы =====
+    const ownedWeapons = weapons.filter(item => purchasedEquipment.includes(item.name));
+    const ownedArmors = armors.filter(item => purchasedEquipment.includes(item.name));
+    const ownedAccessories = accessories.filter(item => purchasedEquipment.includes(item.name));
+    
     // Текущая экипировка
     const currentWeapon = currentPlayer.equipped?.weapon || 'камень';
     const currentArmor = currentPlayer.equipped?.armor || 'роба';
@@ -8787,36 +8792,26 @@ function openInventoryModal() {
     // Татуировки
     const tattoos = currentPlayer.tattoos || [];
     
-    // Состояние открытых секций
-    let openSection = null;
-    
-    // Функция рендера секции с предметами
+    // Функция рендера секции с предметами (только купленные)
     const renderItemsSection = (items, currentItem, slotName, title, icon) => {
-        if (!items || items.length === 0) return '';
+        if (!items || items.length === 0) {
+            return '<div style="color:#aaa; padding: 10px; text-align: center;">❌ Нет купленных предметов<br><span style="font-size: 11px;">Купи в магазине у Барыги</span></div>';
+        }
         
         return `
             <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(139,69,19,0.3);">
-                <div style="font-size: 13px; color: #c9a03d; margin-bottom: 10px;">📦 ${title}:</div>
                 <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
                     ${items.map(item => {
-                        const isPurchased = purchasedEquipment.includes(item.name);
                         const isEquipped = currentItem === item.name;
                         let statusText = '';
                         let statusColor = '#888';
-                        let canEquip = false;
                         
                         if (isEquipped) {
                             statusText = '✓ НАДЕТО';
                             statusColor = '#4caf50';
-                            canEquip = false;
-                        } else if (isPurchased) {
+                        } else {
                             statusText = '📦 В ИНВЕНТАРЕ';
                             statusColor = '#ff9800';
-                            canEquip = true;
-                        } else {
-                            statusText = '🔒 НЕ КУПЛЕНО';
-                            statusColor = '#888';
-                            canEquip = false;
                         }
                         
                         // Иконка предмета
@@ -8826,9 +8821,9 @@ function openInventoryModal() {
                         else if (item.category === 'accessory') itemIcon = '💍';
                         
                         return `
-                            <div class="shop-item-card" style="padding: 8px; cursor: ${canEquip ? 'pointer' : 'default'}; opacity: ${isPurchased ? 1 : 0.5};" onclick="${canEquip ? `changeEquipment('${slotName}', '${item.name}', '${item.stat}', ${item.bonus})` : ''}">
+                            <div class="shop-item-card" style="padding: 8px; cursor: pointer;" onclick="changeEquipment('${slotName}', '${item.name}', '${item.stat || ''}', ${item.bonus || 0})">
                                 ${item.imageUrl ? 
-                                    `<img src="${item.imageUrl}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 12px; margin-bottom: 5px;" onerror="this.style.display='none'">` : 
+                                    `<img src="${item.imageUrl}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 12px; margin-bottom: 5px;" onerror="this.style.display='none'">` : 
                                     `<div style="font-size: 30px; margin-bottom: 5px;">${itemIcon}</div>`
                                 }
                                 <div style="font-size: 11px; font-weight: bold; color: #ffd966;">${escapeHtml(item.name)}</div>
@@ -8848,28 +8843,26 @@ function openInventoryModal() {
             return '<div style="color:#aaa; padding: 20px; text-align: center;">❌ Нет наколок<br><span style="font-size: 11px;">Купи в магазине у Барыги</span></div>';
         }
         
-        // Получаем полные данные о татуировках из магазина
-        const tattooItems = shopItems.filter(i => i.type === 'tattoo');
-        
         return `
             <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
-                ${tattoos.map(tattooName => {
-                    const tattooData = tattooItems.find(i => i.name === tattooName);
-                    const icon = tattooData?.imageUrl || '';
-                    const bonus = tattooData?.bonus || 0;
-                    const stat = tattooData?.stat || '';
+                ${tattoos.map(tattoo => {
+                    // Поддержка как старых (строковых) так и новых (объектных) татуировок
+                    const tattooName = typeof tattoo === 'object' ? tattoo.name : tattoo;
+                    const tattooImage = typeof tattoo === 'object' ? tattoo.imageUrl : '';
+                    const tattooBonus = typeof tattoo === 'object' ? tattoo.bonus : 0;
+                    const tattooStat = typeof tattoo === 'object' ? tattoo.stat : '';
                     
                     let bonusText = '';
-                    if (bonus > 0) {
-                        if (stat === 'strength') bonusText = `+${bonus} 💪`;
-                        else if (stat === 'defense') bonusText = `+${bonus} 🛡️`;
-                        else if (stat === 'critical') bonusText = `+${bonus} ⚡`;
+                    if (tattooBonus > 0) {
+                        if (tattooStat === 'strength') bonusText = `+${tattooBonus} 💪`;
+                        else if (tattooStat === 'defense') bonusText = `+${tattooBonus} 🛡️`;
+                        else if (tattooStat === 'critical') bonusText = `+${tattooBonus} ⚡`;
                     }
                     
                     return `
                         <div class="shop-item-card" style="padding: 8px;">
-                            ${icon ? 
-                                `<img src="${icon}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 12px; margin-bottom: 5px;" onerror="this.style.display='none'">` : 
+                            ${tattooImage ? 
+                                `<img src="${tattooImage}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 12px; margin-bottom: 5px;" onerror="this.style.display='none'">` : 
                                 `<div style="font-size: 30px; margin-bottom: 5px;">💉</div>`
                             }
                             <div style="font-size: 11px; font-weight: bold; color: #ffd966;">${escapeHtml(tattooName)}</div>
@@ -8903,7 +8896,7 @@ function openInventoryModal() {
                         <span class="inventory-value">${escapeHtml(currentWeapon)} <span style="font-size: 10px;">▼</span></span>
                     </div>
                     <div id="inventoryWeaponSection" style="display: none;">
-                        ${renderItemsSection(weapons, currentWeapon, 'weapon', 'Доступное оружие', '🔪')}
+                        ${renderItemsSection(ownedWeapons, currentWeapon, 'weapon', 'Доступное оружие', '🔪')}
                     </div>
                     
                     <!-- ОДЕЖДА - кликабельно -->
@@ -8912,7 +8905,7 @@ function openInventoryModal() {
                         <span class="inventory-value">${escapeHtml(currentArmor)} <span style="font-size: 10px;">▼</span></span>
                     </div>
                     <div id="inventoryArmorSection" style="display: none;">
-                        ${renderItemsSection(armors, currentArmor, 'armor', 'Доступная одежда', '👕')}
+                        ${renderItemsSection(ownedArmors, currentArmor, 'armor', 'Доступная одежда', '👕')}
                     </div>
                     
                     <!-- АКСЕССУАРЫ - кликабельно -->
@@ -8921,45 +8914,19 @@ function openInventoryModal() {
                         <span class="inventory-value">${escapeHtml(currentAccessory)} <span style="font-size: 10px;">▼</span></span>
                     </div>
                     <div id="inventoryAccessorySection" style="display: none;">
-                        ${renderItemsSection(accessories, currentAccessory, 'accessory', 'Доступные аксессуары', '💍')}
+                        ${renderItemsSection(ownedAccessories, currentAccessory, 'accessory', 'Доступные аксессуары', '💍')}
                     </div>
                 </div>
                 
                 <!-- НАКОЛКИ -->
                 <div class="inventory-card">
-    <h3>
-        <span>💉</span> 
-        <span>НАКОЛКИ (${tattoos.length})</span>
-        <span style="font-size: 10px; color: #8B4513;">🏆 воровская гордость</span>
-    </h3>
-    ${tattoos.length > 0 ?
-        `<div style="display: flex; flex-direction: column; gap: 8px;">
-            ${tattoos.map(t => {
-                // Если tattoo - объект с полными данными
-                const tattooName = typeof t === 'object' ? t.name : t;
-                const tattooImage = typeof t === 'object' ? t.imageUrl : '';
-                const tattooBonus = typeof t === 'object' ? t.bonus : 0;
-                const tattooStat = typeof t === 'object' ? t.stat : '';
-                
-                let bonusText = '';
-                if (tattooBonus > 0) {
-                    if (tattooStat === 'strength') bonusText = `+${tattooBonus} 💪`;
-                    else if (tattooStat === 'defense') bonusText = `+${tattooBonus} 🛡️`;
-                    else if (tattooStat === 'critical') bonusText = `+${tattooBonus} ⚡`;
-                }
-                
-                return `<div class="tattoo-item" style="display: flex; align-items: center; gap: 12px;">
-                    ${tattooImage ? `<img src="${tattooImage}" style="width: 40px; height: 40px; border-radius: 12px; object-fit: cover;" onerror="this.style.display='none'">` : '<span style="font-size: 24px;">💉</span>'}
-                    <div style="flex: 1;">
-                        <div style="font-weight: bold; color: #ffd966;">${escapeHtml(tattooName)}</div>
-                        ${bonusText ? `<div style="font-size: 10px; color: #4caf50;">${bonusText}</div>` : ''}
-                    </div>
-                </div>`;
-            }).join('')}
-        </div>` :
-        '<div style="color:#aaa; padding: 20px; text-align: center;">❌ Нет наколок<br><span style="font-size: 11px;">Купи в магазине у Барыги</span></div>'
-    }
-</div>
+                    <h3 style="margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+                        <span>💉</span> 
+                        <span>НАКОЛКИ (${tattoos.length})</span>
+                        <span style="font-size: 10px; color: #8B4513;">🏆 воровская гордость</span>
+                    </h3>
+                    ${renderTattoosSection()}
+                </div>
                 
             </div>
             <div class="inventory-bottom-nav">
@@ -9368,7 +9335,7 @@ async function changeEquipment(slot, itemName, stat, bonus) {
                 
                 <div class="settings-card">
                     <div style="font-size: 13px; color: #aaa; text-align: center;">
-                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.212</div>
+                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.214</div>
                         <div style="font-size: 11px;">⚡ Клановые войны | Бесконечная прокачка</div>
                     </div>
                 </div>
@@ -9588,36 +9555,43 @@ async function changeEquipment(slot, itemName, stat, bonus) {
         }
 
         async function checkAndCompleteMineUpgrade(type) {
-            const remaining = getMineUpgradeRemaining(type);
-            if (remaining === 0 && ((type === 'paper' && currentPlayer.mine?.paperUpgradeStartTime > 0) || (type === 'makhorka' && currentPlayer.mine?.makhorkaUpgradeStartTime > 0))) {
-                const currentLevel = type === 'paper' ? (currentPlayer.mine?.paperLevel || 1) : (currentPlayer.mine?.makhorkaLevel || 1);
-                const updateObj = {};
-                if (type === 'paper') {
-                    updateObj['mine.paperLevel'] = currentLevel + 1;
-                    updateObj['mine.paperUpgradeStartTime'] = 0;
-                    updateObj['mine.paperUpgradeDuration'] = 0;
-                } else {
-                    updateObj['mine.makhorkaLevel'] = currentLevel + 1;
-                    updateObj['mine.makhorkaUpgradeStartTime'] = 0;
-                    updateObj['mine.makhorkaUpgradeDuration'] = 0;
-                }
-                await playerDocRef.update(updateObj);
-                if (type === 'paper') {
-                    currentPlayer.mine.paperLevel = currentLevel + 1;
-                    currentPlayer.mine.paperUpgradeStartTime = 0;
-                    currentPlayer.mine.paperUpgradeDuration = 0;
-                } else {
-                    currentPlayer.mine.makhorkaLevel = currentLevel + 1;
-                    currentPlayer.mine.makhorkaUpgradeStartTime = 0;
-                    currentPlayer.mine.makhorkaUpgradeDuration = 0;
-                }
-                showToast(`✅ ${type === 'paper' ? 'Бумага' : 'Махорка'} улучшена до ${currentLevel + 1} уровня!`, 'success');
-                renderMineModal();
-                renderUI();
-                return true;
-            }
-            return false;
+    const remaining = getMineUpgradeRemaining(type);
+    if (remaining === 0 && ((type === 'paper' && currentPlayer.mine?.paperUpgradeStartTime > 0) || (type === 'makhorka' && currentPlayer.mine?.makhorkaUpgradeStartTime > 0))) {
+        const currentLevel = type === 'paper' ? (currentPlayer.mine?.paperLevel || 1) : (currentPlayer.mine?.makhorkaLevel || 1);
+        const updateObj = {};
+        if (type === 'paper') {
+            updateObj['mine.paperLevel'] = currentLevel + 1;
+            updateObj['mine.paperUpgradeStartTime'] = 0;
+            updateObj['mine.paperUpgradeDuration'] = 0;
+        } else {
+            updateObj['mine.makhorkaLevel'] = currentLevel + 1;
+            updateObj['mine.makhorkaUpgradeStartTime'] = 0;
+            updateObj['mine.makhorkaUpgradeDuration'] = 0;
         }
+        await playerDocRef.update(updateObj);
+        if (type === 'paper') {
+            currentPlayer.mine.paperLevel = currentLevel + 1;
+            currentPlayer.mine.paperUpgradeStartTime = 0;
+            currentPlayer.mine.paperUpgradeDuration = 0;
+        } else {
+            currentPlayer.mine.makhorkaLevel = currentLevel + 1;
+            currentPlayer.mine.makhorkaUpgradeStartTime = 0;
+            currentPlayer.mine.makhorkaUpgradeDuration = 0;
+        }
+        // Уведомление даже если окно закрыто
+        showToast(`✅ ${type === 'paper' ? 'Бумага' : 'Махорка'} улучшена до ${currentLevel + 1} уровня!`, 'success');
+        
+        // Отправляем уведомление в Telegram если включено
+        if (settingsNotifications) {
+            sendTelegramNotification(`✅ Прокачка завершена! ${type === 'paper' ? 'Бумага' : 'Махорка'} улучшена до ${currentLevel + 1} уровня!`);
+        }
+        
+        renderMineModal();
+        renderUI();
+        return true;
+    }
+    return false;
+}
 
         function isLumberUpgradeActive() {
             return currentPlayer.lumber?.upgradeStartTime > 0 && (Date.now() - currentPlayer.lumber.upgradeStartTime) < (currentPlayer.lumber.upgradeDuration || 0);
@@ -9631,24 +9605,106 @@ async function changeEquipment(slot, itemName, stat, bonus) {
         }
 
         async function checkAndCompleteLumberUpgrade() {
-            const remaining = getLumberUpgradeRemaining();
-            if (remaining === 0 && currentPlayer.lumber?.upgradeStartTime > 0) {
-                const currentLevel = currentPlayer.lumber?.level || 1;
-                await playerDocRef.update({
-                    'lumber.level': currentLevel + 1,
-                    'lumber.upgradeStartTime': 0,
-                    'lumber.upgradeDuration': 0
-                });
-                currentPlayer.lumber.level = currentLevel + 1;
-                currentPlayer.lumber.upgradeStartTime = 0;
-                currentPlayer.lumber.upgradeDuration = 0;
-                showToast(`✅ Лесоповал улучшен до ${currentLevel + 1} уровня!`, 'success');
-                renderMineModal();
-                renderUI();
-                return true;
-            }
-            return false;
+    const remaining = getLumberUpgradeRemaining();
+    if (remaining === 0 && currentPlayer.lumber?.upgradeStartTime > 0) {
+        const currentLevel = currentPlayer.lumber?.level || 1;
+        await playerDocRef.update({
+            'lumber.level': currentLevel + 1,
+            'lumber.upgradeStartTime': 0,
+            'lumber.upgradeDuration': 0
+        });
+        currentPlayer.lumber.level = currentLevel + 1;
+        currentPlayer.lumber.upgradeStartTime = 0;
+        currentPlayer.lumber.upgradeDuration = 0;
+        
+        showToast(`✅ Лесоповал улучшен до ${currentLevel + 1} уровня!`, 'success');
+        if (settingsNotifications) {
+            sendTelegramNotification(`✅ Прокачка завершена! Лесоповал улучшен до ${currentLevel + 1} уровня!`);
         }
+        
+        renderMineModal();
+        renderUI();
+        return true;
+    }
+    return false;
+}
+
+// Глобальная переменная для отслеживания состояния работы
+let lastWorkRemainingState = { mine: 0, lumber: 0, quarry: 0 };
+
+function checkWorkCompletion() {
+    if (!currentPlayer) return;
+    
+    const workTypes = ['mine', 'lumber', 'quarry'];
+    for (const type of workTypes) {
+        const remaining = getWorkRemaining(type);
+        const lastRemaining = lastWorkRemainingState[type] || 0;
+        
+        // Если работа была активна (remaining > 0) и стала доступна (remaining <= 0)
+        if (lastRemaining > 0 && remaining <= 0) {
+            let workName = '';
+            if (type === 'mine') workName = 'Шахта';
+            else if (type === 'lumber') workName = 'Лесоповал';
+            else workName = 'Каменоломня';
+            
+            showToast(`✅ Работа в ${workName} снова доступна!`, 'success');
+            
+            if (settingsNotifications) {
+                sendTelegramNotification(`✅ Работа в ${workName} снова доступна!`);
+            }
+            
+            // Обновляем UI
+            renderUI();
+        }
+        
+        lastWorkRemainingState[type] = remaining;
+    }
+}
+
+// Вызываем checkWorkCompletion в интервале mapCountersInterval
+// Найдите в renderUI() этот блок и добавьте вызов:
+if (window.mapCountersInterval) clearInterval(window.mapCountersInterval);
+window.mapCountersInterval = setInterval(() => {
+    if (!currentPlayer) {
+        if (window.mapCountersInterval) clearInterval(window.mapCountersInterval);
+        return;
+    }
+    updateBattleCountersOnMap();
+    checkWorkCompletion(); // ← ДОБАВЬТЕ ЭТУ СТРОКУ
+}, 1000);
+
+// Добавьте эту функцию где-нибудь в начале скрипта
+let lastWorkNotified = { mine: false, lumber: false, quarry: false };
+
+function checkAndNotifyWorkAvailable() {
+    if (!currentPlayer) return;
+    
+    const workTypes = [
+        { type: 'mine', name: 'Шахта' },
+        { type: 'lumber', name: 'Лесоповал' },
+        { type: 'quarry', name: 'Каменоломня' }
+    ];
+    
+    for (const work of workTypes) {
+        const remaining = getWorkRemaining(work.type);
+        const wasNotified = lastWorkNotified[work.type];
+        
+        // Если работа стала доступна (remaining <= 0) и мы ещё не уведомляли
+        if (remaining <= 0 && !wasNotified) {
+            // Показываем уведомление только если модальное окно работы НЕ открыто
+            const mineModal = document.getElementById('mineFullscreen');
+            if (!mineModal) {
+                showToast(`✅ Работа в ${work.name} снова доступна!`, 'success');
+                if (settingsNotifications) {
+                    sendTelegramNotification(`✅ Работа в ${work.name} снова доступна!`);
+                }
+            }
+            lastWorkNotified[work.type] = true;
+        } else if (remaining > 0) {
+            lastWorkNotified[work.type] = false;
+        }
+    }
+}
 
         function isQuarryUpgradeActive() {
             return currentPlayer.quarry?.upgradeStartTime > 0 && (Date.now() - currentPlayer.quarry.upgradeStartTime) < (currentPlayer.quarry.upgradeDuration || 0);
@@ -9662,24 +9718,29 @@ async function changeEquipment(slot, itemName, stat, bonus) {
         }
 
         async function checkAndCompleteQuarryUpgrade() {
-            const remaining = getQuarryUpgradeRemaining();
-            if (remaining === 0 && currentPlayer.quarry?.upgradeStartTime > 0) {
-                const currentLevel = currentPlayer.quarry?.level || 1;
-                await playerDocRef.update({
-                    'quarry.level': currentLevel + 1,
-                    'quarry.upgradeStartTime': 0,
-                    'quarry.upgradeDuration': 0
-                });
-                currentPlayer.quarry.level = currentLevel + 1;
-                currentPlayer.quarry.upgradeStartTime = 0;
-                currentPlayer.quarry.upgradeDuration = 0;
-                showToast(`✅ Каменоломня улучшена до ${currentLevel + 1} уровня!`, 'success');
-                renderMineModal();
-                renderUI();
-                return true;
-            }
-            return false;
+    const remaining = getQuarryUpgradeRemaining();
+    if (remaining === 0 && currentPlayer.quarry?.upgradeStartTime > 0) {
+        const currentLevel = currentPlayer.quarry?.level || 1;
+        await playerDocRef.update({
+            'quarry.level': currentLevel + 1,
+            'quarry.upgradeStartTime': 0,
+            'quarry.upgradeDuration': 0
+        });
+        currentPlayer.quarry.level = currentLevel + 1;
+        currentPlayer.quarry.upgradeStartTime = 0;
+        currentPlayer.quarry.upgradeDuration = 0;
+        
+        showToast(`✅ Каменоломня улучшена до ${currentLevel + 1} уровня!`, 'success');
+        if (settingsNotifications) {
+            sendTelegramNotification(`✅ Прокачка завершена! Каменоломня улучшена до ${currentLevel + 1} уровня!`);
         }
+        
+        renderMineModal();
+        renderUI();
+        return true;
+    }
+    return false;
+}
 
         function getWorkRemaining(type) {
             if (type === 'mine') {
@@ -14918,7 +14979,12 @@ function subscribeToActiveBattle() {
                     currentPlayer.stats.defense = newDefense;
 
                     const typeName = gangType === 'blats' ? 'Блатные' : (gangType === 'muzhiks' ? 'Мужики' : 'Фраера');
-                    showToast(`✅ ${typeName} улучшены до ${newLevel} уровня! Ваш уровень повышен до ${newPlayerLevel}!`, 'success');
+                    // Добавьте уведомление
+    showToast(`✅ ${typeName} улучшены до ${newLevel} уровня! Ваш уровень повышен до ${newPlayerLevel}!`, 'success');
+    
+    if (settingsNotifications) {
+        sendTelegramNotification(`✅ Прокачка завершена! ${typeName} улучшены до ${newLevel} уровня! Ваш уровень повышен до ${newPlayerLevel}!`);
+    }
 
                     if (document.getElementById('gangFullscreen')) {
                         renderGangModal();
@@ -16962,10 +17028,10 @@ loadActiveRobberiesFromStorage();
                 }
                 // Обновляем счетчики на карте без полного перерендера
 				updateBattleCountersOnMap();
-				// Полный рендер реже, например раз в 5 секунд или по необходимости
-				// renderUI(); // убираем частый рендер, оставляем только обновление счетчиков
+				checkWorkCompletion();        
+				checkAndNotifyWorkAvailable(); 
             }, 1000);
-        }  // ← ЭТО ДОЛЖНА БЫТЬ ЕДИНСТВЕННАЯ ЗАКРЫВАЮЩАЯ СКОБКА
+        }  
         // Загружаем картинки после отрисовки
         if (typeof loadAllCachedImages === 'function') {
             setTimeout(() => {
