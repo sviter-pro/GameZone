@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Зона 1.0.0.210 - Карта зоны</title>
+    <title>Зона 1.0.0.212 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -5963,6 +5963,68 @@
 #robberyProgressFill {
     transition: width 0.3s ease;
 }
+/* Стили для карточек предметов в инвентаре */
+.inventory-item-card {
+    background: rgba(30, 36, 64, 0.8);
+    border-radius: 16px;
+    padding: 8px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 1px solid rgba(139, 69, 19, 0.3);
+}
+
+.inventory-item-card:hover {
+    transform: translateY(-2px);
+    border-color: #c9a03d;
+    background: rgba(139, 69, 19, 0.2);
+}
+
+.inventory-item-card.disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.inventory-item-card.disabled:hover {
+    transform: none;
+    border-color: rgba(139, 69, 19, 0.3);
+}
+
+.inventory-item-image {
+    width: 50px;
+    height: 50px;
+    object-fit: cover;
+    border-radius: 12px;
+    margin-bottom: 5px;
+}
+
+.inventory-item-name {
+    font-size: 11px;
+    font-weight: bold;
+    color: #ffd966;
+    margin-bottom: 2px;
+}
+
+.inventory-item-status {
+    font-size: 9px;
+}
+
+.inventory-item-status.owned {
+    color: #ff9800;
+}
+
+.inventory-item-status.equipped {
+    color: #4caf50;
+}
+
+.inventory-item-status.locked {
+    color: #888;
+}
+
+.inventory-item-bonus {
+    font-size: 9px;
+    color: #aaa;
+}
     </style>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
@@ -7923,7 +7985,7 @@ function restoreActiveBattleFromLocal() {
                 <img class="loading-logo" src="https://sviter-pro.github.io/GameZone/src/test/logo124.png" alt="Тюряга 2.0" onerror="this.src='https://via.placeholder.com/180x180?text=Тюряга+2.0'">
                 <div class="loading-spinner-new"></div>
                 <div class="loading-tip-new" id="loadingTipNew">⚡ Загрузка игрового мира...</div>
-                <div class="loading-version">Зона 1.0.0.210 | Зона ждет</div>
+                <div class="loading-version">Зона 1.0.0.212 | Зона ждет</div>
             </div>
         `;
             const tipEl = document.getElementById('loadingTipNew');
@@ -8556,30 +8618,63 @@ function restoreActiveBattleFromLocal() {
         }
 
         function openInventoryModal() {
-            if (window._opening_modal) { console.log('Блокировка: окно уже открывается'); return; }
-            window._opening_modal = true;
+    if (window._opening_modal) { console.log('Блокировка: окно уже открывается'); return; }
+    window._opening_modal = true;
 
-            if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); window._opening_modal = false; return; }
-            if (!currentPlayer) { window._opening_modal = false; return; }
+    if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); window._opening_modal = false; return; }
+    if (!currentPlayer) { window._opening_modal = false; return; }
 
-            // Получаем количество наколок
-            const tattoosCount = currentPlayer.tattoos?.length || 0;
+    // Получаем количество наколок
+    const tattoosCount = currentPlayer.tattoos?.length || 0;
 
-            // Получаем экипировку с красивыми иконками
-            const weapon = currentPlayer.equipped?.weapon || 'камень';
-            const armor = currentPlayer.equipped?.armor || 'роба';
-            const accessory = currentPlayer.equipped?.accessory || 'чифирная кружка';
+    // Получаем экипировку с красивыми иконками
+    const weapon = currentPlayer.equipped?.weapon || 'камень';
+    const armor = currentPlayer.equipped?.armor || 'роба';
+    const accessory = currentPlayer.equipped?.accessory || 'чифирная кружка';
 
-            // Иконки для экипировки
-            const weaponIcons = { 'камень': '🪨', 'нож': '🔪', 'кастет': '👊', 'бита': '🏏', 'пистолет': '🔫' };
-            const armorIcons = { 'роба': '👕', 'кожанка': '🧥', 'броник': '🛡️', 'камуфляж': '🎖️' };
-            const accessoryIcons = { 'чифирная кружка': '☕', 'цепь': '⛓️', 'перстень': '💍', 'часы': '⌚' };
+    // Получаем все купленные вещи
+    const purchasedEquipment = currentPlayer.purchasedEquipment || [];
+    
+    // Иконки для экипировки
+    const weaponIcons = { 'камень': '🪨', 'нож': '🔪', 'кастет': '👊', 'бита': '🏏', 'пистолет': '🔫', 'автомат': '🔫', 'обрез': '🔫' };
+    const armorIcons = { 'роба': '👕', 'кожанка': '🧥', 'броник': '🛡️', 'камуфляж': '🎖️', 'бронежилет': '🛡️' };
+    const accessoryIcons = { 'чифирная кружка': '☕', 'цепь': '⛓️', 'перстень': '💍', 'часы': '⌚', 'крест': '✝️' };
 
-            const weaponIcon = weaponIcons[weapon] || '🔪';
-            const armorIcon = armorIcons[armor] || '👕';
-            const accessoryIcon = accessoryIcons[accessory] || '💍';
+    const weaponIcon = weaponIcons[weapon] || '🔪';
+    const armorIcon = armorIcons[armor] || '👕';
+    const accessoryIcon = accessoryIcons[accessory] || '💍';
 
-            const modalHtml = `
+    // Список всех доступных предметов в магазине (для отображения)
+    const allWeapons = ['камень', 'нож', 'кастет', 'бита', 'пистолет', 'автомат', 'обрез'];
+    const allArmors = ['роба', 'кожанка', 'броник', 'камуфляж', 'бронежилет'];
+    const allAccessories = ['чифирная кружка', 'цепь', 'перстень', 'часы', 'крест'];
+    
+    // Функция для отображения списка предметов
+    const renderEquipmentList = (items, purchasedList, currentEquipped, slotName, iconsMap) => {
+        if (!items || items.length === 0) return '<div style="color:#aaa; padding: 10px; text-align: center;">❌ Нет доступных предметов</div>';
+        
+        return items.map(item => {
+            const isPurchased = purchasedList.includes(item);
+            const isEquipped = currentEquipped === item;
+            const icon = iconsMap[item] || '📦';
+            
+            let statusHtml = '';
+            if (isEquipped) {
+                statusHtml = '<span style="color: #4caf50; font-size: 10px;"> (НАДЕТО)</span>';
+            } else if (isPurchased) {
+                statusHtml = '<span style="color: #ff9800; font-size: 10px;"> (В ИНВЕНТАРЕ)</span>';
+            } else {
+                statusHtml = '<span style="color: #888; font-size: 10px;"> (НЕ КУПЛЕНО)</span>';
+            }
+            
+            return `<div class="inventory-row" style="cursor: ${isPurchased ? 'pointer' : 'default'}; opacity: ${isPurchased ? 1 : 0.5};" onclick="${isPurchased && !isEquipped ? `changeEquipment('${slotName}', '${item}')` : ''}">
+                <span class="inventory-label">${icon} ${item}</span>
+                <span class="inventory-value">${statusHtml}</span>
+            </div>`;
+        }).join('');
+    };
+    
+    const modalHtml = `
         <div class="inventory-fullscreen" id="inventoryFullscreen">
             <div class="inventory-header-bar">
                 <div class="inventory-header-content">
@@ -8587,11 +8682,12 @@ function restoreActiveBattleFromLocal() {
                 </div>
             </div>
             <div class="inventory-content-area">
+                <!-- ТЕКУЩАЯ ЭКИПИРОВКА -->
                 <div class="inventory-card">
                     <h3>
                         <span>🔧</span> 
-                        <span>ЭКИПИРОВКА</span>
-                        <span style="font-size: 10px; color: #8B4513;">⚡ шмонаем по полной</span>
+                        <span>ТЕКУЩАЯ ЭКИПИРОВКА</span>
+                        <span style="font-size: 10px; color: #8B4513;">⚡ надетая шмонка</span>
                     </h3>
                     <div class="inventory-row">
                         <span class="inventory-label">${weaponIcon} ОРУЖИЕ</span>
@@ -8606,6 +8702,38 @@ function restoreActiveBattleFromLocal() {
                         <span class="inventory-value">${escapeHtml(accessory)}</span>
                     </div>
                 </div>
+                
+                <!-- ВСЕ ОРУЖИЕ -->
+                <div class="inventory-card">
+                    <h3>
+                        <span>🔪</span> 
+                        <span>ОРУЖИЕ</span>
+                        <span style="font-size: 10px; color: #8B4513;">👆 нажми чтобы надеть</span>
+                    </h3>
+                    ${renderEquipmentList(allWeapons, purchasedEquipment, weapon, 'weapon', weaponIcons)}
+                </div>
+                
+                <!-- ВСЯ ОДЕЖДА -->
+                <div class="inventory-card">
+                    <h3>
+                        <span>👕</span> 
+                        <span>ОДЕЖДА</span>
+                        <span style="font-size: 10px; color: #8B4513;">👆 нажми чтобы надеть</span>
+                    </h3>
+                    ${renderEquipmentList(allArmors, purchasedEquipment, armor, 'armor', armorIcons)}
+                </div>
+                
+                <!-- ВСЕ АКСЕССУАРЫ -->
+                <div class="inventory-card">
+                    <h3>
+                        <span>💍</span> 
+                        <span>АКСЕССУАРЫ</span>
+                        <span style="font-size: 10px; color: #8B4513;">👆 нажми чтобы надеть</span>
+                    </h3>
+                    ${renderEquipmentList(allAccessories, purchasedEquipment, accessory, 'accessory', accessoryIcons)}
+                </div>
+                
+                <!-- НАКОЛКИ -->
                 <div class="inventory-card">
                     <h3>
                         <span>💉</span> 
@@ -8613,10 +8741,225 @@ function restoreActiveBattleFromLocal() {
                         <span style="font-size: 10px; color: #8B4513;">🏆 воровская гордость</span>
                     </h3>
                     ${tattoosCount > 0 ?
-                    currentPlayer.tattoos.map(t => `<div class="tattoo-item">💉 ${escapeHtml(t)}</div>`).join('') :
-                    '<div style="color:#aaa; padding: 20px; text-align: center;">❌ Нет наколок<br><span style="font-size: 11px;">Купи в магазине у Барыги</span></div>'
-                }
+                        currentPlayer.tattoos.map(t => `<div class="tattoo-item">💉 ${escapeHtml(t)}</div>`).join('') :
+                        '<div style="color:#aaa; padding: 20px; text-align: center;">❌ Нет наколок<br><span style="font-size: 11px;">Купи в магазине у Барыги</span></div>'
+                    }
                 </div>
+            </div>
+            <div class="inventory-bottom-nav">
+                <div class="bottom-nav">
+                    <button class="inventory-tab-btn active" onclick="closeInventoryModal()">
+                        <span>←</span><span>НАЗАД</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    if (tg) tg.BackButton.show();
+
+    setTimeout(() => { window._opening_modal = false; }, 500);
+}
+
+function openInventoryModal() {
+    if (window._opening_modal) { console.log('Блокировка: окно уже открывается'); return; }
+    window._opening_modal = true;
+
+    if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); window._opening_modal = false; return; }
+    if (!currentPlayer) { window._opening_modal = false; return; }
+
+    // Получаем все предметы из магазина
+    const shopItems = getShopItemsFromAdmin();
+    
+    // Фильтруем предметы по типам
+    const weapons = shopItems.filter(i => i.category === 'weapon' && i.type === 'equipment');
+    const armors = shopItems.filter(i => i.category === 'armor' && i.type === 'equipment');
+    const accessories = shopItems.filter(i => i.category === 'accessory' && i.type === 'equipment');
+    
+    // Получаем купленные предметы
+    const purchasedEquipment = currentPlayer.purchasedEquipment || [];
+    
+    // Текущая экипировка
+    const currentWeapon = currentPlayer.equipped?.weapon || 'камень';
+    const currentArmor = currentPlayer.equipped?.armor || 'роба';
+    const currentAccessory = currentPlayer.equipped?.accessory || 'чифирная кружка';
+    
+    // Татуировки
+    const tattoos = currentPlayer.tattoos || [];
+    
+    // Состояние открытых секций
+    let openSection = null;
+    
+    // Функция рендера секции с предметами
+    const renderItemsSection = (items, currentItem, slotName, title, icon) => {
+        if (!items || items.length === 0) return '';
+        
+        return `
+            <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(139,69,19,0.3);">
+                <div style="font-size: 13px; color: #c9a03d; margin-bottom: 10px;">📦 ${title}:</div>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+                    ${items.map(item => {
+                        const isPurchased = purchasedEquipment.includes(item.name);
+                        const isEquipped = currentItem === item.name;
+                        let statusText = '';
+                        let statusColor = '#888';
+                        let canEquip = false;
+                        
+                        if (isEquipped) {
+                            statusText = '✓ НАДЕТО';
+                            statusColor = '#4caf50';
+                            canEquip = false;
+                        } else if (isPurchased) {
+                            statusText = '📦 В ИНВЕНТАРЕ';
+                            statusColor = '#ff9800';
+                            canEquip = true;
+                        } else {
+                            statusText = '🔒 НЕ КУПЛЕНО';
+                            statusColor = '#888';
+                            canEquip = false;
+                        }
+                        
+                        // Иконка предмета
+                        let itemIcon = '📦';
+                        if (item.category === 'weapon') itemIcon = '🔪';
+                        else if (item.category === 'armor') itemIcon = '👕';
+                        else if (item.category === 'accessory') itemIcon = '💍';
+                        
+                        return `
+                            <div class="shop-item-card" style="padding: 8px; cursor: ${canEquip ? 'pointer' : 'default'}; opacity: ${isPurchased ? 1 : 0.5};" onclick="${canEquip ? `changeEquipment('${slotName}', '${item.name}', '${item.stat}', ${item.bonus})` : ''}">
+                                ${item.imageUrl ? 
+                                    `<img src="${item.imageUrl}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 12px; margin-bottom: 5px;" onerror="this.style.display='none'">` : 
+                                    `<div style="font-size: 30px; margin-bottom: 5px;">${itemIcon}</div>`
+                                }
+                                <div style="font-size: 11px; font-weight: bold; color: #ffd966;">${escapeHtml(item.name)}</div>
+                                <div style="font-size: 9px; color: ${statusColor};">${statusText}</div>
+                                ${item.bonus ? `<div style="font-size: 9px; color: #aaa;">+${item.bonus} ${item.stat === 'strength' ? '💪' : (item.stat === 'defense' ? '🛡️' : '⚡')}</div>` : ''}
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+        `;
+    };
+    
+    // Функция рендера секции с татуировками
+    const renderTattoosSection = () => {
+        if (!tattoos || tattoos.length === 0) {
+            return '<div style="color:#aaa; padding: 20px; text-align: center;">❌ Нет наколок<br><span style="font-size: 11px;">Купи в магазине у Барыги</span></div>';
+        }
+        
+        // Получаем полные данные о татуировках из магазина
+        const tattooItems = shopItems.filter(i => i.type === 'tattoo');
+        
+        return `
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+                ${tattoos.map(tattooName => {
+                    const tattooData = tattooItems.find(i => i.name === tattooName);
+                    const icon = tattooData?.imageUrl || '';
+                    const bonus = tattooData?.bonus || 0;
+                    const stat = tattooData?.stat || '';
+                    
+                    let bonusText = '';
+                    if (bonus > 0) {
+                        if (stat === 'strength') bonusText = `+${bonus} 💪`;
+                        else if (stat === 'defense') bonusText = `+${bonus} 🛡️`;
+                        else if (stat === 'critical') bonusText = `+${bonus} ⚡`;
+                    }
+                    
+                    return `
+                        <div class="shop-item-card" style="padding: 8px;">
+                            ${icon ? 
+                                `<img src="${icon}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 12px; margin-bottom: 5px;" onerror="this.style.display='none'">` : 
+                                `<div style="font-size: 30px; margin-bottom: 5px;">💉</div>`
+                            }
+                            <div style="font-size: 11px; font-weight: bold; color: #ffd966;">${escapeHtml(tattooName)}</div>
+                            ${bonusText ? `<div style="font-size: 9px; color: #4caf50;">${bonusText}</div>` : ''}
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        `;
+    };
+    
+    const modalHtml = `
+        <div class="inventory-fullscreen" id="inventoryFullscreen">
+            <div class="inventory-header-bar">
+                <div class="inventory-header-content">
+                    <div class="inventory-header-title">КАМЕРА</div>
+                </div>
+            </div>
+            <div class="inventory-content-area" style="padding-bottom: 80px;">
+                
+                <!-- ТЕКУЩАЯ ЭКИПИРОВКА -->
+                <div class="inventory-card">
+                    <h3 style="margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+                        <span>🔧</span> 
+                        <span>ТЕКУЩАЯ ЭКИПИРОВКА</span>
+                    </h3>
+                    
+                    <!-- ОРУЖИЕ - кликабельно -->
+                    <div class="inventory-row" style="cursor: pointer;" onclick="toggleInventorySection('weapon')">
+                        <span class="inventory-label">🔪 ОРУЖИЕ</span>
+                        <span class="inventory-value">${escapeHtml(currentWeapon)} <span style="font-size: 10px;">▼</span></span>
+                    </div>
+                    <div id="inventoryWeaponSection" style="display: none;">
+                        ${renderItemsSection(weapons, currentWeapon, 'weapon', 'Доступное оружие', '🔪')}
+                    </div>
+                    
+                    <!-- ОДЕЖДА - кликабельно -->
+                    <div class="inventory-row" style="cursor: pointer;" onclick="toggleInventorySection('armor')">
+                        <span class="inventory-label">👕 ОДЕЖДА</span>
+                        <span class="inventory-value">${escapeHtml(currentArmor)} <span style="font-size: 10px;">▼</span></span>
+                    </div>
+                    <div id="inventoryArmorSection" style="display: none;">
+                        ${renderItemsSection(armors, currentArmor, 'armor', 'Доступная одежда', '👕')}
+                    </div>
+                    
+                    <!-- АКСЕССУАРЫ - кликабельно -->
+                    <div class="inventory-row" style="cursor: pointer;" onclick="toggleInventorySection('accessory')">
+                        <span class="inventory-label">💍 АКСЕССУАРЫ</span>
+                        <span class="inventory-value">${escapeHtml(currentAccessory)} <span style="font-size: 10px;">▼</span></span>
+                    </div>
+                    <div id="inventoryAccessorySection" style="display: none;">
+                        ${renderItemsSection(accessories, currentAccessory, 'accessory', 'Доступные аксессуары', '💍')}
+                    </div>
+                </div>
+                
+                <!-- НАКОЛКИ -->
+                <div class="inventory-card">
+    <h3>
+        <span>💉</span> 
+        <span>НАКОЛКИ (${tattoos.length})</span>
+        <span style="font-size: 10px; color: #8B4513;">🏆 воровская гордость</span>
+    </h3>
+    ${tattoos.length > 0 ?
+        `<div style="display: flex; flex-direction: column; gap: 8px;">
+            ${tattoos.map(t => {
+                // Если tattoo - объект с полными данными
+                const tattooName = typeof t === 'object' ? t.name : t;
+                const tattooImage = typeof t === 'object' ? t.imageUrl : '';
+                const tattooBonus = typeof t === 'object' ? t.bonus : 0;
+                const tattooStat = typeof t === 'object' ? t.stat : '';
+                
+                let bonusText = '';
+                if (tattooBonus > 0) {
+                    if (tattooStat === 'strength') bonusText = `+${tattooBonus} 💪`;
+                    else if (tattooStat === 'defense') bonusText = `+${tattooBonus} 🛡️`;
+                    else if (tattooStat === 'critical') bonusText = `+${tattooBonus} ⚡`;
+                }
+                
+                return `<div class="tattoo-item" style="display: flex; align-items: center; gap: 12px;">
+                    ${tattooImage ? `<img src="${tattooImage}" style="width: 40px; height: 40px; border-radius: 12px; object-fit: cover;" onerror="this.style.display='none'">` : '<span style="font-size: 24px;">💉</span>'}
+                    <div style="flex: 1;">
+                        <div style="font-weight: bold; color: #ffd966;">${escapeHtml(tattooName)}</div>
+                        ${bonusText ? `<div style="font-size: 10px; color: #4caf50;">${bonusText}</div>` : ''}
+                    </div>
+                </div>`;
+            }).join('')}
+        </div>` :
+        '<div style="color:#aaa; padding: 20px; text-align: center;">❌ Нет наколок<br><span style="font-size: 11px;">Купи в магазине у Барыги</span></div>'
+    }
+</div>
                 
             </div>
             <div class="inventory-bottom-nav">
@@ -8628,11 +8971,75 @@ function restoreActiveBattleFromLocal() {
             </div>
         </div>
     `;
-            document.body.insertAdjacentHTML('beforeend', modalHtml);
-            if (tg) tg.BackButton.show();
+    
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    if (tg) tg.BackButton.show();
 
-            setTimeout(() => { window._opening_modal = false; }, 500);
+    setTimeout(() => { window._opening_modal = false; }, 500);
+}
+
+function toggleInventorySection(section) {
+    const element = document.getElementById(`inventory${section.charAt(0).toUpperCase() + section.slice(1)}Section`);
+    if (element) {
+        if (element.style.display === 'none') {
+            element.style.display = 'block';
+        } else {
+            element.style.display = 'none';
         }
+    }
+}
+async function changeEquipment(slot, itemName, stat, bonus) {
+    if (!currentPlayer) return;
+    
+    // Получаем старый предмет
+    const oldItemName = currentPlayer.equipped[slot];
+    
+    // Если надеваем тот же предмет - ничего не делаем
+    if (oldItemName === itemName) {
+        showToast('Этот предмет уже надет!', 'warning');
+        return;
+    }
+    
+    // Получаем данные старого предмета из магазина
+    const shopItems = getShopItemsFromAdmin();
+    const oldItemData = shopItems.find(i => i.name === oldItemName && i.type === 'equipment' && i.slot === slot);
+    const newItemData = shopItems.find(i => i.name === itemName && i.type === 'equipment' && i.slot === slot);
+    
+    if (!newItemData) {
+        showToast('Ошибка: предмет не найден!', 'error');
+        return;
+    }
+    
+    // Снимаем старый бонус
+    if (oldItemData && oldItemData.stat && oldItemData.bonus) {
+        currentPlayer.stats[oldItemData.stat] = (currentPlayer.stats[oldItemData.stat] || 0) - oldItemData.bonus;
+        await playerDocRef.update({
+            [`stats.${oldItemData.stat}`]: firebase.firestore.FieldValue.increment(-oldItemData.bonus)
+        });
+    }
+    
+    // Одеваем новый предмет
+    currentPlayer.equipped[slot] = itemName;
+    if (stat && bonus) {
+        currentPlayer.stats[stat] = (currentPlayer.stats[stat] || 0) + bonus;
+        await playerDocRef.update({
+            [`equipped.${slot}`]: itemName,
+            [`stats.${stat}`]: firebase.firestore.FieldValue.increment(bonus)
+        });
+    } else {
+        await playerDocRef.update({
+            [`equipped.${slot}`]: itemName
+        });
+    }
+    
+    const statName = stat === 'strength' ? 'силы' : (stat === 'defense' ? 'защиты' : 'крита');
+    showToast(`✅ Надето: ${itemName}! +${bonus} ${statName}`, 'success');
+    
+    // Обновляем инвентарь
+    closeInventoryModal();
+    setTimeout(() => openInventoryModal(), 100);
+    renderUI();
+}
 
         function closeInventoryModal() {
             const modal = document.getElementById('inventoryFullscreen');
@@ -8961,7 +9368,7 @@ function restoreActiveBattleFromLocal() {
                 
                 <div class="settings-card">
                     <div style="font-size: 13px; color: #aaa; text-align: center;">
-                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.210</div>
+                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.212</div>
                         <div style="font-size: 11px;">⚡ Клановые войны | Бесконечная прокачка</div>
                     </div>
                 </div>
@@ -10564,10 +10971,16 @@ function calculateBattleRewards(attacker, defender) {
         }
 
         function renderAdminShopModal(category) {
-            const shopItems = getShopItemsFromAdmin();
-            const filteredItems = category === 'all' ? shopItems : shopItems.filter(i => i.category === category);
+    const shopItems = getShopItemsFromAdmin();
+    let filteredItems = [];
+    
+    if (category === 'all') {
+        filteredItems = shopItems;
+    } else {
+        filteredItems = shopItems.filter(i => i.category === category);
+    }
 
-            const modalHtml = `
+    const modalHtml = `
         <div class="shop-fullscreen" id="shopFullscreen">
             <div class="shop-header-bar">
                 <div class="shop-header-content">
@@ -10587,19 +11000,41 @@ function calculateBattleRewards(attacker, defender) {
                     ${filteredItems.length === 0 ? '<div style="text-align:center; padding:20px;">🔍 НЕТ ТОВАРОВ</div>' :
                     filteredItems.map(item => {
                         const ownedCount = purchasedItemsCount[item.id] || 0;
-                        const itemTypeIcon = {
-                            weapon: '🔪', armor: '👕', accessory: '💍', tattoos: '💉', consumables: '🍺', resource: '📦'
-                        }[item.category] || '📦';
+                        // Определяем иконку категории
+                        let itemTypeIcon = '📦';
+                        if (item.category === 'weapon') itemTypeIcon = '🔪';
+                        else if (item.category === 'armor') itemTypeIcon = '👕';
+                        else if (item.category === 'accessory') itemTypeIcon = '💍';
+                        else if (item.category === 'tattoos') itemTypeIcon = '💉';
+                        else if (item.category === 'consumables') itemTypeIcon = '🍺';
+                        
+                        // Для татуировок показываем количество в инвентаре
+                        let ownedHtml = '';
+                        if (item.type === 'tattoo') {
+                            const hasTattoo = currentPlayer.tattoos?.includes(item.name);
+                            if (hasTattoo) ownedHtml = '<div class="shop-item-owned">✓ УЖЕ ЕСТЬ</div>';
+                        } else if (ownedCount > 0) {
+                            ownedHtml = `<div class="shop-item-owned">✓ ЕСТЬ: ${ownedCount} шт.</div>`;
+                        }
+                        
+                        // Для татуировок проверяем, есть ли уже
+                        let isDisabled = false;
+                        if (item.type === 'tattoo') {
+                            isDisabled = currentPlayer.tattoos?.includes(item.name);
+                        }
+                        
                         return `
-                                <div class="shop-item-card">
-                                    ${item.imageUrl ? `<img src="${escapeHtml(item.imageUrl)}" class="shop-item-image" onerror="this.style.display='none'">` : `<div style="font-size: 40px; margin-bottom: 10px;">${itemTypeIcon}</div>`}
-                                    <div class="shop-item-name">${escapeHtml(item.name)}</div>
-                                    <div class="shop-item-desc">${escapeHtml(item.desc)}</div>
-                                    <div class="shop-item-price">${item.price} ${item.currency === 'rubles' ? '💰' : '🚬'}</div>
-                                    ${ownedCount > 0 ? `<div class="shop-item-owned">✓ ЕСТЬ: ${ownedCount} шт.</div>` : ''}
-                                    <button class="btn-primary" onclick="buyAdminItemFromModal(${JSON.stringify(item).replace(/"/g, '&quot;')})">КУПИТЬ</button>
-                                </div>
-                            `;
+                            <div class="shop-item-card">
+                                ${item.imageUrl ? `<img src="${escapeHtml(item.imageUrl)}" class="shop-item-image" onerror="this.style.display='none'">` : `<div style="font-size: 40px; margin-bottom: 10px;">${itemTypeIcon}</div>`}
+                                <div class="shop-item-name">${escapeHtml(item.name)}</div>
+                                <div class="shop-item-desc">${escapeHtml(item.desc)}</div>
+                                <div class="shop-item-price">${item.price} ${item.currency === 'rubles' ? '💰' : '🚬'}</div>
+                                ${ownedHtml}
+                                <button class="btn-primary" onclick="buyAdminItemFromModal(${JSON.stringify(item).replace(/"/g, '&quot;')})" ${isDisabled ? 'disabled' : ''}>
+                                    ${isDisabled ? '✓ УЖЕ КУПЛЕНО' : 'КУПИТЬ'}
+                                </button>
+                            </div>
+                        `;
                     }).join('')
                 }
                 </div>
@@ -10612,11 +11047,11 @@ function calculateBattleRewards(attacker, defender) {
         </div>
     `;
 
-            const existingModal = document.getElementById('shopFullscreen');
-            if (existingModal) existingModal.remove();
-            document.body.insertAdjacentHTML('beforeend', modalHtml);
-            if (tg) tg.BackButton.show();
-        }
+    const existingModal = document.getElementById('shopFullscreen');
+    if (existingModal) existingModal.remove();
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    if (tg) tg.BackButton.show();
+}
 
         function closeShopModal() {
             const modal = document.getElementById('shopFullscreen');
@@ -10635,100 +11070,158 @@ function calculateBattleRewards(attacker, defender) {
             renderUI();
         }
 
-        async function buyAdminItemFromModal(item) {
-            if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); return; }
-            if (item.currency === 'rubles' && currentPlayer.rubles < item.price) {
-                showToast(`Не хватает ${item.price - currentPlayer.rubles} 💰!`, 'error');
-                return;
-            }
-            if (item.currency === 'cigarettes' && currentPlayer.cigarettes < item.price) {
-                showToast(`Не хватает ${item.price - currentPlayer.cigarettes} 🚬!`, 'error');
-                return;
-            }
-            const newCount = (purchasedItemsCount[item.id] || 0) + 1;
-            purchasedItemsCount[item.id] = newCount;
-            await playerDocRef.update({ purchasedItemsCount: purchasedItemsCount });
+    async function buyAdminItemFromModal(item) {
+    if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); return; }
+    if (item.currency === 'rubles' && currentPlayer.rubles < item.price) {
+        showToast(`Не хватает ${item.price - currentPlayer.rubles} 💰!`, 'error');
+        return;
+    }
+    if (item.currency === 'cigarettes' && currentPlayer.cigarettes < item.price) {
+        showToast(`Не хватает ${item.price - currentPlayer.cigarettes} 🚬!`, 'error');
+        return;
+    }
+    const newCount = (purchasedItemsCount[item.id] || 0) + 1;
+    purchasedItemsCount[item.id] = newCount;
+    await playerDocRef.update({ purchasedItemsCount: purchasedItemsCount });
 
-            if (item.type === 'resource') {
-                if (item.resourceType === 'cigarettes') {
-                    currentPlayer.cigarettes += item.amount;
-                    await playerDocRef.update({ cigarettes: firebase.firestore.FieldValue.increment(item.amount) });
-                } else if (item.resourceType === 'rubles') {
-                    currentPlayer.rubles += item.amount;
-                    await playerDocRef.update({ rubles: firebase.firestore.FieldValue.increment(item.amount) });
-                } else if (item.resourceType === 'paper') {
-                    if (!currentPlayer.mine) currentPlayer.mine = { paper: 0 };
-                    currentPlayer.mine.paper += item.amount;
-                    await playerDocRef.update({ 'mine.paper': currentPlayer.mine.paper });
-                } else if (item.resourceType === 'makhorka') {
-                    if (!currentPlayer.mine) currentPlayer.mine = { makhorka: 0 };
-                    currentPlayer.mine.makhorka += item.amount;
-                    await playerDocRef.update({ 'mine.makhorka': currentPlayer.mine.makhorka });
-                } else if (item.resourceType === 'wood') {
-                    if (!currentPlayer.lumber) currentPlayer.lumber = { wood: 0 };
-                    currentPlayer.lumber.wood += item.amount;
-                    await playerDocRef.update({ 'lumber.wood': currentPlayer.lumber.wood });
-                } else if (item.resourceType === 'stone') {
-                    if (!currentPlayer.quarry) currentPlayer.quarry = { stone: 0 };
-                    currentPlayer.quarry.stone += item.amount;
-                    await playerDocRef.update({ 'quarry.stone': currentPlayer.quarry.stone });
-                } else if (item.resourceType === 'blats') {
-                    if (!currentPlayer.gang) currentPlayer.gang = {};
-                    if (!currentPlayer.gang.blats) currentPlayer.gang.blats = { fighters: 0 };
-                    currentPlayer.gang.blats.fighters = (currentPlayer.gang.blats.fighters || 0) + item.amount;
-                    await playerDocRef.update({ 'gang.blats.fighters': currentPlayer.gang.blats.fighters });
-                    if (item.stat === 'strength') {
-                        currentPlayer.stats.strength += item.bonus * item.amount;
-                        await playerDocRef.update({ 'stats.strength': firebase.firestore.FieldValue.increment(item.bonus * item.amount) });
-                    }
-                } else if (item.resourceType === 'muzhiks') {
-                    if (!currentPlayer.gang) currentPlayer.gang = {};
-                    if (!currentPlayer.gang.muzhiks) currentPlayer.gang.muzhiks = { fighters: 0 };
-                    currentPlayer.gang.muzhiks.fighters = (currentPlayer.gang.muzhiks.fighters || 0) + item.amount;
-                    await playerDocRef.update({ 'gang.muzhiks.fighters': currentPlayer.gang.muzhiks.fighters });
-                    if (item.stat === 'strength') {
-                        currentPlayer.stats.strength += item.bonus * item.amount;
-                        await playerDocRef.update({ 'stats.strength': firebase.firestore.FieldValue.increment(item.bonus * item.amount) });
-                    }
-                } else if (item.resourceType === 'fraers') {
-                    if (!currentPlayer.gang) currentPlayer.gang = {};
-                    if (!currentPlayer.gang.fraers) currentPlayer.gang.fraers = { fighters: 0 };
-                    currentPlayer.gang.fraers.fighters = (currentPlayer.gang.fraers.fighters || 0) + item.amount;
-                    await playerDocRef.update({ 'gang.fraers.fighters': currentPlayer.gang.fraers.fighters });
-                    if (item.stat === 'critical') {
-                        currentPlayer.stats.critical += item.bonus * item.amount;
-                        await playerDocRef.update({ 'stats.critical': firebase.firestore.FieldValue.increment(item.bonus * item.amount) });
-                    }
-                }
-            } else if (item.type === 'consumable' && item.energyRestore) {
-                currentPlayer.energy = Math.min(currentPlayer.maxEnergy, currentPlayer.energy + item.energyRestore);
-                await playerDocRef.update({ energy: currentPlayer.energy });
-            } else if (item.type === 'consumable' && item.cigarettesGain) {
-                currentPlayer.cigarettes += item.cigarettesGain;
-                await playerDocRef.update({ cigarettes: firebase.firestore.FieldValue.increment(item.cigarettesGain) });
-            } else if (item.type === 'equipment') {
-                currentPlayer.equipped[item.slot] = item.name;
-                currentPlayer.stats[item.stat] += item.bonus;
+    if (item.type === 'resource') {
+        // ... (код для ресурсов без изменений) ...
+        if (item.resourceType === 'cigarettes') {
+            currentPlayer.cigarettes += item.amount;
+            await playerDocRef.update({ cigarettes: firebase.firestore.FieldValue.increment(item.amount) });
+        } else if (item.resourceType === 'rubles') {
+            currentPlayer.rubles += item.amount;
+            await playerDocRef.update({ rubles: firebase.firestore.FieldValue.increment(item.amount) });
+        } else if (item.resourceType === 'paper') {
+            if (!currentPlayer.mine) currentPlayer.mine = { paper: 0 };
+            currentPlayer.mine.paper += item.amount;
+            await playerDocRef.update({ 'mine.paper': currentPlayer.mine.paper });
+        } else if (item.resourceType === 'makhorka') {
+            if (!currentPlayer.mine) currentPlayer.mine = { makhorka: 0 };
+            currentPlayer.mine.makhorka += item.amount;
+            await playerDocRef.update({ 'mine.makhorka': currentPlayer.mine.makhorka });
+        } else if (item.resourceType === 'wood') {
+            if (!currentPlayer.lumber) currentPlayer.lumber = { wood: 0 };
+            currentPlayer.lumber.wood += item.amount;
+            await playerDocRef.update({ 'lumber.wood': currentPlayer.lumber.wood });
+        } else if (item.resourceType === 'stone') {
+            if (!currentPlayer.quarry) currentPlayer.quarry = { stone: 0 };
+            currentPlayer.quarry.stone += item.amount;
+            await playerDocRef.update({ 'quarry.stone': currentPlayer.quarry.stone });
+        } else if (item.resourceType === 'blats') {
+            if (!currentPlayer.gang) currentPlayer.gang = {};
+            if (!currentPlayer.gang.blats) currentPlayer.gang.blats = { fighters: 0 };
+            currentPlayer.gang.blats.fighters = (currentPlayer.gang.blats.fighters || 0) + item.amount;
+            await playerDocRef.update({ 'gang.blats.fighters': currentPlayer.gang.blats.fighters });
+            if (item.stat === 'strength') {
+                currentPlayer.stats.strength += item.bonus * item.amount;
+                await playerDocRef.update({ 'stats.strength': firebase.firestore.FieldValue.increment(item.bonus * item.amount) });
+            }
+        } else if (item.resourceType === 'muzhiks') {
+            if (!currentPlayer.gang) currentPlayer.gang = {};
+            if (!currentPlayer.gang.muzhiks) currentPlayer.gang.muzhiks = { fighters: 0 };
+            currentPlayer.gang.muzhiks.fighters = (currentPlayer.gang.muzhiks.fighters || 0) + item.amount;
+            await playerDocRef.update({ 'gang.muzhiks.fighters': currentPlayer.gang.muzhiks.fighters });
+            if (item.stat === 'strength') {
+                currentPlayer.stats.strength += item.bonus * item.amount;
+                await playerDocRef.update({ 'stats.strength': firebase.firestore.FieldValue.increment(item.bonus * item.amount) });
+            }
+        } else if (item.resourceType === 'fraers') {
+            if (!currentPlayer.gang) currentPlayer.gang = {};
+            if (!currentPlayer.gang.fraers) currentPlayer.gang.fraers = { fighters: 0 };
+            currentPlayer.gang.fraers.fighters = (currentPlayer.gang.fraers.fighters || 0) + item.amount;
+            await playerDocRef.update({ 'gang.fraers.fighters': currentPlayer.gang.fraers.fighters });
+            if (item.stat === 'critical') {
+                currentPlayer.stats.critical += item.bonus * item.amount;
+                await playerDocRef.update({ 'stats.critical': firebase.firestore.FieldValue.increment(item.bonus * item.amount) });
+            }
+        }
+    } else if (item.type === 'consumable' && item.energyRestore) {
+        currentPlayer.energy = Math.min(currentPlayer.maxEnergy, currentPlayer.energy + item.energyRestore);
+        await playerDocRef.update({ energy: currentPlayer.energy });
+    } else if (item.type === 'consumable' && item.cigarettesGain) {
+        currentPlayer.cigarettes += item.cigarettesGain;
+        await playerDocRef.update({ cigarettes: firebase.firestore.FieldValue.increment(item.cigarettesGain) });
+    } else if (item.type === 'equipment') {
+        // ... (код для экипировки без изменений) ...
+        if (!currentPlayer.purchasedEquipment) currentPlayer.purchasedEquipment = [];
+        if (!currentPlayer.purchasedEquipment.includes(item.name)) {
+            currentPlayer.purchasedEquipment.push(item.name);
+            await playerDocRef.update({ purchasedEquipment: currentPlayer.purchasedEquipment });
+        }
+        currentPlayer.equipped[item.slot] = item.name;
+        if (item.stat && item.bonus) {
+            currentPlayer.stats[item.stat] = (currentPlayer.stats[item.stat] || 0) + item.bonus;
+            await playerDocRef.update({
+                [`equipped.${item.slot}`]: item.name,
+                [`stats.${item.stat}`]: firebase.firestore.FieldValue.increment(item.bonus)
+            });
+        } else {
+            await playerDocRef.update({
+                [`equipped.${item.slot}`]: item.name
+            });
+        }
+    } else if (item.type === 'tattoo') {
+        // ========== ИСПРАВЛЕННАЯ ОБРАБОТКА ТАТУИРОВОК ==========
+        console.log('Покупка татуировки:', item.name);
+        
+        // Инициализируем массив если его нет
+        if (!currentPlayer.tattoos) currentPlayer.tattoos = [];
+        
+        // Проверяем, есть ли уже такая татуировка (по имени)
+        const existingTattoo = currentPlayer.tattoos.find(t => t.name === item.name);
+        if (!existingTattoo) {
+            // Сохраняем ПОЛНЫЙ объект татуировки, а не только имя
+            const tattooData = {
+                id: item.id,
+                name: item.name,
+                imageUrl: item.imageUrl || '',
+                stat: item.stat || null,
+                bonus: item.bonus || 0,
+                price: item.price,
+                currency: item.currency,
+                category: item.category,
+                type: 'tattoo'
+            };
+            
+            currentPlayer.tattoos.push(tattooData);
+            await playerDocRef.update({ tattoos: currentPlayer.tattoos });
+            
+            // Если у татуировки есть бонус к статам - применяем его
+            if (item.stat && item.bonus) {
+                currentPlayer.stats[item.stat] = (currentPlayer.stats[item.stat] || 0) + item.bonus;
                 await playerDocRef.update({
-                    [`equipped.${item.slot}`]: item.name,
                     [`stats.${item.stat}`]: firebase.firestore.FieldValue.increment(item.bonus)
                 });
-            } else if (item.type === 'tattoo' && !currentPlayer.tattoos.includes(item.name)) {
-                currentPlayer.tattoos.push(item.name);
-                await playerDocRef.update({ tattoos: firebase.firestore.FieldValue.arrayUnion(item.name) });
-            }
-
-            if (item.currency === 'rubles') {
-                currentPlayer.rubles -= item.price;
-                await playerDocRef.update({ rubles: firebase.firestore.FieldValue.increment(-item.price) });
+                showToast(`✅ Куплена татуировка "${item.name}"! +${item.bonus} к ${getStatName(item.stat)}`, 'success');
             } else {
-                currentPlayer.cigarettes -= item.price;
-                await playerDocRef.update({ cigarettes: firebase.firestore.FieldValue.increment(-item.price) });
+                showToast(`✅ Куплена татуировка "${item.name}"!`, 'success');
             }
-            showToast(`✅ Куплено: ${item.name}!`, 'success');
-            renderShopModal();
-            renderUI();
+        } else {
+            showToast(`Татуировка "${item.name}" уже есть!`, 'warning');
         }
+    }
+
+    if (item.currency === 'rubles') {
+        currentPlayer.rubles -= item.price;
+        await playerDocRef.update({ rubles: firebase.firestore.FieldValue.increment(-item.price) });
+    } else {
+        currentPlayer.cigarettes -= item.price;
+        await playerDocRef.update({ cigarettes: firebase.firestore.FieldValue.increment(-item.price) });
+    }
+    renderShopModal();
+    renderUI();
+}
+
+// Вспомогательная функция для получения названия стата
+function getStatName(stat) {
+    const statNames = {
+        'strength': 'силе',
+        'defense': 'защите',
+        'critical': 'критическому удару'
+    };
+    return statNames[stat] || stat;
+}
 
         let currentGameSection = 'cards';
         let gameTouchStartX = 0;
@@ -15612,35 +16105,62 @@ function calculatePlayerPower(player) {
         async function claimAdminQuestReward(questId, reward, type) { showToast('В разработке', 'warning'); }
 
         function getDefaultPlayer(username, caste) {
-            return {
-                purchasedAvatars: [1],  // Первый аватар бесплатный
-                currentAvatar: 1,
-                username: username, level: 1, authority: 0, authorityToNext: 1000, energy: 100, maxEnergy: 100,
-                rubles: 0, cigarettes: 50, tattoos: [], equipped: { weapon: 'камень', armor: 'роба', accessory: 'чифирная кружка' },
-                stats: { strength: 10, defense: 5, critical: 5 }, clanId: null, inviteCode: Math.random().toString(36).substring(2, 8).toUpperCase(),
-                invitedPlayers: [], createdAt: Date.now(), lastActive: Date.now(), totalCrimes: 0, isBanned: false,
-                mine: { paperLevel: 1, makhorkaLevel: 1, lastMineTime: 0, paper: 0, makhorka: 0, paperUpgradeStartTime: 0, paperUpgradeDuration: 0, makhorkaUpgradeStartTime: 0, makhorkaUpgradeDuration: 0 },
-                lumber: { level: 1, lastGatherTime: 0, wood: 0, upgradeStartTime: 0, upgradeDuration: 0 },
-                quarry: { level: 1, lastGatherTime: 0, stone: 0, upgradeStartTime: 0, upgradeDuration: 0 },
-                dailyBonus: { lastClaimDay: 0, lastClaimTime: 0, streak: 0 }, caste: caste,
-                questsProgress: {}, completedQuests: [], purchasedItemsCount: {},
-                cardGameActive: false, cardGameStartTime: 0, cardGameBonusPercent: 0, cardGameUpgradeLevel: 1, cardGameCooldownUntil: 0,
-                cardGameUpgradeStartTime: 0, cardGameUpgradeDuration: 0,
-                gymLevel: 1, gymActive: false, gymStartTime: 0, gymCooldownUntil: 0,
-                gymUpgradeStartTime: 0, gymUpgradeDuration: 0,
-                gang: {
-                    blats: { level: 1, lastGatherTime: 0, fighters: 0, upgradeStartTime: 0, upgradeDuration: 0 },
-                    muzhiks: { level: 1, lastGatherTime: 0, fighters: 0, upgradeStartTime: 0, upgradeDuration: 0 },
-                    fraers: { level: 1, lastGatherTime: 0, fighters: 0, upgradeStartTime: 0, upgradeDuration: 0 }
-                },
-                injuredFighters: 0,
-                treatmentEndTime: 0,
-                hasHadWar: false,
-                shopLevel: 1,
-                shopUpgradeStartTime: 0,
-                shopUpgradeDuration: 0
-            };
-        }
+    return {
+        purchasedAvatars: [1],
+        currentAvatar: 1,
+        purchasedEquipment: [],
+        username: username, 
+        level: 1, 
+        authority: 0, 
+        authorityToNext: 1000, 
+        energy: 100, 
+        maxEnergy: 100,
+        rubles: 0, 
+        cigarettes: 50, 
+        tattoos: [],  // ← ВАЖНО: массив должен быть пустым, но инициализирован
+        equipped: { weapon: 'камень', armor: 'роба', accessory: 'чифирная кружка' },
+        stats: { strength: 10, defense: 5, critical: 5 }, 
+        clanId: null, 
+        inviteCode: Math.random().toString(36).substring(2, 8).toUpperCase(),
+        invitedPlayers: [], 
+        createdAt: Date.now(), 
+        lastActive: Date.now(), 
+        totalCrimes: 0, 
+        isBanned: false,
+        mine: { paperLevel: 1, makhorkaLevel: 1, lastMineTime: 0, paper: 0, makhorka: 0, paperUpgradeStartTime: 0, paperUpgradeDuration: 0, makhorkaUpgradeStartTime: 0, makhorkaUpgradeDuration: 0 },
+        lumber: { level: 1, lastGatherTime: 0, wood: 0, upgradeStartTime: 0, upgradeDuration: 0 },
+        quarry: { level: 1, lastGatherTime: 0, stone: 0, upgradeStartTime: 0, upgradeDuration: 0 },
+        dailyBonus: { lastClaimDay: 0, lastClaimTime: 0, streak: 0 }, 
+        caste: caste,
+        questsProgress: {}, 
+        completedQuests: [], 
+        purchasedItemsCount: {},
+        cardGameActive: false, 
+        cardGameStartTime: 0, 
+        cardGameBonusPercent: 0, 
+        cardGameUpgradeLevel: 1, 
+        cardGameCooldownUntil: 0,
+        cardGameUpgradeStartTime: 0, 
+        cardGameUpgradeDuration: 0,
+        gymLevel: 1, 
+        gymActive: false, 
+        gymStartTime: 0, 
+        gymCooldownUntil: 0,
+        gymUpgradeStartTime: 0, 
+        gymUpgradeDuration: 0,
+        gang: {
+            blats: { level: 1, lastGatherTime: 0, fighters: 0, upgradeStartTime: 0, upgradeDuration: 0 },
+            muzhiks: { level: 1, lastGatherTime: 0, fighters: 0, upgradeStartTime: 0, upgradeDuration: 0 },
+            fraers: { level: 1, lastGatherTime: 0, fighters: 0, upgradeStartTime: 0, upgradeDuration: 0 }
+        },
+        injuredFighters: 0,
+        treatmentEndTime: 0,
+        hasHadWar: false,
+        shopLevel: 1,
+        shopUpgradeStartTime: 0,
+        shopUpgradeDuration: 0
+    };
+}
         function getShopItemsFromAdmin() { return adminShopItems; }
         async function getTreasuryTotal() { try { const doc = await db.collection('config').doc('treasury').get(); return doc.exists ? doc.data().totalRubles || 0 : 0; } catch (e) { return 0; } }
         function getDailyBonusAmount(day) { return Math.floor(10 * Math.pow(1.1, day - 1)); }
