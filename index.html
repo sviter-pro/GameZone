@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Зона 1.0.0.225 - Карта зоны</title>
+    <title>Зона 1.0.0.227 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -740,8 +740,51 @@
             }
 
             .fixed-bottom-bar .bottom-nav {
-                max-width: 412px;
+                display: flex;
+				justify-content: center;
+				align-items: center;
+				gap: 4px;
+				max-width: 500px;
+				margin: 0 auto;
             }
+			.fixed-bottom-bar .nav-btn {
+				background: transparent;
+				border: none;
+				border-radius: 8px;
+				padding: 1px 1px;
+				display: flex;
+				margin: 12px 8px;
+				flex-direction: column;
+				align-items: center;
+				gap: 2px;
+				cursor: pointer;
+				transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+				color: #8e8ea0;
+				font-size: 11px;
+				font-weight: 500;
+				min-width: auto;
+				position: relative;
+			}
+			.fixed-bottom-bar .nav-btn.active {
+				background: linear-gradient(135deg, #8B4513, #5a2d0a) !important;
+				color: #fff;
+				border-color: #c9a03d !important;
+				border: 1px solid rgba(233, 69, 96, 0.5);
+				box-shadow: 0 0 8px rgba(233, 69, 96, 0.3);
+				transform: scale(1.02);
+			}
+			.fixed-bottom-bar .nav-btn:active {
+				transform: scale(0.96);
+				background: rgba(233, 69, 96, 0.25);
+				transition: transform 0.1s ease;
+			}
+			.fixed-bottom-bar .nav-btn img {
+				width: 52px;
+				height: auto;
+			}
+			.fixed-bottom-bar .nav-btn.active img {
+				filter: drop-shadow(0 0 6px rgba(233, 69, 96, 0.6));
+			}
 
             .b2 .counters-container-work,
             .b7 .counters-container,
@@ -4156,7 +4199,7 @@
             background: rgba(10, 14, 26, 0.95);
             backdrop-filter: blur(20px);
             border-top: 1px solid rgba(233, 69, 96, 0.3);
-            padding: 8px 16px;
+            padding: 8px 2px;
             padding-bottom: max(8px, env(safe-area-inset-bottom));
             z-index: 10001;
         }
@@ -4402,7 +4445,7 @@
             background: rgba(10, 14, 26, 0.95);
             backdrop-filter: blur(20px);
             border-top: 1px solid #8B4513;
-            padding: 8px 16px;
+            padding: 8px 2px;
             padding-bottom: max(8px, env(safe-area-inset-bottom));
             z-index: 10001;
         }
@@ -6603,6 +6646,12 @@ function restoreActiveBattleFromLocal() {
 		let mineTouchEndX = 0;
 		let mineSubTouchStartX = 0;
 		let mineSubTouchEndX = 0;
+		let currentGameSection = 'cards';   // 'cards' или 'gym'
+		let currentCardsSubTab = 'game';    // 'game' или 'upgrade'
+		let gameModalInitialized = false;
+		let gameTimerInterval = null;
+		let gymTimerUpdateFull = null;
+		let cardGameTimerUpdateFull = null;
 
         // ========== ПЕРЕМЕННЫЕ ДЛЯ ЧАТА ==========
         let chatModalOpen = false;
@@ -7998,7 +8047,7 @@ function restoreActiveBattleFromLocal() {
                 <img class="loading-logo" src="https://sviter-pro.github.io/GameZone/src/test/logo124.png" alt="Тюряга 2.0" onerror="this.src='https://via.placeholder.com/180x180?text=Тюряга+2.0'">
                 <div class="loading-spinner-new"></div>
                 <div class="loading-tip-new" id="loadingTipNew">⚡ Загрузка игрового мира...</div>
-                <div class="loading-version">Зона 1.0.0.225 | Зона ждет</div>
+                <div class="loading-version">Зона 1.0.0.227 | Зона ждет</div>
             </div>
         `;
             const tipEl = document.getElementById('loadingTipNew');
@@ -9389,7 +9438,7 @@ async function changeEquipment(slot, itemName, stat, bonus) {
                 
                 <div class="settings-card">
                     <div style="font-size: 13px; color: #aaa; text-align: center;">
-                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.225</div>
+                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.227</div>
                         <div style="font-size: 11px;">⚡ Клановые войны | Бесконечная прокачка</div>
                     </div>
                 </div>
@@ -9539,9 +9588,9 @@ async function changeEquipment(slot, itemName, stat, bonus) {
             <div class="mine-bottom-nav">
                 <div class="bottom-nav">
                     <button class="mine-tab-btn ${currentMineTab === 'back' ? 'active' : ''}" id="mineBackBtn"><img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_6.png"  height="70px" width="55px" draggable="false"></button>
-                    <button class="mine-tab-btn ${currentMineTab === 'mine' ? 'active' : ''}" id="mineTabMineBtn"><span>⛏️</span><span>ШАХТА</span></button>
-                    <button class="mine-tab-btn ${currentMineTab === 'lumber' ? 'active' : ''}" id="mineTabLumberBtn"><span>🪵</span><span>ЛЕС</span></button>
-                    <button class="mine-tab-btn ${currentMineTab === 'quarry' ? 'active' : ''}" id="mineTabQuarryBtn"><span>🪨</span><span>КАМЕНЬ</span></button>
+                    <button class="mine-tab-btn ${currentMineTab === 'mine' ? 'active' : ''}" id="mineTabMineBtn"><img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_7.png"  height="70px" width="55px" draggable="false"></button>
+                    <button class="mine-tab-btn ${currentMineTab === 'lumber' ? 'active' : ''}" id="mineTabLumberBtn"><img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_8.png"  height="70px" width="55px" draggable="false"></button>
+                    <button class="mine-tab-btn ${currentMineTab === 'quarry' ? 'active' : ''}" id="mineTabQuarryBtn"><img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_9.png"  height="70px" width="55px" draggable="false"></button>
                 </div>
             </div>
         </div>
@@ -11335,7 +11384,7 @@ function checkAndNotifyWorkAvailable() {
             </div>
             <div class="mine-bottom-nav">
                 <div class="bottom-nav">
-                    <button class="mine-tab-btn ${currentMineTab === 'back' ? 'active' : ''}" onclick="closeMineModal()"><img src="https://sviter-pro.github.io/GameZone/src/test/Untitled-6.png" draggable="false"><span>НАЗАД</span></button>
+                    <button class="mine-tab-btn ${currentMineTab === 'back' ? 'active' : ''}" onclick="closeMineModal()"><img src="https://sviter-pro.github.io/GameZone/src/test/Untitled-6.png" draggable="false"></button>
                     <button class="mine-tab-btn ${currentMineTab === 'mine' ? 'active' : ''}" onclick="switchMineTab('mine')"><span>⛏️</span><span>ШАХТА</span></button>
                     <button class="mine-tab-btn ${currentMineTab === 'lumber' ? 'active' : ''}" onclick="switchMineTab('lumber')"><span>🪵</span><span>ЛЕС</span></button>
                     <button class="mine-tab-btn ${currentMineTab === 'quarry' ? 'active' : ''}" onclick="switchMineTab('quarry')"><span>🪨</span><span>КАМЕНЬ</span></button>
@@ -12881,13 +12930,6 @@ function getStatName(stat) {
     return statNames[stat] || stat;
 }
 
-        let currentGameSection = 'cards';
-        let gameTouchStartX = 0;
-        let gameTouchEndX = 0;
-        let currentCardsSubTab = 'game';
-        let cardsSubTouchStartX = 0;
-        let cardsSubTouchEndX = 0;
-
         function isCardGameUpgradeActive() {
             return cardGameUpgradeStartTime > 0 && (Date.now() - cardGameUpgradeStartTime) < cardGameUpgradeDuration;
         }
@@ -12951,28 +12993,470 @@ function getStatName(stat) {
         }
 
         function openCardGameFullModal() {
-            if (window._opening_modal) { console.log('Блокировка: окно уже открывается'); return; }
-            window._opening_modal = true;
+    if (window._opening_modal) {
+        console.log('Блокировка: окно уже открывается');
+        return;
+    }
+    window._opening_modal = true;
 
-            if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); window._opening_modal = false; return; }
-            if (!currentPlayer) { window._opening_modal = false; return; }
+    if (maintenanceMode) {
+        showToast(maintenanceMessage, 'warning');
+        window._opening_modal = false;
+        document.body.style.overflow = '';
+        document.body.style.position = '';
+        document.body.style.width = '';
+        document.body.classList.remove('modal-open');
+        return;
+    }
+    
+    if (!currentPlayer) {
+        window._opening_modal = false;
+        return;
+    }
 
-            if (currentPlayer.cardGameUpgradeStartTime && currentPlayer.cardGameUpgradeDuration) {
-                cardGameUpgradeStartTime = currentPlayer.cardGameUpgradeStartTime;
-                cardGameUpgradeDuration = currentPlayer.cardGameUpgradeDuration;
-            }
-            if (currentPlayer.gymUpgradeStartTime && currentPlayer.gymUpgradeDuration) {
-                gymUpgradeStartTime = currentPlayer.gymUpgradeStartTime;
-                gymUpgradeDuration = currentPlayer.gymUpgradeDuration;
-            }
+    // Восстанавливаем данные прокачки
+    if (currentPlayer.cardGameUpgradeStartTime && currentPlayer.cardGameUpgradeDuration) {
+        cardGameUpgradeStartTime = currentPlayer.cardGameUpgradeStartTime;
+        cardGameUpgradeDuration = currentPlayer.cardGameUpgradeDuration;
+    }
+    if (currentPlayer.gymUpgradeStartTime && currentPlayer.gymUpgradeDuration) {
+        gymUpgradeStartTime = currentPlayer.gymUpgradeStartTime;
+        gymUpgradeDuration = currentPlayer.gymUpgradeDuration;
+    }
 
+    // Если окно уже создано - просто показываем его и обновляем данные
+    const existingModal = document.getElementById('cardgameFullscreen');
+    if (existingModal) {
+        existingModal.style.display = 'flex';
+        if (tg) tg.BackButton.show();
+        updateGameModalUI();
+        startGameTimers();
+        window._opening_modal = false;
+        return;
+    }
+    
+    // Создаём HTML окна (один раз!)
+    const modalHtml = `
+        <div class="cardgame-fullscreen" id="cardgameFullscreen" style="display: flex;">
+            <div class="cardgame-header-bar">
+                <div class="cardgame-header-content">
+                    <div class="cardgame-header-title">ИГРОВАЯ</div>
+                </div>
+            </div>
+            <div style="background: linear-gradient(135deg, #1a1a2a, #0d0d15); border-radius: 1px; padding: 5px 20px; margin: 9px -15px; border: 1px solid #8B4513; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                <div style="display: flex; gap: 1px; align-items: center; flex-wrap: wrap;">
+                    <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                        <span style="font-size: 11px;">🚬</span>
+                        <span id="gameCigarettesValue" style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.cigarettes || 0)}</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                        <span style="font-size: 11px;">📄</span>
+                        <span id="gamePaperValue" style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.mine?.paper || 0)}</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                        <span style="font-size: 11px;">🌿</span>
+                        <span id="gameMakhorkaValue" style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.mine?.makhorka || 0)}</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                        <span style="font-size: 11px;">🪵</span>
+                        <span id="gameWoodValue" style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.lumber?.wood || 0)}</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                        <span style="font-size: 11px;">🪨</span>
+                        <span id="gameStoneValue" style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.quarry?.stone || 0)}</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- КОНТЕЙНЕР ДЛЯ КАРТ -->
+            <div id="cardsContainer" class="game-tab-content" style="display: ${currentGameSection === 'cards' ? 'block' : 'none'};">
+                <div class="game-tab-header">
+                    <button id="cardsGameTabBtn" class="game-tab-btn ${currentCardsSubTab === 'game' ? 'active' : ''}">🎮 ИГРА</button>
+                    <button id="cardsUpgradeTabBtn" class="game-tab-btn ${currentCardsSubTab === 'upgrade' ? 'active' : ''}">⬆️ ПРОКАЧКА</button>
+                </div>
+                <div id="cardsGameContainer" style="display: ${currentCardsSubTab === 'game' ? 'block' : 'none'};"></div>
+                <div id="cardsUpgradeContainer" style="display: ${currentCardsSubTab === 'upgrade' ? 'block' : 'none'};"></div>
+            </div>
+            
+            <!-- КОНТЕЙНЕР ДЛЯ КАЧАЛКИ -->
+            <div id="gymContainer" class="game-tab-content" style="display: ${currentGameSection === 'gym' ? 'block' : 'none'};">
+                <div class="game-tab-header">
+                    <button id="gymUpgradeTabBtn" class="game-tab-btn ${currentGymTab === 'upgrade' ? 'active' : ''}">⬆️ ПРОКАЧКА</button>
+                    <button id="gymTrainTabBtn" class="game-tab-btn ${currentGymTab === 'train' ? 'active' : ''}">💪 ТРЕНИРОВКА</button>
+                </div>
+                <div id="gymUpgradeContainer" style="display: ${currentGymTab === 'upgrade' ? 'block' : 'none'};"></div>
+                <div id="gymTrainContainer" style="display: ${currentGymTab === 'train' ? 'block' : 'none'};"></div>
+            </div>
+            
+            <div class="cardgame-bottom-nav">
+                <div class="bottom-nav">
+                    <button id="gameBackBtn" class="cardgame-tab-btn active"><img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_6.png" height="70px" width="55px" draggable="false"></button>
+                    <button id="gameCardsBtn" class="cardgame-tab-btn ${currentGameSection === 'cards' ? 'active' : ''}"><img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_11.png"  height="70px" width="55px" draggable="false"></button>
+                    <button id="gameGymBtn" class="cardgame-tab-btn ${currentGameSection === 'gym' ? 'active' : ''}"><img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_10.png"  height="70px" width="55px" draggable="false"></button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    if (tg) tg.BackButton.show();
+    
+    // НАВЕШИВАЕМ ОБРАБОТЧИКИ
+    const backBtn = document.getElementById('gameBackBtn');
+    const cardsBtn = document.getElementById('gameCardsBtn');
+    const gymBtn = document.getElementById('gameGymBtn');
+    const cardsContainer = document.getElementById('cardsContainer');
+    const gymContainer = document.getElementById('gymContainer');
+    
+    if (backBtn) backBtn.onclick = () => closeCardGameFullModal();
+    
+    if (cardsBtn) {
+        cardsBtn.onclick = () => {
             currentGameSection = 'cards';
+            cardsBtn.classList.add('active');
+            gymBtn.classList.remove('active');
+            cardsContainer.style.display = 'block';
+            gymContainer.style.display = 'none';
+            updateGameModalUI();
+        };
+    }
+    
+    if (gymBtn) {
+        gymBtn.onclick = () => {
+            currentGameSection = 'gym';
+            gymBtn.classList.add('active');
+            cardsBtn.classList.remove('active');
+            cardsContainer.style.display = 'none';
+            gymContainer.style.display = 'block';
+            updateGameModalUI();
+        };
+    }
+    
+    // Подвкладки для КАРТ
+    const cardsGameTab = document.getElementById('cardsGameTabBtn');
+    const cardsUpgradeTab = document.getElementById('cardsUpgradeTabBtn');
+    const cardsGameContainer = document.getElementById('cardsGameContainer');
+    const cardsUpgradeContainer = document.getElementById('cardsUpgradeContainer');
+    
+    if (cardsGameTab && cardsUpgradeTab && cardsGameContainer && cardsUpgradeContainer) {
+        cardsGameTab.onclick = () => {
             currentCardsSubTab = 'game';
+            cardsGameTab.classList.add('active');
+            cardsUpgradeTab.classList.remove('active');
+            cardsGameContainer.style.display = 'block';
+            cardsUpgradeContainer.style.display = 'none';
+            updateGameModalUI();
+        };
+        cardsUpgradeTab.onclick = () => {
+            currentCardsSubTab = 'upgrade';
+            cardsUpgradeTab.classList.add('active');
+            cardsGameTab.classList.remove('active');
+            cardsGameContainer.style.display = 'none';
+            cardsUpgradeContainer.style.display = 'block';
+            updateGameModalUI();
+        };
+    }
+    
+    // Подвкладки для КАЧАЛКИ
+    const gymUpgradeTab = document.getElementById('gymUpgradeTabBtn');
+    const gymTrainTab = document.getElementById('gymTrainTabBtn');
+    const gymUpgradeContainerDiv = document.getElementById('gymUpgradeContainer');
+    const gymTrainContainerDiv = document.getElementById('gymTrainContainer');
+    
+    if (gymUpgradeTab && gymTrainTab && gymUpgradeContainerDiv && gymTrainContainerDiv) {
+        gymUpgradeTab.onclick = () => {
             currentGymTab = 'upgrade';
-            renderGameModal();
+            gymUpgradeTab.classList.add('active');
+            gymTrainTab.classList.remove('active');
+            gymUpgradeContainerDiv.style.display = 'block';
+            gymTrainContainerDiv.style.display = 'none';
+            updateGameModalUI();
+        };
+        gymTrainTab.onclick = () => {
+            currentGymTab = 'train';
+            gymTrainTab.classList.add('active');
+            gymUpgradeTab.classList.remove('active');
+            gymUpgradeContainerDiv.style.display = 'none';
+            gymTrainContainerDiv.style.display = 'block';
+            updateGameModalUI();
+        };
+    }
+    
+    // Загружаем начальное содержимое
+    updateGameModalUI();
+    
+    // Запускаем таймеры
+    startGameTimers();
+    
+    setTimeout(() => { window._opening_modal = false; }, 500);
+}
 
-            setTimeout(() => { window._opening_modal = false; }, 500);
+function startGameTimers() {
+    if (gameTimerInterval) clearInterval(gameTimerInterval);
+    gameTimerInterval = setInterval(() => {
+        const modal = document.getElementById('cardgameFullscreen');
+        if (!modal) {
+            if (gameTimerInterval) clearInterval(gameTimerInterval);
+            return;
         }
+        
+        // Обновляем ресурсы в верхней панели
+        const cigValue = document.getElementById('gameCigarettesValue');
+        const paperValue = document.getElementById('gamePaperValue');
+        const makhorkaValue = document.getElementById('gameMakhorkaValue');
+        const woodValue = document.getElementById('gameWoodValue');
+        const stoneValue = document.getElementById('gameStoneValue');
+        
+        if (cigValue && currentPlayer) cigValue.textContent = formatNumberShort(currentPlayer.cigarettes || 0);
+        if (paperValue && currentPlayer) paperValue.textContent = formatNumberShort(currentPlayer.mine?.paper || 0);
+        if (makhorkaValue && currentPlayer) makhorkaValue.textContent = formatNumberShort(currentPlayer.mine?.makhorka || 0);
+        if (woodValue && currentPlayer) woodValue.textContent = formatNumberShort(currentPlayer.lumber?.wood || 0);
+        if (stoneValue && currentPlayer) stoneValue.textContent = formatNumberShort(currentPlayer.quarry?.stone || 0);
+        
+        // Обновляем таймеры
+        const cardGameUpgradeTimer = document.getElementById('cardGameUpgradeTimer');
+        const gymUpgradeTimer = document.getElementById('gymUpgradeTimer');
+        
+        if (cardGameUpgradeTimer) cardGameUpgradeTimer.textContent = formatTimerMinutes(getCardGameUpgradeRemaining());
+        if (gymUpgradeTimer) gymUpgradeTimer.textContent = formatTimerMinutes(getGymUpgradeRemaining());
+        
+        // Обновляем таймер активной игры
+        if (cardGameActive && currentGameSection === 'cards' && currentCardsSubTab === 'game') {
+            const timerEl = document.getElementById('cardGameTimerFull');
+            if (timerEl) {
+                const remaining = Math.max(0, cardGameDuration - (Date.now() - cardGameStartTime));
+                timerEl.textContent = formatGameTime(remaining);
+            }
+        }
+        
+        // Обновляем таймер тренировки
+        if (gymActive && currentGameSection === 'gym' && currentGymTab === 'train') {
+            const timerEl = document.getElementById('gymTimerFull');
+            if (timerEl) {
+                const remaining = Math.max(0, getGymDuration() - (Date.now() - gymStartTime));
+                timerEl.textContent = formatGameTime(remaining);
+            }
+        }
+    }, 1000);
+}
+
+
+function updateGameModalUI() {
+    const modal = document.getElementById('cardgameFullscreen');
+    if (!modal) return;
+    
+    // Обновляем ресурсы в верхней панели
+    const cigValue = document.getElementById('gameCigarettesValue');
+    const paperValue = document.getElementById('gamePaperValue');
+    const makhorkaValue = document.getElementById('gameMakhorkaValue');
+    const woodValue = document.getElementById('gameWoodValue');
+    const stoneValue = document.getElementById('gameStoneValue');
+    
+    if (cigValue && currentPlayer) cigValue.textContent = formatNumberShort(currentPlayer.cigarettes || 0);
+    if (paperValue && currentPlayer) paperValue.textContent = formatNumberShort(currentPlayer.mine?.paper || 0);
+    if (makhorkaValue && currentPlayer) makhorkaValue.textContent = formatNumberShort(currentPlayer.mine?.makhorka || 0);
+    if (woodValue && currentPlayer) woodValue.textContent = formatNumberShort(currentPlayer.lumber?.wood || 0);
+    if (stoneValue && currentPlayer) stoneValue.textContent = formatNumberShort(currentPlayer.quarry?.stone || 0);
+    
+    // Проверяем завершение прокачек
+    checkAndCompleteCardGameUpgrade();
+    checkAndCompleteGymUpgrade();
+    
+    // Обновляем контент в зависимости от активной вкладки
+    if (currentGameSection === 'cards') {
+        if (currentCardsSubTab === 'game') {
+            updateCardsGameContent();
+        } else {
+            updateCardsUpgradeContent();
+        }
+    } else if (currentGameSection === 'gym') {
+        if (currentGymTab === 'upgrade') {
+            updateGymUpgradeContent();
+        } else {
+            updateGymTrainContent();
+        }
+    }
+}
+
+function updateCardsGameContent() {
+    const container = document.getElementById('cardsGameContainer');
+    if (!container) return;
+    
+    const upgradeCost = 100 * cardGameUpgradeLevel;
+    const isUpgradeDisabled = cardGameUpgradeLevel >= 10 || currentPlayer.cigarettes < upgradeCost || isCardGameUpgradeActive() || cardGameActive;
+    const cardGameUpgradeActive = isCardGameUpgradeActive();
+    const cardGameUpgradeRemaining = getCardGameUpgradeRemaining();
+    const cardGameProgressPercent = cardGameUpgradeActive ? Math.min(100, ((Date.now() - cardGameUpgradeStartTime) / cardGameUpgradeDuration) * 100) : 0;
+    
+    container.innerHTML = `
+        <div class="cardgame-card" style="text-align:center;">
+            ${cardGameActive ? `
+                <img class="card-game-image" src="${currentCardImage}" alt="Card Game">
+                <div class="game-timer" id="cardGameTimerFull">${formatGameTime(Math.max(0, cardGameDuration - (Date.now() - cardGameStartTime)))}</div>
+                <div class="bonus-info">🎯 БОНУС ОПЫТА: +<span>${cardGameBonusPercent}%</span></div>
+                <div class="bonus-info">⚡ РАСХОД ЭНЕРГИИ: <span>${getCardGameEnergyCost()}</span> / тик</div>
+                <div class="bonus-info">🎴 ИГРА АКТИВНА... ОПЫТ КАЖДЫЕ 10 СЕК</div>
+                <div class="bonus-info">⚡ ЭНЕРГИЯ: <span>${currentPlayer.energy}/${currentPlayer.maxEnergy}</span></div>
+                <button class="cardgame-action-btn" onclick="closeCardGameFullModal()">🔽 СВЕРНУТЬ</button>
+            ` : `
+                <div style="font-size: 48px; margin-bottom: 10px;">🎴</div>
+                <div class="bonus-info">🎯 БОНУС ОПЫТА: +<span>${getCardGameBonusFromLevel(currentPlayer.level)}%</span></div>
+                <div class="bonus-info">⚡ РАСХОД ЭНЕРГИИ: <span>${getCardGameEnergyCost()}</span> / тик</div>
+                <div class="bonus-info">🎁 ШАНС ВЫИГРЫША: <span>${Math.min(50, 10 + cardGameUpgradeLevel * 4)}%</span></div>
+                ${cardGameUpgradeActive ? `
+                    <div class="bonus-info" style="background: rgba(255,152,0,0.2);">
+                        ⏳ ПРОКАЧКА КАРТ: <span id="cardGameUpgradeTimer">${formatTimerMinutes(cardGameUpgradeRemaining)}</span>
+                        <div class="upgrade-progress-bar" style="margin-top: 5px;"><div class="upgrade-progress-fill" style="width: ${cardGameProgressPercent}%"></div></div>
+                    </div>
+                ` : ''}
+                ${cardGameCooldownUntil > Date.now() ? `<div class="bonus-info">⏳ ДОСТУПНО ЧЕРЕЗ: <span>${formatTimerMinutes(cardGameCooldownUntil - Date.now())}</span></div>` : ''}
+                <button class="cardgame-action-btn" id="startCardGameBtn" ${(cardGameCooldownUntil > Date.now() || currentPlayer.level < 2 || currentPlayer.energy < Math.floor(currentPlayer.maxEnergy * 0.7) || currentPlayer.cigarettes < 200 || cardGameUpgradeActive) ? 'disabled' : ''}>
+                    🎴 НАЧАТЬ ИГРУ (200🚬)
+                </button>
+            `}
+        </div>
+    `;
+    
+    const startBtn = document.getElementById('startCardGameBtn');
+    if (startBtn) startBtn.onclick = () => startCardGameFromModal();
+}
+
+// Обновление контента КАРТЫ -> ПРОКАЧКА
+function updateCardsUpgradeContent() {
+    const container = document.getElementById('cardsUpgradeContainer');
+    if (!container) return;
+    
+    const upgradeCost = 100 * cardGameUpgradeLevel;
+    const isUpgradeDisabled = cardGameUpgradeLevel >= 10 || currentPlayer.cigarettes < upgradeCost || isCardGameUpgradeActive() || cardGameActive;
+    const cardGameUpgradeActive = isCardGameUpgradeActive();
+    const cardGameUpgradeRemaining = getCardGameUpgradeRemaining();
+    const cardGameProgressPercent = cardGameUpgradeActive ? Math.min(100, ((Date.now() - cardGameUpgradeStartTime) / cardGameUpgradeDuration) * 100) : 0;
+    
+    container.innerHTML = `
+        <div class="cardgame-card">
+            <div style="font-size: 48px; text-align: center; margin-bottom: 10px;">⬆️</div>
+            <div class="bonus-info">📊 УРОВЕНЬ КАРТ: <span>${cardGameUpgradeLevel}/10</span></div>
+            <div class="bonus-info">🎯 БОНУС ОПЫТА: +<span>${Math.floor(cardGameUpgradeLevel * 5)}%</span></div>
+            <div class="bonus-info">⚡ РАСХОД ЭНЕРГИИ: <span>${getCardGameEnergyCost()}</span></div>
+            <div class="bonus-info">🎁 ШАНС ВЫИГРЫША: <span>${Math.min(50, 10 + cardGameUpgradeLevel * 4)}%</span></div>
+            
+            ${cardGameUpgradeActive ? `
+                <div class="upgrade-progress">
+                    <div class="upgrade-progress-label">⏳ ПРОКАЧКА ДО ${cardGameUpgradeLevel + 1} УРОВНЯ</div>
+                    <div class="upgrade-progress-bar"><div class="upgrade-progress-fill" style="width: ${cardGameProgressPercent}%"></div></div>
+                    <div style="font-size: 11px; text-align: center; margin-top: 5px;"><span class="timer-text">${formatTimerMinutes(cardGameUpgradeRemaining)}</span></div>
+                </div>
+            ` : cardGameUpgradeLevel < 10 ? `
+                <div class="upgrade-cost">
+                    <div>⬆️ ДО ${cardGameUpgradeLevel + 1} УРОВНЯ</div>
+                    <div>💰 <span>${upgradeCost} 🚬</span></div>
+                    <div>⏳ ВРЕМЯ: <span>${Math.round(cardGameUpgradeDuration / 60000)} МИН</span></div>
+                </div>
+                <button class="cardgame-action-btn" id="upgradeCardsBtn" ${isUpgradeDisabled ? 'disabled' : ''}>
+                    ⬆️ УЛУЧШИТЬ КАРТЫ
+                </button>
+            ` : '<div class="bonus-info" style="text-align:center;">🏆 ДОСТИГНУТ МАКСИМАЛЬНЫЙ УРОВЕНЬ!</div>'}
+            ${cardGameActive ? '<div class="bonus-info" style="background:#ff9800;">⚡ НЕЛЬЗЯ УЛУЧШАТЬ ВО ВРЕМЯ ИГРЫ</div>' : ''}
+        </div>
+    `;
+    
+    const upgradeBtn = document.getElementById('upgradeCardsBtn');
+    if (upgradeBtn) upgradeBtn.onclick = () => upgradeCardGameFromModal();
+}
+
+// Обновление контента КАЧАЛКА -> ПРОКАЧКА
+function updateGymUpgradeContent() {
+    const container = document.getElementById('gymUpgradeContainer');
+    if (!container) return;
+    
+    const totalFighters = (currentPlayer.gang?.blats?.fighters || 0) + (currentPlayer.gang?.muzhiks?.fighters || 0) + (currentPlayer.gang?.fraers?.fighters || 0);
+    const gymCost = getGymUpgradeCost();
+    const gymUpgradeActive = isGymUpgradeActive();
+    const gymUpgradeRemaining = getGymUpgradeRemaining();
+    const gymProgressPercent = gymUpgradeActive ? Math.min(100, ((Date.now() - gymUpgradeStartTime) / gymUpgradeDuration) * 100) : 0;
+    
+    container.innerHTML = `
+        <div class="cardgame-card">
+            <div style="font-size: 48px; text-align: center; margin-bottom: 10px;">⬆️</div>
+            <div class="bonus-info">📊 УРОВЕНЬ КАЧАЛКИ: <span>${gymLevel}</span></div>
+            <div class="gym-stats-grid">
+                <div class="gym-stat-card">
+                    <div style="font-size: 11px;">💪 СИЛА/ЧАС</div>
+                    <div class="gym-stat-value">+${Math.floor(totalFighters * (0.5 + (gymLevel + 1) * 0.1))}</div>
+                </div>
+                <div class="gym-stat-card">
+                    <div style="font-size: 11px;">🛡️ ЗАЩИТА/ЧАС</div>
+                    <div class="gym-stat-value">+${Math.floor(totalFighters * (0.3 + (gymLevel + 1) * 0.05))}</div>
+                </div>
+            </div>
+            
+            ${gymUpgradeActive ? `
+                <div class="upgrade-progress">
+                    <div class="upgrade-progress-label">⏳ ПРОКАЧКА ДО ${gymLevel + 1} УРОВНЯ</div>
+                    <div class="upgrade-progress-bar"><div class="upgrade-progress-fill" style="width: ${gymProgressPercent}%"></div></div>
+                    <div style="font-size: 11px; text-align: center; margin-top: 5px;"><span class="timer-text">${formatTimerMinutes(gymUpgradeRemaining)}</span></div>
+                </div>
+            ` : `
+                <div class="upgrade-cost">
+                    <div>⬆️ ДО ${gymLevel + 1} УРОВНЯ</div>
+                    <div>💰 <span>${gymCost.cigarettes} 🚬 + ${gymCost.wood} 🪵 + ${gymCost.stone} 🪨</span></div>
+                    <div>⏳ ВРЕМЯ: <span>${Math.round(gymUpgradeDuration / 60000)} МИН</span></div>
+                </div>
+                <button class="cardgame-action-btn" id="upgradeGymBtn" ${(currentPlayer.cigarettes < gymCost.cigarettes || (currentPlayer.lumber?.wood || 0) < gymCost.wood || (currentPlayer.quarry?.stone || 0) < gymCost.stone || gymActive) ? 'disabled' : ''}>
+                    ⬆️ УЛУЧШИТЬ КАЧАЛКУ
+                </button>
+            `}
+            ${gymActive ? '<div class="bonus-info" style="background:#ff9800;">⚡ НЕЛЬЗЯ УЛУЧШАТЬ ВО ВРЕМЯ ТРЕНИРОВКИ</div>' : ''}
+        </div>
+    `;
+    
+    const upgradeBtn = document.getElementById('upgradeGymBtn');
+    if (upgradeBtn) upgradeBtn.onclick = () => upgradeGymFromModal();
+}
+
+// Обновление контента КАЧАЛКА -> ТРЕНИРОВКА
+function updateGymTrainContent() {
+    const container = document.getElementById('gymTrainContainer');
+    if (!container) return;
+    
+    const totalFighters = (currentPlayer.gang?.blats?.fighters || 0) + (currentPlayer.gang?.muzhiks?.fighters || 0) + (currentPlayer.gang?.fraers?.fighters || 0);
+    const gymUpgradeActive = isGymUpgradeActive();
+    const gymDurationHours = getGymDuration() / (60 * 60 * 1000);
+    
+    container.innerHTML = `
+        <div class="cardgame-card">
+            <div style="font-size: 48px; text-align: center; margin-bottom: 10px;">💪</div>
+            <div class="gym-stats-grid">
+                <div class="gym-stat-card">
+                    <div style="font-size: 12px;">💪 СИЛА/ЧАС</div>
+                    <div class="gym-stat-value">+${Math.floor(totalFighters * (0.5 + gymLevel * 0.1))}</div>
+                </div>
+                <div class="gym-stat-card">
+                    <div style="font-size: 12px;">🛡️ ЗАЩИТА/ЧАС</div>
+                    <div class="gym-stat-value">+${Math.floor(totalFighters * (0.3 + gymLevel * 0.05))}</div>
+                </div>
+            </div>
+            <div class="bonus-info">👥 БОЙЦОВ В БАНДЕ: <span>${totalFighters}</span></div>
+            <div class="bonus-info">⏳ ДЛИТЕЛЬНОСТЬ: <span>${gymDurationHours} ЧАС(А)</span></div>
+            
+            ${gymUpgradeActive ? `<div class="bonus-info" style="background:#ff9800;">⏳ ПРОКАЧКА КАЧАЛКИ ИДЕТ! ТРЕНИРОВКА НЕДОСТУПНА</div>` : ''}
+            
+            ${gymActive ? `
+                <div class="game-timer" id="gymTimerFull" style="font-size: 24px;">${formatGameTime(getGymDuration() - (Date.now() - gymStartTime))}</div>
+                <button class="cardgame-action-btn" onclick="closeCardGameFullModal()">🔽 СВЕРНУТЬ</button>
+            ` : `
+                ${gymCooldownUntil > Date.now() ? `<div class="bonus-info">⏳ ДОСТУПНО ЧЕРЕЗ: <span>${formatTimerMinutes(gymCooldownUntil - Date.now())}</span></div>` : ''}
+                <button class="cardgame-action-btn" id="startGymTrainBtn" ${(gymCooldownUntil > Date.now() || totalFighters === 0 || currentPlayer.level < 2 || gymUpgradeActive) ? 'disabled' : ''}>
+                    💪 НАЧАТЬ ТРЕНИРОВКУ
+                </button>
+            `}
+        </div>
+    `;
+    
+    const startBtn = document.getElementById('startGymTrainBtn');
+    if (startBtn) startBtn.onclick = () => startGymTraining();
+}
+
 
         function handleGameTouchStart(e) {
             gameTouchStartX = e.changedTouches[0].screenX;
@@ -13023,10 +13507,10 @@ function getStatName(stat) {
         }
 
         function getGymDuration() {
-            let baseHours = 1;
-            let additionalHours = Math.floor(gymLevel / 5);
-            return (baseHours + additionalHours) * 60 * 60 * 1000;
-        }
+    let baseHours = 1;
+    let additionalHours = Math.floor(gymLevel / 5);
+    return (baseHours + additionalHours) * 60 * 60 * 1000;
+}
 
         function getGymUpgradeCost() {
             let costCigarettes = 100 * gymLevel;
@@ -13422,8 +13906,8 @@ function getStatName(stat) {
             <div class="cardgame-bottom-nav">
                 <div class="bottom-nav">
                     <button class="cardgame-tab-btn ${currentGameSection === 'back' ? 'active' : ''}" onclick="closeCardGameFullModal()"><img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_6.png"  height="70px" width="55px" draggable="false"></button>
-                    <button class="cardgame-tab-btn ${currentGameSection === 'cards' ? 'active' : ''}" onclick="switchGameSection('cards')"><span>🎴</span><span>КАРТЫ</span></button>
-                    <button class="cardgame-tab-btn ${currentGameSection === 'gym' ? 'active' : ''}" onclick="switchGameSection('gym')"><span>💪</span><span>КАЧАЛКА</span></button>
+                    <button class="cardgame-tab-btn ${currentGameSection === 'cards' ? 'active' : ''}" onclick="switchGameSection('cards')"><img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_11.png"  height="70px" width="55px" draggable="false"></button>
+                    <button class="cardgame-tab-btn ${currentGameSection === 'gym' ? 'active' : ''}" onclick="switchGameSection('gym')"><img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_10.png"  height="70px" width="55px" draggable="false"></button>
                 </div>
             </div>
         </div>
@@ -13482,19 +13966,22 @@ function getStatName(stat) {
             }
         }
 
-        let cardGameTimerUpdateFull = null;
-        let gymTimerUpdateFull = null;
-        let gameTimerInterval = null;
-
         function closeCardGameFullModal() {
-            if (cardGameTimerUpdateFull) clearInterval(cardGameTimerUpdateFull);
-            if (gymTimerUpdateFull) clearInterval(gymTimerUpdateFull);
-            if (gameTimerInterval) clearInterval(gameTimerInterval);
-            const modal = document.getElementById('cardgameFullscreen');
-            if (modal) modal.remove();
-            if (tg) tg.BackButton.hide();
-            renderUI();
-        }
+    if (cardGameTimerUpdateFull) clearInterval(cardGameTimerUpdateFull);
+    if (gymTimerUpdateFull) clearInterval(gymTimerUpdateFull);
+    if (gameTimerInterval) clearInterval(gameTimerInterval);
+    
+    const modal = document.getElementById('cardgameFullscreen');
+    if (modal) modal.remove();
+    if (tg) tg.BackButton.hide();
+    
+    document.body.style.overflow = '';
+    document.body.style.position = '';
+    document.body.style.width = '';
+    document.body.classList.remove('modal-open');
+    
+    renderUI();
+}
 
         async function startCardGameFromModal() {
             if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); return; }
@@ -14006,8 +14493,8 @@ function openAttackModal() {
             <div class="attack-bottom-nav" style="position: fixed; bottom: 0; left: 0; right: 0; background: rgba(10, 14, 26, 0.95); backdrop-filter: blur(20px); border-top: 1px solid #8B4513; padding: 8px 16px; z-index: 10001;">
                 <div class="bottom-nav" style="max-width: 550px; margin: 0 auto; display: flex; align-items: center; justify-content: space-around; gap: 8px;">
                     <button class="attack-tab-btn" id="backBtn" style="background: transparent; border: none; border-radius: 50px; padding: 8px 16px; display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; color: #8e8ea0; font-size: 11px;"><img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_6.png"  height="70px" width="55px" draggable="false"></button>
-                    <button class="attack-tab-btn active" id="pvpBtn" style="background: linear-gradient(135deg, rgba(233, 69, 96, 0.25), rgba(199, 62, 84, 0.2)); color: #fff; border: 1px solid rgba(233, 69, 96, 0.5);"><span>⚔️</span><span>PvP</span></button>
-                    <button class="attack-tab-btn" id="robberyBtn" style="background: transparent; border: none; border-radius: 50px; padding: 8px 16px; display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; color: #8e8ea0; font-size: 11px;"><span>🦹</span><span>ВОРОВАТЬ</span></button>
+                    <button class="attack-tab-btn active" id="pvpBtn" style="background: linear-gradient(135deg, rgba(233, 69, 96, 0.25), rgba(199, 62, 84, 0.2)); color: #fff; border: 1px solid rgba(233, 69, 96, 0.5);"><img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_12.png"  height="70px" width="55px" draggable="false"></button>
+                    <button class="attack-tab-btn" id="robberyBtn" style="background: transparent; border: none; border-radius: 50px; padding: 8px 16px; display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; color: #8e8ea0; font-size: 11px;"><img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_13.png"  height="70px" width="55px" draggable="false"></button>
                 </div>
             </div>
         </div>
@@ -15988,9 +16475,9 @@ function subscribeToActiveBattle() {
             <div class="quests-bottom-nav">
                 <div class="bottom-nav">
                     <button class="quests-tab-btn ${currentQuestsTab === 0 ? 'active' : ''}" onclick="switchQuestsTab(0)"><img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_6.png"  height="70px" width="55px" draggable="false"></button>
-                    <button class="quests-tab-btn ${currentQuestsTab === 1 ? 'active' : ''}" onclick="switchQuestsTab(1)"><span>📖</span><span>Сюжет</span></button>
-                    <button class="quests-tab-btn ${currentQuestsTab === 2 ? 'active' : ''}" onclick="switchQuestsTab(2)"><span>📅</span><span>Ежедневно</span></button>
-                    <button class="quests-tab-btn ${currentQuestsTab === 3 ? 'active' : ''}" onclick="switchQuestsTab(3)"><span>⭐</span><span>Премиум</span></button>
+                    <button class="quests-tab-btn ${currentQuestsTab === 1 ? 'active' : ''}" onclick="switchQuestsTab(1)"><img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_14.png"  height="70px" width="55px" draggable="false"></button>
+                    <button class="quests-tab-btn ${currentQuestsTab === 2 ? 'active' : ''}" onclick="switchQuestsTab(2)"><img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_15.png"  height="70px" width="55px" draggable="false"></button>
+                    <button class="quests-tab-btn ${currentQuestsTab === 3 ? 'active' : ''}" onclick="switchQuestsTab(3)"><img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_16.png"  height="70px" width="55px" draggable="false"></button>
                 </div>
             </div>
         </div>
