@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Зона 1.0.0.247 - Карта зоны</title>
+    <title>Зона 1.0.0.248 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -6374,14 +6374,22 @@ function loadWarFightersFromStorage() {
         if (saved) {
             try {
                 const data = JSON.parse(saved);
+                // Проверяем, что война ещё актуальна
                 if (data.warId === activeClanWar?.id) {
                     warFightersSent = data.fighters || { blats: 0, muzhiks: 0, fraers: 0 };
+                    console.log('📦 Загружены данные отправленных бойцов:', warFightersSent);
                 } else {
+                    // Война изменилась - сбрасываем
                     warFightersSent = { blats: 0, muzhiks: 0, fraers: 0 };
+                    console.log('📦 Сброшены данные (другая война)');
                 }
-            } catch(e) { console.error(e); }
+            } catch(e) { 
+                console.error('Ошибка загрузки данных бойцов:', e);
+                warFightersSent = { blats: 0, muzhiks: 0, fraers: 0 };
+            }
         } else {
             warFightersSent = { blats: 0, muzhiks: 0, fraers: 0 };
+            console.log('📦 Нет сохранённых данных бойцов');
         }
     }
 }
@@ -7242,16 +7250,22 @@ function renderActiveWarContent(container) {
     const remainingSeconds = Math.floor((remaining % (60 * 1000)) / 1000);
     const progressPercent = ((WAR_DURATION_MS - remaining) / WAR_DURATION_MS) * 100;
     
-    const myFighters = isAttacker ? (activeClanWar.attackerFighters || { blats: 0, muzhiks: 0, fraers: 0, total: 0 }) : (activeClanWar.defenderFighters || { blats: 0, muzhiks: 0, fraers: 0, total: 0 });
+    // ОБЩИЕ данные о бойцах от ВСЕХ участников клана
+    const myClanTotalFighters = isAttacker ? (activeClanWar.attackerFighters || { blats: 0, muzhiks: 0, fraers: 0, total: 0 }) : (activeClanWar.defenderFighters || { blats: 0, muzhiks: 0, fraers: 0, total: 0 });
     const enemyFighters = isAttacker ? (activeClanWar.defenderFighters || { blats: 0, muzhiks: 0, fraers: 0, total: 0 }) : (activeClanWar.attackerFighters || { blats: 0, muzhiks: 0, fraers: 0, total: 0 });
+    
+    // Данные ТОЛЬКО текущего игрока (личный вклад)
+    const playerSentTotal = (warFightersSent.blats || 0) + (warFightersSent.muzhiks || 0) + (warFightersSent.fraers || 0);
     
     const myPower = isAttacker ? (activeClanWar.attackerPower || 0) : (activeClanWar.defenderPower || 0);
     const enemyPower = isAttacker ? (activeClanWar.defenderPower || 0) : (activeClanWar.attackerPower || 0);
     const myLevel = isAttacker ? (activeClanWar.attackerClanLevel || 1) : (activeClanWar.defenderClanLevel || 1);
     const enemyLevel = isAttacker ? (activeClanWar.defenderClanLevel || 1) : (activeClanWar.attackerClanLevel || 1);
     
-    const sentTotal = (warFightersSent.blats || 0) + (warFightersSent.muzhiks || 0) + (warFightersSent.fraers || 0);
     const canSendFighters = remaining > 0;
+    
+    // Формируем строку с общим вкладом клана
+    const clanTotalDisplay = `👥 ВСЕГО НА ВОЙНЕ: ${myClanTotalFighters.total || 0} бойцов (👑${myClanTotalFighters.blats || 0} 🔨${myClanTotalFighters.muzhiks || 0} 🐑${myClanTotalFighters.fraers || 0})`;
     
     container.innerHTML = `
         <div class="treasury-card">
@@ -7262,19 +7276,19 @@ function renderActiveWarContent(container) {
             
             <div style="text-align: center; margin: 10px 0;">
                 <div id="warTimerDisplay" class="game-timer" style="font-size: 28px; padding: 12px; font-family: monospace;">${remainingHours.toString().padStart(2, '0')}:${remainingMinutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}</div>
-                </div>
+            </div>
             
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 15px 0;">
                 <div style="background: rgba(0,0,0,0.3); border-radius: 16px; padding: 12px; text-align: center;">
                     <div style="font-size: 14px; color: #4caf50; font-weight: bold;">👑 ${escapeHtml(myClanName)}</div>
                     <div style="display: flex; justify-content: center; gap: 15px; margin: 10px 0;">
-                        <div>👑 ${myFighters.blats || 0}</div>
-                        <div>🔨 ${myFighters.muzhiks || 0}</div>
-                        <div>🐑 ${myFighters.fraers || 0}</div>
+                        <div>👑 ${myClanTotalFighters.blats || 0}</div>
+                        <div>🔨 ${myClanTotalFighters.muzhiks || 0}</div>
+                        <div>🐑 ${myClanTotalFighters.fraers || 0}</div>
                     </div>
                     <div>💪 Мощь: ${myPower}</div>
                     <div>📈 Ур. ${myLevel}</div>
-                    <div>👥 Всего: ${myFighters.total || 0}</div>
+                    <div>👥 Всего: ${myClanTotalFighters.total || 0}</div>
                 </div>
                 <div style="background: rgba(0,0,0,0.3); border-radius: 16px; padding: 12px; text-align: center;">
                     <div style="font-size: 14px; color: #e94560; font-weight: bold;">👑 ${escapeHtml(enemyClanName)}</div>
@@ -7289,17 +7303,31 @@ function renderActiveWarContent(container) {
                 </div>
             </div>
             
-            ${sentTotal > 0 ? `
-                <div class="bonus-info" style="background: rgba(76,175,80,0.15); text-align: center;">
-                    ✅ Вы отправили на войну: 👑 ${warFightersSent.blats || 0} 🔨 ${warFightersSent.muzhiks || 0} 🐑 ${warFightersSent.fraers || 0}
+            <!-- ОБЩАЯ СТАТИСТИКА ПО КЛАНУ -->
+            <div class="bonus-info" style="background: rgba(76,175,80,0.15); text-align: center; margin-bottom: 10px;">
+                ${clanTotalDisplay}
+            </div>
+            
+            <!-- ЛИЧНЫЙ ВКЛАД ИГРОКА -->
+            ${playerSentTotal > 0 ? `
+                <div class="bonus-info" style="background: rgba(255,152,0,0.15); text-align: center;">
+                    🎖️ ВАШ ВКЛАД: 👑 ${warFightersSent.blats || 0} 🔨 ${warFightersSent.muzhiks || 0} 🐑 ${warFightersSent.fraers || 0} (всего ${playerSentTotal})
                 </div>
-            ` : ''}
+            ` : `
+                <div class="bonus-info" style="background: rgba(100,100,100,0.15); text-align: center; color: #888;">
+                    📭 Вы ещё не отправляли бойцов на эту войну
+                </div>
+            `}
             
             ${canSendFighters ? `
                 <button class="btn-primary" onclick="sendFightersToWar()" style="width: 100%; padding: 14px; margin-top: 10px;">
-                    ${sentTotal > 0 ? '➕ ОТПРАВИТЬ БОЙЦОВ' : '⚔️ ОТПРАВИТЬ БОЙЦОВ НА ВОЙНУ'}
+                    ${playerSentTotal > 0 ? '➕ ОТПРАВИТЬ ЕЩЁ БОЙЦОВ' : '⚔️ ОТПРАВИТЬ БОЙЦОВ НА ВОЙНУ'}
                 </button>
-            ` : ''}
+            ` : `
+                <button class="btn-primary" disabled style="width: 100%; padding: 14px; margin-top: 10px; opacity: 0.5;">
+                    ⏳ ВОЙНА ЗАВЕРШЕНА
+                </button>
+            `}
         </div>
     `;
 }
@@ -9166,7 +9194,7 @@ function addNotification(type, title, message, targetPlayerId = null) {
                 <img class="loading-logo" src="https://sviter-pro.github.io/GameZone/src/test/logo124.png" alt="Тюряга 2.0" onerror="this.src='https://via.placeholder.com/180x180?text=Тюряга+2.0'">
                 <div class="loading-spinner-new"></div>
                 <div class="loading-tip-new" id="loadingTipNew">⚡ Загрузка игрового мира...</div>
-                <div class="loading-version">Зона 1.0.0.247 | Зона ждет</div>
+                <div class="loading-version">Зона 1.0.0.248 | Зона ждет</div>
             </div>
         `;
             const tipEl = document.getElementById('loadingTipNew');
@@ -10565,7 +10593,7 @@ async function changeEquipment(slot, itemName, stat, bonus) {
                 
                 <div class="settings-card">
                     <div style="font-size: 13px; color: #aaa; text-align: center;">
-                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.247</div>
+                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.248</div>
                         <div style="font-size: 11px;">⚡ Клановые войны | Бесконечная прокачка</div>
                     </div>
                 </div>
