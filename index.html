@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Зона 1.0.0.227 - Карта зоны</title>
+    <title>Зона 1.0.0.235 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -1157,6 +1157,43 @@
             display: flex;
             flex-direction: column;
         }
+		
+		.profile-tab-btn.active {
+			background: linear-gradient(135deg, #8B4513, #5a2d0a) !important;
+			border-color: #c9a03d !important;
+		}
+		.settings-tab-btn.active {
+			background: linear-gradient(135deg, #8B4513, #5a2d0a) !important;
+			border-color: #c9a03d !important;
+		}
+		.clan-tab-btn.active {
+			background: linear-gradient(135deg, #8B4513, #5a2d0a) !important;
+			border-color: #c9a03d !important;
+		}
+		.attack-tab-btn.active {
+			background: linear-gradient(135deg, #8B4513, #5a2d0a) !important;
+			border-color: #c9a03d !important;
+		}
+		.attack-tab-btn.active {
+			background: linear-gradient(135deg, #8B4513, #5a2d0a) !important;
+			border-color: #c9a03d !important;
+		}
+		.mine-tab-btn.active {
+			background: linear-gradient(135deg, #8B4513, #5a2d0a) !important;
+			border-color: #c9a03d !important;
+		}
+		.quests-tab-btn.active {
+			background: linear-gradient(135deg, #8B4513, #5a2d0a) !important;
+			border-color: #c9a03d !important;
+		}
+		.cardgame-tab-btn.active {
+			background: linear-gradient(135deg, #8B4513, #5a2d0a) !important;
+			border-color: #c9a03d !important;
+		}
+		.gang-tab-btn.active {
+			background: linear-gradient(135deg, #8B4513, #5a2d0a) !important;
+			border-color: #c9a03d !important;
+		}
 
         .shop-content-area,
         .cardgame-content-area,
@@ -1896,24 +1933,6 @@
             top: 0;
             z-index: 10;
             margin-bottom: 10px;
-        }
-
-        .shop-tab-btn {
-            flex: 1;
-            background: transparent;
-            border: none;
-            padding: 12px 0;
-            color: #8e8ea0;
-            font-size: 14px;
-            font-weight: 600;
-            transition: 0.2s;
-            cursor: pointer;
-            border-bottom: 2px solid transparent;
-        }
-
-        .shop-tab-btn.active {
-            color: #e94560;
-            border-bottom-color: #e94560;
         }
 
         /* Стили для кнопок в настройках */
@@ -3185,6 +3204,23 @@
         }
 
         /* ========== ТЮРЕМНЫЙ СТИЛЬ ДЛЯ МАГАЗИНА ========== */
+		.shop-tab-btn2.active {
+			color: #c9a03d;
+			background: rgba(139, 69, 19, 0.2);
+		}
+		.shop-tab-btn2 {
+            flex: 1;
+            background: transparent;
+            border: none;
+            padding: 14px 0;
+            color: #8e8ea0;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+		
         .shop-fullscreen {
             background: linear-gradient(135deg, #0a0a0f 0%, #14141f 100%);
         }
@@ -3234,24 +3270,6 @@
             display: flex;
             margin: 0;
             padding: 0;
-        }
-
-        .shop-tab-btn {
-            flex: 1;
-            background: transparent;
-            border: none;
-            padding: 14px 0;
-            color: #8e8ea0;
-            font-size: 14px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.2s;
-            position: relative;
-        }
-
-        .shop-tab-btn.active {
-            color: #c9a03d;
-            background: rgba(139, 69, 19, 0.2);
         }
 
         .shop-tab-btn.active::after {
@@ -4149,8 +4167,8 @@
         .quests-tab-btn {
             background: transparent;
             border: none;
-            border-radius: 50px;
-            padding: 8px 16px;
+            border-radius: 8px;
+            padding: 1px 1px;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -4161,12 +4179,6 @@
             font-size: 11px;
             font-weight: 500;
             min-width: auto;
-        }
-
-        .quests-tab-btn.active {
-            background: linear-gradient(135deg, rgba(233, 69, 96, 0.25), rgba(199, 62, 84, 0.2));
-            color: #fff;
-            border: 1px solid rgba(233, 69, 96, 0.5);
         }
 
         .quests-tab-btn.active span:first-child {
@@ -4462,8 +4474,8 @@
         .mine-tab-btn {
             background: transparent;
             border: none;
-            border-radius: 50px;
-            padding: 8px 16px;
+            border-radius: 8px;
+            padding: 1px 1px;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -4793,8 +4805,8 @@
         .cardgame-tab-btn {
             background: transparent;
             border: none;
-            border-radius: 50px;
-            padding: 8px 16px;
+            border-radius: 8px;
+            padding: 1px 1px;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -5112,8 +5124,8 @@
         .gang-tab-btn {
             background: transparent;
             border: none;
-            border-radius: 50px;
-            padding: 8px 16px;
+            border-radius: 8px;
+            padding: 1px 1px;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -5831,7 +5843,6 @@
             flex-direction: column;
             animation: fadeInModal 0.25s ease-out;
             transform-origin: center center;
-            overflow-y: auto;
         }
 
         @keyframes fadeInModal {
@@ -6651,6 +6662,8 @@ function restoreActiveBattleFromLocal() {
 		let gameModalInitialized = false;
 		let gameTimerInterval = null;
 		let gymTimerUpdateFull = null;
+		let robberyLastUpdate = Date.now();
+		const ROBBERY_UPDATE_INTERVAL = 30 * 60 * 1000; // 30 минут
 		let cardGameTimerUpdateFull = null;
 
         // ========== ПЕРЕМЕННЫЕ ДЛЯ ЧАТА ==========
@@ -8047,7 +8060,7 @@ function restoreActiveBattleFromLocal() {
                 <img class="loading-logo" src="https://sviter-pro.github.io/GameZone/src/test/logo124.png" alt="Тюряга 2.0" onerror="this.src='https://via.placeholder.com/180x180?text=Тюряга+2.0'">
                 <div class="loading-spinner-new"></div>
                 <div class="loading-tip-new" id="loadingTipNew">⚡ Загрузка игрового мира...</div>
-                <div class="loading-version">Зона 1.0.0.227 | Зона ждет</div>
+                <div class="loading-version">Зона 1.0.0.235 | Зона ждет</div>
             </div>
         `;
             const tipEl = document.getElementById('loadingTipNew');
@@ -9438,7 +9451,7 @@ async function changeEquipment(slot, itemName, stat, bonus) {
                 
                 <div class="settings-card">
                     <div style="font-size: 13px; color: #aaa; text-align: center;">
-                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.227</div>
+                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.235</div>
                         <div style="font-size: 11px;">⚡ Клановые войны | Бесконечная прокачка</div>
                     </div>
                 </div>
@@ -9799,7 +9812,7 @@ function renderLumberContent() {
     // Верхняя панель ресурсов
     let resourcesBar = `
         <div style="background: linear-gradient(135deg, #1a1a2a, #0d0d15); border-radius: 1px; padding: 5px 20px; margin: 9px -15px; border: 1px solid #8B4513; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-            <div style="display: flex; gap: 1px; align-items: center; flex-wrap: wrap;">
+            <div style="display: flex; gap: 1px; align-items: center;">
                 <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
                     <span style="font-size: 11px;">🚬</span>
                     <span id="mineCigarettesValue" style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.cigarettes || 0)}</span>
@@ -9920,7 +9933,7 @@ function renderQuarryContent() {
     
     let resourcesBar = `
         <div style="background: linear-gradient(135deg, #1a1a2a, #0d0d15); border-radius: 1px; padding: 5px 20px; margin: 9px -15px; border: 1px solid #8B4513; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-            <div style="display: flex; gap: 1px; align-items: center; flex-wrap: wrap;">
+            <div style="display: flex; gap: 1px; align-items: center;">
                 <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
                     <span style="font-size: 11px;">🚬</span>
                     <span id="mineCigarettesValue" style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.cigarettes || 0)}</span>
@@ -10046,7 +10059,7 @@ function renderMineContent() {
     // Верхняя панель ресурсов
     let resourcesBar = `
         <div style="background: linear-gradient(135deg, #1a1a2a, #0d0d15); border-radius: 1px; padding: 5px 20px; margin: 9px -15px; border: 1px solid #8B4513; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-            <div style="display: flex; gap: 1px; align-items: center; flex-wrap: wrap;">
+            <div style="display: flex; gap: 1px; align-items: center;">
                 <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
                     <span style="font-size: 11px;">🚬</span>
                     <span id="mineCigarettesValue" style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.cigarettes || 0)}</span>
@@ -11029,7 +11042,7 @@ function checkAndNotifyWorkAvailable() {
 
                 contentHtml = `
 				<div style="background: linear-gradient(135deg, #1a1a2a, #0d0d15); border-radius: 1px; padding: 5px 20px; margin: 9px -15px; border: 1px solid #8B4513; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-        <div style="display: flex; gap: 1px; align-items: center; flex-wrap: wrap;">
+        <div style="display: flex; gap: 1px; align-items: center;">
             <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
                 <span style="font-size: 11px;">🚬</span>
                 <span id="mineCigarettesValue" style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.cigarettes || 0)}</span>
@@ -11171,7 +11184,7 @@ function checkAndNotifyWorkAvailable() {
 
                 contentHtml = `
 				<div style="background: linear-gradient(135deg, #1a1a2a, #0d0d15); border-radius: 1px; padding: 5px 20px; margin: 9px -15px; border: 1px solid #8B4513; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-        <div style="display: flex; gap: 1px; align-items: center; flex-wrap: wrap;">
+        <div style="display: flex; gap: 1px; align-items: center; ">
             <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
                 <span style="font-size: 11px;">🚬</span>
                 <span id="mineCigarettesValue" style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.cigarettes || 0)}</span>
@@ -11278,7 +11291,7 @@ function checkAndNotifyWorkAvailable() {
 
                 contentHtml = `
 				<div style="background: linear-gradient(135deg, #1a1a2a, #0d0d15); border-radius: 1px; padding: 5px 20px; margin: 9px -15px; border: 1px solid #8B4513; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-        <div style="display: flex; gap: 1px; align-items: center; flex-wrap: wrap;">
+        <div style="display: flex; gap: 1px; align-items: center; ">
             <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
                 <span style="font-size: 11px;">🚬</span>
                 <span id="mineCigarettesValue" style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.cigarettes || 0)}</span>
@@ -12142,8 +12155,8 @@ function closeMineModal() {
             
             <!-- Вкладки -->
             <div class="shop-tabs-header">
-                <button id="shopOffersTabBtn" class="shop-tab-btn ${currentShopTab === 'offers' ? 'active' : ''}">📦 ТОВАРЫ</button>
-                <button id="shopUpgradeTabBtn" class="shop-tab-btn ${currentShopTab === 'upgrade' ? 'active' : ''}">⬆️ ПРОКАЧКА</button>
+                <button id="shopOffersTabBtn" class="shop-tab-btn2 ${currentShopTab === 'offers' ? 'active' : ''}">📦 ТОВАРЫ</button>
+                <button id="shopUpgradeTabBtn" class="shop-tab-btn2 ${currentShopTab === 'upgrade' ? 'active' : ''}">⬆️ ПРОКАЧКА</button>
             </div>
             
             <div class="shop-content-area">
@@ -12558,8 +12571,8 @@ function forceUpdateRandomShop() {
         </div>
     </div>
             <div class="shop-tabs-header">
-                <button class="shop-tab-btn ${currentShopTab === 'offers' ? 'active' : ''}" onclick="switchShopTab('offers')">📦 ТОВАРЫ</button>
-                <button class="shop-tab-btn ${currentShopTab === 'upgrade' ? 'active' : ''}" onclick="switchShopTab('upgrade')">⬆️ ПРОКАЧКА</button>
+                <button class="shop-tab-btn2 ${currentShopTab === 'offers' ? 'active' : ''}" onclick="switchShopTab('offers')">📦 ТОВАРЫ</button>
+                <button class="shop-tab-btn2 ${currentShopTab === 'upgrade' ? 'active' : ''}" onclick="switchShopTab('upgrade')">⬆️ ПРОКАЧКА</button>
             </div>
             <div class="shop-content-area">
                 ${currentShopTab === 'offers' ? `
@@ -12756,8 +12769,8 @@ function calculateBattleRewards(attacker, defender) {
                 </div>
             </div>
             <div class="shop-tabs-header">
-                <button class="shop-tab-btn ${currentShopTab === 'offers' ? 'active' : ''}" onclick="switchShopTab('offers')">📦 ТОВАРЫ</button>
-                <button class="shop-tab-btn ${currentShopTab === 'upgrade' ? 'active' : ''}" onclick="switchShopTab('upgrade')">⬆️ ПРОКАЧКА</button>
+                <button class="shop-tab-btn2 ${currentShopTab === 'offers' ? 'active' : ''}" onclick="switchShopTab('offers')">📦 ТОВАРЫ</button>
+                <button class="shop-tab-btn2 ${currentShopTab === 'upgrade' ? 'active' : ''}" onclick="switchShopTab('upgrade')">⬆️ ПРОКАЧКА</button>
             </div>
             <div class="shop-content-area">
                 <select class="shop-category-select" id="shopCategorySelect" onchange="switchShopCategory(this.value)">
@@ -13090,7 +13103,7 @@ function getStatName(stat) {
             
             <div class="cardgame-bottom-nav">
                 <div class="bottom-nav">
-                    <button id="gameBackBtn" class="cardgame-tab-btn active"><img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_6.png" height="70px" width="55px" draggable="false"></button>
+                    <button id="gameBackBtn" class="cardgame-tab-btn"><img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_6.png" height="70px" width="55px" draggable="false"></button>
                     <button id="gameCardsBtn" class="cardgame-tab-btn ${currentGameSection === 'cards' ? 'active' : ''}"><img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_11.png"  height="70px" width="55px" draggable="false"></button>
                     <button id="gameGymBtn" class="cardgame-tab-btn ${currentGameSection === 'gym' ? 'active' : ''}"><img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_10.png"  height="70px" width="55px" draggable="false"></button>
                 </div>
@@ -14492,9 +14505,9 @@ function openAttackModal() {
             <!-- НИЖНЯЯ ПАНЕЛЬ НАВИГАЦИИ -->
             <div class="attack-bottom-nav" style="position: fixed; bottom: 0; left: 0; right: 0; background: rgba(10, 14, 26, 0.95); backdrop-filter: blur(20px); border-top: 1px solid #8B4513; padding: 8px 16px; z-index: 10001;">
                 <div class="bottom-nav" style="max-width: 550px; margin: 0 auto; display: flex; align-items: center; justify-content: space-around; gap: 8px;">
-                    <button class="attack-tab-btn" id="backBtn" style="background: transparent; border: none; border-radius: 50px; padding: 8px 16px; display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; color: #8e8ea0; font-size: 11px;"><img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_6.png"  height="70px" width="55px" draggable="false"></button>
+                    <button class="attack-tab-btn" id="backBtn" style="background: transparent; border: none; border-radius: 8px; padding: 2px 1px; display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; color: #8e8ea0; font-size: 11px;"><img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_6.png"  height="70px" width="55px" draggable="false"></button>
                     <button class="attack-tab-btn active" id="pvpBtn" style="background: linear-gradient(135deg, rgba(233, 69, 96, 0.25), rgba(199, 62, 84, 0.2)); color: #fff; border: 1px solid rgba(233, 69, 96, 0.5);"><img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_12.png"  height="70px" width="55px" draggable="false"></button>
-                    <button class="attack-tab-btn" id="robberyBtn" style="background: transparent; border: none; border-radius: 50px; padding: 8px 16px; display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; color: #8e8ea0; font-size: 11px;"><img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_13.png"  height="70px" width="55px" draggable="false"></button>
+                    <button class="attack-tab-btn" id="robberyBtn" style="background: transparent; border: none; border-radius: 8px; padding: 2px 2px; display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; color: #8e8ea0; font-size: 11px;"><img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_13.png"  height="70px" width="55px" draggable="false"></button>
                 </div>
             </div>
         </div>
@@ -16306,6 +16319,48 @@ function subscribeToActiveBattle() {
                 // Можно добавить уведомление главарю
             }
         }
+		async function toggleDefense() {
+    if (maintenanceMode) { 
+        showToast(maintenanceMessage, 'warning'); 
+        return; 
+    }
+    
+    if (!currentPlayer.clanId || currentPlayer.username !== currentPlayer.clanLeader) {
+        showToast('Только главарь клана может управлять защитой!', 'error');
+        return;
+    }
+    
+    const clanRef = db.collection('clans').doc(currentPlayer.clanId);
+    const clanDoc = await clanRef.get();
+    const currentDefense = clanDoc.data()?.defenseUntil || 0;
+    
+    if (currentDefense > Date.now()) {
+        await clanRef.update({ defenseUntil: 0 });
+        showToast('🛡️ Защита отключена!', 'success');
+    } else {
+        const hours = parseInt(prompt('На сколько часов включить защиту? (1-48 часов)', '12'));
+        if (hours && hours >= 1 && hours <= 48) {
+            const defenseUntil = Date.now() + (hours * 60 * 60 * 1000);
+            await clanRef.update({ defenseUntil: defenseUntil });
+            showToast(`🛡️ Защита включена на ${hours} часов!`, 'success');
+        } else {
+            showToast('Некорректное значение (1-48 часов)', 'error');
+        }
+    }
+    renderUI();
+}
+
+// Функция для toggleHistoryDetails (открытие/закрытие деталей истории)
+function toggleHistoryDetails(element) {
+    const details = element.querySelector('.history-details');
+    if (details) {
+        if (details.style.display === 'none' || !details.style.display) {
+            details.style.display = 'block';
+        } else {
+            details.style.display = 'none';
+        }
+    }
+}
 
         async function toggleDefenseFromModal() {
             if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); return; }
@@ -18993,6 +19048,63 @@ async function loadAllPlayers() {
                 warHistory = [];
             }
         }
+		async function startWar(targetClanId) {
+    if (maintenanceMode) { 
+        showToast(maintenanceMessage, 'warning'); 
+        return; 
+    }
+    
+    if (!currentPlayer.clanId || currentPlayer.username !== currentPlayer.clanLeader) {
+        showToast('Только главарь клана может начать войну!', 'error');
+        return;
+    }
+    
+    if (activeWar) {
+        showToast('Уже идет война!', 'warning');
+        return;
+    }
+    
+    const now = Date.now();
+    if (lastAttackTime && (now - lastAttackTime) < attackCooldownHours * 60 * 60 * 1000) {
+        showToast(`Атака доступна раз в ${attackCooldownHours} часов.`, 'warning');
+        return;
+    }
+    
+    const targetClan = allClans.find(c => c.id === targetClanId);
+    if (!targetClan) return;
+    
+    if (targetClan.defenseUntil && targetClan.defenseUntil > Date.now()) {
+        showToast(`Клан ${targetClan.name} под защитой!`, 'warning');
+        return;
+    }
+    
+    const myClan = allClans.find(c => c.id === currentPlayer.clanId);
+    const myPower = myClan.totalPower || 0;
+    const enemyPower = targetClan.totalPower || 0;
+    let attackerWon = myPower > enemyPower;
+    let stolenCigarettes = Math.floor((targetClan.cigarettes || 0) * (attackerWon ? 0.3 : 0.1));
+    let stolenRubles = Math.floor((targetClan.rubles || 0) * (attackerWon ? 0.2 : 0.05));
+    
+    activeWar = {
+        attackerClanId: currentPlayer.clanId,
+        attackerClanName: myClan.name,
+        defenderClanId: targetClan.id,
+        defenderClanName: targetClan.name,
+        attackerWon: attackerWon,
+        stolenCigarettes: stolenCigarettes,
+        stolenRubles: stolenRubles,
+        endTime: Date.now() + warDurationHours * 60 * 60 * 1000
+    };
+    
+    await db.collection('activeWars').doc('current').set(activeWar);
+    addNotification('war', '⚔️ ВОЙНА НАЧАТА', `Ваш клан "${myClan.name}" напал на клан "${targetClan.name}"!`);
+    await playerDocRef.update({ lastAttackTime: now });
+    lastAttackTime = now;
+    await notifyClanMembers(targetClan.id, `⚠️ Клан "${myClan.name}" объявил войну вашему клану!`);
+    await notifyClanMembers(currentPlayer.clanId, `⚔️ Ваш клан атакует клан "${targetClan.name}"!`);
+    showToast(`⚔️ Война объявлена клану ${targetClan.name}!`, 'success');
+    renderUI();
+}
         async function loadClan() { if (!currentPlayer.clanId) { clanMembers = []; return; } try { const clanDoc = await db.collection('clans').doc(currentPlayer.clanId).get(); if (clanDoc.exists) { const clan = clanDoc.data(); const members = []; for (const memberId of clan.membersIds || []) { const memberDoc = await db.collection('players').doc(memberId).get(); if (memberDoc.exists) { const m = memberDoc.data(); members.push({ username: m.username, level: m.level, power: calculatePlayerPower(m), strength: m.stats?.strength || 10, defense: m.stats?.defense || 5, critical: m.stats?.critical || 5, energy: m.energy, authority: m.authority, isLeader: m.username === clan.leader, isYou: m.username === currentPlayer.username, telegramId: m.telegramId }); } } clanMembers = members.sort((a, b) => b.power - a.power); } } catch (e) { console.error(e); } }
         async function checkActiveWar() { const warDoc = await db.collection('activeWars').doc('current').get(); if (warDoc.exists) { const war = warDoc.data(); if (war.endTime > Date.now() && (war.attackerClanId === currentPlayer?.clanId || war.defenderClanId === currentPlayer?.clanId)) activeWar = war; else if (war.endTime <= Date.now()) { await executeWarResult(); activeWar = null; } } }
         function startWarTimer() { if (warTimer) clearInterval(warTimer); warTimer = setInterval(async () => { if (activeWar && activeWar.endTime <= Date.now()) await executeWarResult(); renderUI(); }, 1000); }
@@ -21008,6 +21120,174 @@ function switchAttackInnerTab(tab) {
     }
 }
 
+async function buyAdminItemFromModal(item) {
+    if (maintenanceMode) { 
+        showToast(maintenanceMessage, 'warning'); 
+        return; 
+    }
+    
+    if (!currentPlayer) return;
+    
+    // Проверяем, есть ли уже предмет (для татуировок)
+    if (item.type === 'tattoo') {
+        const hasTattoo = currentPlayer.tattoos?.some(t => t.name === item.name);
+        if (hasTattoo) {
+            showToast('Эта наколка уже у вас есть!', 'warning');
+            return;
+        }
+    }
+    
+    // Проверяем достаточно ли ресурсов
+    if (item.currency === 'rubles' && currentPlayer.rubles < item.price) {
+        showToast(`Не хватает ${item.price - currentPlayer.rubles} 💰!`, 'error');
+        return;
+    }
+    if (item.currency === 'cigarettes' && currentPlayer.cigarettes < item.price) {
+        showToast(`Не хватает ${item.price - currentPlayer.cigarettes} 🚬!`, 'error');
+        return;
+    }
+    
+    try {
+        // Списываем цену
+        if (item.currency === 'rubles') {
+            currentPlayer.rubles -= item.price;
+            await playerDocRef.update({ rubles: currentPlayer.rubles });
+        } else {
+            currentPlayer.cigarettes -= item.price;
+            await playerDocRef.update({ cigarettes: currentPlayer.cigarettes });
+        }
+        
+        // Обработка разных типов предметов
+        if (item.type === 'tattoo') {
+            // Добавляем татуировку
+            if (!currentPlayer.tattoos) currentPlayer.tattoos = [];
+            currentPlayer.tattoos.push({ 
+                name: item.name, 
+                imageUrl: item.imageUrl,
+                bonus: item.bonus || 0,
+                stat: item.stat || 'strength'
+            });
+            await playerDocRef.update({ 
+                tattoos: currentPlayer.tattoos 
+            });
+            
+            // Применяем бонус татуировки
+            if (item.bonus && item.stat) {
+                currentPlayer.stats[item.stat] = (currentPlayer.stats[item.stat] || 0) + item.bonus;
+                await playerDocRef.update({ 
+                    [`stats.${item.stat}`]: firebase.firestore.FieldValue.increment(item.bonus) 
+                });
+            }
+            
+            showToast(`✅ Куплена наколка "${item.name}"!`, 'success');
+            
+        } else if (item.type === 'equipment') {
+            // Добавляем предмет экипировки в инвентарь
+            if (!currentPlayer.purchasedEquipment) currentPlayer.purchasedEquipment = [];
+            if (!currentPlayer.purchasedEquipment.includes(item.name)) {
+                currentPlayer.purchasedEquipment.push(item.name);
+                await playerDocRef.update({ 
+                    purchasedEquipment: currentPlayer.purchasedEquipment 
+                });
+            }
+            
+            // Обновляем счетчик покупок
+            purchasedItemsCount[item.id] = (purchasedItemsCount[item.id] || 0) + 1;
+            await playerDocRef.update({ 
+                purchasedItemsCount: purchasedItemsCount 
+            });
+            
+            showToast(`✅ Куплено: ${item.name}! Предмет добавлен в камеру.`, 'success');
+            
+        } else if (item.type === 'consumable') {
+            // Расходники - сразу даём эффект
+            if (item.resourceType) {
+                if (item.resourceType === 'cigarettes') {
+                    currentPlayer.cigarettes += item.amount || 0;
+                    await playerDocRef.update({ cigarettes: firebase.firestore.FieldValue.increment(item.amount || 0) });
+                } else if (item.resourceType === 'rubles') {
+                    currentPlayer.rubles += item.amount || 0;
+                    await playerDocRef.update({ rubles: firebase.firestore.FieldValue.increment(item.amount || 0) });
+                } else if (item.resourceType === 'paper') {
+                    if (!currentPlayer.mine) currentPlayer.mine = { paper: 0 };
+                    currentPlayer.mine.paper = (currentPlayer.mine.paper || 0) + (item.amount || 0);
+                    await playerDocRef.update({ 'mine.paper': currentPlayer.mine.paper });
+                } else if (item.resourceType === 'makhorka') {
+                    if (!currentPlayer.mine) currentPlayer.mine = { makhorka: 0 };
+                    currentPlayer.mine.makhorka = (currentPlayer.mine.makhorka || 0) + (item.amount || 0);
+                    await playerDocRef.update({ 'mine.makhorka': currentPlayer.mine.makhorka });
+                } else if (item.resourceType === 'wood') {
+                    if (!currentPlayer.lumber) currentPlayer.lumber = { wood: 0 };
+                    currentPlayer.lumber.wood = (currentPlayer.lumber.wood || 0) + (item.amount || 0);
+                    await playerDocRef.update({ 'lumber.wood': currentPlayer.lumber.wood });
+                } else if (item.resourceType === 'stone') {
+                    if (!currentPlayer.quarry) currentPlayer.quarry = { stone: 0 };
+                    currentPlayer.quarry.stone = (currentPlayer.quarry.stone || 0) + (item.amount || 0);
+                    await playerDocRef.update({ 'quarry.stone': currentPlayer.quarry.stone });
+                }
+            }
+            
+            showToast(`✅ Использовано: ${item.name}!`, 'success');
+        }
+        
+        // Обновляем UI
+        if (document.getElementById('shopFullscreen')) {
+            renderShopModal();
+        }
+        renderUI();
+        
+    } catch (e) {
+        console.error('Ошибка покупки:', e);
+        showToast('Ошибка при покупке: ' + e.message, 'error');
+    }
+}
+
+async function upgradeClanLevel() {
+    if (maintenanceMode) { 
+        showToast(maintenanceMessage, 'warning'); 
+        return; 
+    }
+    
+    if (!currentPlayer.clanId || currentPlayer.username !== currentPlayer.clanLeader) {
+        showToast('Только главарь клана может улучшать уровень клана!', 'warning');
+        return;
+    }
+    
+    const clan = allClans.find(c => c.id === currentPlayer.clanId);
+    if (!clan) return;
+    
+    const currentLevel = clan.level || 1;
+    const upgradeCost = 1000 * currentLevel;
+    const clanRubles = clan.rubles || 0;
+    
+    if (clanRubles < upgradeCost) {
+        showToast(`Не хватает ${upgradeCost - clanRubles} 💰 в казне клана!`, 'error');
+        return;
+    }
+    
+    try {
+        await db.collection('clans').doc(currentPlayer.clanId).update({
+            rubles: firebase.firestore.FieldValue.increment(-upgradeCost),
+            level: currentLevel + 1
+        });
+        
+        showToast(`🏆 Клан улучшен до ${currentLevel + 1} уровня!`, 'success');
+        
+        // Обновляем кэш кланов
+        cachedClanData.lastUpdate = 0;
+        await loadClanDataFast();
+        
+        // Перезагружаем окно клана если открыто
+        if (document.getElementById('clanFullscreen')) {
+            openClanFullModal();
+        }
+        renderUI();
+        
+    } catch (e) {
+        console.error('Ошибка улучшения клана:', e);
+        showToast('Ошибка при улучшении клана!', 'error');
+    }
+}
 
         function openCardGameUpgradeModal() {
             // Открываем игровую сразу на вкладке прокачки карт
