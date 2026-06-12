@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Зона 1.0.0.244 - Карта зоны</title>
+    <title>Зона 1.0.0.246 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -1209,7 +1209,7 @@
             flex: 1;
             overflow-y: auto;
             padding: 0px 9px;
-            margin-bottom: 75px;
+            margin-bottom: 100px;
 			margin-top: 10px;
         }
 
@@ -9132,7 +9132,7 @@ function addNotification(type, title, message, targetPlayerId = null) {
                 <img class="loading-logo" src="https://sviter-pro.github.io/GameZone/src/test/logo124.png" alt="Тюряга 2.0" onerror="this.src='https://via.placeholder.com/180x180?text=Тюряга+2.0'">
                 <div class="loading-spinner-new"></div>
                 <div class="loading-tip-new" id="loadingTipNew">⚡ Загрузка игрового мира...</div>
-                <div class="loading-version">Зона 1.0.0.244 | Зона ждет</div>
+                <div class="loading-version">Зона 1.0.0.246 | Зона ждет</div>
             </div>
         `;
             const tipEl = document.getElementById('loadingTipNew');
@@ -10531,7 +10531,7 @@ async function changeEquipment(slot, itemName, stat, bonus) {
                 
                 <div class="settings-card">
                     <div style="font-size: 13px; color: #aaa; text-align: center;">
-                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.244</div>
+                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.246</div>
                         <div style="font-size: 11px;">⚡ Клановые войны | Бесконечная прокачка</div>
                     </div>
                 </div>
@@ -18334,7 +18334,7 @@ function toggleHistoryDetails(element) {
         }
 
         // ВЕРБОВКА (НАЙМ)
-        async function collectGangIncome(type) {
+    async function collectGangIncome(type) {
     if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); return; }
     if (!currentPlayer.gang) currentPlayer.gang = {};
     const gang = currentPlayer.gang;
@@ -18347,11 +18347,12 @@ function toggleHistoryDetails(element) {
 
     const now = Date.now();
     const lastGather = gang[type].lastGatherTime || 0;
-    let cooldownMs = 2 * 60 * 1000;
+    let cooldownMs = 2 * 60 * 1000; // 2 минуты база
     cooldownMs = Math.floor(cooldownMs * (1 + (gang[type].level - 1) * 0.05));
 
-    if ((now - lastGather) < cooldownMs) {
-        showToast('Банда еще не набрала новых зеков!', 'warning');
+    // Проверяем, не идёт ли уже найм
+    if (lastGather > 0 && (now - lastGather) < cooldownMs) {
+        showToast('Банда уже набирает новых зеков!', 'warning');
         return;
     }
 
@@ -18369,74 +18370,133 @@ function toggleHistoryDetails(element) {
         return;
     }
 
-    // СПИСЫВАЕМ РЕСУРСЫ СРАЗУ (за найм)
+    // СПИСЫВАЕМ РЕСУРСЫ ТОЛЬКО ОДИН РАЗ
     currentPlayer.cigarettes -= cost.cigarettes;
     currentPlayer.lumber.wood -= cost.wood;
     currentPlayer.quarry.stone -= cost.stone;
+
+    // Сохраняем время начала найма и ожидаемое пополнение
+    const recruitGain = getRecruitGain(type);
+    const typeName = type === 'blats' ? 'блатных' : (type === 'muzhiks' ? 'мужиков' : 'фраеров');
 
     await playerDocRef.update({
         cigarettes: currentPlayer.cigarettes,
         'lumber.wood': currentPlayer.lumber.wood,
         'quarry.stone': currentPlayer.quarry.stone,
-        [`gang.${type}.lastGatherTime`]: now
+        [`gang.${type}.lastGatherTime`]: now,
+        [`gang.${type}.pendingGain`]: recruitGain,
+        [`gang.${type}.pendingCost`]: cost
     });
 
     gang[type].lastGatherTime = now;
+    gang[type].pendingGain = recruitGain;
+    gang[type].pendingCost = cost;
 
-    const gain = getRecruitGain(type);
-    const typeName = type === 'blats' ? 'блатных' : (type === 'muzhiks' ? 'мужиков' : 'фраеров');
-    
     showToast(`👥 Найм ${typeName} начат! Новые зеки придут через ${Math.ceil(cooldownMs / 60000)} мин. (-${cost.cigarettes}🚬 -${cost.wood}🪵 -${cost.stone}🪨)`, 'success');
 
-    // ЗАПУСКАЕМ ТАЙМЕР НА ВЫДАЧУ ЗЕКОВ И НАГРАДЫ
-    setTimeout(async () => {
-        // Проверяем, не началась ли прокачка во время найма
-        if (isUpgradeActive(type)) {
-            showToast('Прокачка прервала набор зеков! Ресурсы не возвращаются.', 'warning');
-            return;
-        }
-        
-        // Проверяем, не начал ли игрок новый найм (защита от мульти-кликов)
-        const nowCheck = Date.now();
-        const lastGatherCheck = currentPlayer.gang[type].lastGatherTime || 0;
-        if ((nowCheck - lastGatherCheck) < (cooldownMs - 1000)) {
-            return;
-        }
-        
-        // Начисляем зеков
-        gang[type].fighters = (gang[type].fighters || 0) + gain;
-
-        // Начисляем авторитет и папиросы за найм
-        const authorityGain = gain * 50;
-        const cigarettesGain = gain * 10;
-
-        currentPlayer.authority += authorityGain;
-        currentPlayer.cigarettes += cigarettesGain;
-
-        await playerDocRef.update({
-            authority: currentPlayer.authority,
-            cigarettes: firebase.firestore.FieldValue.increment(cigarettesGain),
-            [`gang.${type}.fighters`]: gang[type].fighters
-        });
-
-        // ТОЛЬКО TOAST, БЕЗ ОТКРЫТИЯ ОКНА!
-        showToast(`👥 Найм ${typeName} завершён! +${gain} чел. в команду! +${authorityGain}⭐ +${cigarettesGain}🚬`, 'success');
-
-        // Обновляем UI, НО НЕ ОТКРЫВАЕМ ОКНО СИЗО
-        renderUI();
-        
-        // Если окно СИЗО открыто - обновляем его содержимое
-        if (document.getElementById('gangFullscreen')) {
-            renderGangModal();
-        }
-        
-    }, cooldownMs);
-    
-    // Обновляем кнопку в текущем окне (показываем таймер)
     if (document.getElementById('gangFullscreen')) {
         renderGangModal();
     }
     renderUI();
+}
+
+async function resetGangPendingData() {
+    if (!currentPlayer) return;
+    
+    console.log('🔄 Сброс зависших данных найма...');
+    
+    const gang = currentPlayer.gang;
+    const updates = {};
+    
+    for (const type of ['blats', 'muzhiks', 'fraers']) {
+        if (gang[type] && gang[type].pendingGain > 0) {
+            console.log(`⚠️ Обнаружены зависшие данные для ${type}: pendingGain=${gang[type].pendingGain}`);
+            updates[`gang.${type}.pendingGain`] = 0;
+            updates[`gang.${type}.pendingCost`] = null;
+            // Не сбрасываем lastGatherTime, чтобы не начать найм заново
+        }
+    }
+    
+    if (Object.keys(updates).length > 0) {
+        await playerDocRef.update(updates);
+        console.log('✅ Зависшие данные очищены');
+        showToast('🔄 Данные найма очищены!', 'success');
+        renderUI();
+    } else {
+        console.log('✅ Нет зависших данных');
+        showToast('✅ Нет зависших данных найма', 'info');
+    }
+}
+
+async function restorePendingGather() {
+    if (!currentPlayer) return;
+    if (!currentPlayer.gang) return;
+
+    const gang = currentPlayer.gang;
+    const now = Date.now();
+    let anyUpdated = false;
+
+    for (const type of ['blats', 'muzhiks', 'fraers']) {
+        const gangType = gang[type];
+        if (!gangType) continue;
+
+        const lastGatherTime = gangType.lastGatherTime || 0;
+        const pendingGain = gangType.pendingGain || 0;
+        
+        // ВАЖНО: Проверяем, что lastGatherTime не 0 и pendingGain > 0
+        if (lastGatherTime > 0 && pendingGain > 0) {
+            // Вычисляем время найма (кулдаун увеличивается с уровнем)
+            let cooldownMs = 2 * 60 * 1000; // 2 минуты база
+            cooldownMs = Math.floor(cooldownMs * (1 + (gangType.level - 1) * 0.05));
+            
+            const elapsed = now - lastGatherTime;
+            
+            // Если прошло времени больше или равно кулдауну - найм завершён
+            if (elapsed >= cooldownMs) {
+                console.log(`✅ Завершаем найм для ${type}: прошло ${Math.floor(elapsed/1000)} сек, кд ${Math.floor(cooldownMs/1000)} сек`);
+                
+                // Начисляем зеков (БЕЗ ПОВТОРНОГО СПИСАНИЯ РЕСУРСОВ!)
+                gangType.fighters = (gangType.fighters || 0) + pendingGain;
+                
+                // Начисляем авторитет и папиросы за успешный найм
+                const authorityGain = pendingGain * 50;
+                const cigarettesGain = pendingGain * 10;
+                
+                currentPlayer.authority = (currentPlayer.authority || 0) + authorityGain;
+                currentPlayer.cigarettes = (currentPlayer.cigarettes || 0) + cigarettesGain;
+                
+                const typeName = type === 'blats' ? 'Блатные' : (type === 'muzhiks' ? 'Мужики' : 'Фраера');
+                
+                // Обновляем Firebase - очищаем pending данные
+                await playerDocRef.update({
+                    [`gang.${type}.fighters`]: gangType.fighters,
+                    [`gang.${type}.lastGatherTime`]: lastGatherTime + cooldownMs, // сдвигаем время
+                    [`gang.${type}.pendingGain`]: 0,
+                    [`gang.${type}.pendingCost`]: null,
+                    authority: currentPlayer.authority,
+                    cigarettes: currentPlayer.cigarettes
+                });
+                
+                anyUpdated = true;
+                
+                // Показываем уведомление (если нет открытых модалок)
+                const anyModal = document.querySelector('.modal, .mine-fullscreen, .shop-fullscreen, .cardgame-fullscreen, .treasury-fullscreen, .attack-fullscreen, .clan-fullscreen, .profile-fullscreen, .settings-fullscreen, .inventory-fullscreen, .quests-fullscreen, .gang-fullscreen, .hospital-fullscreen, #warFullscreen');
+                if (!anyModal) {
+                    showToast(`👥 ${typeName} вернулись с вербовки! +${pendingGain} чел., +${authorityGain}⭐, +${cigarettesGain}🚬`, 'success');
+                    if (settingsNotifications) {
+                        sendTelegramNotification(`👥 ${typeName} вернулись с вербовки! +${pendingGain} чел., +${authorityGain}⭐, +${cigarettesGain}🚬`);
+                    }
+                }
+            }
+        }
+    }
+    
+    if (anyUpdated) {
+        renderUI();
+        if (document.getElementById('gangFullscreen')) {
+            renderGangModal();
+        }
+    }
 }
 
         // ПРОКАЧКА БАНДЫ
@@ -20657,6 +20717,7 @@ async function startGame(id, name) {
         if (currentPlayer.cardGameActive) await restoreCardGame();
         await restoreGym();
         
+		await restorePendingGather();
         hideLoadingScreen();
         renderUI();
         
