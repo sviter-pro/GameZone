@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Зона 1.0.0.252 - Карта зоны</title>
+    <title>Зона 1.0.0.253 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -6255,7 +6255,6 @@ function getWarRewards(level) {
 }
 
 // ========== ПОДПИСКА НА ВОЙНЫ КЛАНА В FIRESTORE ==========
-// ========== ПОДПИСКА НА ВОЙНЫ КЛАНА В FIRESTORE ==========
 function subscribeToClanWars() {
     if (clanWarUnsubscribe) {
         clanWarUnsubscribe();
@@ -6274,38 +6273,35 @@ function subscribeToClanWars() {
         .where('attackerClanId', '==', currentPlayer.clanId)
         .where('status', '==', 'active');
     
-    const attackerUnsubscribe = attackerQuery.onSnapshot((snapshot) => {
+    const attackerUnsubscribe = attackerQuery.onSnapshot(async (snapshot) => {
         let warFound = false;
-        snapshot.forEach(doc => {
+        for (const doc of snapshot.docs) {
             const war = { id: doc.id, ...doc.data() };
             if (war.endTime > Date.now()) {
                 warFound = true;
                 if (!activeClanWar || activeClanWar.id !== war.id) {
                     console.log('🟢 Новая активная война (атакующая):', war);
                     activeClanWar = war;
-                    loadWarFightersFromStorage();
+                    await loadWarFightersFromStorage();
                     updateWarWindowUI();
                     
-                    // Проверяем, было ли уже уведомление об этой войне
                     const notificationKey = `war_notification_${war.id}_attacker`;
                     const wasNotified = localStorage.getItem(notificationKey);
                     if (!wasNotified) {
                         addNotification('war', '⚔️ ВОЙНА НАЧАТА!', 
                             `Ваш клан "${war.attackerClanName}" атакует клан "${war.defenderClanName}"! Война продлится 12 часов.`);
                         localStorage.setItem(notificationKey, Date.now().toString());
-                        // Удаляем через 24 часа
                         setTimeout(() => localStorage.removeItem(notificationKey), 24 * 60 * 60 * 1000);
                     }
                 } else if (activeClanWar && JSON.stringify(activeClanWar.attackerFighters) !== JSON.stringify(war.attackerFighters)) {
-                    // Обновляем данные о бойцах
                     activeClanWar.attackerFighters = war.attackerFighters;
                     activeClanWar.defenderFighters = war.defenderFighters;
                     updateWarWindowUI();
                 }
             }
-        });
+        }
         
-        if (!warFound && activeClanWar && activeClanWar.endTime <= Date.now()) {
+        if (!warFound && activeClanWar) {
             console.log('❌ Война завершена (атакующая)');
             activeClanWar = null;
             warFightersSent = { blats: 0, muzhiks: 0, fraers: 0 };
@@ -6321,17 +6317,16 @@ function subscribeToClanWars() {
         .where('defenderClanId', '==', currentPlayer.clanId)
         .where('status', '==', 'active');
     
-    const defenderUnsubscribe = defenderQuery.onSnapshot((snapshot) => {
-        snapshot.forEach(doc => {
+    const defenderUnsubscribe = defenderQuery.onSnapshot(async (snapshot) => {
+        for (const doc of snapshot.docs) {
             const war = { id: doc.id, ...doc.data() };
             if (war.endTime > Date.now()) {
                 if (!activeClanWar || activeClanWar.id !== war.id) {
                     console.log('🟢 Новая активная война (защищающаяся):', war);
                     activeClanWar = war;
-                    loadWarFightersFromStorage();
+                    await loadWarFightersFromStorage();
                     updateWarWindowUI();
                     
-                    // Проверяем, было ли уже уведомление об этой войне
                     const notificationKey = `war_notification_${war.id}_defender`;
                     const wasNotified = localStorage.getItem(notificationKey);
                     if (!wasNotified) {
@@ -6341,13 +6336,12 @@ function subscribeToClanWars() {
                         setTimeout(() => localStorage.removeItem(notificationKey), 24 * 60 * 60 * 1000);
                     }
                 } else if (activeClanWar && JSON.stringify(activeClanWar.defenderFighters) !== JSON.stringify(war.defenderFighters)) {
-                    // Обновляем данные о бойцах
                     activeClanWar.attackerFighters = war.attackerFighters;
                     activeClanWar.defenderFighters = war.defenderFighters;
                     updateWarWindowUI();
                 }
             }
-        });
+        }
     }, (error) => {
         console.error('Ошибка подписки на защищающиеся войны:', error);
     });
@@ -6361,7 +6355,7 @@ function subscribeToClanWars() {
 
 // ========== СОХРАНЕНИЕ ОТПРАВЛЕННЫХ БОЙЦОВ ==========
 function saveWarFightersToStorage() {
-    if (currentPlayer && currentPlayer.id) {
+    if (currentPlayer && currentPlayer.id && activeClanWar) {
         localStorage.setItem(`warFighters_${currentPlayer.id}`, JSON.stringify({
             fighters: warFightersSent,
             warId: activeClanWar?.id
@@ -6369,29 +6363,38 @@ function saveWarFightersToStorage() {
     }
 }
 
-function loadWarFightersFromStorage() {
-    if (currentPlayer && currentPlayer.id) {
-        const saved = localStorage.getItem(`warFighters_${currentPlayer.id}`);
-        if (saved) {
-            try {
-                const data = JSON.parse(saved);
-                // Проверяем, что война ещё актуальна
-                if (data.warId === activeClanWar?.id) {
-                    warFightersSent = data.fighters || { blats: 0, muzhiks: 0, fraers: 0 };
-                    console.log('📦 Загружены данные отправленных бойцов:', warFightersSent);
-                } else {
-                    // Война изменилась - сбрасываем
+async function loadWarFightersFromStorage() {
+    if (currentPlayer && currentPlayer.id && activeClanWar) {
+        // Загружаем из Firebase актуальные данные о пожертвованиях
+        try {
+            const warDoc = await db.collection('clanWars').doc(activeClanWar.id).get();
+            if (warDoc.exists) {
+                const warData = warDoc.data();
+                const isAttacker = warData.attackerClanId === currentPlayer.clanId;
+                const donationsField = isAttacker ? 'attackerDonations' : 'defenderDonations';
+                const donations = warData[donationsField] || {};
+                const playerDonations = donations[currentPlayer.id] || { blats: 0, muzhiks: 0, fraers: 0 };
+                warFightersSent = playerDonations;
+                console.log('📦 Загружены данные отправленных бойцов из Firebase:', warFightersSent);
+            }
+        } catch(e) { 
+            console.error('Ошибка загрузки данных бойцов из Firebase:', e);
+            // Fallback на localStorage
+            const saved = localStorage.getItem(`warFighters_${currentPlayer.id}`);
+            if (saved) {
+                try {
+                    const data = JSON.parse(saved);
+                    if (data.warId === activeClanWar?.id) {
+                        warFightersSent = data.fighters || { blats: 0, muzhiks: 0, fraers: 0 };
+                    } else {
+                        warFightersSent = { blats: 0, muzhiks: 0, fraers: 0 };
+                    }
+                } catch(e2) { 
                     warFightersSent = { blats: 0, muzhiks: 0, fraers: 0 };
-                    localStorage.removeItem(`warFighters_${currentPlayer.id}`);
-                    console.log('📦 Сброшены данные (другая война)');
                 }
-            } catch(e) { 
-                console.error('Ошибка загрузки данных бойцов:', e);
+            } else {
                 warFightersSent = { blats: 0, muzhiks: 0, fraers: 0 };
             }
-        } else {
-            warFightersSent = { blats: 0, muzhiks: 0, fraers: 0 };
-            console.log('📦 Нет сохранённых данных бойцов');
         }
     }
 }
@@ -6420,6 +6423,14 @@ async function startClanWar(targetClanId, targetClanName, targetClanLevel) {
     
     const myClan = allClans.find(c => c.id === currentPlayer.clanId);
     if (!myClan) return;
+    
+    // ========== ПРОВЕРКА ЗАЩИТЫ КЛАНА-ЦЕЛИ ==========
+    const targetClan = allClans.find(c => c.id === targetClanId);
+    if (targetClan && targetClan.defenseUntil && targetClan.defenseUntil > Date.now()) {
+        const remainingHours = Math.ceil((targetClan.defenseUntil - Date.now()) / (60 * 60 * 1000));
+        showToast(`🛡️ Клан "${targetClanName}" под защитой! Осталось: ${remainingHours} ч.`, 'warning');
+        return;
+    }
     
     if (myClan.level !== targetClanLevel) {
         showToast('Воевать можно только с кланом того же уровня!', 'warning');
@@ -6451,7 +6462,10 @@ async function startClanWar(targetClanId, targetClanName, targetClanLevel) {
         winner: null,
         rewards: null,
         attackerFighters: { blats: 0, muzhiks: 0, fraers: 0, total: 0 },
-        defenderFighters: { blats: 0, muzhiks: 0, fraers: 0, total: 0 }
+        defenderFighters: { blats: 0, muzhiks: 0, fraers: 0, total: 0 },
+        // Сохраняем информацию о том, кто какие ресурсы внёс
+        attackerDonations: {},
+        defenderDonations: {}
     };
     
     try {
@@ -6480,37 +6494,54 @@ async function sendFightersToWar() {
         return;
     }
     
-    // Получаем банду игрока
+    // Получаем банду игрока из currentPlayer (уже обновлённые данные)
     const gang = currentPlayer.gang;
     if (!gang) {
         showToast('У вас нет банды! Сначала наймите бойцов в СИЗО.', 'warning');
         return;
     }
     
-    // Получаем текущих бойцов
+    // Получаем текущих бойцов из банды (актуальные данные из currentPlayer)
     const currentFighters = {
         blats: gang.blats?.fighters || 0,
         muzhiks: gang.muzhiks?.fighters || 0,
         fraers: gang.fraers?.fighters || 0
     };
     
+    // Загружаем актуальные данные о пожертвованиях из Firebase
+    const warDoc = await db.collection('clanWars').doc(activeClanWar.id).get();
+    if (!warDoc.exists) {
+        showToast('Данные войны не найдены!', 'error');
+        return;
+    }
+    
+    const freshWarData = warDoc.data();
+    const isAttacker = freshWarData.attackerClanId === currentPlayer.clanId;
+    const donationsField = isAttacker ? 'attackerDonations' : 'defenderDonations';
+    const donations = freshWarData[donationsField] || {};
+    const playerDonations = donations[currentPlayer.id] || { blats: 0, muzhiks: 0, fraers: 0 };
+    
     console.log('📊 Текущие бойцы в банде:', currentFighters);
-    console.log('📊 Уже отправлено на войну:', warFightersSent);
+    console.log('📊 Уже отправлено игроком на войну (из Firebase):', playerDonations);
     
     // Вычитаем уже отправленных бойцов
     const availableFighters = {
-        blats: Math.max(0, currentFighters.blats - (warFightersSent.blats || 0)),
-        muzhiks: Math.max(0, currentFighters.muzhiks - (warFightersSent.muzhiks || 0)),
-        fraers: Math.max(0, currentFighters.fraers - (warFightersSent.fraers || 0))
+        blats: Math.max(0, currentFighters.blats - (playerDonations.blats || 0)),
+        muzhiks: Math.max(0, currentFighters.muzhiks - (playerDonations.muzhiks || 0)),
+        fraers: Math.max(0, currentFighters.fraers - (playerDonations.fraers || 0))
     };
     
     console.log('📊 Доступные для отправки:', availableFighters);
     
     const totalAvailable = availableFighters.blats + availableFighters.muzhiks + availableFighters.fraers;
     if (totalAvailable === 0) {
-        showToast(`У вас нет свободных бойцов для отправки! (Банда: 👑${currentFighters.blats} 🔨${currentFighters.muzhiks} 🐑${currentFighters.fraers} | Уже отправлено: 👑${warFightersSent.blats || 0} 🔨${warFightersSent.muzhiks || 0} 🐑${warFightersSent.fraers || 0})`, 'warning');
+        showToast(`У вас нет свободных бойцов для отправки! (Банда: 👑${currentFighters.blats} 🔨${currentFighters.muzhiks} 🐑${currentFighters.fraers} | Уже отправлено: 👑${playerDonations.blats || 0} 🔨${playerDonations.muzhiks || 0} 🐑${playerDonations.fraers || 0})`, 'warning');
         return;
     }
+    
+    // Сохраняем актуальные данные для модалки
+    window.warCurrentDonations = playerDonations;
+    window.warCurrentFighters = currentFighters;
     
     showWarFighterSelection(availableFighters);
 }
@@ -6520,9 +6551,13 @@ function showWarFighterSelection(availableFighters) {
     const existingModal = document.getElementById('warFighterModal');
     if (existingModal) existingModal.remove();
     
+    const currentDonations = window.warCurrentDonations || { blats: 0, muzhiks: 0, fraers: 0 };
+    const currentFighters = window.warCurrentFighters || { blats: 0, muzhiks: 0, fraers: 0 };
+    const sentTotal = (currentDonations.blats || 0) + (currentDonations.muzhiks || 0) + (currentDonations.fraers || 0);
+    
     const modalHtml = `
         <div class="modal-overlay" id="warFighterModal" onclick="if(event.target === this) closeWarFighterModal()">
-            <div class="modal-window" style="max-width: 400px;">
+            <div class="modal-window" style="max-width: 450px;">
                 <div class="modal-window-header">
                     <div class="modal-window-title">⚔️ ОТПРАВКА БОЙЦОВ НА ВОЙНУ</div>
                     <button class="modal-window-close" onclick="closeWarFighterModal()">✕</button>
@@ -6530,15 +6565,18 @@ function showWarFighterSelection(availableFighters) {
                 <div class="modal-window-content">
                     <!-- БЛОК С ИНФОРМАЦИЕЙ О ТЕКУЩИХ БОЙЦАХ -->
                     <div style="margin-bottom: 10px; padding: 8px; background: rgba(76,175,80,0.15); border-radius: 12px;">
-                        📊 ВСЕГО БОЙЦОВ В БАНДЕ: <span id="totalGangFighters">0</span>
+                        📊 ВСЕГО БОЙЦОВ В БАНДЕ: 
+                        <strong>${(currentFighters.blats + currentFighters.muzhiks + currentFighters.fraers)}</strong>
+                        <span style="font-size: 11px;">(👑${currentFighters.blats} 🔨${currentFighters.muzhiks} 🐑${currentFighters.fraers})</span>
                     </div>
-                    ${(warFightersSent?.blats > 0 || warFightersSent?.muzhiks > 0 || warFightersSent?.fraers > 0) ? `
+                    
+                    ${sentTotal > 0 ? `
                         <div style="margin-bottom: 10px; padding: 8px; background: rgba(255,152,0,0.15); border-radius: 12px;">
                             ✅ УЖЕ ОТПРАВЛЕНО НА ВОЙНУ: 
-                            ${warFightersSent.blats > 0 ? `<span>👑 ${warFightersSent.blats}</span>` : ''}
-                            ${warFightersSent.muzhiks > 0 ? `<span>🔨 ${warFightersSent.muzhiks}</span>` : ''}
-                            ${warFightersSent.fraers > 0 ? `<span>🐑 ${warFightersSent.fraers}</span>` : ''}
-                            <span>(всего: ${(warFightersSent.blats || 0) + (warFightersSent.muzhiks || 0) + (warFightersSent.fraers || 0)})</span>
+                            ${currentDonations.blats > 0 ? `<span style="margin-right: 8px;">👑 ${currentDonations.blats}</span>` : ''}
+                            ${currentDonations.muzhiks > 0 ? `<span style="margin-right: 8px;">🔨 ${currentDonations.muzhiks}</span>` : ''}
+                            ${currentDonations.fraers > 0 ? `<span style="margin-right: 8px;">🐑 ${currentDonations.fraers}</span>` : ''}
+                            <strong>(всего: ${sentTotal})</strong>
                         </div>
                     ` : ''}
                     
@@ -6599,9 +6637,9 @@ function showWarFighterSelection(availableFighters) {
                     
                     <div style="margin-bottom: 15px; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 12px;">
                         <div>📊 ВСЕГО ВЫБРАНО: <strong id="warTotalFighters">0</strong></div>
-                        <div>📊 ВСЕГО БУДЕТ НА ВОЙНЕ: <strong id="warTotalWithSent">${(warFightersSent.blats || 0) + (warFightersSent.muzhiks || 0) + (warFightersSent.fraers || 0)}</strong></div>
+                        <div>📊 ВСЕГО БУДЕТ НА ВОЙНЕ ПОСЛЕ ОТПРАВКИ: <strong id="warTotalWithSent">${sentTotal}</strong></div>
                         <div class="progress-bar" style="margin-top: 5px;">
-                            <div id="warProgressBar" style="height: 6px; background: rgba(0,0,0,0.3); border-radius: 10px; overflow: hidden;">
+                            <div style="height: 6px; background: rgba(0,0,0,0.3); border-radius: 10px; overflow: hidden;">
                                 <div id="warProgressFill" style="width: 0%; height: 100%; background: linear-gradient(90deg, #c9a03d, #8B4513); border-radius: 10px;"></div>
                             </div>
                         </div>
@@ -6621,15 +6659,6 @@ function showWarFighterSelection(availableFighters) {
     // Инициализируем глобальные переменные
     window.warSelectedFighters = { blats: 0, muzhiks: 0, fraers: 0 };
     window.warAvailableFighters = { ...availableFighters };
-    
-    // Обновляем отображение общего количества бойцов в банде
-    const totalGangSpan = document.getElementById('totalGangFighters');
-    if (totalGangSpan && currentPlayer?.gang) {
-        const totalBlats = currentPlayer.gang.blats?.fighters || 0;
-        const totalMuzhiks = currentPlayer.gang.muzhiks?.fighters || 0;
-        const totalFraers = currentPlayer.gang.fraers?.fighters || 0;
-        totalGangSpan.textContent = `${totalBlats + totalMuzhiks + totalFraers} (👑${totalBlats} 🔨${totalMuzhiks} 🐑${totalFraers})`;
-    }
     
     updateWarFighterStats();
 }
@@ -6661,6 +6690,10 @@ function updateWarFightersFromSlider(type, value) {
     const countDisplay = document.getElementById(`war${type.charAt(0).toUpperCase() + type.slice(1)}CountDisplay`);
     if (countDisplay) countDisplay.textContent = window.warSelectedFighters[type];
     
+    // Обновляем слайдер
+    const slider = document.getElementById(`war${type.charAt(0).toUpperCase() + type.slice(1)}Slider`);
+    if (slider && slider.value != value) slider.value = window.warSelectedFighters[type];
+    
     updateWarFighterStats();
 }
 
@@ -6669,7 +6702,8 @@ function updateWarFighterStats() {
     if (!fighters) return;
     
     const totalSelected = (fighters.blats || 0) + (fighters.muzhiks || 0) + (fighters.fraers || 0);
-    const sentTotal = (warFightersSent.blats || 0) + (warFightersSent.muzhiks || 0) + (warFightersSent.fraers || 0);
+    const currentDonations = window.warCurrentDonations || { blats: 0, muzhiks: 0, fraers: 0 };
+    const sentTotal = (currentDonations.blats || 0) + (currentDonations.muzhiks || 0) + (currentDonations.fraers || 0);
     const maxPossible = (window.warAvailableFighters?.blats || 0) + (window.warAvailableFighters?.muzhiks || 0) + (window.warAvailableFighters?.fraers || 0);
     
     // Обновляем текстовые поля
@@ -6688,6 +6722,7 @@ function updateWarFighterStats() {
         progressFill.style.width = `${percent}%`;
     }
 }
+
 
 
 async function confirmSendFightersToWar() {
@@ -6712,56 +6747,106 @@ async function confirmSendFightersToWar() {
     }
     
     try {
-        // Списываем бойцов из банды
-        const gang = currentPlayer.gang;
-        if (gang) {
-            const updates = {};
-            if (fighters.blats > 0) {
-                const newBlats = Math.max(0, (gang.blats?.fighters || 0) - fighters.blats);
-                gang.blats.fighters = newBlats;
-                updates['gang.blats.fighters'] = newBlats;
-            }
-            if (fighters.muzhiks > 0) {
-                const newMuzhiks = Math.max(0, (gang.muzhiks?.fighters || 0) - fighters.muzhiks);
-                gang.muzhiks.fighters = newMuzhiks;
-                updates['gang.muzhiks.fighters'] = newMuzhiks;
-            }
-            if (fighters.fraers > 0) {
-                const newFraers = Math.max(0, (gang.fraers?.fighters || 0) - fighters.fraers);
-                gang.fraers.fighters = newFraers;
-                updates['gang.fraers.fighters'] = newFraers;
-            }
-            if (Object.keys(updates).length > 0) {
-                await playerDocRef.update(updates);
-            }
+        // Получаем актуальные данные войны из Firebase
+        const warRef = db.collection('clanWars').doc(activeClanWar.id);
+        const warDoc = await warRef.get();
+        
+        if (!warDoc.exists) {
+            throw new Error('Данные войны не найдены');
         }
         
-        // Обновляем локальные данные отправленных бойцов
-        warFightersSent.blats = (warFightersSent.blats || 0) + fighters.blats;
-        warFightersSent.muzhiks = (warFightersSent.muzhiks || 0) + fighters.muzhiks;
-        warFightersSent.fraers = (warFightersSent.fraers || 0) + fighters.fraers;
-        saveWarFightersToStorage();
+        const freshWarData = warDoc.data();
+        const isAttacker = freshWarData.attackerClanId === currentPlayer.clanId;
+        const fightersField = isAttacker ? 'attackerFighters' : 'defenderFighters';
+        const donationsField = isAttacker ? 'attackerDonations' : 'defenderDonations';
         
-        // Обновляем статистику войны в Firestore
-        const isAttacker = activeClanWar.attackerClanId === currentPlayer.clanId;
-        const updateField = isAttacker ? 'attackerFighters' : 'defenderFighters';
-        const currentFighters = activeClanWar[updateField] || { blats: 0, muzhiks: 0, fraers: 0, total: 0 };
+        // Получаем текущие данные о пожертвованиях
+        const currentDonations = freshWarData[donationsField] || {};
+        const playerDonations = currentDonations[currentPlayer.id] || { blats: 0, muzhiks: 0, fraers: 0 };
         
-        const newFighters = {
-            blats: (currentFighters.blats || 0) + fighters.blats,
-            muzhiks: (currentFighters.muzhiks || 0) + fighters.muzhiks,
-            fraers: (currentFighters.fraers || 0) + fighters.fraers,
-            total: (currentFighters.total || 0) + total
+        // Получаем текущие данные о бойцах
+        const currentFightersCount = freshWarData[fightersField] || { blats: 0, muzhiks: 0, fraers: 0, total: 0 };
+        
+        // Проверяем, достаточно ли бойцов в банде (с учётом уже отправленных)
+        const gang = currentPlayer.gang;
+        if (!gang) {
+            throw new Error('Нет данных о банде');
+        }
+        
+        const availableCheck = {
+            blats: (gang.blats?.fighters || 0) - (playerDonations.blats || 0),
+            muzhiks: (gang.muzhiks?.fighters || 0) - (playerDonations.muzhiks || 0),
+            fraers: (gang.fraers?.fighters || 0) - (playerDonations.fraers || 0)
         };
         
-        await db.collection('clanWars').doc(activeClanWar.id).update({
-            [updateField]: newFighters
+        if (fighters.blats > availableCheck.blats || 
+            fighters.muzhiks > availableCheck.muzhiks || 
+            fighters.fraers > availableCheck.fraers) {
+            showToast('Ошибка: недостаточно бойцов! Обновите страницу.', 'error');
+            if (sendBtn) {
+                sendBtn.disabled = false;
+                sendBtn.textContent = '⚔️ ОТПРАВИТЬ БОЙЦОВ';
+            }
+            return;
+        }
+        
+        // Обновляем банду игрока (списываем бойцов)
+        const gangUpdates = {};
+        if (fighters.blats > 0) {
+            const newBlats = Math.max(0, (gang.blats?.fighters || 0) - fighters.blats);
+            gang.blats.fighters = newBlats;
+            gangUpdates['gang.blats.fighters'] = newBlats;
+        }
+        if (fighters.muzhiks > 0) {
+            const newMuzhiks = Math.max(0, (gang.muzhiks?.fighters || 0) - fighters.muzhiks);
+            gang.muzhiks.fighters = newMuzhiks;
+            gangUpdates['gang.muzhiks.fighters'] = newMuzhiks;
+        }
+        if (fighters.fraers > 0) {
+            const newFraers = Math.max(0, (gang.fraers?.fighters || 0) - fighters.fraers);
+            gang.fraers.fighters = newFraers;
+            gangUpdates['gang.fraers.fighters'] = newFraers;
+        }
+        
+        if (Object.keys(gangUpdates).length > 0) {
+            await playerDocRef.update(gangUpdates);
+        }
+        
+        // Обновляем пожертвования игрока
+        const newPlayerDonations = {
+            blats: (playerDonations.blats || 0) + fighters.blats,
+            muzhiks: (playerDonations.muzhiks || 0) + fighters.muzhiks,
+            fraers: (playerDonations.fraers || 0) + fighters.fraers
+        };
+        
+        const newDonations = {
+            ...currentDonations,
+            [currentPlayer.id]: newPlayerDonations
+        };
+        
+        // Обновляем общее количество бойцов на войне
+        const newFightersCount = {
+            blats: (currentFightersCount.blats || 0) + fighters.blats,
+            muzhiks: (currentFightersCount.muzhiks || 0) + fighters.muzhiks,
+            fraers: (currentFightersCount.fraers || 0) + fighters.fraers,
+            total: (currentFightersCount.total || 0) + total
+        };
+        
+        // Сохраняем всё в Firebase одной транзакцией
+        await warRef.update({
+            [fightersField]: newFightersCount,
+            [donationsField]: newDonations
         });
         
-        // Обновляем локальный activeClanWar
-        activeClanWar[updateField] = newFighters;
+        // Обновляем локальные данные
+        activeClanWar[fightersField] = newFightersCount;
         
-        showToast(`⚔️ Отправлено ${total} бойцов! Всего отправлено: ${(warFightersSent.blats || 0) + (warFightersSent.muzhiks || 0) + (warFightersSent.fraers || 0)}`, 'success');
+        // Обновляем локальные данные игрока
+        warFightersSent = newPlayerDonations;
+        saveWarFightersToStorage();
+        
+        const totalSent = newPlayerDonations.blats + newPlayerDonations.muzhiks + newPlayerDonations.fraers;
+        showToast(`⚔️ Отправлено ${total} бойцов! Всего отправлено вами: ${totalSent}`, 'success');
         
         // Закрываем модалку
         closeWarFighterModal();
@@ -6786,6 +6871,8 @@ function closeWarFighterModal() {
     if (modal) modal.remove();
     window.warSelectedFighters = null;
     window.warAvailableFighters = null;
+    window.warCurrentDonations = null;
+    window.warCurrentFighters = null;
 }
 
 // ========== РАСЧЁТ ПОБЕДИТЕЛЯ ВОЙНЫ ==========
@@ -9481,7 +9568,7 @@ function addNotification(type, title, message, targetPlayerId = null) {
                 <img class="loading-logo" src="https://sviter-pro.github.io/GameZone/src/test/logo124.png" alt="Тюряга 2.0" onerror="this.src='https://via.placeholder.com/180x180?text=Тюряга+2.0'">
                 <div class="loading-spinner-new"></div>
                 <div class="loading-tip-new" id="loadingTipNew">⚡ Загрузка игрового мира...</div>
-                <div class="loading-version">Зона 1.0.0.252 | Зона ждет</div>
+                <div class="loading-version">Зона 1.0.0.253 | Зона ждет</div>
             </div>
         `;
             const tipEl = document.getElementById('loadingTipNew');
@@ -10880,7 +10967,7 @@ async function changeEquipment(slot, itemName, stat, bonus) {
                 
                 <div class="settings-card">
                     <div style="font-size: 13px; color: #aaa; text-align: center;">
-                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.252</div>
+                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.253</div>
                         <div style="font-size: 11px;">⚡ Клановые войны | Бесконечная прокачка</div>
                     </div>
                 </div>
