@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Зона 1.0.0.251 - Карта зоны</title>
+    <title>Зона 1.0.0.252 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -6480,14 +6480,14 @@ async function sendFightersToWar() {
         return;
     }
     
-    // ПРАВИЛЬНО получаем банду игрока
+    // Получаем банду игрока
     const gang = currentPlayer.gang;
     if (!gang) {
         showToast('У вас нет банды! Сначала наймите бойцов в СИЗО.', 'warning');
         return;
     }
     
-    // Получаем текущих бойцов с правильными путями
+    // Получаем текущих бойцов
     const currentFighters = {
         blats: gang.blats?.fighters || 0,
         muzhiks: gang.muzhiks?.fighters || 0,
@@ -6508,7 +6508,7 @@ async function sendFightersToWar() {
     
     const totalAvailable = availableFighters.blats + availableFighters.muzhiks + availableFighters.fraers;
     if (totalAvailable === 0) {
-        showToast(`У вас нет свободных бойцов для отправки! (Банда: 👑${currentFighters.blats} 🔨${currentFighters.muzhiks} 🐑${currentFighters.fraers} | Уже отправлено: 👑${warFightersSent.blats} 🔨${warFightersSent.muzhiks} 🐑${warFightersSent.fraers})`, 'warning');
+        showToast(`У вас нет свободных бойцов для отправки! (Банда: 👑${currentFighters.blats} 🔨${currentFighters.muzhiks} 🐑${currentFighters.fraers} | Уже отправлено: 👑${warFightersSent.blats || 0} 🔨${warFightersSent.muzhiks || 0} 🐑${warFightersSent.fraers || 0})`, 'warning');
         return;
     }
     
@@ -6528,42 +6528,85 @@ function showWarFighterSelection(availableFighters) {
                     <button class="modal-window-close" onclick="closeWarFighterModal()">✕</button>
                 </div>
                 <div class="modal-window-content">
+                    <!-- БЛОК С ИНФОРМАЦИЕЙ О ТЕКУЩИХ БОЙЦАХ -->
                     <div style="margin-bottom: 10px; padding: 8px; background: rgba(76,175,80,0.15); border-radius: 12px;">
-                        📊 ВСЕГО БОЙЦОВ В БАНДЕ: 👑 ${(currentPlayer.gang?.blats?.fighters || 0) - (warFightersSent.blats || 0) + (warFightersSent.blats || 0)} 🔨 ${(currentPlayer.gang?.muzhiks?.fighters || 0) - (warFightersSent.muzhiks || 0) + (warFightersSent.muzhiks || 0)} 🐑 ${(currentPlayer.gang?.fraers?.fighters || 0) - (warFightersSent.fraers || 0) + (warFightersSent.fraers || 0)}
+                        📊 ВСЕГО БОЙЦОВ В БАНДЕ: <span id="totalGangFighters">0</span>
                     </div>
-                    ${warFightersSent.blats > 0 || warFightersSent.muzhiks > 0 || warFightersSent.fraers > 0 ? `
+                    ${(warFightersSent?.blats > 0 || warFightersSent?.muzhiks > 0 || warFightersSent?.fraers > 0) ? `
                         <div style="margin-bottom: 10px; padding: 8px; background: rgba(255,152,0,0.15); border-radius: 12px;">
-                            ✅ УЖЕ ОТПРАВЛЕНО НА ВОЙНУ: 👑 ${warFightersSent.blats} 🔨 ${warFightersSent.muzhiks} 🐑 ${warFightersSent.fraers}
+                            ✅ УЖЕ ОТПРАВЛЕНО НА ВОЙНУ: 
+                            ${warFightersSent.blats > 0 ? `<span>👑 ${warFightersSent.blats}</span>` : ''}
+                            ${warFightersSent.muzhiks > 0 ? `<span>🔨 ${warFightersSent.muzhiks}</span>` : ''}
+                            ${warFightersSent.fraers > 0 ? `<span>🐑 ${warFightersSent.fraers}</span>` : ''}
+                            <span>(всего: ${(warFightersSent.blats || 0) + (warFightersSent.muzhiks || 0) + (warFightersSent.fraers || 0)})</span>
                         </div>
                     ` : ''}
+                    
                     <div style="margin: 15px 0; padding: 10px; background: rgba(139,69,19,0.2); border-radius: 12px;">
                         <div style="font-weight: bold; margin-bottom: 10px;">👥 ДОСТУПНО ДЛЯ ОТПРАВКИ:</div>
-                        <div style="margin-bottom: 8px;"><span>👑</span> Блатные: <span id="warBlatsCount">0</span> / ${availableFighters.blats}
-                            <div><button class="btn-secondary" style="padding: 2px 8px;" onclick="adjustWarFighters('blats', -10, ${availableFighters.blats})">-10</button>
-                            <button class="btn-secondary" style="padding: 2px 8px;" onclick="adjustWarFighters('blats', -1, ${availableFighters.blats})">-1</button>
-                            <input type="range" id="warBlatsSlider" min="0" max="${availableFighters.blats}" value="0" style="width: 80px;" oninput="updateWarFightersFromSlider('blats', this.value)">
-                            <button class="btn-secondary" style="padding: 2px 8px;" onclick="adjustWarFighters('blats', 1, ${availableFighters.blats})">+1</button>
-                            <button class="btn-secondary" style="padding: 2px 8px;" onclick="adjustWarFighters('blats', 10, ${availableFighters.blats})">+10</button></div>
+                        
+                        <!-- БЛАТНЫЕ -->
+                        <div style="margin-bottom: 12px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span><span style="font-size: 18px;">👑</span> Блатные: <strong id="warBlatsAvailable">${availableFighters.blats}</strong></span>
+                                <span id="warBlatsCountDisplay" style="background: rgba(0,0,0,0.5); padding: 2px 8px; border-radius: 20px;">0</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 5px; margin-top: 5px;">
+                                <button class="btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="adjustWarFighters('blats', -100, ${availableFighters.blats})">-100</button>
+                                <button class="btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="adjustWarFighters('blats', -10, ${availableFighters.blats})">-10</button>
+                                <button class="btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="adjustWarFighters('blats', -1, ${availableFighters.blats})">-1</button>
+                                <input type="range" id="warBlatsSlider" min="0" max="${availableFighters.blats}" value="0" style="flex: 1;" oninput="updateWarFightersFromSlider('blats', this.value)">
+                                <button class="btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="adjustWarFighters('blats', 1, ${availableFighters.blats})">+1</button>
+                                <button class="btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="adjustWarFighters('blats', 10, ${availableFighters.blats})">+10</button>
+                                <button class="btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="adjustWarFighters('blats', 100, ${availableFighters.blats})">+100</button>
+                            </div>
                         </div>
-                        <div style="margin-bottom: 8px;"><span>🔨</span> Мужики: <span id="warMuzhiksCount">0</span> / ${availableFighters.muzhiks}
-                            <div><button class="btn-secondary" style="padding: 2px 8px;" onclick="adjustWarFighters('muzhiks', -10, ${availableFighters.muzhiks})">-10</button>
-                            <button class="btn-secondary" style="padding: 2px 8px;" onclick="adjustWarFighters('muzhiks', -1, ${availableFighters.muzhiks})">-1</button>
-                            <input type="range" id="warMuzhiksSlider" min="0" max="${availableFighters.muzhiks}" value="0" style="width: 80px;" oninput="updateWarFightersFromSlider('muzhiks', this.value)">
-                            <button class="btn-secondary" style="padding: 2px 8px;" onclick="adjustWarFighters('muzhiks', 1, ${availableFighters.muzhiks})">+1</button>
-                            <button class="btn-secondary" style="padding: 2px 8px;" onclick="adjustWarFighters('muzhiks', 10, ${availableFighters.muzhiks})">+10</button></div>
+                        
+                        <!-- МУЖИКИ -->
+                        <div style="margin-bottom: 12px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span><span style="font-size: 18px;">🔨</span> Мужики: <strong id="warMuzhiksAvailable">${availableFighters.muzhiks}</strong></span>
+                                <span id="warMuzhiksCountDisplay" style="background: rgba(0,0,0,0.5); padding: 2px 8px; border-radius: 20px;">0</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 5px; margin-top: 5px;">
+                                <button class="btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="adjustWarFighters('muzhiks', -100, ${availableFighters.muzhiks})">-100</button>
+                                <button class="btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="adjustWarFighters('muzhiks', -10, ${availableFighters.muzhiks})">-10</button>
+                                <button class="btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="adjustWarFighters('muzhiks', -1, ${availableFighters.muzhiks})">-1</button>
+                                <input type="range" id="warMuzhiksSlider" min="0" max="${availableFighters.muzhiks}" value="0" style="flex: 1;" oninput="updateWarFightersFromSlider('muzhiks', this.value)">
+                                <button class="btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="adjustWarFighters('muzhiks', 1, ${availableFighters.muzhiks})">+1</button>
+                                <button class="btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="adjustWarFighters('muzhiks', 10, ${availableFighters.muzhiks})">+10</button>
+                                <button class="btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="adjustWarFighters('muzhiks', 100, ${availableFighters.muzhiks})">+100</button>
+                            </div>
                         </div>
-                        <div><span>🐑</span> Фраера: <span id="warFraersCount">0</span> / ${availableFighters.fraers}
-                            <div><button class="btn-secondary" style="padding: 2px 8px;" onclick="adjustWarFighters('fraers', -10, ${availableFighters.fraers})">-10</button>
-                            <button class="btn-secondary" style="padding: 2px 8px;" onclick="adjustWarFighters('fraers', -1, ${availableFighters.fraers})">-1</button>
-                            <input type="range" id="warFraersSlider" min="0" max="${availableFighters.fraers}" value="0" style="width: 80px;" oninput="updateWarFightersFromSlider('fraers', this.value)">
-                            <button class="btn-secondary" style="padding: 2px 8px;" onclick="adjustWarFighters('fraers', 1, ${availableFighters.fraers})">+1</button>
-                            <button class="btn-secondary" style="padding: 2px 8px;" onclick="adjustWarFighters('fraers', 10, ${availableFighters.fraers})">+10</button></div>
+                        
+                        <!-- ФРАЕРА -->
+                        <div style="margin-bottom: 12px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span><span style="font-size: 18px;">🐑</span> Фраера: <strong id="warFraersAvailable">${availableFighters.fraers}</strong></span>
+                                <span id="warFraersCountDisplay" style="background: rgba(0,0,0,0.5); padding: 2px 8px; border-radius: 20px;">0</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 5px; margin-top: 5px;">
+                                <button class="btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="adjustWarFighters('fraers', -100, ${availableFighters.fraers})">-100</button>
+                                <button class="btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="adjustWarFighters('fraers', -10, ${availableFighters.fraers})">-10</button>
+                                <button class="btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="adjustWarFighters('fraers', -1, ${availableFighters.fraers})">-1</button>
+                                <input type="range" id="warFraersSlider" min="0" max="${availableFighters.fraers}" value="0" style="flex: 1;" oninput="updateWarFightersFromSlider('fraers', this.value)">
+                                <button class="btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="adjustWarFighters('fraers', 1, ${availableFighters.fraers})">+1</button>
+                                <button class="btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="adjustWarFighters('fraers', 10, ${availableFighters.fraers})">+10</button>
+                                <button class="btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="adjustWarFighters('fraers', 100, ${availableFighters.fraers})">+100</button>
+                            </div>
                         </div>
                     </div>
+                    
                     <div style="margin-bottom: 15px; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 12px;">
-                        <div>📊 ВСЕГО К ОТПРАВКЕ: <span id="warTotalFighters">0</span></div>
-                        <div>📊 ВСЕГО БУДЕТ НА ВОЙНЕ: <span id="warTotalWithSent">${(warFightersSent.blats || 0) + (warFightersSent.muzhiks || 0) + (warFightersSent.fraers || 0)}</span></div>
+                        <div>📊 ВСЕГО ВЫБРАНО: <strong id="warTotalFighters">0</strong></div>
+                        <div>📊 ВСЕГО БУДЕТ НА ВОЙНЕ: <strong id="warTotalWithSent">${(warFightersSent.blats || 0) + (warFightersSent.muzhiks || 0) + (warFightersSent.fraers || 0)}</strong></div>
+                        <div class="progress-bar" style="margin-top: 5px;">
+                            <div id="warProgressBar" style="height: 6px; background: rgba(0,0,0,0.3); border-radius: 10px; overflow: hidden;">
+                                <div id="warProgressFill" style="width: 0%; height: 100%; background: linear-gradient(90deg, #c9a03d, #8B4513); border-radius: 10px;"></div>
+                            </div>
+                        </div>
                     </div>
+                    
                     <div style="display: flex; gap: 10px;">
                         <button class="btn-primary" style="flex: 1;" id="sendWarBtn" onclick="confirmSendFightersToWar()">⚔️ ОТПРАВИТЬ БОЙЦОВ</button>
                         <button class="btn-secondary" style="flex: 1;" onclick="closeWarFighterModal()">ОТМЕНА</button>
@@ -6575,47 +6618,77 @@ function showWarFighterSelection(availableFighters) {
     
     document.body.insertAdjacentHTML('beforeend', modalHtml);
     
+    // Инициализируем глобальные переменные
     window.warSelectedFighters = { blats: 0, muzhiks: 0, fraers: 0 };
-    window.warAvailableFighters = availableFighters;
+    window.warAvailableFighters = { ...availableFighters };
+    
+    // Обновляем отображение общего количества бойцов в банде
+    const totalGangSpan = document.getElementById('totalGangFighters');
+    if (totalGangSpan && currentPlayer?.gang) {
+        const totalBlats = currentPlayer.gang.blats?.fighters || 0;
+        const totalMuzhiks = currentPlayer.gang.muzhiks?.fighters || 0;
+        const totalFraers = currentPlayer.gang.fraers?.fighters || 0;
+        totalGangSpan.textContent = `${totalBlats + totalMuzhiks + totalFraers} (👑${totalBlats} 🔨${totalMuzhiks} 🐑${totalFraers})`;
+    }
     
     updateWarFighterStats();
 }
+
 
 function adjustWarFighters(type, delta, max) {
     if (!window.warSelectedFighters) return;
     let newValue = window.warSelectedFighters[type] + delta;
     newValue = Math.min(max, Math.max(0, newValue));
     window.warSelectedFighters[type] = newValue;
+    
+    // Обновляем слайдер
     const slider = document.getElementById(`war${type.charAt(0).toUpperCase() + type.slice(1)}Slider`);
-    const countSpan = document.getElementById(`war${type.charAt(0).toUpperCase() + type.slice(1)}Count`);
     if (slider) slider.value = newValue;
-    if (countSpan) countSpan.textContent = newValue;
+    
+    // Обновляем отображение количества
+    const countDisplay = document.getElementById(`war${type.charAt(0).toUpperCase() + type.slice(1)}CountDisplay`);
+    if (countDisplay) countDisplay.textContent = newValue;
+    
     updateWarFighterStats();
 }
 
 function updateWarFightersFromSlider(type, value) {
     if (!window.warSelectedFighters) return;
     const numValue = parseInt(value);
-    window.warSelectedFighters[type] = numValue;
-    const countSpan = document.getElementById(`war${type.charAt(0).toUpperCase() + type.slice(1)}Count`);
-    if (countSpan) countSpan.textContent = numValue;
+    window.warSelectedFighters[type] = isNaN(numValue) ? 0 : numValue;
+    
+    // Обновляем отображение количества
+    const countDisplay = document.getElementById(`war${type.charAt(0).toUpperCase() + type.slice(1)}CountDisplay`);
+    if (countDisplay) countDisplay.textContent = window.warSelectedFighters[type];
+    
     updateWarFighterStats();
 }
 
 function updateWarFighterStats() {
     const fighters = window.warSelectedFighters;
-    const total = (fighters.blats || 0) + (fighters.muzhiks || 0) + (fighters.fraers || 0);
+    if (!fighters) return;
+    
+    const totalSelected = (fighters.blats || 0) + (fighters.muzhiks || 0) + (fighters.fraers || 0);
+    const sentTotal = (warFightersSent.blats || 0) + (warFightersSent.muzhiks || 0) + (warFightersSent.fraers || 0);
+    const maxPossible = (window.warAvailableFighters?.blats || 0) + (window.warAvailableFighters?.muzhiks || 0) + (window.warAvailableFighters?.fraers || 0);
+    
+    // Обновляем текстовые поля
     const totalSpan = document.getElementById('warTotalFighters');
     const totalWithSentSpan = document.getElementById('warTotalWithSent');
     const sendBtn = document.getElementById('sendWarBtn');
+    const progressFill = document.getElementById('warProgressFill');
     
-    if (totalSpan) totalSpan.textContent = total;
-    if (totalWithSentSpan) {
-        const sentTotal = (warFightersSent.blats || 0) + (warFightersSent.muzhiks || 0) + (warFightersSent.fraers || 0);
-        totalWithSentSpan.textContent = sentTotal + total;
+    if (totalSpan) totalSpan.textContent = totalSelected;
+    if (totalWithSentSpan) totalWithSentSpan.textContent = sentTotal + totalSelected;
+    if (sendBtn) sendBtn.disabled = totalSelected === 0;
+    
+    // Обновляем прогресс-бар
+    if (progressFill && maxPossible > 0) {
+        const percent = (totalSelected / maxPossible) * 100;
+        progressFill.style.width = `${percent}%`;
     }
-    if (sendBtn) sendBtn.disabled = total === 0;
 }
+
 
 async function confirmSendFightersToWar() {
     const fighters = window.warSelectedFighters;
@@ -6639,28 +6712,31 @@ async function confirmSendFightersToWar() {
     }
     
     try {
-        // Списываем бойцов
+        // Списываем бойцов из банды
         const gang = currentPlayer.gang;
         if (gang) {
             const updates = {};
             if (fighters.blats > 0) {
-                gang.blats.fighters = Math.max(0, (gang.blats?.fighters || 0) - fighters.blats);
-                updates['gang.blats.fighters'] = gang.blats.fighters;
+                const newBlats = Math.max(0, (gang.blats?.fighters || 0) - fighters.blats);
+                gang.blats.fighters = newBlats;
+                updates['gang.blats.fighters'] = newBlats;
             }
             if (fighters.muzhiks > 0) {
-                gang.muzhiks.fighters = Math.max(0, (gang.muzhiks?.fighters || 0) - fighters.muzhiks);
-                updates['gang.muzhiks.fighters'] = gang.muzhiks.fighters;
+                const newMuzhiks = Math.max(0, (gang.muzhiks?.fighters || 0) - fighters.muzhiks);
+                gang.muzhiks.fighters = newMuzhiks;
+                updates['gang.muzhiks.fighters'] = newMuzhiks;
             }
             if (fighters.fraers > 0) {
-                gang.fraers.fighters = Math.max(0, (gang.fraers?.fighters || 0) - fighters.fraers);
-                updates['gang.fraers.fighters'] = gang.fraers.fighters;
+                const newFraers = Math.max(0, (gang.fraers?.fighters || 0) - fighters.fraers);
+                gang.fraers.fighters = newFraers;
+                updates['gang.fraers.fighters'] = newFraers;
             }
             if (Object.keys(updates).length > 0) {
                 await playerDocRef.update(updates);
             }
         }
         
-        // Обновляем отправленных бойцов
+        // Обновляем локальные данные отправленных бойцов
         warFightersSent.blats = (warFightersSent.blats || 0) + fighters.blats;
         warFightersSent.muzhiks = (warFightersSent.muzhiks || 0) + fighters.muzhiks;
         warFightersSent.fraers = (warFightersSent.fraers || 0) + fighters.fraers;
@@ -6694,9 +6770,6 @@ async function confirmSendFightersToWar() {
         updateWarWindowUI();
         renderUI();
         
-        // Уведомляем клан
-        notifyClanMembers(currentPlayer.clanId, `⚔️ ${currentPlayer.username} отправил ${total} бойцов на войну! Всего отправил: ${(warFightersSent.blats || 0) + (warFightersSent.muzhiks || 0) + (warFightersSent.fraers || 0)}`);
-        
     } catch (e) {
         console.error('Ошибка отправки бойцов:', e);
         showToast('Ошибка при отправке бойцов: ' + e.message, 'error');
@@ -6707,10 +6780,12 @@ async function confirmSendFightersToWar() {
     }
 }
 
+
 function closeWarFighterModal() {
     const modal = document.getElementById('warFighterModal');
     if (modal) modal.remove();
     window.warSelectedFighters = null;
+    window.warAvailableFighters = null;
 }
 
 // ========== РАСЧЁТ ПОБЕДИТЕЛЯ ВОЙНЫ ==========
@@ -9406,7 +9481,7 @@ function addNotification(type, title, message, targetPlayerId = null) {
                 <img class="loading-logo" src="https://sviter-pro.github.io/GameZone/src/test/logo124.png" alt="Тюряга 2.0" onerror="this.src='https://via.placeholder.com/180x180?text=Тюряга+2.0'">
                 <div class="loading-spinner-new"></div>
                 <div class="loading-tip-new" id="loadingTipNew">⚡ Загрузка игрового мира...</div>
-                <div class="loading-version">Зона 1.0.0.251 | Зона ждет</div>
+                <div class="loading-version">Зона 1.0.0.252 | Зона ждет</div>
             </div>
         `;
             const tipEl = document.getElementById('loadingTipNew');
@@ -10805,7 +10880,7 @@ async function changeEquipment(slot, itemName, stat, bonus) {
                 
                 <div class="settings-card">
                     <div style="font-size: 13px; color: #aaa; text-align: center;">
-                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.251</div>
+                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.252</div>
                         <div style="font-size: 11px;">⚡ Клановые войны | Бесконечная прокачка</div>
                     </div>
                 </div>
