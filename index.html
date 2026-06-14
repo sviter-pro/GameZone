@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Зона 1.0.0.254 - Карта зоны</title>
+    <title>Зона 1.0.0.255 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -6265,7 +6265,7 @@ let warTimerElements = {
 };
 
 // Константы для войны
-const WAR_DURATION_HOURS = 12;
+const WAR_DURATION_HOURS = 1;
 const WAR_DURATION_MS = WAR_DURATION_HOURS * 60 * 60 * 1000;
 
 // Базовая награда за уровень клана
@@ -6966,7 +6966,6 @@ async function calculateWarWinner(war) {
 }
 
 // ========== ЗАВЕРШЕНИЕ ВОЙНЫ ==========
-// ========== ЗАВЕРШЕНИЕ ВОЙНЫ ==========
 async function finishClanWar(warId, war) {
     if (!warId || !war) {
         console.error('Ошибка: нет данных о войне для завершения');
@@ -7028,6 +7027,8 @@ async function finishClanWar(warId, war) {
     let loserClanId = winner === 'attacker' ? war.defenderClanId : war.attackerClanId;
     let winnerClanName = winner === 'attacker' ? war.attackerClanName : war.defenderClanName;
     let loserClanName = winner === 'attacker' ? war.defenderClanName : war.attackerClanName;
+    let winnerClanLevel = winner === 'attacker' ? (war.attackerClanLevel || 1) : (war.defenderClanLevel || 1);
+    let loserClanLevel = winner === 'attacker' ? (war.defenderClanLevel || 1) : (war.attackerClanLevel || 1);
     
     // Если счёт одинаковый - случайный победитель
     if (attackerScore === defenderScore) {
@@ -7046,15 +7047,21 @@ async function finishClanWar(warId, war) {
     console.log('🎁 НАГРАДА:', rewards);
     
     try {
-        // Начисляем ресурсы победителям и списываем проигравшим
+        // 1. Начисляем ресурсы победителям и списываем проигравшим
         await distributeWarRewards(winnerClanId, loserClanId, rewards);
         
-        // Сохраняем историю войны
-        await db.collection('clanWarsHistory').add({
+        // 2. Обновляем статистику побед/поражений в кланах
+        await updateClanWarStats(winnerClanId, loserClanId, winnerClanName, loserClanName, rewards);
+        
+        // 3. Сохраняем историю войны
+        const warHistoryRecord = {
             ...war,
-            winner: winnerClanId,
-            winnerName: winnerClanName,
-            loserName: loserClanName,
+            winnerClanId: winnerClanId,
+            winnerClanName: winnerClanName,
+            loserClanId: loserClanId,
+            loserClanName: loserClanName,
+            winnerClanLevel: winnerClanLevel,
+            loserClanLevel: loserClanLevel,
             winnerScore: winner === 'attacker' ? attackerScore : defenderScore,
             loserScore: winner === 'attacker' ? defenderScore : attackerScore,
             attackerPower: attackerPower,
@@ -7064,9 +7071,11 @@ async function finishClanWar(warId, war) {
             rewards: rewards,
             endTimeActual: Date.now(),
             status: 'finished'
-        });
+        };
         
-        // Обновляем статус текущей войны
+        await db.collection('clanWarsHistory').add(warHistoryRecord);
+        
+        // 4. Обновляем статус текущей войны
         await db.collection('clanWars').doc(warId).update({
             status: 'finished',
             winner: winnerClanId,
@@ -7075,88 +7084,10 @@ async function finishClanWar(warId, war) {
             endTimeActual: Date.now()
         });
         
-        // Формируем сообщения
-        const winnerMessage = `🏆 ПОБЕДА! Ваш клан "${winnerClanName}" выиграл войну против "${loserClanName}"!\n📊 Счёт: ${winner === 'attacker' ? attackerScore : defenderScore} : ${winner === 'attacker' ? defenderScore : attackerScore}\n🎁 Награда: +${rewards.wood}🪵 +${rewards.stone}🪨 +${rewards.makhorka}🌿 +${rewards.paper}📄 +${rewards.cigarettes}🚬`;
-        const loserMessage = `💔 ПОРАЖЕНИЕ! Ваш клан "${loserClanName}" проиграл войну против "${winnerClanName}"!\n📊 Счёт: ${winner === 'attacker' ? defenderScore : attackerScore} : ${winner === 'attacker' ? attackerScore : defenderScore}\n📉 Потеряно: ${rewards.wood}🪵 ${rewards.stone}🪨 ${rewards.makhorka}🌿 ${rewards.paper}📄 ${rewards.cigarettes}🚬`;
+        // 5. ОТПРАВЛЯЕМ УВЕДОМЛЕНИЯ ВСЕМ УЧАСТНИКАМ
+        await sendWarNotifications(winnerClanId, loserClanId, winnerClanName, loserClanName, rewards, attackerScore, defenderScore);
         
-        // Отправляем уведомления (только один раз)
-        const winnerNotificationKey = `war_finish_${warId}_winner`;
-        const loserNotificationKey = `war_finish_${warId}_loser`;
-        
-        if (!localStorage.getItem(winnerNotificationKey)) {
-            await notifyClanMembers(winnerClanId, winnerMessage);
-            addNotification('war', '🏆 ВОЙНА ЗАВЕРШЕНА!', winnerMessage, winnerClanId);
-            localStorage.setItem(winnerNotificationKey, Date.now().toString());
-            setTimeout(() => localStorage.removeItem(winnerNotificationKey), 24 * 60 * 60 * 1000);
-        }
-        
-        if (!localStorage.getItem(loserNotificationKey)) {
-            await notifyClanMembers(loserClanId, loserMessage);
-            addNotification('war', '💔 ВОЙНА ЗАВЕРШЕНА!', loserMessage, loserClanId);
-            localStorage.setItem(loserNotificationKey, Date.now().toString());
-            setTimeout(() => localStorage.removeItem(loserNotificationKey), 24 * 60 * 60 * 1000);
-        }
-        
-        // Начисляем/списываем ресурсы текущему игроку, если он в одном из кланов
-        if (currentPlayer) {
-            if (winnerClanId === currentPlayer.clanId) {
-                // Победитель получает награду
-                if (!currentPlayer.lumber) currentPlayer.lumber = { wood: 0 };
-                if (!currentPlayer.quarry) currentPlayer.quarry = { stone: 0 };
-                if (!currentPlayer.mine) currentPlayer.mine = { makhorka: 0, paper: 0 };
-                
-                currentPlayer.lumber.wood = (currentPlayer.lumber.wood || 0) + rewards.wood;
-                currentPlayer.quarry.stone = (currentPlayer.quarry.stone || 0) + rewards.stone;
-                currentPlayer.mine.makhorka = (currentPlayer.mine.makhorka || 0) + rewards.makhorka;
-                currentPlayer.mine.paper = (currentPlayer.mine.paper || 0) + rewards.paper;
-                currentPlayer.cigarettes = (currentPlayer.cigarettes || 0) + rewards.cigarettes;
-                
-                await playerDocRef.update({
-                    'lumber.wood': currentPlayer.lumber.wood,
-                    'quarry.stone': currentPlayer.quarry.stone,
-                    'mine.makhorka': currentPlayer.mine.makhorka,
-                    'mine.paper': currentPlayer.mine.paper,
-                    'cigarettes': currentPlayer.cigarettes
-                });
-                
-                // Показываем тост о победе
-                showToast(`🏆 Ваш клан "${winnerClanName}" ПОБЕДИЛ в войне! Вы получили: +${rewards.wood}🪵 +${rewards.stone}🪨 +${rewards.makhorka}🌿 +${rewards.paper}📄 +${rewards.cigarettes}🚬`, 'success');
-                
-            } else if (loserClanId === currentPlayer.clanId) {
-                // Проигравший теряет ресурсы
-                const currentWood = currentPlayer.lumber?.wood || 0;
-                const currentStone = currentPlayer.quarry?.stone || 0;
-                const currentMakhorka = currentPlayer.mine?.makhorka || 0;
-                const currentPaper = currentPlayer.mine?.paper || 0;
-                const currentCigarettes = currentPlayer.cigarettes || 0;
-                
-                const newWood = Math.max(0, currentWood - rewards.wood);
-                const newStone = Math.max(0, currentStone - rewards.stone);
-                const newMakhorka = Math.max(0, currentMakhorka - rewards.makhorka);
-                const newPaper = Math.max(0, currentPaper - rewards.paper);
-                const newCigarettes = Math.max(0, currentCigarettes - rewards.cigarettes);
-                
-                if (currentPlayer.lumber) currentPlayer.lumber.wood = newWood;
-                if (currentPlayer.quarry) currentPlayer.quarry.stone = newStone;
-                if (currentPlayer.mine) {
-                    currentPlayer.mine.makhorka = newMakhorka;
-                    currentPlayer.mine.paper = newPaper;
-                }
-                currentPlayer.cigarettes = newCigarettes;
-                
-                await playerDocRef.update({
-                    'lumber.wood': newWood,
-                    'quarry.stone': newStone,
-                    'mine.makhorka': newMakhorka,
-                    'mine.paper': newPaper,
-                    'cigarettes': newCigarettes
-                });
-                
-                showToast(`💔 Ваш клан "${loserClanName}" ПРОИГРАЛ войну! Потеряно: ${rewards.wood}🪵 ${rewards.stone}🪨 ${rewards.makhorka}🌿 ${rewards.paper}📄 ${rewards.cigarettes}🚬`, 'error');
-            }
-        }
-        
-        // Очищаем локальные данные
+        // 6. Очищаем локальные данные
         if (currentPlayer && activeClanWar && activeClanWar.id === warId) {
             activeClanWar = null;
             warFightersSent = { blats: 0, muzhiks: 0, fraers: 0 };
@@ -7169,7 +7100,7 @@ async function finishClanWar(warId, war) {
             }
         }
         
-        // Обновляем основной UI
+        // 7. Обновляем основной UI
         renderUI();
         
         console.log('✅ Война успешно завершена!');
@@ -7180,10 +7111,142 @@ async function finishClanWar(warId, war) {
     }
 }
 
+async function sendWarNotifications(winnerClanId, loserClanId, winnerName, loserName, rewards, winnerScore, loserScore) {
+    console.log('📨 Отправка уведомлений о завершении войны...');
+    
+    const winnerMessage = `🏆 ПОБЕДА! Ваш клан "${winnerName}" выиграл войну против "${loserName}"!\n📊 Счёт: ${winnerScore} : ${loserScore}\n🎁 Награда: +${rewards.wood}🪵 +${rewards.stone}🪨 +${rewards.makhorka}🌿 +${rewards.paper}📄 +${rewards.cigarettes}🚬`;
+    const loserMessage = `💔 ПОРАЖЕНИЕ! Ваш клан "${loserName}" проиграл войну против "${winnerName}"!\n📊 Счёт: ${loserScore} : ${winnerScore}\n📉 Потеряно: ${rewards.wood}🪵 ${rewards.stone}🪨 ${rewards.makhorka}🌿 ${rewards.paper}📄 ${rewards.cigarettes}🚬`;
+    
+    // Уникальные ключи для предотвращения дублирования уведомлений
+    const winnerNotificationKey = `war_finish_${Date.now()}_${winnerClanId}_winner`;
+    const loserNotificationKey = `war_finish_${Date.now()}_${loserClanId}_loser`;
+    
+    // Отправляем уведомления всем членам клана-победителя
+    const winnerClan = allClans.find(c => c.id === winnerClanId);
+    if (winnerClan && winnerClan.membersIds) {
+        for (const memberId of winnerClan.membersIds) {
+            // Сохраняем в Firebase для получения при следующем входе
+            const notificationData = {
+                id: Date.now() + Math.random(),
+                type: 'war',
+                title: '🏆 ВОЙНА ЗАВЕРШЕНА!',
+                message: winnerMessage,
+                timestamp: Date.now(),
+                read: false
+            };
+            
+            const notifRef = db.collection('playerNotifications').doc(memberId);
+            const notifDoc = await notifRef.get();
+            if (notifDoc.exists) {
+                await notifRef.update({
+                    notifications: firebase.firestore.FieldValue.arrayUnion(notificationData)
+                });
+            } else {
+                await notifRef.set({
+                    notifications: [notificationData]
+                });
+            }
+            
+            // Если игрок онлайн, добавляем в локальные уведомления
+            if (currentPlayer && currentPlayer.id === memberId) {
+                addNotification('war', '🏆 ВОЙНА ЗАВЕРШЕНА!', winnerMessage);
+            }
+        }
+        console.log(`📨 Уведомления отправлены победителям (${winnerClan.membersIds.length} чел)`);
+    }
+    
+    // Отправляем уведомления всем членам клана-проигравшего
+    const loserClan = allClans.find(c => c.id === loserClanId);
+    if (loserClan && loserClan.membersIds) {
+        for (const memberId of loserClan.membersIds) {
+            const notificationData = {
+                id: Date.now() + Math.random(),
+                type: 'war',
+                title: '💔 ВОЙНА ЗАВЕРШЕНА!',
+                message: loserMessage,
+                timestamp: Date.now(),
+                read: false
+            };
+            
+            const notifRef = db.collection('playerNotifications').doc(memberId);
+            const notifDoc = await notifRef.get();
+            if (notifDoc.exists) {
+                await notifRef.update({
+                    notifications: firebase.firestore.FieldValue.arrayUnion(notificationData)
+                });
+            } else {
+                await notifRef.set({
+                    notifications: [notificationData]
+                });
+            }
+            
+            if (currentPlayer && currentPlayer.id === memberId) {
+                addNotification('war', '💔 ВОЙНА ЗАВЕРШЕНА!', loserMessage);
+            }
+        }
+        console.log(`📨 Уведомления отправлены проигравшим (${loserClan.membersIds.length} чел)`);
+    }
+}
+
+async function updateClanWarStats(winnerClanId, loserClanId, winnerName, loserName, rewards) {
+    // Обновляем статистику победителя
+    const winnerRef = db.collection('clans').doc(winnerClanId);
+    const winnerDoc = await winnerRef.get();
+    const winnerWins = (winnerDoc.data()?.wins || 0) + 1;
+    await winnerRef.update({
+        wins: winnerWins,
+        lastWarResult: 'win',
+        lastWarOpponent: loserName,
+        lastWarRewards: rewards,
+        lastWarTime: Date.now()
+    });
+    
+    // Обновляем статистику проигравшего
+    const loserRef = db.collection('clans').doc(loserClanId);
+    const loserDoc = await loserRef.get();
+    const loserLosses = (loserDoc.data()?.losses || 0) + 1;
+    await loserRef.update({
+        losses: loserLosses,
+        lastWarResult: 'loss',
+        lastWarOpponent: winnerName,
+        lastWarTime: Date.now()
+    });
+    
+    console.log(`📊 Статистика обновлена: ${winnerName} +1 победа, ${loserName} +1 поражение`);
+}
+
+async function loadClanWarHistory(clanId) {
+    if (!clanId) return [];
+    try {
+        const snapshot = await db.collection('clanWarsHistory')
+            .where('attackerClanId', '==', clanId)
+            .limit(50)
+            .get();
+        
+        const snapshot2 = await db.collection('clanWarsHistory')
+            .where('defenderClanId', '==', clanId)
+            .limit(50)
+            .get();
+        
+        const history = [];
+        snapshot.forEach(doc => history.push({ id: doc.id, ...doc.data() }));
+        snapshot2.forEach(doc => history.push({ id: doc.id, ...doc.data() }));
+        
+        history.sort((a, b) => b.endTimeActual - a.endTimeActual);
+        return history;
+    } catch (e) {
+        console.error('Ошибка загрузки истории войн:', e);
+        return [];
+    }
+}
+
 async function distributeWarRewards(winnerClanId, loserClanId, rewards) {
     const winnerClan = allClans.find(c => c.id === winnerClanId);
     const loserClan = allClans.find(c => c.id === loserClanId);
     if (!winnerClan || !loserClan) return;
+    
+    console.log(`💰 Распределение награды победителям (${winnerClan.name})...`);
+    console.log(`💰 Списание ресурсов с проигравших (${loserClan.name})...`);
     
     for (const memberId of winnerClan.membersIds || []) {
         const memberRef = db.collection('players').doc(memberId);
@@ -7203,12 +7266,20 @@ async function distributeWarRewards(winnerClanId, loserClanId, rewards) {
         const memberRef = db.collection('players').doc(memberId);
         const memberDoc = await memberRef.get();
         if (memberDoc.exists && !memberDoc.data().isBanned) {
+            // Убеждаемся, что ресурсы не уходят в минус
+            const currentData = memberDoc.data();
+            const newWood = Math.max(0, (currentData.lumber?.wood || 0) - rewards.wood);
+            const newStone = Math.max(0, (currentData.quarry?.stone || 0) - rewards.stone);
+            const newMakhorka = Math.max(0, (currentData.mine?.makhorka || 0) - rewards.makhorka);
+            const newPaper = Math.max(0, (currentData.mine?.paper || 0) - rewards.paper);
+            const newCigarettes = Math.max(0, (currentData.cigarettes || 0) - rewards.cigarettes);
+            
             await memberRef.update({
-                'lumber.wood': firebase.firestore.FieldValue.increment(-rewards.wood),
-                'quarry.stone': firebase.firestore.FieldValue.increment(-rewards.stone),
-                'mine.makhorka': firebase.firestore.FieldValue.increment(-rewards.makhorka),
-                'mine.paper': firebase.firestore.FieldValue.increment(-rewards.paper),
-                'cigarettes': firebase.firestore.FieldValue.increment(-rewards.cigarettes)
+                'lumber.wood': newWood,
+                'quarry.stone': newStone,
+                'mine.makhorka': newMakhorka,
+                'mine.paper': newPaper,
+                'cigarettes': newCigarettes
             });
         }
     }
@@ -9722,7 +9793,7 @@ function addNotification(type, title, message, targetPlayerId = null) {
                 <img class="loading-logo" src="https://sviter-pro.github.io/GameZone/src/test/logo124.png" alt="Тюряга 2.0" onerror="this.src='https://via.placeholder.com/180x180?text=Тюряга+2.0'">
                 <div class="loading-spinner-new"></div>
                 <div class="loading-tip-new" id="loadingTipNew">⚡ Загрузка игрового мира...</div>
-                <div class="loading-version">Зона 1.0.0.254 | Зона ждет</div>
+                <div class="loading-version">Зона 1.0.0.255 | Зона ждет</div>
             </div>
         `;
             const tipEl = document.getElementById('loadingTipNew');
@@ -11121,7 +11192,7 @@ async function changeEquipment(slot, itemName, stat, bonus) {
                 
                 <div class="settings-card">
                     <div style="font-size: 13px; color: #aaa; text-align: center;">
-                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.254</div>
+                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.255</div>
                         <div style="font-size: 11px;">⚡ Клановые войны | Бесконечная прокачка</div>
                     </div>
                 </div>
@@ -17792,8 +17863,10 @@ function closeWarPreview() {
                         </div>
                         <div class="clan-member-row"><span>⚔️ Мощь</span><span>${clanPower}</span></div>
                         <div class="clan-member-row"><span>👥 Участников</span><span>${clanMembers.length}</span></div>
-                        <div class="clan-member-row"><span>🏆 Побед</span><span>${wins}</span></div>
-                        <div class="clan-member-row"><span>💔 Поражений</span><span>${losses}</span></div>
+                        <div class="clan-member-row"><span>🏆 ПОБЕД</span><span style="color: #4caf50; font-weight: bold;">${clanInfo?.wins || 0}</span></div>
+<div class="clan-member-row"><span>💔 ПОРАЖЕНИЙ</span><span style="color: #e94560; font-weight: bold;">${clanInfo?.losses || 0}</span></div>
+<div class="clan-member-row"><span>📊 ВСЕГО БОЁВ</span><span>${(clanInfo?.wins || 0) + (clanInfo?.losses || 0)}</span></div>
+${clanInfo?.lastWarResult ? `<div class="clan-member-row"><span>📅 ПОСЛЕДНЯЯ ВОЙНА</span><span style="color: ${clanInfo.lastWarResult === 'win' ? '#4caf50' : '#e94560'}">${clanInfo.lastWarResult === 'win' ? 'ПОБЕДА' : 'ПОРАЖЕНИЕ'} vs ${clanInfo.lastWarOpponent || '?'}</span></div>` : ''}
                         <div class="clan-member-row"><span>📈 Уровень</span><span>${clanLevel}</span></div>
                         <div class="clan-member-row"><span>💰 Рубли</span><span>${clanInfo?.rubles || 0}</span></div>
                         ${defenseActive ? `<div class="clan-member-row"><span>🛡️ Защита</span><span>${defenseTimeLeft}</span></div>` : ''}
