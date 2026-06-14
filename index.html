@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Зона 1.0.0.253 - Карта зоны</title>
+    <title>Зона 1.0.0.254 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -6080,6 +6080,39 @@
     font-size: 9px;
     color: #aaa;
 }
+.defense-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(139, 69, 19, 0.3);
+    border-radius: 20px;
+    padding: 2px 8px;
+    font-size: 10px;
+    color: #ffd966;
+}
+
+.defense-badge.defense-active {
+    background: rgba(255, 152, 0, 0.2);
+    border: 1px solid #ff9800;
+    color: #ff9800;
+}
+
+.cooldown-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(233, 69, 96, 0.2);
+    border-radius: 20px;
+    padding: 2px 8px;
+    font-size: 10px;
+    color: #e94560;
+}
+
+.attack-timer {
+    font-family: monospace;
+    font-size: 11px;
+    color: #ffd966;
+}
     </style>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
@@ -6424,16 +6457,25 @@ async function startClanWar(targetClanId, targetClanName, targetClanLevel) {
     const myClan = allClans.find(c => c.id === currentPlayer.clanId);
     if (!myClan) return;
     
-    // ========== ПРОВЕРКА ЗАЩИТЫ КЛАНА-ЦЕЛИ ==========
-    const targetClan = allClans.find(c => c.id === targetClanId);
-    if (targetClan && targetClan.defenseUntil && targetClan.defenseUntil > Date.now()) {
-        const remainingHours = Math.ceil((targetClan.defenseUntil - Date.now()) / (60 * 60 * 1000));
-        showToast(`🛡️ Клан "${targetClanName}" под защитой! Осталось: ${remainingHours} ч.`, 'warning');
+    if (myClan.level !== targetClanLevel) {
+        showToast('Воевать можно только с кланом того же уровня!', 'warning');
         return;
     }
     
-    if (myClan.level !== targetClanLevel) {
-        showToast('Воевать можно только с кланом того же уровня!', 'warning');
+    // Проверяем защиту цели
+    const targetClan = allClans.find(c => c.id === targetClanId);
+    if (targetClan && targetClan.defenseUntil && targetClan.defenseUntil > Date.now()) {
+        const remaining = targetClan.defenseUntil - Date.now();
+        showToast(`Клан ${targetClanName} под защитой ещё ${formatTimeDetailedFull(remaining)}!`, 'warning');
+        return;
+    }
+    
+    // Проверяем кулдаун атаки на этот клан
+    const attackCooldownKey = `attackCooldown_${currentPlayer.clanId}_${targetClanId}`;
+    const savedCooldown = localStorage.getItem(attackCooldownKey);
+    if (savedCooldown && parseInt(savedCooldown) > Date.now()) {
+        const remaining = parseInt(savedCooldown) - Date.now();
+        showToast(`Нельзя атаковать клан ${targetClanName} ещё ${formatTimeDetailedFull(remaining)}!`, 'warning');
         return;
     }
     
@@ -6441,7 +6483,7 @@ async function startClanWar(targetClanId, targetClanName, targetClanLevel) {
     const lastWarTime = localStorage.getItem(lastWarKey);
     if (lastWarTime && (Date.now() - parseInt(lastWarTime)) < 24 * 60 * 60 * 1000) {
         const remaining = 24 * 60 * 60 * 1000 - (Date.now() - parseInt(lastWarTime));
-        showToast(`Клан может начинать войну раз в 24 часа! Осталось: ${formatTimerMinutes(remaining)}`, 'warning');
+        showToast(`Клан может начинать войну раз в 24 часа! Осталось: ${formatTimeDetailedFull(remaining)}`, 'warning');
         return;
     }
     
@@ -6462,15 +6504,16 @@ async function startClanWar(targetClanId, targetClanName, targetClanLevel) {
         winner: null,
         rewards: null,
         attackerFighters: { blats: 0, muzhiks: 0, fraers: 0, total: 0 },
-        defenderFighters: { blats: 0, muzhiks: 0, fraers: 0, total: 0 },
-        // Сохраняем информацию о том, кто какие ресурсы внёс
-        attackerDonations: {},
-        defenderDonations: {}
+        defenderFighters: { blats: 0, muzhiks: 0, fraers: 0, total: 0 }
     };
     
     try {
         await db.collection('clanWars').add(warData);
         localStorage.setItem(lastWarKey, Date.now().toString());
+        
+        // Сохраняем кулдаун атаки на этот клан (48 часов)
+        localStorage.setItem(attackCooldownKey, (Date.now() + 48 * 60 * 60 * 1000).toString());
+        
         showToast(`⚔️ Война объявлена клану "${targetClanName}"!`, 'success');
         notifyClanMembers(targetClanId, `⚠️ Клан "${myClan.name}" объявил войну вашему клану! Война продлится ${WAR_DURATION_HOURS} часов. Защищайтесь!`);
         
@@ -6481,6 +6524,24 @@ async function startClanWar(targetClanId, targetClanName, targetClanLevel) {
         showToast('Ошибка начала войны: ' + e.message, 'error');
     }
 }
+
+let cooldownTimerInterval = null;
+
+function startCooldownTimers() {
+    if (cooldownTimerInterval) clearInterval(cooldownTimerInterval);
+    
+    cooldownTimerInterval = setInterval(() => {
+        const warModal = document.getElementById('warFullscreen');
+        if (warModal) {
+            // Обновляем отображение в окне войны
+            const container = document.getElementById('warDynamicContent');
+            if (container && (!activeClanWar || activeClanWar.endTime <= Date.now())) {
+                renderNoWarContent(container);
+            }
+        }
+    }, 1000);
+}
+
 
 // ========== ОТПРАВКА БОЙЦОВ НА ВОЙНУ ==========
 async function sendFightersToWar() {
@@ -7372,6 +7433,21 @@ function renderNoWarContent(container) {
         c.level === (myClan?.level || 1)
     );
     
+    // Получаем время последней войны клана
+    const lastWarKey = `lastWar_${currentPlayer.clanId}`;
+    const lastWarTime = localStorage.getItem(lastWarKey);
+    let clanCooldownRemaining = 0;
+    let clanCooldownText = '';
+    
+    if (lastWarTime) {
+        const elapsed = Date.now() - parseInt(lastWarTime);
+        const cooldownMs = 24 * 60 * 60 * 1000; // 24 часа кулдаун
+        if (elapsed < cooldownMs) {
+            clanCooldownRemaining = cooldownMs - elapsed;
+            clanCooldownText = formatTimeDetailedFull(clanCooldownRemaining);
+        }
+    }
+    
     if (availableClans.length === 0) {
         container.innerHTML = `
             <div class="treasury-card" style="text-align: center;">
@@ -7383,6 +7459,75 @@ function renderNoWarContent(container) {
         return;
     }
     
+    // Формируем список кланов с защитой
+    const clansHtml = availableClans.map(clan => {
+        // Проверяем защиту клана
+        const isDefended = clan.defenseUntil && clan.defenseUntil > Date.now();
+        let defenseText = '';
+        let defenseIcon = '';
+        
+        if (isDefended) {
+            const remaining = clan.defenseUntil - Date.now();
+            defenseText = formatTimeDetailedFull(remaining);
+            defenseIcon = '🛡️';
+        }
+        
+        // Проверяем кулдаун атаки на этот клан (если главарь уже атаковал его)
+        const attackCooldownKey = `attackCooldown_${currentPlayer.clanId}_${clan.id}`;
+        const attackCooldown = localStorage.getItem(attackCooldownKey);
+        let attackCooldownText = '';
+        let isAttackOnCooldown = false;
+        
+        if (attackCooldown) {
+            const cooldownEnd = parseInt(attackCooldown);
+            if (cooldownEnd > Date.now()) {
+                isAttackOnCooldown = true;
+                const remaining = cooldownEnd - Date.now();
+                attackCooldownText = formatTimeDetailedFull(remaining);
+            }
+        }
+        
+        // Проверяем глобальный кулдаун клана
+        let isClanOnCooldown = false;
+        if (clanCooldownRemaining > 0) {
+            isClanOnCooldown = true;
+        }
+        
+        const isDisabled = isDefended || isAttackOnCooldown || isClanOnCooldown;
+        let disabledReason = '';
+        if (isDefended) disabledReason = `🛡️ Защита: ${defenseText}`;
+        else if (isAttackOnCooldown) disabledReason = `⏳ Кулдаун: ${attackCooldownText}`;
+        else if (isClanOnCooldown) disabledReason = `⏳ Ваш клан сможет атаковать через: ${clanCooldownText}`;
+        
+        return `
+            <div class="clan-card-item" style="display: flex; justify-content: space-between; align-items: center; padding: 12px; ${isDisabled ? 'opacity: 0.7;' : ''}">
+                <div>
+                    <strong style="color: #ffd966;">🏰 ${escapeHtml(clan.name)}</strong>
+                    ${isDefended ? `<span class="defense-badge defense-active">🛡️ ${defenseText}</span>` : ''}
+                    <div style="font-size: 11px; color: #aaa; margin-top: 4px;">
+                        👑 ${escapeHtml(clan.leader)} | 👥 ${clan.members?.length || 0} уч. | 📈 ур.${clan.level || 1} | 💪 ${clan.totalPower || 0}
+                        ${isAttackOnCooldown ? `<div class="cooldown-badge" style="margin-top: 4px;">⏳ Кулдаун атаки: ${attackCooldownText}</div>` : ''}
+                    </div>
+                </div>
+                ${isDisabled ? 
+                    `<button class="btn-primary" disabled style="padding: 6px 12px; font-size: 11px; opacity: 0.6;">
+                        ${disabledReason}
+                    </button>` :
+                    `<button class="btn-primary" onclick="startClanWar('${clan.id}', '${escapeHtml(clan.name)}', ${clan.level || 1})" style="padding: 6px 12px; font-size: 11px;">
+                        ⚔️ АТАКОВАТЬ
+                    </button>`
+                }
+            </div>
+        `;
+    }).join('');
+    
+    // Добавляем информацию о кулдауне клана
+    const clanCooldownHtml = clanCooldownRemaining > 0 ? `
+        <div class="bonus-info" style="background: rgba(233,69,96,0.15); text-align: center; margin-bottom: 15px;">
+            ⏳ Ваш клан сможет начать новую войну через: <span class="attack-timer">${clanCooldownText}</span>
+        </div>
+    ` : '';
+    
     container.innerHTML = `
         <div class="treasury-card">
             <div style="text-align: center; margin-bottom: 20px;">
@@ -7390,21 +7535,30 @@ function renderNoWarContent(container) {
                 <div style="font-size: 18px; font-weight: 700; color: #c9a03d;">ОБЪЯВИТЬ ВОЙНУ</div>
                 <div style="font-size: 12px; color: #aaa; margin-top: 5px;">Доступны кланы того же уровня</div>
             </div>
+            ${clanCooldownHtml}
             <div style="display: flex; flex-direction: column; gap: 10px; max-height: 400px; overflow-y: auto;">
-                ${availableClans.map(clan => `
-                    <div class="clan-card-item" style="display: flex; justify-content: space-between; align-items: center; padding: 12px;">
-                        <div>
-                            <strong style="color: #ffd966;">🏰 ${escapeHtml(clan.name)}</strong>
-                            <div style="font-size: 11px; color: #aaa;">👑 ${escapeHtml(clan.leader)} | 👥 ${clan.members?.length || 0} уч. | 📈 ур.${clan.level || 1} | 💪 ${clan.totalPower || 0}</div>
-                        </div>
-                        <button class="btn-primary" onclick="startClanWar('${clan.id}', '${escapeHtml(clan.name)}', ${clan.level || 1})" style="padding: 6px 12px; font-size: 11px;">
-                            ⚔️ АТАКОВАТЬ
-                        </button>
-                    </div>
-                `).join('')}
+                ${clansHtml}
             </div>
         </div>
     `;
+}
+
+function formatTimeDetailedFull(ms) {
+    if (ms <= 0) return "0 сек";
+    
+    const totalSeconds = Math.floor(ms / 1000);
+    const days = Math.floor(totalSeconds / 86400);
+    const hours = Math.floor((totalSeconds % 86400) / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    
+    const parts = [];
+    if (days > 0) parts.push(`${days}д`);
+    if (hours > 0) parts.push(`${hours}ч`);
+    if (minutes > 0) parts.push(`${minutes}м`);
+    if (seconds > 0 || parts.length === 0) parts.push(`${seconds}с`);
+    
+    return parts.join(' ');
 }
 
 function renderActiveWarContent(container) {
@@ -9568,7 +9722,7 @@ function addNotification(type, title, message, targetPlayerId = null) {
                 <img class="loading-logo" src="https://sviter-pro.github.io/GameZone/src/test/logo124.png" alt="Тюряга 2.0" onerror="this.src='https://via.placeholder.com/180x180?text=Тюряга+2.0'">
                 <div class="loading-spinner-new"></div>
                 <div class="loading-tip-new" id="loadingTipNew">⚡ Загрузка игрового мира...</div>
-                <div class="loading-version">Зона 1.0.0.253 | Зона ждет</div>
+                <div class="loading-version">Зона 1.0.0.254 | Зона ждет</div>
             </div>
         `;
             const tipEl = document.getElementById('loadingTipNew');
@@ -10967,7 +11121,7 @@ async function changeEquipment(slot, itemName, stat, bonus) {
                 
                 <div class="settings-card">
                     <div style="font-size: 13px; color: #aaa; text-align: center;">
-                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.253</div>
+                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.254</div>
                         <div style="font-size: 11px;">⚡ Клановые войны | Бесконечная прокачка</div>
                     </div>
                 </div>
