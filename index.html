@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Зона 1.0.0.255 - Карта зоны</title>
+    <title>Зона 1.0.0.257 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -1207,7 +1207,6 @@
         .gang-content-area,
         .hospital-content-area {
             flex: 1;
-            overflow-y: auto;
             padding: 0px 9px;
             margin-bottom: 100px;
 			margin-top: 10px;
@@ -6122,6 +6121,275 @@
     ontouchstart="return true;" style="touch-action: manipulation;">
     <div id="app"></div>
 	
+	<script>
+	// ========== АЛГОРИТМЫ И ФУНКЦИИ ОКНА КАМЕРА ==========
+	function openInventoryModal() {
+    if (window._opening_modal) { console.log('Блокировка: окно уже открывается'); return; }
+    window._opening_modal = true;
+
+    if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); window._opening_modal = false; return; }
+    if (!currentPlayer) { window._opening_modal = false; return; }
+
+    // Получаем все предметы из магазина
+    const shopItems = getShopItemsFromAdmin();
+    
+    // Фильтруем предметы по типам
+    const weapons = shopItems.filter(i => i.category === 'weapon' && i.type === 'equipment');
+    const armors = shopItems.filter(i => i.category === 'armor' && i.type === 'equipment');
+    const accessories = shopItems.filter(i => i.category === 'accessory' && i.type === 'equipment');
+    
+    // Получаем купленные предметы
+    const purchasedEquipment = currentPlayer.purchasedEquipment || [];
+    
+    // ===== ВАЖНО: Фильтруем ТОЛЬКО купленные предметы =====
+    const ownedWeapons = weapons.filter(item => purchasedEquipment.includes(item.name));
+    const ownedArmors = armors.filter(item => purchasedEquipment.includes(item.name));
+    const ownedAccessories = accessories.filter(item => purchasedEquipment.includes(item.name));
+    
+    // Текущая экипировка
+    const currentWeapon = currentPlayer.equipped?.weapon || 'камень';
+    const currentArmor = currentPlayer.equipped?.armor || 'роба';
+    const currentAccessory = currentPlayer.equipped?.accessory || 'чифирная кружка';
+    
+    // Татуировки
+    const tattoos = currentPlayer.tattoos || [];
+    
+    // Функция рендера секции с предметами (только купленные)
+    const renderItemsSection = (items, currentItem, slotName, title, icon) => {
+        if (!items || items.length === 0) {
+            return '<div style="color:#aaa; padding: 10px; text-align: center;">❌ Нет купленных предметов<br><span style="font-size: 11px;">Купи в магазине у Барыги</span></div>';
+        }
+        
+        return `
+            <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(139,69,19,0.3);">
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+                    ${items.map(item => {
+                        const isEquipped = currentItem === item.name;
+                        let statusText = '';
+                        let statusColor = '#888';
+                        
+                        if (isEquipped) {
+                            statusText = '✓ НАДЕТО';
+                            statusColor = '#4caf50';
+                        } else {
+                            statusText = '📦 В ИНВЕНТАРЕ';
+                            statusColor = '#ff9800';
+                        }
+                        
+                        // Иконка предмета
+                        let itemIcon = '📦';
+                        if (item.category === 'weapon') itemIcon = '🔪';
+                        else if (item.category === 'armor') itemIcon = '👕';
+                        else if (item.category === 'accessory') itemIcon = '💍';
+                        
+                        return `
+                            <div class="shop-item-card" style="padding: 8px; cursor: pointer;" onclick="changeEquipment('${slotName}', '${item.name}', '${item.stat || ''}', ${item.bonus || 0})">
+                                ${item.imageUrl ? 
+                                    `<img src="${item.imageUrl}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 12px; margin-bottom: 5px;" onerror="this.style.display='none'">` : 
+                                    `<div style="font-size: 30px; margin-bottom: 5px;">${itemIcon}</div>`
+                                }
+                                <div style="font-size: 11px; font-weight: bold; color: #ffd966;">${escapeHtml(item.name)}</div>
+                                <div style="font-size: 9px; color: ${statusColor};">${statusText}</div>
+                                ${item.bonus ? `<div style="font-size: 9px; color: #aaa;">+${item.bonus} ${item.stat === 'strength' ? '💪' : (item.stat === 'defense' ? '🛡️' : '⚡')}</div>` : ''}
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+        `;
+    };
+    
+    // Функция рендера секции с татуировками
+    const renderTattoosSection = () => {
+        if (!tattoos || tattoos.length === 0) {
+            return '<div style="color:#aaa; padding: 20px; text-align: center;">❌ Нет наколок<br><span style="font-size: 11px;">Купи в магазине у Барыги</span></div>';
+        }
+        
+        return `
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+                ${tattoos.map(tattoo => {
+                    // Поддержка как старых (строковых) так и новых (объектных) татуировок
+                    const tattooName = typeof tattoo === 'object' ? tattoo.name : tattoo;
+                    const tattooImage = typeof tattoo === 'object' ? tattoo.imageUrl : '';
+                    const tattooBonus = typeof tattoo === 'object' ? tattoo.bonus : 0;
+                    const tattooStat = typeof tattoo === 'object' ? tattoo.stat : '';
+                    
+                    let bonusText = '';
+                    if (tattooBonus > 0) {
+                        if (tattooStat === 'strength') bonusText = `+${tattooBonus} 💪`;
+                        else if (tattooStat === 'defense') bonusText = `+${tattooBonus} 🛡️`;
+                        else if (tattooStat === 'critical') bonusText = `+${tattooBonus} ⚡`;
+                    }
+                    
+                    return `
+                        <div class="shop-item-card" style="padding: 8px;">
+                            ${tattooImage ? 
+                                `<img src="${tattooImage}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 12px; margin-bottom: 5px;" onerror="this.style.display='none'">` : 
+                                `<div style="font-size: 30px; margin-bottom: 5px;">💉</div>`
+                            }
+                            <div style="font-size: 11px; font-weight: bold; color: #ffd966;">${escapeHtml(tattooName)}</div>
+                            ${bonusText ? `<div style="font-size: 9px; color: #4caf50;">${bonusText}</div>` : ''}
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        `;
+    };
+    
+    const modalHtml = `
+        <div class="inventory-fullscreen" id="inventoryFullscreen">
+            <div class="inventory-header-bar">
+                <div class="inventory-header-content">
+                    <div class="inventory-header-title">КАМЕРА</div>
+                </div>
+            </div>
+            <div class="inventory-content-area" style="padding-bottom: 80px;">
+                
+                <!-- ТЕКУЩАЯ ЭКИПИРОВКА -->
+                <div class="inventory-card">
+                    <h3 style="margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+                        <span>🔧</span> 
+                        <span>ТЕКУЩАЯ ЭКИПИРОВКА</span>
+                    </h3>
+                    
+                    <!-- ОРУЖИЕ - кликабельно -->
+                    <div class="inventory-row" style="cursor: pointer;" onclick="toggleInventorySection('weapon')">
+                        <span class="inventory-label">🔪 ОРУЖИЕ</span>
+                        <span class="inventory-value">${escapeHtml(currentWeapon)} <span style="font-size: 10px;">▼</span></span>
+                    </div>
+                    <div id="inventoryWeaponSection" style="display: none;">
+                        ${renderItemsSection(ownedWeapons, currentWeapon, 'weapon', 'Доступное оружие', '🔪')}
+                    </div>
+                    
+                    <!-- ОДЕЖДА - кликабельно -->
+                    <div class="inventory-row" style="cursor: pointer;" onclick="toggleInventorySection('armor')">
+                        <span class="inventory-label">👕 ОДЕЖДА</span>
+                        <span class="inventory-value">${escapeHtml(currentArmor)} <span style="font-size: 10px;">▼</span></span>
+                    </div>
+                    <div id="inventoryArmorSection" style="display: none;">
+                        ${renderItemsSection(ownedArmors, currentArmor, 'armor', 'Доступная одежда', '👕')}
+                    </div>
+                    
+                    <!-- АКСЕССУАРЫ - кликабельно -->
+                    <div class="inventory-row" style="cursor: pointer;" onclick="toggleInventorySection('accessory')">
+                        <span class="inventory-label">💍 АКСЕССУАРЫ</span>
+                        <span class="inventory-value">${escapeHtml(currentAccessory)} <span style="font-size: 10px;">▼</span></span>
+                    </div>
+                    <div id="inventoryAccessorySection" style="display: none;">
+                        ${renderItemsSection(ownedAccessories, currentAccessory, 'accessory', 'Доступные аксессуары', '💍')}
+                    </div>
+                </div>
+                
+                <!-- НАКОЛКИ -->
+                <div class="inventory-card">
+                    <h3 style="margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+                        <span>💉</span> 
+                        <span>НАКОЛКИ (${tattoos.length})</span>
+                        <span style="font-size: 10px; color: #8B4513;">🏆 воровская гордость</span>
+                    </h3>
+                    ${renderTattoosSection()}
+                </div>
+                
+            </div>
+            <div class="inventory-bottom-nav">
+                <div class="bottom-nav">
+                    <button class="inventory-tab-btn active" onclick="closeInventoryModal()">
+                        <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_6.png"  height="70px" width="55px" draggable="false">
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    if (tg) tg.BackButton.show();
+
+    setTimeout(() => { window._opening_modal = false; }, 500);
+}
+
+function closeInventoryModal() {
+            const modal = document.getElementById('inventoryFullscreen');
+            if (modal) modal.remove();
+            if (tg) tg.BackButton.hide();
+
+            // Восстанавливаем скролл body
+            document.body.style.overflow = '';
+            document.body.style.position = '';
+            document.body.style.width = '';
+            document.body.classList.remove('modal-open');
+
+            renderUI();
+        }
+		
+function toggleInventorySection(section) {
+    const element = document.getElementById(`inventory${section.charAt(0).toUpperCase() + section.slice(1)}Section`);
+    if (element) {
+        if (element.style.display === 'none') {
+            element.style.display = 'block';
+        } else {
+            element.style.display = 'none';
+        }
+    }
+}
+
+async function changeEquipment(slot, itemName, stat, bonus) {
+    if (!currentPlayer) return;
+    
+    // Получаем старый предмет
+    const oldItemName = currentPlayer.equipped[slot];
+    
+    // Если надеваем тот же предмет - ничего не делаем
+    if (oldItemName === itemName) {
+        showToast('Этот предмет уже надет!', 'warning');
+        return;
+    }
+    
+    // Получаем данные старого предмета из магазина
+    const shopItems = getShopItemsFromAdmin();
+    const oldItemData = shopItems.find(i => i.name === oldItemName && i.type === 'equipment' && i.slot === slot);
+    const newItemData = shopItems.find(i => i.name === itemName && i.type === 'equipment' && i.slot === slot);
+    
+    if (!newItemData) {
+        showToast('Ошибка: предмет не найден!', 'error');
+        return;
+    }
+    
+    // Снимаем старый бонус
+    if (oldItemData && oldItemData.stat && oldItemData.bonus) {
+        currentPlayer.stats[oldItemData.stat] = (currentPlayer.stats[oldItemData.stat] || 0) - oldItemData.bonus;
+        await playerDocRef.update({
+            [`stats.${oldItemData.stat}`]: firebase.firestore.FieldValue.increment(-oldItemData.bonus)
+        });
+    }
+    
+    // Одеваем новый предмет
+    currentPlayer.equipped[slot] = itemName;
+    if (stat && bonus) {
+        currentPlayer.stats[stat] = (currentPlayer.stats[stat] || 0) + bonus;
+        await playerDocRef.update({
+            [`equipped.${slot}`]: itemName,
+            [`stats.${stat}`]: firebase.firestore.FieldValue.increment(bonus)
+        });
+    } else {
+        await playerDocRef.update({
+            [`equipped.${slot}`]: itemName
+        });
+    }
+    
+    const statName = stat === 'strength' ? 'силы' : (stat === 'defense' ? 'защиты' : 'крита');
+    showToast(`✅ Надето: ${itemName}! +${bonus} ${statName}`, 'success');
+    
+    // Обновляем инвентарь
+    closeInventoryModal();
+    setTimeout(() => openInventoryModal(), 100);
+    renderUI();
+}
+
+function getShopItemsFromAdmin() { 
+		return adminShopItems; 
+		}
+	
+	</script>
     <script>
         // ========== ПРОСТАЯ ЗАЩИТА ОТ ДОЛГОГО НАЖАТИЯ ==========
         (function () {
@@ -6264,9 +6532,29 @@ let warTimerElements = {
     progress: null
 };
 
-// Константы для войны
-const WAR_DURATION_HOURS = 1;
+// ========== НАСТРОЙКИ ВОЙН (можно менять вручную) ==========
+// Длительность войны (часов)
+const WAR_DURATION_HOURS = 12;
+
+// Кулдаун между войнами для клана (часов) - сколько ждать до следующей войны
+const WAR_COOLDOWN_HOURS = 24;  // ← ИЗМЕНЯЙТЕ ЭТО ЗНАЧЕНИЕ (0 = без кулдауна)
+
+// Кулдаун на повторную атаку того же клана (часов)
+const WAR_ATTACK_COOLDOWN_HOURS = 48;  // ← ИЗМЕНЯЙТЕ ЭТО ЗНАЧЕНИЕ (0 = без кулдауна)
+
+// Минимальный уровень для участия в войнах
+const WAR_MIN_LEVEL = 5;
+
+// Автоматические расчёты
 const WAR_DURATION_MS = WAR_DURATION_HOURS * 60 * 60 * 1000;
+const WAR_COOLDOWN_MS = WAR_COOLDOWN_HOURS * 60 * 60 * 1000;
+const WAR_ATTACK_COOLDOWN_MS = WAR_ATTACK_COOLDOWN_HOURS * 60 * 60 * 1000;
+
+// Глобальные переменные для доступа из других функций
+window.WAR_DURATION_HOURS = WAR_DURATION_HOURS;
+window.WAR_COOLDOWN_HOURS = WAR_COOLDOWN_HOURS;
+window.WAR_ATTACK_COOLDOWN_HOURS = WAR_ATTACK_COOLDOWN_HOURS;
+window.WAR_MIN_LEVEL = WAR_MIN_LEVEL;
 
 // Базовая награда за уровень клана
 const WAR_REWARDS_BASE = {
@@ -6386,6 +6674,34 @@ function subscribeToClanWars() {
     };
 }
 
+// Функция для изменения настроек войн в реальном времени
+function setWarSettings(durationHours, cooldownHours, attackCooldownHours, minLevel) {
+    if (durationHours !== undefined) {
+        window.WAR_DURATION_HOURS = durationHours;
+        WAR_DURATION_MS = durationHours * 60 * 60 * 1000;
+        console.log(`⚔️ Длительность войны изменена на ${durationHours} часов`);
+    }
+    if (cooldownHours !== undefined) {
+        window.WAR_COOLDOWN_HOURS = cooldownHours;
+        console.log(`⏳ Кулдаун между войнами изменён на ${cooldownHours} часов`);
+    }
+    if (attackCooldownHours !== undefined) {
+        window.WAR_ATTACK_COOLDOWN_HOURS = attackCooldownHours;
+        console.log(`🛡️ Кулдаун атаки на клан изменён на ${attackCooldownHours} часов`);
+    }
+    if (minLevel !== undefined) {
+        window.WAR_MIN_LEVEL = minLevel;
+        console.log(`⭐ Минимальный уровень для войн изменён на ${minLevel}`);
+    }
+    showToast(`✅ Настройки войн обновлены!`, 'success');
+}
+
+// Примеры использования (можно ввести в консоль браузера):
+// setWarSettings(6, 12, 24, 3)  - война 6ч, кулдаун 12ч, атака клана 24ч, мин.уровень 3
+// setWarSettings(24, 48, 72, 5) - война 24ч, кулдаун 48ч, атака клана 72ч
+// setWarSettings(12, 0, 24, 5)   - без кулдауна между войнами
+// resetWarCooldowns()           // сбросить все кулдауны для тестирования
+
 // ========== СОХРАНЕНИЕ ОТПРАВЛЕННЫХ БОЙЦОВ ==========
 function saveWarFightersToStorage() {
     if (currentPlayer && currentPlayer.id && activeClanWar) {
@@ -6470,7 +6786,8 @@ async function startClanWar(targetClanId, targetClanName, targetClanLevel) {
         return;
     }
     
-    // Проверяем кулдаун атаки на этот клан
+    // Проверяем кулдаун атаки на этот клан (из настроек)
+    const attackCooldownHours = window.WAR_ATTACK_COOLDOWN_HOURS || 48;
     const attackCooldownKey = `attackCooldown_${currentPlayer.clanId}_${targetClanId}`;
     const savedCooldown = localStorage.getItem(attackCooldownKey);
     if (savedCooldown && parseInt(savedCooldown) > Date.now()) {
@@ -6479,11 +6796,13 @@ async function startClanWar(targetClanId, targetClanName, targetClanLevel) {
         return;
     }
     
+    // Проверяем глобальный кулдаун клана (из настроек)
+    const warCooldownHours = window.WAR_COOLDOWN_HOURS || 24;
     const lastWarKey = `lastWar_${currentPlayer.clanId}`;
     const lastWarTime = localStorage.getItem(lastWarKey);
-    if (lastWarTime && (Date.now() - parseInt(lastWarTime)) < 24 * 60 * 60 * 1000) {
-        const remaining = 24 * 60 * 60 * 1000 - (Date.now() - parseInt(lastWarTime));
-        showToast(`Клан может начинать войну раз в 24 часа! Осталось: ${formatTimeDetailedFull(remaining)}`, 'warning');
+    if (lastWarTime && (Date.now() - parseInt(lastWarTime)) < warCooldownHours * 60 * 60 * 1000) {
+        const remaining = warCooldownHours * 60 * 60 * 1000 - (Date.now() - parseInt(lastWarTime));
+        showToast(`Клан может начинать войну раз в ${warCooldownHours} часов! Осталось: ${formatTimeDetailedFull(remaining)}`, 'warning');
         return;
     }
     
@@ -6511,14 +6830,18 @@ async function startClanWar(targetClanId, targetClanName, targetClanLevel) {
         await db.collection('clanWars').add(warData);
         localStorage.setItem(lastWarKey, Date.now().toString());
         
-        // Сохраняем кулдаун атаки на этот клан (48 часов)
-        localStorage.setItem(attackCooldownKey, (Date.now() + 48 * 60 * 60 * 1000).toString());
+        // Сохраняем кулдаун атаки на этот клан (из настроек)
+        localStorage.setItem(attackCooldownKey, (Date.now() + attackCooldownHours * 60 * 60 * 1000).toString());
         
         showToast(`⚔️ Война объявлена клану "${targetClanName}"!`, 'success');
         notifyClanMembers(targetClanId, `⚠️ Клан "${myClan.name}" объявил войну вашему клану! Война продлится ${WAR_DURATION_HOURS} часов. Защищайтесь!`);
         
-        closeWarModal();
-        setTimeout(() => openWarModal(), 100);
+        // ВАЖНО: НЕ закрываем модальное окно! Просто обновляем его содержимое
+        updateWarWindowUI();
+        
+        // Обновляем UI без перезагрузки
+        renderUI();
+        
     } catch (e) {
         console.error('Ошибка начала войны:', e);
         showToast('Ошибка начала войны: ' + e.message, 'error');
@@ -7475,7 +7798,6 @@ function formatTimerDisplay(ms) {
 function renderNoWarContent(container) {
     if (!container) return;
     
-    // Проверяем, есть ли клан у игрока
     if (!currentPlayer.clanId) {
         container.innerHTML = `
             <div class="treasury-card" style="text-align: center;">
@@ -7498,21 +7820,33 @@ function renderNoWarContent(container) {
         return;
     }
     
+    if (currentPlayer.level < WAR_MIN_LEVEL) {
+        container.innerHTML = `
+            <div class="treasury-card" style="text-align: center;">
+                <div style="font-size: 48px; margin-bottom: 15px;">⭐</div>
+                <div style="font-size: 20px; font-weight: 700; color: #c9a03d;">НЕОБХОДИМ ${WAR_MIN_LEVEL} УРОВЕНЬ</div>
+                <div style="margin-top: 15px; color: #aaa;">Ваш уровень: ${currentPlayer.level}</div>
+            </div>
+        `;
+        return;
+    }
+    
     const myClan = allClans.find(c => c.id === currentPlayer.clanId);
     const availableClans = allClans.filter(c => 
         c.id !== currentPlayer.clanId && 
         c.level === (myClan?.level || 1)
     );
     
-    // Получаем время последней войны клана
+    // Получаем время последней войны клана с учётом настроек
+    const warCooldownHours = window.WAR_COOLDOWN_HOURS || 24;
     const lastWarKey = `lastWar_${currentPlayer.clanId}`;
     const lastWarTime = localStorage.getItem(lastWarKey);
     let clanCooldownRemaining = 0;
     let clanCooldownText = '';
     
-    if (lastWarTime) {
+    if (lastWarTime && warCooldownHours > 0) {
         const elapsed = Date.now() - parseInt(lastWarTime);
-        const cooldownMs = 24 * 60 * 60 * 1000; // 24 часа кулдаун
+        const cooldownMs = warCooldownHours * 60 * 60 * 1000;
         if (elapsed < cooldownMs) {
             clanCooldownRemaining = cooldownMs - elapsed;
             clanCooldownText = formatTimeDetailedFull(clanCooldownRemaining);
@@ -7531,26 +7865,23 @@ function renderNoWarContent(container) {
     }
     
     // Формируем список кланов с защитой
+    const attackCooldownHours = window.WAR_ATTACK_COOLDOWN_HOURS || 48;
     const clansHtml = availableClans.map(clan => {
-        // Проверяем защиту клана
         const isDefended = clan.defenseUntil && clan.defenseUntil > Date.now();
         let defenseText = '';
-        let defenseIcon = '';
         
         if (isDefended) {
             const remaining = clan.defenseUntil - Date.now();
             defenseText = formatTimeDetailedFull(remaining);
-            defenseIcon = '🛡️';
         }
         
-        // Проверяем кулдаун атаки на этот клан (если главарь уже атаковал его)
         const attackCooldownKey = `attackCooldown_${currentPlayer.clanId}_${clan.id}`;
-        const attackCooldown = localStorage.getItem(attackCooldownKey);
+        const savedCooldown = localStorage.getItem(attackCooldownKey);
         let attackCooldownText = '';
         let isAttackOnCooldown = false;
         
-        if (attackCooldown) {
-            const cooldownEnd = parseInt(attackCooldown);
+        if (savedCooldown && attackCooldownHours > 0) {
+            const cooldownEnd = parseInt(savedCooldown);
             if (cooldownEnd > Date.now()) {
                 isAttackOnCooldown = true;
                 const remaining = cooldownEnd - Date.now();
@@ -7558,23 +7889,17 @@ function renderNoWarContent(container) {
             }
         }
         
-        // Проверяем глобальный кулдаун клана
-        let isClanOnCooldown = false;
-        if (clanCooldownRemaining > 0) {
-            isClanOnCooldown = true;
-        }
-        
-        const isDisabled = isDefended || isAttackOnCooldown || isClanOnCooldown;
+        const isDisabled = isDefended || isAttackOnCooldown || clanCooldownRemaining > 0;
         let disabledReason = '';
         if (isDefended) disabledReason = `🛡️ Защита: ${defenseText}`;
-        else if (isAttackOnCooldown) disabledReason = `⏳ Кулдаун: ${attackCooldownText}`;
-        else if (isClanOnCooldown) disabledReason = `⏳ Ваш клан сможет атаковать через: ${clanCooldownText}`;
+        else if (isAttackOnCooldown) disabledReason = `⏳ Кулдаун атаки: ${attackCooldownText}`;
+        else if (clanCooldownRemaining > 0) disabledReason = `⏳ Ваш клан сможет атаковать через: ${clanCooldownText}`;
         
         return `
             <div class="clan-card-item" style="display: flex; justify-content: space-between; align-items: center; padding: 12px; ${isDisabled ? 'opacity: 0.7;' : ''}">
                 <div>
                     <strong style="color: #ffd966;">🏰 ${escapeHtml(clan.name)}</strong>
-                    ${isDefended ? `<span class="defense-badge defense-active">🛡️ ${defenseText}</span>` : ''}
+                    ${isDefended ? `<span class="defense-badge defense-active" style="margin-left: 8px;">🛡️ ${defenseText}</span>` : ''}
                     <div style="font-size: 11px; color: #aaa; margin-top: 4px;">
                         👑 ${escapeHtml(clan.leader)} | 👥 ${clan.members?.length || 0} уч. | 📈 ур.${clan.level || 1} | 💪 ${clan.totalPower || 0}
                         ${isAttackOnCooldown ? `<div class="cooldown-badge" style="margin-top: 4px;">⏳ Кулдаун атаки: ${attackCooldownText}</div>` : ''}
@@ -7592,12 +7917,17 @@ function renderNoWarContent(container) {
         `;
     }).join('');
     
-    // Добавляем информацию о кулдауне клана
     const clanCooldownHtml = clanCooldownRemaining > 0 ? `
         <div class="bonus-info" style="background: rgba(233,69,96,0.15); text-align: center; margin-bottom: 15px;">
             ⏳ Ваш клан сможет начать новую войну через: <span class="attack-timer">${clanCooldownText}</span>
+            <div style="font-size: 10px; color: #888; margin-top: 5px;">⚙️ Кулдаун между войнами: ${warCooldownHours} часов</div>
         </div>
-    ` : '';
+    ` : `
+        <div class="bonus-info" style="background: rgba(76,175,80,0.15); text-align: center; margin-bottom: 15px;">
+            ✅ Ваш клан готов к войне!
+            <div style="font-size: 10px; color: #888; margin-top: 5px;">⚙️ Кулдаун между войнами: ${warCooldownHours} часов</div>
+        </div>
+    `;
     
     container.innerHTML = `
         <div class="treasury-card">
@@ -7605,6 +7935,7 @@ function renderNoWarContent(container) {
                 <div style="font-size: 36px;">⚔️</div>
                 <div style="font-size: 18px; font-weight: 700; color: #c9a03d;">ОБЪЯВИТЬ ВОЙНУ</div>
                 <div style="font-size: 12px; color: #aaa; margin-top: 5px;">Доступны кланы того же уровня</div>
+                <div style="font-size: 11px; color: #ffd966; margin-top: 8px;">⏱️ Длительность войны: ${WAR_DURATION_HOURS} часов</div>
             </div>
             ${clanCooldownHtml}
             <div style="display: flex; flex-direction: column; gap: 10px; max-height: 400px; overflow-y: auto;">
@@ -7612,6 +7943,35 @@ function renderNoWarContent(container) {
             </div>
         </div>
     `;
+}
+
+function resetWarCooldowns() {
+    if (!currentPlayer) {
+        showToast('Нет игрока', 'warning');
+        return;
+    }
+    
+    // Сбрасываем кулдаун клана
+    localStorage.removeItem(`lastWar_${currentPlayer.clanId}`);
+    
+    // Сбрасываем кулдауны атак на все кланы
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith(`attackCooldown_${currentPlayer.clanId}`)) {
+            keysToRemove.push(key);
+        }
+    }
+    keysToRemove.forEach(key => localStorage.removeItem(key));
+    
+    showToast('✅ Все кулдауны войн сброшены!', 'success');
+    
+    // Обновляем UI
+    const warModal = document.getElementById('warFullscreen');
+    if (warModal) {
+        updateWarWindowUI();
+    }
+    renderUI();
 }
 
 function formatTimeDetailedFull(ms) {
@@ -9793,7 +10153,7 @@ function addNotification(type, title, message, targetPlayerId = null) {
                 <img class="loading-logo" src="https://sviter-pro.github.io/GameZone/src/test/logo124.png" alt="Тюряга 2.0" onerror="this.src='https://via.placeholder.com/180x180?text=Тюряга+2.0'">
                 <div class="loading-spinner-new"></div>
                 <div class="loading-tip-new" id="loadingTipNew">⚡ Загрузка игрового мира...</div>
-                <div class="loading-version">Зона 1.0.0.255 | Зона ждет</div>
+                <div class="loading-version">Зона 1.0.0.257 | Зона ждет</div>
             </div>
         `;
             const tipEl = document.getElementById('loadingTipNew');
@@ -10577,266 +10937,8 @@ function addNotification(type, title, message, targetPlayerId = null) {
     setTimeout(() => { window._opening_modal = false; }, 500);
 }
 
-function openInventoryModal() {
-    if (window._opening_modal) { console.log('Блокировка: окно уже открывается'); return; }
-    window._opening_modal = true;
 
-    if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); window._opening_modal = false; return; }
-    if (!currentPlayer) { window._opening_modal = false; return; }
-
-    // Получаем все предметы из магазина
-    const shopItems = getShopItemsFromAdmin();
-    
-    // Фильтруем предметы по типам
-    const weapons = shopItems.filter(i => i.category === 'weapon' && i.type === 'equipment');
-    const armors = shopItems.filter(i => i.category === 'armor' && i.type === 'equipment');
-    const accessories = shopItems.filter(i => i.category === 'accessory' && i.type === 'equipment');
-    
-    // Получаем купленные предметы
-    const purchasedEquipment = currentPlayer.purchasedEquipment || [];
-    
-    // ===== ВАЖНО: Фильтруем ТОЛЬКО купленные предметы =====
-    const ownedWeapons = weapons.filter(item => purchasedEquipment.includes(item.name));
-    const ownedArmors = armors.filter(item => purchasedEquipment.includes(item.name));
-    const ownedAccessories = accessories.filter(item => purchasedEquipment.includes(item.name));
-    
-    // Текущая экипировка
-    const currentWeapon = currentPlayer.equipped?.weapon || 'камень';
-    const currentArmor = currentPlayer.equipped?.armor || 'роба';
-    const currentAccessory = currentPlayer.equipped?.accessory || 'чифирная кружка';
-    
-    // Татуировки
-    const tattoos = currentPlayer.tattoos || [];
-    
-    // Функция рендера секции с предметами (только купленные)
-    const renderItemsSection = (items, currentItem, slotName, title, icon) => {
-        if (!items || items.length === 0) {
-            return '<div style="color:#aaa; padding: 10px; text-align: center;">❌ Нет купленных предметов<br><span style="font-size: 11px;">Купи в магазине у Барыги</span></div>';
-        }
         
-        return `
-            <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(139,69,19,0.3);">
-                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
-                    ${items.map(item => {
-                        const isEquipped = currentItem === item.name;
-                        let statusText = '';
-                        let statusColor = '#888';
-                        
-                        if (isEquipped) {
-                            statusText = '✓ НАДЕТО';
-                            statusColor = '#4caf50';
-                        } else {
-                            statusText = '📦 В ИНВЕНТАРЕ';
-                            statusColor = '#ff9800';
-                        }
-                        
-                        // Иконка предмета
-                        let itemIcon = '📦';
-                        if (item.category === 'weapon') itemIcon = '🔪';
-                        else if (item.category === 'armor') itemIcon = '👕';
-                        else if (item.category === 'accessory') itemIcon = '💍';
-                        
-                        return `
-                            <div class="shop-item-card" style="padding: 8px; cursor: pointer;" onclick="changeEquipment('${slotName}', '${item.name}', '${item.stat || ''}', ${item.bonus || 0})">
-                                ${item.imageUrl ? 
-                                    `<img src="${item.imageUrl}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 12px; margin-bottom: 5px;" onerror="this.style.display='none'">` : 
-                                    `<div style="font-size: 30px; margin-bottom: 5px;">${itemIcon}</div>`
-                                }
-                                <div style="font-size: 11px; font-weight: bold; color: #ffd966;">${escapeHtml(item.name)}</div>
-                                <div style="font-size: 9px; color: ${statusColor};">${statusText}</div>
-                                ${item.bonus ? `<div style="font-size: 9px; color: #aaa;">+${item.bonus} ${item.stat === 'strength' ? '💪' : (item.stat === 'defense' ? '🛡️' : '⚡')}</div>` : ''}
-                            </div>
-                        `;
-                    }).join('')}
-                </div>
-            </div>
-        `;
-    };
-    
-    // Функция рендера секции с татуировками
-    const renderTattoosSection = () => {
-        if (!tattoos || tattoos.length === 0) {
-            return '<div style="color:#aaa; padding: 20px; text-align: center;">❌ Нет наколок<br><span style="font-size: 11px;">Купи в магазине у Барыги</span></div>';
-        }
-        
-        return `
-            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
-                ${tattoos.map(tattoo => {
-                    // Поддержка как старых (строковых) так и новых (объектных) татуировок
-                    const tattooName = typeof tattoo === 'object' ? tattoo.name : tattoo;
-                    const tattooImage = typeof tattoo === 'object' ? tattoo.imageUrl : '';
-                    const tattooBonus = typeof tattoo === 'object' ? tattoo.bonus : 0;
-                    const tattooStat = typeof tattoo === 'object' ? tattoo.stat : '';
-                    
-                    let bonusText = '';
-                    if (tattooBonus > 0) {
-                        if (tattooStat === 'strength') bonusText = `+${tattooBonus} 💪`;
-                        else if (tattooStat === 'defense') bonusText = `+${tattooBonus} 🛡️`;
-                        else if (tattooStat === 'critical') bonusText = `+${tattooBonus} ⚡`;
-                    }
-                    
-                    return `
-                        <div class="shop-item-card" style="padding: 8px;">
-                            ${tattooImage ? 
-                                `<img src="${tattooImage}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 12px; margin-bottom: 5px;" onerror="this.style.display='none'">` : 
-                                `<div style="font-size: 30px; margin-bottom: 5px;">💉</div>`
-                            }
-                            <div style="font-size: 11px; font-weight: bold; color: #ffd966;">${escapeHtml(tattooName)}</div>
-                            ${bonusText ? `<div style="font-size: 9px; color: #4caf50;">${bonusText}</div>` : ''}
-                        </div>
-                    `;
-                }).join('')}
-            </div>
-        `;
-    };
-    
-    const modalHtml = `
-        <div class="inventory-fullscreen" id="inventoryFullscreen">
-            <div class="inventory-header-bar">
-                <div class="inventory-header-content">
-                    <div class="inventory-header-title">КАМЕРА</div>
-                </div>
-            </div>
-            <div class="inventory-content-area" style="padding-bottom: 80px;">
-                
-                <!-- ТЕКУЩАЯ ЭКИПИРОВКА -->
-                <div class="inventory-card">
-                    <h3 style="margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
-                        <span>🔧</span> 
-                        <span>ТЕКУЩАЯ ЭКИПИРОВКА</span>
-                    </h3>
-                    
-                    <!-- ОРУЖИЕ - кликабельно -->
-                    <div class="inventory-row" style="cursor: pointer;" onclick="toggleInventorySection('weapon')">
-                        <span class="inventory-label">🔪 ОРУЖИЕ</span>
-                        <span class="inventory-value">${escapeHtml(currentWeapon)} <span style="font-size: 10px;">▼</span></span>
-                    </div>
-                    <div id="inventoryWeaponSection" style="display: none;">
-                        ${renderItemsSection(ownedWeapons, currentWeapon, 'weapon', 'Доступное оружие', '🔪')}
-                    </div>
-                    
-                    <!-- ОДЕЖДА - кликабельно -->
-                    <div class="inventory-row" style="cursor: pointer;" onclick="toggleInventorySection('armor')">
-                        <span class="inventory-label">👕 ОДЕЖДА</span>
-                        <span class="inventory-value">${escapeHtml(currentArmor)} <span style="font-size: 10px;">▼</span></span>
-                    </div>
-                    <div id="inventoryArmorSection" style="display: none;">
-                        ${renderItemsSection(ownedArmors, currentArmor, 'armor', 'Доступная одежда', '👕')}
-                    </div>
-                    
-                    <!-- АКСЕССУАРЫ - кликабельно -->
-                    <div class="inventory-row" style="cursor: pointer;" onclick="toggleInventorySection('accessory')">
-                        <span class="inventory-label">💍 АКСЕССУАРЫ</span>
-                        <span class="inventory-value">${escapeHtml(currentAccessory)} <span style="font-size: 10px;">▼</span></span>
-                    </div>
-                    <div id="inventoryAccessorySection" style="display: none;">
-                        ${renderItemsSection(ownedAccessories, currentAccessory, 'accessory', 'Доступные аксессуары', '💍')}
-                    </div>
-                </div>
-                
-                <!-- НАКОЛКИ -->
-                <div class="inventory-card">
-                    <h3 style="margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
-                        <span>💉</span> 
-                        <span>НАКОЛКИ (${tattoos.length})</span>
-                        <span style="font-size: 10px; color: #8B4513;">🏆 воровская гордость</span>
-                    </h3>
-                    ${renderTattoosSection()}
-                </div>
-                
-            </div>
-            <div class="inventory-bottom-nav">
-                <div class="bottom-nav">
-                    <button class="inventory-tab-btn active" onclick="closeInventoryModal()">
-                        <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_6.png"  height="70px" width="55px" draggable="false">
-                    </button>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    document.body.insertAdjacentHTML('beforeend', modalHtml);
-    if (tg) tg.BackButton.show();
-
-    setTimeout(() => { window._opening_modal = false; }, 500);
-}
-
-function toggleInventorySection(section) {
-    const element = document.getElementById(`inventory${section.charAt(0).toUpperCase() + section.slice(1)}Section`);
-    if (element) {
-        if (element.style.display === 'none') {
-            element.style.display = 'block';
-        } else {
-            element.style.display = 'none';
-        }
-    }
-}
-async function changeEquipment(slot, itemName, stat, bonus) {
-    if (!currentPlayer) return;
-    
-    // Получаем старый предмет
-    const oldItemName = currentPlayer.equipped[slot];
-    
-    // Если надеваем тот же предмет - ничего не делаем
-    if (oldItemName === itemName) {
-        showToast('Этот предмет уже надет!', 'warning');
-        return;
-    }
-    
-    // Получаем данные старого предмета из магазина
-    const shopItems = getShopItemsFromAdmin();
-    const oldItemData = shopItems.find(i => i.name === oldItemName && i.type === 'equipment' && i.slot === slot);
-    const newItemData = shopItems.find(i => i.name === itemName && i.type === 'equipment' && i.slot === slot);
-    
-    if (!newItemData) {
-        showToast('Ошибка: предмет не найден!', 'error');
-        return;
-    }
-    
-    // Снимаем старый бонус
-    if (oldItemData && oldItemData.stat && oldItemData.bonus) {
-        currentPlayer.stats[oldItemData.stat] = (currentPlayer.stats[oldItemData.stat] || 0) - oldItemData.bonus;
-        await playerDocRef.update({
-            [`stats.${oldItemData.stat}`]: firebase.firestore.FieldValue.increment(-oldItemData.bonus)
-        });
-    }
-    
-    // Одеваем новый предмет
-    currentPlayer.equipped[slot] = itemName;
-    if (stat && bonus) {
-        currentPlayer.stats[stat] = (currentPlayer.stats[stat] || 0) + bonus;
-        await playerDocRef.update({
-            [`equipped.${slot}`]: itemName,
-            [`stats.${stat}`]: firebase.firestore.FieldValue.increment(bonus)
-        });
-    } else {
-        await playerDocRef.update({
-            [`equipped.${slot}`]: itemName
-        });
-    }
-    
-    const statName = stat === 'strength' ? 'силы' : (stat === 'defense' ? 'защиты' : 'крита');
-    showToast(`✅ Надето: ${itemName}! +${bonus} ${statName}`, 'success');
-    
-    // Обновляем инвентарь
-    closeInventoryModal();
-    setTimeout(() => openInventoryModal(), 100);
-    renderUI();
-}
-
-        function closeInventoryModal() {
-            const modal = document.getElementById('inventoryFullscreen');
-            if (modal) modal.remove();
-            if (tg) tg.BackButton.hide();
-
-            // Восстанавливаем скролл body
-            document.body.style.overflow = '';
-            document.body.style.position = '';
-            document.body.style.width = '';
-            document.body.classList.remove('modal-open');
-
-            renderUI();
-        }
 
         async function changeUsername() {
             if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); return; }
@@ -11192,7 +11294,7 @@ async function changeEquipment(slot, itemName, stat, bonus) {
                 
                 <div class="settings-card">
                     <div style="font-size: 13px; color: #aaa; text-align: center;">
-                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.255</div>
+                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.257</div>
                         <div style="font-size: 11px;">⚡ Клановые войны | Бесконечная прокачка</div>
                     </div>
                 </div>
@@ -11241,75 +11343,49 @@ async function changeEquipment(slot, itemName, stat, bonus) {
     const b2Element = document.querySelector('.building.b2');
     if (!b2Element) return;
     
-    let hasWork = false;
-    let hasUpgrade = false;
-    let workRemaining = 0;
-    let upgradeRemaining = 0;
-    let workIcon = '⛏️';
-    let upgradeIcon = '⬆️';
+    // Собираем ВСЕ активные счетчики
+    const activeCounters = [];
     
-    // ШАХТА - работа
+    // 1. Работа в ШАХТЕ
     const mineWorkRemaining = getWorkRemaining('mine');
     if (mineWorkRemaining > 0) {
-        hasWork = true;
-        workRemaining = mineWorkRemaining;
-        workIcon = '⛏️';
+        activeCounters.push({ type: 'work', icon: '⛏️', remaining: mineWorkRemaining, name: 'Шахта' });
     }
     
-    // ШАХТА - прокачка бумаги
+    // 2. Прокачка БУМАГИ в шахте
     const minePaperUpgradeRemaining = getMineUpgradeRemaining('paper');
-    if (minePaperUpgradeRemaining > 0 && !hasUpgrade) {
-        hasUpgrade = true;
-        upgradeRemaining = minePaperUpgradeRemaining;
-        upgradeIcon = '📄⬆️';
+    if (minePaperUpgradeRemaining > 0) {
+        activeCounters.push({ type: 'upgrade', icon: '📄⬆️', remaining: minePaperUpgradeRemaining, name: 'Бумага' });
     }
     
-    // ШАХТА - прокачка махорки
+    // 3. Прокачка МАХОРКИ в шахте
     const mineMakhorkaUpgradeRemaining = getMineUpgradeRemaining('makhorka');
-    if (mineMakhorkaUpgradeRemaining > 0 && !hasUpgrade) {
-        hasUpgrade = true;
-        upgradeRemaining = mineMakhorkaUpgradeRemaining;
-        upgradeIcon = '🌿⬆️';
+    if (mineMakhorkaUpgradeRemaining > 0) {
+        activeCounters.push({ type: 'upgrade', icon: '🌿⬆️', remaining: mineMakhorkaUpgradeRemaining, name: 'Махорка' });
     }
     
-    // ЛЕСОПОВАЛ - работа
-    if (!hasWork) {
-        const lumberWorkRemaining = getWorkRemaining('lumber');
-        if (lumberWorkRemaining > 0) {
-            hasWork = true;
-            workRemaining = lumberWorkRemaining;
-            workIcon = '🪓';
-        }
+    // 4. Работа в ЛЕСОПОВАЛЕ
+    const lumberWorkRemaining = getWorkRemaining('lumber');
+    if (lumberWorkRemaining > 0) {
+        activeCounters.push({ type: 'work', icon: '🪓', remaining: lumberWorkRemaining, name: 'Лесоповал' });
     }
     
-    // ЛЕСОПОВАЛ - прокачка
-    if (!hasUpgrade) {
-        const lumberUpgradeRemaining = getLumberUpgradeRemaining();
-        if (lumberUpgradeRemaining > 0) {
-            hasUpgrade = true;
-            upgradeRemaining = lumberUpgradeRemaining;
-            upgradeIcon = '🪵⬆️';
-        }
+    // 5. Прокачка ЛЕСОПОВАЛА
+    const lumberUpgradeRemaining = getLumberUpgradeRemaining();
+    if (lumberUpgradeRemaining > 0) {
+        activeCounters.push({ type: 'upgrade', icon: '🪵⬆️', remaining: lumberUpgradeRemaining, name: 'Лесоповал' });
     }
     
-    // КАМЕНОЛОМНЯ - работа
-    if (!hasWork) {
-        const quarryWorkRemaining = getWorkRemaining('quarry');
-        if (quarryWorkRemaining > 0) {
-            hasWork = true;
-            workRemaining = quarryWorkRemaining;
-            workIcon = '⛏️';
-        }
+    // 6. Работа в КАМЕНОЛОМНЕ
+    const quarryWorkRemaining = getWorkRemaining('quarry');
+    if (quarryWorkRemaining > 0) {
+        activeCounters.push({ type: 'work', icon: '⛏️', remaining: quarryWorkRemaining, name: 'Каменоломня' });
     }
     
-    // КАМЕНОЛОМНЯ - прокачка
-    if (!hasUpgrade) {
-        const quarryUpgradeRemaining = getQuarryUpgradeRemaining();
-        if (quarryUpgradeRemaining > 0) {
-            hasUpgrade = true;
-            upgradeRemaining = quarryUpgradeRemaining;
-            upgradeIcon = '🪨⬆️';
-        }
+    // 7. Прокачка КАМЕНОЛОМНИ
+    const quarryUpgradeRemaining = getQuarryUpgradeRemaining();
+    if (quarryUpgradeRemaining > 0) {
+        activeCounters.push({ type: 'upgrade', icon: '🪨⬆️', remaining: quarryUpgradeRemaining, name: 'Каменоломня' });
     }
     
     const formatMapTimer = (ms) => {
@@ -11321,21 +11397,31 @@ async function changeEquipment(slot, itemName, stat, bonus) {
         return `${seconds}с`;
     };
     
+    // Находим или создаём контейнер
     let countersDiv = b2Element.querySelector('.counters-container-work');
     
-    if (hasWork || hasUpgrade) {
+    if (activeCounters.length > 0) {
         if (!countersDiv) {
             countersDiv = document.createElement('div');
             countersDiv.className = 'counters-container-work';
             b2Element.appendChild(countersDiv);
         }
         
+        // Сортируем: сначала работа, потом прокачка
+        activeCounters.sort((a, b) => {
+            if (a.type === 'work' && b.type === 'upgrade') return -1;
+            if (a.type === 'upgrade' && b.type === 'work') return 1;
+            return 0;
+        });
+        
         let html = '';
-        if (hasWork) {
-            html += `<div class="work-counter">${workIcon} ${formatMapTimer(workRemaining)}</div>`;
-        }
-        if (hasUpgrade) {
-            html += `<div class="upgrade-work-counter">${upgradeIcon} ${formatMapTimer(upgradeRemaining)}</div>`;
+        for (const counter of activeCounters) {
+            const timerText = formatMapTimer(counter.remaining);
+            if (counter.type === 'work') {
+                html += `<div class="work-counter" title="${counter.name}">${counter.icon} ${timerText}</div>`;
+            } else {
+                html += `<div class="upgrade-work-counter" title="${counter.name}">⬆️ ${timerText}</div>`;
+            }
         }
         
         countersDiv.innerHTML = html;
@@ -11531,7 +11617,13 @@ function updateMineModalUI() {
     const contentArea = document.getElementById('mineContentArea');
     if (!contentArea) return;
     
-    // Генерируем контент в зависимости от выбранной вкладки
+    // Проверяем завершение прокачек ПЕРЕД обновлением UI
+    checkAndCompleteMineUpgrade('paper');
+    checkAndCompleteMineUpgrade('makhorka');
+    checkAndCompleteLumberUpgrade();
+    checkAndCompleteQuarryUpgrade();
+    
+    // Генерируем контент
     let contentHtml = '';
     
     if (currentMineTab === 'mine') {
@@ -11544,7 +11636,7 @@ function updateMineModalUI() {
     
     contentArea.innerHTML = contentHtml;
     
-    // Навешиваем обработчики после вставки HTML
+    // Навешиваем обработчики
     if (currentMineTab === 'mine') {
         attachMineHandlers();
     } else if (currentMineTab === 'lumber') {
@@ -11898,7 +11990,13 @@ function renderQuarryContent() {
 }
 
 function renderMineContent() {
-    const mineData = currentPlayer.mine || { paperLevel: 1, makhorkaLevel: 1, lastMineTime: 0, paper: 0, makhorka: 0, paperUpgradeStartTime: 0, paperUpgradeDuration: 0, makhorkaUpgradeStartTime: 0, makhorkaUpgradeDuration: 0 };
+    const mineData = currentPlayer.mine || { 
+        paperLevel: 1, makhorkaLevel: 1, lastMineTime: 0, 
+        paper: 0, makhorka: 0, 
+        paperUpgradeStartTime: 0, paperUpgradeDuration: 0, 
+        makhorkaUpgradeStartTime: 0, makhorkaUpgradeDuration: 0 
+    };
+    
     const paperLevel = mineData.paperLevel;
     const makhorkaLevel = mineData.makhorkaLevel;
     const paperUpgradeActive = isMineUpgradeActive('paper');
@@ -11909,42 +12007,46 @@ function renderMineContent() {
     const workAvailable = workRemaining <= 0 && !paperUpgradeActive && !makhorkaUpgradeActive;
     const upgradeCostPaper = 50 * paperLevel;
     const upgradeCostMakhorka = 50 * makhorkaLevel;
-    let upgradeDurationMs = 2 * 60 * 1000;
-    upgradeDurationMs = Math.floor(upgradeDurationMs * (1 + (paperLevel - 1) * 0.1));
+    
+    let upgradeDurationMsPaper = 2 * 60 * 1000;
+    upgradeDurationMsPaper = Math.floor(upgradeDurationMsPaper * (1 + (paperLevel - 1) * 0.1));
+    let upgradeDurationMsMakhorka = 2 * 60 * 1000;
+    upgradeDurationMsMakhorka = Math.floor(upgradeDurationMsMakhorka * (1 + (makhorkaLevel - 1) * 0.1));
+    
     const workExpGain = 25 + (paperLevel * 3) + (makhorkaLevel * 2);
     
-    const paperProgressPercent = paperUpgradeActive ? Math.min(100, ((Date.now() - currentPlayer.mine.paperUpgradeStartTime) / upgradeDurationMs) * 100) : 0;
-    const makhorkaProgressPercent = makhorkaUpgradeActive ? Math.min(100, ((Date.now() - currentPlayer.mine.makhorkaUpgradeStartTime) / upgradeDurationMs) * 100) : 0;
+    const paperProgressPercent = paperUpgradeActive ? Math.min(100, ((Date.now() - (mineData.paperUpgradeStartTime || 0)) / upgradeDurationMsPaper) * 100) : 0;
+    const makhorkaProgressPercent = makhorkaUpgradeActive ? Math.min(100, ((Date.now() - (mineData.makhorkaUpgradeStartTime || 0)) / upgradeDurationMsMakhorka) * 100) : 0;
     
     // Верхняя панель ресурсов
     let resourcesBar = `
         <div style="background: linear-gradient(135deg, #1a1a2a, #0d0d15); border-radius: 1px; padding: 5px 20px; margin: 9px -15px; border: 1px solid #8B4513; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-            <div style="display: flex; gap: 1px; align-items: center;">
+            <div style="display: flex; gap: 1px; align-items: center; flex-wrap: wrap;">
                 <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
                     <span style="font-size: 11px;">🚬</span>
-                    <span id="mineCigarettesValue" style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.cigarettes || 0)}</span>
+                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.cigarettes || 0)}</span>
                 </div>
                 <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
                     <span style="font-size: 11px;">📄</span>
-                    <span id="minePaperValue" style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.mine?.paper || 0)}</span>
+                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.mine?.paper || 0)}</span>
                 </div>
                 <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
                     <span style="font-size: 11px;">🌿</span>
-                    <span id="mineMakhorkaValue" style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.mine?.makhorka || 0)}</span>
+                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.mine?.makhorka || 0)}</span>
                 </div>
                 <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
                     <span style="font-size: 11px;">🪵</span>
-                    <span id="mineWoodValue" style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.lumber?.wood || 0)}</span>
+                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.lumber?.wood || 0)}</span>
                 </div>
                 <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
                     <span style="font-size: 11px;">🪨</span>
-                    <span id="mineStoneValue" style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.quarry?.stone || 0)}</span>
+                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.quarry?.stone || 0)}</span>
                 </div>
             </div>
         </div>
     `;
     
-    // Вкладки РАБОТАТЬ / ПРОКАЧКА
+    // Вкладки
     let subTabs = `
         <div class="mine-sub-tab-header">
             <button class="mine-sub-tab-btn ${currentMineSubTab === 'work' ? 'active' : ''}" id="mineWorkTabBtn">⛏️ РАБОТАТЬ</button>
@@ -12010,6 +12112,7 @@ function renderMineContent() {
                     <div style="background: linear-gradient(135deg, #8B4513, #5a2d0a); display: inline-block; padding: 5px 20px; border-radius: 30px; font-size: 14px; font-weight: 700;">⬆️ ПРОКАЧКА ШАХТЫ</div>
                 </div>
                 
+                <!-- ПРОКАЧКА БУМАГИ -->
                 <div class="mine-upgrade-info">
                     <div class="mine-upgrade-cost">
                         <span>📄 БУМАГА УР. ${paperLevel}</span>
@@ -12019,19 +12122,20 @@ function renderMineContent() {
                         <div class="mine-upgrade-progress">
                             <div class="mine-progress-label">⏳ ПРОКАЧКА ДО ${paperLevel + 1} УРОВНЯ</div>
                             <div class="mine-progress-bar"><div id="paperUpgradeTimerUpgrade" class="mine-progress-fill" style="width: ${paperProgressPercent}%"></div></div>
-                            <div style="font-size: 11px; text-align: center; margin-top: 5px;"><span class="timer-text">${formatTimerMinutes(paperUpgradeRemaining)}</span></div>
+                            <div style="font-size: 11px; text-align: center; margin-top: 5px;"><span class="timer-text" id="paperUpgradeTimerUpgradeText">${formatTimerMinutes(paperUpgradeRemaining)}</span></div>
                         </div>
                     ` : `
                         <div class="mine-upgrade-cost">
                             <span>⬆️ ДО ${paperLevel + 1} УРОВНЯ</span>
                             <span>💰 ${upgradeCostPaper} 🚬</span>
                         </div>
-                        <button id="upgradePaperBtn" class="mine-work-btn" style="width: 100%; margin-top: 10px;" ${(currentPlayer.cigarettes < upgradeCostPaper || getWorkRemaining('mine') > 0) ? 'disabled' : ''}>
+                        <button id="upgradePaperBtn" class="mine-work-btn" style="width: 100%; margin-top: 10px;" ${(currentPlayer.cigarettes < upgradeCostPaper || getWorkRemaining('mine') > 0 || paperUpgradeActive || makhorkaUpgradeActive) ? 'disabled' : ''}>
                             ⬆️ УЛУЧШИТЬ БУМАГУ
                         </button>
                     `}
                 </div>
                 
+                <!-- ПРОКАЧКА МАХОРКИ -->
                 <div class="mine-upgrade-info">
                     <div class="mine-upgrade-cost">
                         <span>🌿 МАХОРКА УР. ${makhorkaLevel}</span>
@@ -12041,14 +12145,14 @@ function renderMineContent() {
                         <div class="mine-upgrade-progress">
                             <div class="mine-progress-label">⏳ ПРОКАЧКА ДО ${makhorkaLevel + 1} УРОВНЯ</div>
                             <div class="mine-progress-bar"><div id="makhorkaUpgradeTimerUpgrade" class="mine-progress-fill" style="width: ${makhorkaProgressPercent}%"></div></div>
-                            <div style="font-size: 11px; text-align: center; margin-top: 5px;"><span class="timer-text">${formatTimerMinutes(makhorkaUpgradeRemaining)}</span></div>
+                            <div style="font-size: 11px; text-align: center; margin-top: 5px;"><span class="timer-text" id="makhorkaUpgradeTimerUpgradeText">${formatTimerMinutes(makhorkaUpgradeRemaining)}</span></div>
                         </div>
                     ` : `
                         <div class="mine-upgrade-cost">
                             <span>⬆️ ДО ${makhorkaLevel + 1} УРОВНЯ</span>
                             <span>💰 ${upgradeCostMakhorka} 🚬</span>
                         </div>
-                        <button id="upgradeMakhorkaBtn" class="mine-work-btn" style="width: 100%; margin-top: 10px;" ${(currentPlayer.cigarettes < upgradeCostMakhorka || getWorkRemaining('mine') > 0) ? 'disabled' : ''}>
+                        <button id="upgradeMakhorkaBtn" class="mine-work-btn" style="width: 100%; margin-top: 10px;" ${(currentPlayer.cigarettes < upgradeCostMakhorka || getWorkRemaining('mine') > 0 || paperUpgradeActive || makhorkaUpgradeActive) ? 'disabled' : ''}>
                             ⬆️ УЛУЧШИТЬ МАХОРКУ
                         </button>
                     `}
@@ -12469,6 +12573,23 @@ function setupMineSubTabHandlers() {
     }
 }
 
+function getMineUpgradeRemaining(type) {
+    if (!currentPlayer || !currentPlayer.mine) return 0;
+    
+    if (type === 'paper') {
+        const start = currentPlayer.mine.paperUpgradeStartTime || 0;
+        const duration = currentPlayer.mine.paperUpgradeDuration || 0;
+        if (start === 0 || duration === 0) return 0;
+        return Math.max(0, duration - (Date.now() - start));
+    } else if (type === 'makhorka') {
+        const start = currentPlayer.mine.makhorkaUpgradeStartTime || 0;
+        const duration = currentPlayer.mine.makhorkaUpgradeDuration || 0;
+        if (start === 0 || duration === 0) return 0;
+        return Math.max(0, duration - (Date.now() - start));
+    }
+    return 0;
+}
+
 // Обновлённая функция запуска таймеров для окна РАБОТА
 function startMineTimers() {
     if (mineTimerInterval) clearInterval(mineTimerInterval);
@@ -12635,72 +12756,78 @@ function startMineTimers() {
             if (diff < 0 && currentMineSubTab === 'upgrade') switchMineSubTab('work');
         }
 
-        function isMineUpgradeActive(type) {
-            if (type === 'paper') {
-                return currentPlayer.mine?.paperUpgradeStartTime > 0 && (Date.now() - currentPlayer.mine.paperUpgradeStartTime) < (currentPlayer.mine.paperUpgradeDuration || 0);
-            } else if (type === 'makhorka') {
-                return currentPlayer.mine?.makhorkaUpgradeStartTime > 0 && (Date.now() - currentPlayer.mine.makhorkaUpgradeStartTime) < (currentPlayer.mine.makhorkaUpgradeDuration || 0);
-            }
-            return false;
-        }
+function isMineUpgradeActive(type) {
+    if (!currentPlayer || !currentPlayer.mine) return false;
+    
+    if (type === 'paper') {
+        const start = currentPlayer.mine.paperUpgradeStartTime || 0;
+        const duration = currentPlayer.mine.paperUpgradeDuration || 0;
+        if (start === 0 || duration === 0) return false;
+        return (Date.now() - start) < duration;
+    } else if (type === 'makhorka') {
+        const start = currentPlayer.mine.makhorkaUpgradeStartTime || 0;
+        const duration = currentPlayer.mine.makhorkaUpgradeDuration || 0;
+        if (start === 0 || duration === 0) return false;
+        return (Date.now() - start) < duration;
+    }
+    return false;
+}
 
-        function getMineUpgradeRemaining(type) {
-            if (type === 'paper') {
-                const start = currentPlayer.mine?.paperUpgradeStartTime || 0;
-                const duration = currentPlayer.mine?.paperUpgradeDuration || 0;
-                if (start === 0 || duration === 0) return 0;
-                return Math.max(0, duration - (Date.now() - start));
-            } else if (type === 'makhorka') {
-                const start = currentPlayer.mine?.makhorkaUpgradeStartTime || 0;
-                const duration = currentPlayer.mine?.makhorkaUpgradeDuration || 0;
-                if (start === 0 || duration === 0) return 0;
-                return Math.max(0, duration - (Date.now() - start));
-            }
-            return 0;
-        }
 
-        async function checkAndCompleteMineUpgrade(type) {
+    async function checkAndCompleteMineUpgrade(type) {
+    if (!currentPlayer || !currentPlayer.mine) return false;
+    
     const remaining = getMineUpgradeRemaining(type);
-    if (remaining === 0 && ((type === 'paper' && currentPlayer.mine?.paperUpgradeStartTime > 0) || (type === 'makhorka' && currentPlayer.mine?.makhorkaUpgradeStartTime > 0))) {
-        const currentLevel = type === 'paper' ? (currentPlayer.mine?.paperLevel || 1) : (currentPlayer.mine?.makhorkaLevel || 1);
-        const updateObj = {};
-        if (type === 'paper') {
-            updateObj['mine.paperLevel'] = currentLevel + 1;
-            updateObj['mine.paperUpgradeStartTime'] = 0;
-            updateObj['mine.paperUpgradeDuration'] = 0;
-        } else {
-            updateObj['mine.makhorkaLevel'] = currentLevel + 1;
-            updateObj['mine.makhorkaUpgradeStartTime'] = 0;
-            updateObj['mine.makhorkaUpgradeDuration'] = 0;
-        }
-        await playerDocRef.update(updateObj);
-        if (type === 'paper') {
-            currentPlayer.mine.paperLevel = currentLevel + 1;
-            currentPlayer.mine.paperUpgradeStartTime = 0;
-            currentPlayer.mine.paperUpgradeDuration = 0;
-        } else {
-            currentPlayer.mine.makhorkaLevel = currentLevel + 1;
-            currentPlayer.mine.makhorkaUpgradeStartTime = 0;
-            currentPlayer.mine.makhorkaUpgradeDuration = 0;
-        }
+    const startTime = type === 'paper' ? currentPlayer.mine.paperUpgradeStartTime : currentPlayer.mine.makhorkaUpgradeStartTime;
+    
+    // Если время вышло и прокачка была запущена
+    if (remaining === 0 && startTime > 0) {
+        const currentLevel = type === 'paper' ? (currentPlayer.mine.paperLevel || 1) : (currentPlayer.mine.makhorkaLevel || 1);
+        const newLevel = currentLevel + 1;
         
-        // Проверяем, открыто ли окно работы
-        const mineModal = document.getElementById('mineFullscreen');
-        if (mineModal && mineModal.style.display === 'flex') {
-            // Если окно открыто - обновляем без пересоздания
-            updateMineModalUI();
-        } else {
-            // Если окно закрыто - показываем toast
-            showToast(`✅ ${type === 'paper' ? 'Бумага' : 'Махорка'} улучшена до ${currentLevel + 1} уровня!`, 'success');
-            if (settingsNotifications) {
-                sendTelegramNotification(`✅ Прокачка завершена! ${type === 'paper' ? 'Бумага' : 'Махорка'} улучшена до ${currentLevel + 1} уровня!`);
+        console.log(`✅ ЗАВЕРШАЕМ прокачку ${type}: ${currentLevel} -> ${newLevel}`);
+        
+        try {
+            const updateObj = {};
+            if (type === 'paper') {
+                updateObj['mine.paperLevel'] = newLevel;
+                updateObj['mine.paperUpgradeStartTime'] = 0;
+                updateObj['mine.paperUpgradeDuration'] = 0;
+            } else {
+                updateObj['mine.makhorkaLevel'] = newLevel;
+                updateObj['mine.makhorkaUpgradeStartTime'] = 0;
+                updateObj['mine.makhorkaUpgradeDuration'] = 0;
             }
+            
+            await playerDocRef.update(updateObj);
+            
+            if (type === 'paper') {
+                currentPlayer.mine.paperLevel = newLevel;
+                currentPlayer.mine.paperUpgradeStartTime = 0;
+                currentPlayer.mine.paperUpgradeDuration = 0;
+            } else {
+                currentPlayer.mine.makhorkaLevel = newLevel;
+                currentPlayer.mine.makhorkaUpgradeStartTime = 0;
+                currentPlayer.mine.makhorkaUpgradeDuration = 0;
+            }
+            
+            showToast(`✅ ${type === 'paper' ? 'Бумага' : 'Махорка'} улучшена до ${newLevel} уровня!`, 'success');
+            
+            // Обновляем все UI
+            updateWorkCountersOnMap();
+            updateTopBarResources();
+            
+            const mineModal = document.getElementById('mineFullscreen');
+            if (mineModal && mineModal.style.display === 'flex') {
+                updateMineModalUI();
+            }
+            
+            renderUI();
+            return true;
+            
+        } catch (e) {
+            console.error('Ошибка завершения прокачки:', e);
         }
-        
-        // Обновляем UI и счетчики на карте
-        renderUI();
-        updateWorkCountersOnMap();
-        return true;
     }
     return false;
 }
@@ -12909,8 +13036,65 @@ async function completeMineWork() {
     
     showToast(`⛏️ Работа в шахте завершена! +${paperGain}📄, +${makhorkaGain}🌿, +${workExp}⭐ опыта`, 'success');
     
-    renderUI();
+    // ОБНОВЛЯЕМ ТОЛЬКО НЕОБХОДИМЫЕ ЭЛЕМЕНТЫ, НЕ ПЕРЕСОЗДАЁМ ВСЁ
+    updateTopBarResources();
     updateWorkCountersOnMap();
+    
+    // Если окно шахты открыто - обновляем его содержимое
+    const mineModal = document.getElementById('mineFullscreen');
+    if (mineModal && mineModal.style.display === 'flex') {
+        updateMineModalUI();
+    }
+}
+async function completeLumberWork() {
+    if (!currentPlayer) return;
+    
+    if (isLumberUpgradeActive()) return;
+    
+    let woodGain = 5 * (currentPlayer.lumber?.level || 1);
+    if (currentPlayer.caste === 'Мужики') woodGain = Math.floor(woodGain * 1.05);
+    
+    if (!currentPlayer.lumber) currentPlayer.lumber = { wood: 0 };
+    currentPlayer.lumber.wood = (currentPlayer.lumber.wood || 0) + woodGain;
+    await playerDocRef.update({ 'lumber.wood': currentPlayer.lumber.wood });
+    
+    const workExp = 30 + ((currentPlayer.lumber?.level || 1) * 4);
+    await addWorkExperience(workExp);
+    
+    showToast(`🪓 Работа на лесоповале завершена! +${woodGain}🪵 дерева, +${workExp}⭐ опыта`, 'success');
+    
+    updateTopBarResources();
+    updateWorkCountersOnMap();
+    
+    const mineModal = document.getElementById('mineFullscreen');
+    if (mineModal && mineModal.style.display === 'flex') {
+        updateMineModalUI();
+    }
+}
+async function completeQuarryWork() {
+    if (!currentPlayer) return;
+    
+    if (isQuarryUpgradeActive()) return;
+    
+    let stoneGain = 4 * (currentPlayer.quarry?.level || 1);
+    if (currentPlayer.caste === 'Мужики') stoneGain = Math.floor(stoneGain * 1.05);
+    
+    if (!currentPlayer.quarry) currentPlayer.quarry = { stone: 0 };
+    currentPlayer.quarry.stone = (currentPlayer.quarry.stone || 0) + stoneGain;
+    await playerDocRef.update({ 'quarry.stone': currentPlayer.quarry.stone });
+    
+    const workExp = 28 + ((currentPlayer.quarry?.level || 1) * 3);
+    await addWorkExperience(workExp);
+    
+    showToast(`⛏️ Работа в каменоломне завершена! +${stoneGain}🪨 камня, +${workExp}⭐ опыта`, 'success');
+    
+    updateTopBarResources();
+    updateWorkCountersOnMap();
+    
+    const mineModal = document.getElementById('mineFullscreen');
+    if (mineModal && mineModal.style.display === 'flex') {
+        updateMineModalUI();
+    }
 }
 
         function getWorkRemaining(type) {
@@ -12936,510 +13120,52 @@ async function completeMineWork() {
             return 0;
         }
 
-        function renderMineModal() {
-            const mineData = currentPlayer.mine || { paperLevel: 1, makhorkaLevel: 1, lastMineTime: 0, paper: 0, makhorka: 0, paperUpgradeStartTime: 0, paperUpgradeDuration: 0, makhorkaUpgradeStartTime: 0, makhorkaUpgradeDuration: 0 };
-            const lumber = currentPlayer.lumber || { level: 1, lastGatherTime: 0, wood: 0, upgradeStartTime: 0, upgradeDuration: 0 };
-            const quarry = currentPlayer.quarry || { level: 1, lastGatherTime: 0, stone: 0, upgradeStartTime: 0, upgradeDuration: 0 };
+        
 
-            checkAndCompleteMineUpgrade('paper');
-            checkAndCompleteMineUpgrade('makhorka');
-            checkAndCompleteLumberUpgrade();
-            checkAndCompleteQuarryUpgrade();
-
-            let contentHtml = '';
-
-            if (currentMineTab === 'mine') {
-                const paperLevel = mineData.paperLevel;
-                const makhorkaLevel = mineData.makhorkaLevel;
-                const paperUpgradeActive = isMineUpgradeActive('paper');
-                const makhorkaUpgradeActive = isMineUpgradeActive('makhorka');
-                const paperUpgradeRemaining = getMineUpgradeRemaining('paper');
-                const makhorkaUpgradeRemaining = getMineUpgradeRemaining('makhorka');
-                const workRemaining = getWorkRemaining('mine');
-                const workAvailable = workRemaining <= 0 && !paperUpgradeActive && !makhorkaUpgradeActive;
-                const upgradeCostPaper = 50 * paperLevel;
-                const upgradeCostMakhorka = 50 * makhorkaLevel;
-                let upgradeDurationMs = 2 * 60 * 1000;
-                upgradeDurationMs = Math.floor(upgradeDurationMs * (1 + (paperLevel - 1) * 0.1));
-                const workExpGain = 25 + (paperLevel * 3) + (makhorkaLevel * 2);
-
-                const paperProgressPercent = paperUpgradeActive ? Math.min(100, ((Date.now() - currentPlayer.mine.paperUpgradeStartTime) / upgradeDurationMs) * 100) : 0;
-                const makhorkaProgressPercent = makhorkaUpgradeActive ? Math.min(100, ((Date.now() - currentPlayer.mine.makhorkaUpgradeStartTime) / upgradeDurationMs) * 100) : 0;
-
-                contentHtml = `
-				<div style="background: linear-gradient(135deg, #1a1a2a, #0d0d15); border-radius: 1px; padding: 5px 20px; margin: 9px -15px; border: 1px solid #8B4513; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-        <div style="display: flex; gap: 1px; align-items: center;">
-            <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
-                <span style="font-size: 11px;">🚬</span>
-                <span id="mineCigarettesValue" style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.cigarettes || 0)}</span>
-            </div>
-            <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
-                <span style="font-size: 11px;">📄</span>
-                <span id="minePaperValue" style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.mine?.paper || 0)}</span>
-            </div>
-            <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
-                <span style="font-size: 11px;">🌿</span>
-                <span id="mineMakhorkaValue" style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.mine?.makhorka || 0)}</span>
-            </div>
-            <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
-                <span style="font-size: 11px;">🪵</span>
-                <span id="mineWoodValue" style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.lumber?.wood || 0)}</span>
-            </div>
-            <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
-                <span style="font-size: 11px;">🪨</span>
-                <span id="mineStoneValue" style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.quarry?.stone || 0)}</span>
-            </div>
-        </div>
-    </div>
-            <div class="mine-sub-tab-header">
-                <button class="mine-sub-tab-btn ${currentMineSubTab === 'work' ? 'active' : ''}" onclick="switchMineSubTab('work')">⛏️ РАБОТАТЬ</button>
-                <button class="mine-sub-tab-btn ${currentMineSubTab === 'upgrade' ? 'active' : ''}" onclick="switchMineSubTab('upgrade')">⬆️ ПРОКАЧКА</button>
-            </div>
-            <div ontouchstart="handleMineSubTouchStart(event)" ontouchend="handleMineSubTouchEnd(event)">
-                ${currentMineSubTab === 'work' ? `
-                    <div class="mine-card">
-                        <div style="text-align: center; margin-bottom: 10px;">
-                            <div style="background: linear-gradient(135deg, #8B4513, #5a2d0a); display: inline-block; padding: 5px 20px; border-radius: 30px; font-size: 14px; font-weight: 700;">📦 РЕСУРСЫ</div>
-                        </div>
-                        <div class="mine-resources">
-                            <div class="mine-resource-item">
-                                <div>📄</div>
-                                <div class="mine-resource-value">${mineData.paper}</div>
-                                <div style="font-size: 10px;">БУМАГИ</div>
-                            </div>
-                            <div class="mine-resource-item">
-                                <div>🌿</div>
-                                <div class="mine-resource-value">${mineData.makhorka}</div>
-                                <div style="font-size: 10px;">МАХОРКИ</div>
-                            </div>
-                        </div>
-                        
-                        ${paperUpgradeActive ? `
-                            <div class="mine-timer">
-                                ⏳ ПРОКАЧКА БУМАГИ: <span id="paperUpgradeTimer" class="timer-text">${formatTimerMinutes(paperUpgradeRemaining)}</span>
-                                <div class="mine-progress-bar" style="margin-top: 5px;"><div class="mine-progress-fill" style="width: ${paperProgressPercent}%"></div></div>
-                            </div>
-                        ` : ''}
-                        ${makhorkaUpgradeActive ? `
-                            <div class="mine-timer">
-                                ⏳ ПРОКАЧКА МАХОРКИ: <span id="makhorkaUpgradeTimer" class="timer-text">${formatTimerMinutes(makhorkaUpgradeRemaining)}</span>
-                                <div class="mine-progress-bar" style="margin-top: 5px;"><div class="mine-progress-fill" style="width: ${makhorkaProgressPercent}%"></div></div>
-                            </div>
-                        ` : ''}
-                        
-                        <div class="mine-timer" style="background: rgba(76,175,80,0.15);">
-                            ⭐ ОПЫТА ЗА РАБОТУ: +${workExpGain}
-                        </div>
-                        
-                        <div class="mine-action-buttons">
-                            <button id="mineButton" class="mine-work-btn" onclick="mineResourcesFromModal()" ${!workAvailable ? 'disabled' : ''}>
-                                ⛏️ РАБОТАТЬ ${!workAvailable && workRemaining > 0 ? `(${formatTimerMinutes(workRemaining)})` : ''}
-                            </button>
-                            <button class="mine-exchange-btn" onclick="exchangeToCigarettesFromModal()">
-                                🔄 ОБМЕНЯТЬ
-                            </button>
-                        </div>
-                        ${(paperUpgradeActive || makhorkaUpgradeActive) ? '<div style="font-size: 11px; color: #ff9800; text-align: center;">⚡ НЕВОЗМОЖНО РАБОТАТЬ ВО ВРЕМЯ ПРОКАЧКИ</div>' : ''}
-                    </div>
-                ` : `
-                    <div class="mine-card">
-                        <div style="text-align: center; margin-bottom: 15px;">
-                            <div style="background: linear-gradient(135deg, #8B4513, #5a2d0a); display: inline-block; padding: 5px 20px; border-radius: 30px; font-size: 14px; font-weight: 700;">⬆️ ПРОКАЧКА ШАХТЫ</div>
-                        </div>
-                        
-                        <div class="mine-upgrade-info">
-                            <div class="mine-upgrade-cost">
-                                <span>📄 БУМАГА УР. ${paperLevel}</span>
-                                <span>ДОБЫЧА: ${5 * paperLevel} шт</span>
-                            </div>
-                            ${paperUpgradeActive ? `
-                                <div class="mine-upgrade-progress">
-                                    <div class="mine-progress-label">⏳ ПРОКАЧКА ДО ${paperLevel + 1} УРОВНЯ</div>
-                                    <div class="mine-progress-bar"><div id="paperUpgradeTimerUpgrade" class="mine-progress-fill" style="width: ${paperProgressPercent}%"></div></div>
-                                    <div style="font-size: 11px; text-align: center; margin-top: 5px;"><span class="timer-text">${formatTimerMinutes(paperUpgradeRemaining)}</span></div>
-                                </div>
-                            ` : `
-                                <div class="mine-upgrade-cost">
-                                    <span>⬆️ ДО ${paperLevel + 1} УРОВНЯ</span>
-                                    <span>💰 ${upgradeCostPaper} 🚬</span>
-                                </div>
-                                <button class="mine-work-btn" style="width: 100%; margin-top: 10px;" onclick="upgradeMineFromModal('paper')" ${(currentPlayer.cigarettes < upgradeCostPaper || getWorkRemaining('mine') > 0) ? 'disabled' : ''}>
-                                    ⬆️ УЛУЧШИТЬ БУМАГУ
-                                </button>
-                            `}
-                        </div>
-                        
-                        <div class="mine-upgrade-info">
-                            <div class="mine-upgrade-cost">
-                                <span>🌿 МАХОРКА УР. ${makhorkaLevel}</span>
-                                <span>ДОБЫЧА: ${3 * makhorkaLevel} шт</span>
-                            </div>
-                            ${makhorkaUpgradeActive ? `
-                                <div class="mine-upgrade-progress">
-                                    <div class="mine-progress-label">⏳ ПРОКАЧКА ДО ${makhorkaLevel + 1} УРОВНЯ</div>
-                                    <div class="mine-progress-bar"><div id="makhorkaUpgradeTimerUpgrade" class="mine-progress-fill" style="width: ${makhorkaProgressPercent}%"></div></div>
-                                    <div style="font-size: 11px; text-align: center; margin-top: 5px;"><span class="timer-text">${formatTimerMinutes(makhorkaUpgradeRemaining)}</span></div>
-                                </div>
-                            ` : `
-                                <div class="mine-upgrade-cost">
-                                    <span>⬆️ ДО ${makhorkaLevel + 1} УРОВНЯ</span>
-                                    <span>💰 ${upgradeCostMakhorka} 🚬</span>
-                                </div>
-                                <button class="mine-work-btn" style="width: 100%; margin-top: 10px;" onclick="upgradeMineFromModal('makhorka')" ${(currentPlayer.cigarettes < upgradeCostMakhorka || getWorkRemaining('mine') > 0) ? 'disabled' : ''}>
-                                    ⬆️ УЛУЧШИТЬ МАХОРКУ
-                                </button>
-                            `}
-                        </div>
-                        ${getWorkRemaining('mine') > 0 ? '<div style="font-size: 11px; color: #ff9800; text-align: center; margin-top: 10px;">⚡ НЕВОЗМОЖНО УЛУЧШИТЬ ВО ВРЕМЯ РАБОТЫ</div>' : ''}
-                    </div>
-                `}
-            </div>
-        `;
-            }
-            else if (currentMineTab === 'lumber') {
-                const level = lumber.level;
-                const upgradeActive = isLumberUpgradeActive();
-                const upgradeRemaining = getLumberUpgradeRemaining();
-                const workRemaining = getWorkRemaining('lumber');
-                const workAvailable = workRemaining <= 0 && !upgradeActive;
-                const upgradeCost = 50 * level;
-                let upgradeDurationMs = 2 * 60 * 1000;
-                upgradeDurationMs = Math.floor(upgradeDurationMs * (1 + (level - 1) * 0.1));
-                const workExpGain = 30 + (level * 4);
-                const progressPercent = upgradeActive ? Math.min(100, ((Date.now() - currentPlayer.lumber.upgradeStartTime) / upgradeDurationMs) * 100) : 0;
-
-                contentHtml = `
-				<div style="background: linear-gradient(135deg, #1a1a2a, #0d0d15); border-radius: 1px; padding: 5px 20px; margin: 9px -15px; border: 1px solid #8B4513; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-        <div style="display: flex; gap: 1px; align-items: center; ">
-            <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
-                <span style="font-size: 11px;">🚬</span>
-                <span id="mineCigarettesValue" style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.cigarettes || 0)}</span>
-            </div>
-            <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
-                <span style="font-size: 11px;">📄</span>
-                <span id="minePaperValue" style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.mine?.paper || 0)}</span>
-            </div>
-            <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
-                <span style="font-size: 11px;">🌿</span>
-                <span id="mineMakhorkaValue" style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.mine?.makhorka || 0)}</span>
-            </div>
-            <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
-                <span style="font-size: 11px;">🪵</span>
-                <span id="mineWoodValue" style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.lumber?.wood || 0)}</span>
-            </div>
-            <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
-                <span style="font-size: 11px;">🪨</span>
-                <span id="mineStoneValue" style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.quarry?.stone || 0)}</span>
-            </div>
-        </div>
-    </div>
-            <div class="mine-sub-tab-header">
-                <button class="mine-sub-tab-btn ${currentMineSubTab === 'work' ? 'active' : ''}" onclick="switchMineSubTab('work')">🪓 РАБОТАТЬ</button>
-                <button class="mine-sub-tab-btn ${currentMineSubTab === 'upgrade' ? 'active' : ''}" onclick="switchMineSubTab('upgrade')">⬆️ ПРОКАЧКА</button>
-            </div>
-            <div ontouchstart="handleMineSubTouchStart(event)" ontouchend="handleMineSubTouchEnd(event)">
-                ${currentMineSubTab === 'work' ? `
-                    <div class="mine-card">
-                        <div style="text-align: center; margin-bottom: 10px;">
-                            <div style="background: linear-gradient(135deg, #8B4513, #5a2d0a); display: inline-block; padding: 5px 20px; border-radius: 30px; font-size: 14px; font-weight: 700;">🪵 РЕСУРСЫ</div>
-                        </div>
-                        <div class="mine-resources">
-                            <div class="mine-resource-item">
-                                <div>🪵</div>
-                                <div class="mine-resource-value">${lumber.wood}</div>
-                                <div style="font-size: 10px;">ДРЕВЕСИНА</div>
-                            </div>
-                        </div>
-                        
-                        ${upgradeActive ? `
-                            <div class="mine-timer">
-                                ⏳ ПРОКАЧКА ЛЕСОПОВАЛА: <span id="lumberUpgradeTimer" class="timer-text">${formatTimerMinutes(upgradeRemaining)}</span>
-                                <div class="mine-progress-bar" style="margin-top: 5px;"><div class="mine-progress-fill" style="width: ${progressPercent}%"></div></div>
-                            </div>
-                        ` : ''}
-                        
-                        <div class="mine-timer" style="background: rgba(76,175,80,0.15);">
-                            ⭐ ОПЫТА ЗА РАБОТУ: +${workExpGain}
-                        </div>
-                        
-                        <div class="mine-action-buttons">
-                            <button id="lumberButton" class="mine-work-btn" onclick="gatherLumberFromModal()" ${!workAvailable ? 'disabled' : ''}>
-                                🪓 РАБОТАТЬ ${!workAvailable && workRemaining > 0 ? `(${formatTimerMinutes(workRemaining)})` : ''}
-                            </button>
-                            <button class="mine-exchange-btn" onclick="exchangeWoodToCigarettesFromModal()">
-                                🔄 ОБМЕНЯТЬ (2🚬 за 1🪵)
-                            </button>
-                        </div>
-                    </div>
-                ` : `
-                    <div class="mine-card">
-                        <div style="text-align: center; margin-bottom: 15px;">
-                            <div style="background: linear-gradient(135deg, #8B4513, #5a2d0a); display: inline-block; padding: 5px 20px; border-radius: 30px; font-size: 14px; font-weight: 700;">⬆️ ПРОКАЧКА ЛЕСОПОВАЛА</div>
-                        </div>
-                        <div class="mine-upgrade-info">
-                            <div class="mine-upgrade-cost">
-                                <span>🪵 УРОВЕНЬ ${level}</span>
-                                <span>ДОБЫЧА: ${5 * level} шт</span>
-                            </div>
-                            ${upgradeActive ? `
-                                <div class="mine-upgrade-progress">
-                                    <div class="mine-progress-label">⏳ ПРОКАЧКА ДО ${level + 1} УРОВНЯ</div>
-                                    <div class="mine-progress-bar"><div id="lumberUpgradeTimerUpgrade" class="mine-progress-fill" style="width: ${progressPercent}%"></div></div>
-                                    <div style="font-size: 11px; text-align: center; margin-top: 5px;"><span class="timer-text">${formatTimerMinutes(upgradeRemaining)}</span></div>
-                                </div>
-                            ` : `
-                                <div class="mine-upgrade-cost">
-                                    <span>⬆️ ДО ${level + 1} УРОВНЯ</span>
-                                    <span>💰 ${upgradeCost} 🚬</span>
-                                </div>
-                                <button class="mine-work-btn" style="width: 100%; margin-top: 10px;" onclick="upgradeLumberFromModal()" ${(currentPlayer.cigarettes < upgradeCost || getWorkRemaining('lumber') > 0) ? 'disabled' : ''}>
-                                    ⬆️ УЛУЧШИТЬ ЛЕСОПОВАЛ
-                                </button>
-                            `}
-                        </div>
-                        ${getWorkRemaining('lumber') > 0 ? '<div style="font-size: 11px; color: #ff9800; text-align: center; margin-top: 10px;">⚡ НЕВОЗМОЖНО УЛУЧШИТЬ ВО ВРЕМЯ РАБОТЫ</div>' : ''}
-                    </div>
-                `}
-            </div>
-        `;
-            }
-            else if (currentMineTab === 'quarry') {
-                const level = quarry.level;
-                const upgradeActive = isQuarryUpgradeActive();
-                const upgradeRemaining = getQuarryUpgradeRemaining();
-                const workRemaining = getWorkRemaining('quarry');
-                const workAvailable = workRemaining <= 0 && !upgradeActive;
-                const upgradeCost = 50 * level;
-                let upgradeDurationMs = 2 * 60 * 1000;
-                upgradeDurationMs = Math.floor(upgradeDurationMs * (1 + (level - 1) * 0.1));
-                const workExpGain = 28 + (level * 3);
-                const progressPercent = upgradeActive ? Math.min(100, ((Date.now() - currentPlayer.quarry.upgradeStartTime) / upgradeDurationMs) * 100) : 0;
-
-                contentHtml = `
-				<div style="background: linear-gradient(135deg, #1a1a2a, #0d0d15); border-radius: 1px; padding: 5px 20px; margin: 9px -15px; border: 1px solid #8B4513; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-        <div style="display: flex; gap: 1px; align-items: center; ">
-            <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
-                <span style="font-size: 11px;">🚬</span>
-                <span id="mineCigarettesValue" style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.cigarettes || 0)}</span>
-            </div>
-            <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
-                <span style="font-size: 11px;">📄</span>
-                <span id="minePaperValue" style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.mine?.paper || 0)}</span>
-            </div>
-            <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
-                <span style="font-size: 11px;">🌿</span>
-                <span id="mineMakhorkaValue" style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.mine?.makhorka || 0)}</span>
-            </div>
-            <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
-                <span style="font-size: 11px;">🪵</span>
-                <span id="mineWoodValue" style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.lumber?.wood || 0)}</span>
-            </div>
-            <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
-                <span style="font-size: 11px;">🪨</span>
-                <span id="mineStoneValue" style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.quarry?.stone || 0)}</span>
-            </div>
-        </div>
-    </div>
-            <div class="mine-sub-tab-header">
-                <button class="mine-sub-tab-btn ${currentMineSubTab === 'work' ? 'active' : ''}" onclick="switchMineSubTab('work')">⛏️ РАБОТАТЬ</button>
-                <button class="mine-sub-tab-btn ${currentMineSubTab === 'upgrade' ? 'active' : ''}" onclick="switchMineSubTab('upgrade')">⬆️ ПРОКАЧКА</button>
-            </div>
-            <div ontouchstart="handleMineSubTouchStart(event)" ontouchend="handleMineSubTouchEnd(event)">
-                ${currentMineSubTab === 'work' ? `
-                    <div class="mine-card">
-                        <div style="text-align: center; margin-bottom: 10px;">
-                            <div style="background: linear-gradient(135deg, #8B4513, #5a2d0a); display: inline-block; padding: 5px 20px; border-radius: 30px; font-size: 14px; font-weight: 700;">🪨 РЕСУРСЫ</div>
-                        </div>
-                        <div class="mine-resources">
-                            <div class="mine-resource-item">
-                                <div>🪨</div>
-                                <div class="mine-resource-value">${quarry.stone}</div>
-                                <div style="font-size: 10px;">КАМЕНЬ</div>
-                            </div>
-                        </div>
-                        
-                        ${upgradeActive ? `
-                            <div class="mine-timer">
-                                ⏳ ПРОКАЧКА КАМЕНОЛОМНИ: <span id="quarryUpgradeTimer" class="timer-text">${formatTimerMinutes(upgradeRemaining)}</span>
-                                <div class="mine-progress-bar" style="margin-top: 5px;"><div class="mine-progress-fill" style="width: ${progressPercent}%"></div></div>
-                            </div>
-                        ` : ''}
-                        
-                        <div class="mine-timer" style="background: rgba(76,175,80,0.15);">
-                            ⭐ ОПЫТА ЗА РАБОТУ: +${workExpGain}
-                        </div>
-                        
-                        <div class="mine-action-buttons">
-                            <button id="quarryButton" class="mine-work-btn" onclick="gatherStoneFromModal()" ${!workAvailable ? 'disabled' : ''}>
-                                ⛏️ РАБОТАТЬ ${!workAvailable && workRemaining > 0 ? `(${formatTimerMinutes(workRemaining)})` : ''}
-                            </button>
-                            <button class="mine-exchange-btn" onclick="exchangeStoneToCigarettesFromModal()">
-                                🔄 ОБМЕНЯТЬ (1🚬 за 1🪨)
-                            </button>
-                        </div>
-                    </div>
-                ` : `
-                    <div class="mine-card">
-                        <div style="text-align: center; margin-bottom: 15px;">
-                            <div style="background: linear-gradient(135deg, #8B4513, #5a2d0a); display: inline-block; padding: 5px 20px; border-radius: 30px; font-size: 14px; font-weight: 700;">⬆️ ПРОКАЧКА КАМЕНОЛОМНИ</div>
-                        </div>
-                        <div class="mine-upgrade-info">
-                            <div class="mine-upgrade-cost">
-                                <span>🪨 УРОВЕНЬ ${level}</span>
-                                <span>ДОБЫЧА: ${4 * level} шт</span>
-                            </div>
-                            ${upgradeActive ? `
-                                <div class="mine-upgrade-progress">
-                                    <div class="mine-progress-label">⏳ ПРОКАЧКА ДО ${level + 1} УРОВНЯ</div>
-                                    <div class="mine-progress-bar"><div id="quarryUpgradeTimerUpgrade" class="mine-progress-fill" style="width: ${progressPercent}%"></div></div>
-                                    <div style="font-size: 11px; text-align: center; margin-top: 5px;"><span class="timer-text">${formatTimerMinutes(upgradeRemaining)}</span></div>
-                                </div>
-                            ` : `
-                                <div class="mine-upgrade-cost">
-                                    <span>⬆️ ДО ${level + 1} УРОВНЯ</span>
-                                    <span>💰 ${upgradeCost} 🚬</span>
-                                </div>
-                                <button class="mine-work-btn" style="width: 100%; margin-top: 10px;" onclick="upgradeQuarryFromModal()" ${(currentPlayer.cigarettes < upgradeCost || getWorkRemaining('quarry') > 0) ? 'disabled' : ''}>
-                                    ⬆️ УЛУЧШИТЬ КАМЕНОЛОМНЮ
-                                </button>
-                            `}
-                        </div>
-                        ${getWorkRemaining('quarry') > 0 ? '<div style="font-size: 11px; color: #ff9800; text-align: center; margin-top: 10px;">⚡ НЕВОЗМОЖНО УЛУЧШИТЬ ВО ВРЕМЯ РАБОТЫ</div>' : ''}
-                    </div>
-                `}
-            </div>
-        `;
-            }
-
-            const modalHtml = `
-        <div class="mine-fullscreen" id="mineFullscreen">
-            <div class="mine-header-bar">
-                <div class="mine-header-content">
-                    <div class="mine-header-title">РАБОТА</div>
-                </div>
-            </div>
-            <div class="mine-content-area">
-                ${contentHtml}
-            </div>
-            <div class="mine-bottom-nav">
-                <div class="bottom-nav">
-                    <button class="mine-tab-btn ${currentMineTab === 'back' ? 'active' : ''}" onclick="closeMineModal()"><img src="https://sviter-pro.github.io/GameZone/src/test/Untitled-6.png" draggable="false"></button>
-                    <button class="mine-tab-btn ${currentMineTab === 'mine' ? 'active' : ''}" onclick="switchMineTab('mine')"><span>⛏️</span><span>ШАХТА</span></button>
-                    <button class="mine-tab-btn ${currentMineTab === 'lumber' ? 'active' : ''}" onclick="switchMineTab('lumber')"><span>🪵</span><span>ЛЕС</span></button>
-                    <button class="mine-tab-btn ${currentMineTab === 'quarry' ? 'active' : ''}" onclick="switchMineTab('quarry')"><span>🪨</span><span>КАМЕНЬ</span></button>
-                </div>
-            </div>
-        </div>
-    `;
-
-            const existingModal = document.getElementById('mineFullscreen');
-            if (existingModal) existingModal.remove();
-            document.body.insertAdjacentHTML('beforeend', modalHtml);
-            if (tg) tg.BackButton.show();
-
-            startMineTimers();
-        }
-
-        function startMineTimers() {
+    function startMineTimers() {
     if (mineTimerInterval) clearInterval(mineTimerInterval);
+    
     mineTimerInterval = setInterval(() => {
         const modal = document.getElementById('mineFullscreen');
-        if (!modal) {
-            if (mineTimerInterval) clearInterval(mineTimerInterval);
-            return;
+        
+        // ВСЕГДА проверяем завершение прокачек (даже если окно закрыто)
+        let upgraded = false;
+        if (checkAndCompleteMineUpgrade('paper')) upgraded = true;
+        if (checkAndCompleteMineUpgrade('makhorka')) upgraded = true;
+        if (checkAndCompleteLumberUpgrade()) upgraded = true;
+        if (checkAndCompleteQuarryUpgrade()) upgraded = true;
+        
+        // Обновляем счетчики на карте ВСЕГДА
+        updateWorkCountersOnMap();
+        
+        // Если окно открыто - обновляем UI
+        if (modal && modal.style.display === 'flex') {
+            updateMineModalUI();
         }
         
-        // Обновляем только ресурсы в верхней панели и таймеры
-        const cigValue = document.getElementById('mineCigarettesValue');
-        const paperValue = document.getElementById('minePaperValue');
-        const makhorkaValue = document.getElementById('mineMakhorkaValue');
-        const woodValue = document.getElementById('mineWoodValue');
-        const stoneValue = document.getElementById('mineStoneValue');
-        
-        if (cigValue && currentPlayer) cigValue.textContent = formatNumberShort(currentPlayer.cigarettes || 0);
-        if (paperValue && currentPlayer) paperValue.textContent = formatNumberShort(currentPlayer.mine?.paper || 0);
-        if (makhorkaValue && currentPlayer) makhorkaValue.textContent = formatNumberShort(currentPlayer.mine?.makhorka || 0);
-        if (woodValue && currentPlayer) woodValue.textContent = formatNumberShort(currentPlayer.lumber?.wood || 0);
-        if (stoneValue && currentPlayer) stoneValue.textContent = formatNumberShort(currentPlayer.quarry?.stone || 0);
-        
-        // Обновляем таймеры в текущем UI
-        const paperUpgradeTimer = document.getElementById('paperUpgradeTimer');
-        const makhorkaUpgradeTimer = document.getElementById('makhorkaUpgradeTimer');
-        const lumberUpgradeTimer = document.getElementById('lumberUpgradeTimer');
-        const quarryUpgradeTimer = document.getElementById('quarryUpgradeTimer');
-        const paperUpgradeTimerUpgrade = document.getElementById('paperUpgradeTimerUpgrade');
-        const makhorkaUpgradeTimerUpgrade = document.getElementById('makhorkaUpgradeTimerUpgrade');
-        const lumberUpgradeTimerUpgrade = document.getElementById('lumberUpgradeTimerUpgrade');
-        const quarryUpgradeTimerUpgrade = document.getElementById('quarryUpgradeTimerUpgrade');
-        
-        const paperRemaining = getMineUpgradeRemaining('paper');
-        const makhorkaRemaining = getMineUpgradeRemaining('makhorka');
-        const lumberRemaining = getLumberUpgradeRemaining();
-        const quarryRemaining = getQuarryUpgradeRemaining();
-        
-        if (paperUpgradeTimer) paperUpgradeTimer.textContent = formatTimerMinutes(paperRemaining);
-        if (makhorkaUpgradeTimer) makhorkaUpgradeTimer.textContent = formatTimerMinutes(makhorkaRemaining);
-        if (lumberUpgradeTimer) lumberUpgradeTimer.textContent = formatTimerMinutes(lumberRemaining);
-        if (quarryUpgradeTimer) quarryUpgradeTimer.textContent = formatTimerMinutes(quarryRemaining);
-        if (paperUpgradeTimerUpgrade) paperUpgradeTimerUpgrade.textContent = formatTimerMinutes(paperRemaining);
-        if (makhorkaUpgradeTimerUpgrade) makhorkaUpgradeTimerUpgrade.textContent = formatTimerMinutes(makhorkaRemaining);
-        if (lumberUpgradeTimerUpgrade) lumberUpgradeTimerUpgrade.textContent = formatTimerMinutes(lumberRemaining);
-        if (quarryUpgradeTimerUpgrade) quarryUpgradeTimerUpgrade.textContent = formatTimerMinutes(quarryRemaining);
-        
-        // Обновляем состояние кнопок работы
-        const paperUpgradeActive = isMineUpgradeActive('paper');
-        const makhorkaUpgradeActive = isMineUpgradeActive('makhorka');
-        const lumberUpgradeActive = isLumberUpgradeActive();
-        const quarryUpgradeActive = isQuarryUpgradeActive();
-        
-        const mineWorkRemaining = getWorkRemaining('mine');
-        const lumberWorkRemaining = getWorkRemaining('lumber');
-        const quarryWorkRemaining = getWorkRemaining('quarry');
-        
-        const mineWorkBtn = document.getElementById('mineWorkBtn');
-        const lumberWorkBtn = document.getElementById('lumberWorkBtn');
-        const quarryWorkBtn = document.getElementById('quarryWorkBtn');
-        
-        if (mineWorkBtn) {
-            if (paperUpgradeActive || makhorkaUpgradeActive) {
-                mineWorkBtn.disabled = true;
-                mineWorkBtn.textContent = '⛏️ Прокачка...';
-            } else if (mineWorkRemaining <= 0) {
-                mineWorkBtn.disabled = false;
-                mineWorkBtn.textContent = '⛏️ РАБОТАТЬ';
-            } else {
-                mineWorkBtn.disabled = true;
-                mineWorkBtn.textContent = `⛏️ РАБОТАТЬ (${formatTimerMinutes(mineWorkRemaining)})`;
-            }
+        // Если было завершение прокачки - обновляем основной UI
+        if (upgraded) {
+            updateTopBarResources();
+            renderUI();
         }
         
-        if (lumberWorkBtn) {
-            if (lumberUpgradeActive) {
-                lumberWorkBtn.disabled = true;
-                lumberWorkBtn.textContent = '🪓 Прокачка...';
-            } else if (lumberWorkRemaining <= 0) {
-                lumberWorkBtn.disabled = false;
-                lumberWorkBtn.textContent = '🪓 РАБОТАТЬ';
-            } else {
-                lumberWorkBtn.disabled = true;
-                lumberWorkBtn.textContent = `🪓 РАБОТАТЬ (${formatTimerMinutes(lumberWorkRemaining)})`;
-            }
-        }
-        
-        if (quarryWorkBtn) {
-            if (quarryUpgradeActive) {
-                quarryWorkBtn.disabled = true;
-                quarryWorkBtn.textContent = '⛏️ Прокачка...';
-            } else if (quarryWorkRemaining <= 0) {
-                quarryWorkBtn.disabled = false;
-                quarryWorkBtn.textContent = '⛏️ РАБОТАТЬ';
-            } else {
-                quarryWorkBtn.disabled = true;
-                quarryWorkBtn.textContent = `⛏️ РАБОТАТЬ (${formatTimerMinutes(quarryWorkRemaining)})`;
-            }
-        }
     }, 1000);
 }
+// Функция для ручного тестирования в консоли
+window.checkMineStatus = function() {
+    console.log('=== СТАТУС ПРОКАЧКИ ШАХТЫ ===');
+    console.log(`Бумага: active=${isMineUpgradeActive('paper')}, remaining=${getMineUpgradeRemaining('paper')}ms, level=${currentPlayer.mine?.paperLevel}`);
+    console.log(`Махорка: active=${isMineUpgradeActive('makhorka')}, remaining=${getMineUpgradeRemaining('makhorka')}ms, level=${currentPlayer.mine?.makhorkaLevel}`);
+    console.log(`Работа в шахте: remaining=${getWorkRemaining('mine')}ms`);
+    
+    console.log('\n=== СЧЕТЧИКИ НА КАРТЕ ===');
+    const b2 = document.querySelector('.building.b2 .counters-container-work');
+    if (b2) {
+        console.log('Активные счетчики:', b2.innerHTML);
+    } else {
+        console.log('Нет активных счетчиков');
+    }
+};
 
         function switchMineTab(tab) {
             currentMineTab = tab;
@@ -13461,52 +13187,72 @@ function closeMineModal() {
     renderUI();
 }
 
-        async function upgradeMineFromModal(type) {
-            if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); return; }
+    async function upgradeMineFromModal(type) {
+    if (maintenanceMode) { 
+        showToast(maintenanceMessage, 'warning'); 
+        return; 
+    }
 
-            if (isMineUpgradeActive(type)) {
-                showToast('Прокачка уже идет! Дождитесь завершения.', 'warning');
-                return;
-            }
+    if (isMineUpgradeActive('paper') || isMineUpgradeActive('makhorka')) {
+        showToast('Прокачка уже идет! Дождитесь завершения.', 'warning');
+        return;
+    }
 
-            if (getWorkRemaining('mine') > 0) {
-                showToast('Невозможно улучшить во время работы! Дождитесь окончания работы.', 'warning');
-                return;
-            }
+    if (getWorkRemaining('mine') > 0) {
+        showToast('Невозможно улучшить во время работы!', 'warning');
+        return;
+    }
 
-            const level = currentPlayer.mine[`${type}Level`] || 1;
-            const cost = 50 * level;
-            if (currentPlayer.cigarettes < cost) { showToast(`Не хватает ${cost - currentPlayer.cigarettes} 🚬!`, 'error'); return; }
+    const currentLevel = type === 'paper' ? (currentPlayer.mine?.paperLevel || 1) : (currentPlayer.mine?.makhorkaLevel || 1);
+    const cost = 50 * currentLevel;
+    
+    if (currentPlayer.cigarettes < cost) { 
+        showToast(`Не хватает ${cost - currentPlayer.cigarettes} 🚬!`, 'error'); 
+        return; 
+    }
 
-            await playerDocRef.update({ cigarettes: firebase.firestore.FieldValue.increment(-cost) });
-            currentPlayer.cigarettes -= cost;
+    // Списываем ресурсы
+    await playerDocRef.update({ cigarettes: firebase.firestore.FieldValue.increment(-cost) });
+    currentPlayer.cigarettes -= cost;
 
-            let upgradeDurationMs = 2 * 60 * 1000;
-            upgradeDurationMs = Math.floor(upgradeDurationMs * (1 + (level - 1) * 0.1));
-            const upgradeStartTime = Date.now();
+    // Время прокачки
+    let upgradeDurationMs = 2 * 60 * 1000;
+    upgradeDurationMs = Math.floor(upgradeDurationMs * (1 + (currentLevel - 1) * 0.1));
+    const upgradeStartTime = Date.now();
 
-            const updateObj = {};
-            if (type === 'paper') {
-                updateObj['mine.paperUpgradeStartTime'] = upgradeStartTime;
-                updateObj['mine.paperUpgradeDuration'] = upgradeDurationMs;
-            } else {
-                updateObj['mine.makhorkaUpgradeStartTime'] = upgradeStartTime;
-                updateObj['mine.makhorkaUpgradeDuration'] = upgradeDurationMs;
-            }
-            await playerDocRef.update(updateObj);
+    const updateObj = {};
+    if (type === 'paper') {
+        updateObj['mine.paperUpgradeStartTime'] = upgradeStartTime;
+        updateObj['mine.paperUpgradeDuration'] = upgradeDurationMs;
+    } else {
+        updateObj['mine.makhorkaUpgradeStartTime'] = upgradeStartTime;
+        updateObj['mine.makhorkaUpgradeDuration'] = upgradeDurationMs;
+    }
+    
+    await playerDocRef.update(updateObj);
 
-            if (type === 'paper') {
-                currentPlayer.mine.paperUpgradeStartTime = upgradeStartTime;
-                currentPlayer.mine.paperUpgradeDuration = upgradeDurationMs;
-            } else {
-                currentPlayer.mine.makhorkaUpgradeStartTime = upgradeStartTime;
-                currentPlayer.mine.makhorkaUpgradeDuration = upgradeDurationMs;
-            }
+    // Обновляем локальные данные
+    if (type === 'paper') {
+        currentPlayer.mine.paperUpgradeStartTime = upgradeStartTime;
+        currentPlayer.mine.paperUpgradeDuration = upgradeDurationMs;
+    } else {
+        currentPlayer.mine.makhorkaUpgradeStartTime = upgradeStartTime;
+        currentPlayer.mine.makhorkaUpgradeDuration = upgradeDurationMs;
+    }
 
-            showToast(`⏳ Начата прокачка ${type === 'paper' ? 'бумаги' : 'махорки'}! Уровень повысится через ${Math.round(upgradeDurationMs / 60000)} мин.`, 'success');
-            renderMineModal();
-            renderUI();
-        }
+    const minutes = Math.floor(upgradeDurationMs / 60000);
+    const seconds = Math.floor((upgradeDurationMs % 60000) / 1000);
+    showToast(`⏳ Начата прокачка ${type === 'paper' ? 'бумаги' : 'махорки'}! Завершится через ${minutes} мин ${seconds} сек.`, 'success');
+    
+    updateWorkCountersOnMap();
+    
+    const mineModal = document.getElementById('mineFullscreen');
+    if (mineModal && mineModal.style.display === 'flex') {
+        updateMineModalUI();
+    }
+    
+    renderUI();
+}
 
         async function mineResourcesFromModal() {
     if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); return; }
@@ -13532,7 +13278,18 @@ function closeMineModal() {
     
     showToast(`⛏️ Начата работа в шахте! Ресурсы придут через ${Math.ceil(cooldownMs / 60000)} мин.`, 'success');
     
-    setTimeout(() => completeMineWork(), cooldownMs);
+    setTimeout(() => {
+    completeMineWork();
+    // После завершения работы обновляем кнопку в окне, если оно открыто
+    const mineModal = document.getElementById('mineFullscreen');
+    if (mineModal && mineModal.style.display === 'flex') {
+        const workBtn = document.getElementById('mineWorkBtn');
+        if (workBtn) {
+            workBtn.disabled = false;
+            workBtn.textContent = '⛏️ РАБОТАТЬ';
+        }
+    }
+}, cooldownMs);
     
     renderUI();
     updateWorkCountersOnMap();
@@ -20972,7 +20729,7 @@ function calculatePlayerPower(player) {
         shopUpgradeDuration: 0
     };
 }
-        function getShopItemsFromAdmin() { return adminShopItems; }
+        
         async function getTreasuryTotal() { try { const doc = await db.collection('config').doc('treasury').get(); return doc.exists ? doc.data().totalRubles || 0 : 0; } catch (e) { return 0; } }
         function getDailyBonusAmount(day) { return Math.floor(10 * Math.pow(1.1, day - 1)); }
         function getNextBonusTime() { const lastClaim = dailyBonus.lastClaimTime || 0; return Math.max(0, (lastClaim + 24 * 60 * 60 * 1000) - Date.now()); }
@@ -21949,7 +21706,7 @@ async function startGame(id, name) {
             showLoginForm();
         }
 		
-		function updateTopBarResources() {
+	function updateTopBarResources() {
     if (!currentPlayer) return;
     
     const cigSpan = document.getElementById('resourceCigarettes');
@@ -21969,44 +21726,6 @@ async function startGame(id, name) {
     if (makhorkaSpan) makhorkaSpan.textContent = formatNumberShort(currentPlayer.mine?.makhorka || 0);
     if (woodSpan) woodSpan.textContent = formatNumberShort(currentPlayer.lumber?.wood || 0);
     if (stoneSpan) stoneSpan.textContent = formatNumberShort(currentPlayer.quarry?.stone || 0);
-}
-
-        // Добавьте эту функцию для обновления ресурсов в магазине
-        function startShopTimers() {
-    if (window.shopResourcesInterval) clearInterval(window.shopResourcesInterval);
-    window.shopResourcesInterval = setInterval(() => {
-        const modal = document.getElementById('shopFullscreen');
-        if (!modal) {
-            if (window.shopResourcesInterval) clearInterval(window.shopResourcesInterval);
-            return;
-        }
-        
-        // Обновляем ресурсы в верхней панели
-        const shopCigarettes = document.getElementById('shopCigarettesValue');
-        const shopRubles = document.getElementById('shopRublesValue');
-        const shopWood = document.getElementById('shopWoodValue');
-        const shopStone = document.getElementById('shopStoneValue');
-        
-        if (shopCigarettes && currentPlayer) shopCigarettes.textContent = currentPlayer.cigarettes || 0;
-        if (shopRubles && currentPlayer) shopRubles.textContent = currentPlayer.rubles || 0;
-        if (shopWood && currentPlayer) shopWood.textContent = currentPlayer.lumber?.wood || 0;
-        if (shopStone && currentPlayer) shopStone.textContent = currentPlayer.quarry?.stone || 0;
-        
-        // Обновляем таймер обновления для вкладки товаров
-        if (currentShopTab === 'offers') {
-            const timerEl = document.getElementById('randomUpdateTimer');
-            if (timerEl) {
-                const remaining = getRandomShopUpdateRemaining();
-                timerEl.innerHTML = `<span>🔄 ОБНОВЛЕНИЕ ЧЕРЕЗ: ${formatTimeDetailedWithSeconds(remaining)}</span><button onclick="forceUpdateRandomShop()">🔄 ОБНОВИТЬ (200💰)</button>`;
-            }
-        }
-        
-        // Обновляем UI прокачки
-        if (currentShopTab === 'upgrade') {
-            checkAndCompleteShopUpgrade();
-            updateShopUpgradeUI();
-        }
-    }, 1000);
 }
 		
 // Функция для получения распределения бойцов (пока просто демонстрационная)
@@ -23571,7 +23290,8 @@ async function upgradeClanLevel() {
 		window.resetAllPendingData = resetAllPendingData;
 		window.checkAndFixStuckData = checkAndFixStuckData;
 		window.forceCompleteUpgrade = forceCompleteUpgrade;
-
+		window.resetWarCooldowns = resetWarCooldowns;
+		window.setWarSettings = setWarSettings;
     </script>
 </body>
 </html>
