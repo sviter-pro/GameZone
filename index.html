@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Зона 1.0.0.257 - Карта зоны</title>
+    <title>Зона 1.0.0.260 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -1207,6 +1207,7 @@
         .gang-content-area,
         .hospital-content-area {
             flex: 1;
+            overflow-y: auto;
             padding: 0px 9px;
             margin-bottom: 100px;
 			margin-top: 10px;
@@ -3830,7 +3831,7 @@
 
         /* Контейнер списка истории с красивым скроллом */
         .treasury-history-list {
-            max-height: 280px;
+            max-height: 215px;
             overflow-y: auto;
             padding-right: 5px;
         }
@@ -6123,7 +6124,8 @@
 	
 	<script>
 	// ========== АЛГОРИТМЫ И ФУНКЦИИ ОКНА КАМЕРА ==========
-	function openInventoryModal() {
+
+    function openInventoryModal() {
     if (window._opening_modal) { console.log('Блокировка: окно уже открывается'); return; }
     window._opening_modal = true;
 
@@ -6307,6 +6309,10 @@
     setTimeout(() => { window._opening_modal = false; }, 500);
 }
 
+function getShopItemsFromAdmin() { 
+    return adminShopItems; 
+}
+	
 function closeInventoryModal() {
             const modal = document.getElementById('inventoryFullscreen');
             if (modal) modal.remove();
@@ -6320,7 +6326,7 @@ function closeInventoryModal() {
 
             renderUI();
         }
-		
+
 function toggleInventorySection(section) {
     const element = document.getElementById(`inventory${section.charAt(0).toUpperCase() + section.slice(1)}Section`);
     if (element) {
@@ -6384,10 +6390,412 @@ async function changeEquipment(slot, itemName, stat, bonus) {
     setTimeout(() => openInventoryModal(), 100);
     renderUI();
 }
+	</script>
+	<script>
+	// ========== АЛГОРИТМЫ И ФУНКЦИИ ОКНА РАБОТА ==========
+	
+	</script>
+	<script>
+	// ========== АЛГОРИТМЫ И ФУНКЦИИ ОКНА ИГРОВАЯ ==========
+	
+	</script>
+	<script>
+	// ========== АЛГОРИТМЫ И ФУНКЦИИ ОКНА МАГАЗИН ==========
+	
+	</script>
+	<script>
+	// ========== АЛГОРИТМЫ И ФУНКЦИИ ОКНА БОЛЬНИЦА ==========
+	
+	</script>
+	<script>
+	// ========== АЛГОРИТМЫ И ФУНКЦИИ ОКНА СХОДКА ==========
+	
+	</script>
+	<script>
+	// ========== АЛГОРИТМЫ И ФУНКЦИИ ОКНА СИЗО ==========
+	
+	</script>
+	<script>
+	// ========== АЛГОРИТМЫ И ФУНКЦИИ ОКНА ПРОФИЛЬ ==========
+	
+	</script>
+	<script>
+	// ========== АЛГОРИТМЫ И ФУНКЦИИ ОКНА НАСТРОЙКИ ==========
+	
+            function openSettingsModal() {
+            if (window._opening_modal) { console.log('Блокировка: окно уже открывается'); return; }
+            window._opening_modal = true;
 
-function getShopItemsFromAdmin() { 
-		return adminShopItems; 
+            if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); window._opening_modal = false; return; }
+            if (!currentPlayer) { window._opening_modal = false; return; }
+
+            const modalHtml = `
+        <div class="settings-fullscreen" id="settingsFullscreen">
+            <div class="settings-header-bar">
+                <div class="settings-header-content">
+                    <div class="settings-header-title">НАСТРОЙКИ</div>
+                </div>
+            </div>
+            <div class="settings-content-area">
+                <div class="settings-card">
+                    <div class="settings-switch">
+                        <span class="settings-switch-label">
+                            <span>🔔</span> УВЕДОМЛЕНИЯ В БОТА
+                        </span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="notificationsToggle" ${settingsNotifications ? 'checked' : ''} onchange="toggleNotifications(this.checked)">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    
+                    <div class="settings-buttons">
+                        <button class="settings-rank-btn" onclick="openRankingModal();">🏆 РЕЙТИНГ</button>
+<button class="settings-invite-btn" onclick="openInviteModalFromSettings();">👥 ПРИГЛАСИТЬ</button>
+                    </div>
+                </div>
+                
+                <div class="settings-card">
+                    <div style="font-size: 13px; color: #aaa; text-align: center;">
+                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.260</div>
+                        <div style="font-size: 11px;">⚡ Клановые войны | Бесконечная прокачка</div>
+                    </div>
+                </div>
+            </div>
+            <div class="settings-bottom-nav">
+                <div class="bottom-nav">
+                    <button class="settings-tab-btn active" onclick="closeSettingsModal()"><img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_6.png"  height="70px" width="55px" draggable="false"></button>
+                </div>
+            </div>
+        </div>
+    `;
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+            if (tg) tg.BackButton.show();
+
+            setTimeout(() => { window._opening_modal = false; }, 500);
+        }
+
+        function toggleNotifications(enabled) {
+            settingsNotifications = enabled;
+            localStorage.setItem('settingsNotifications', enabled);
+            showToast(enabled ? 'Уведомления включены' : 'Уведомления выключены', 'success');
+        }
+
+        function closeSettingsModal() {
+            const modal = document.getElementById('settingsFullscreen');
+            if (modal) modal.remove();
+            if (tg) tg.BackButton.hide();
+
+            // Закрываем также любые открытые модальные окна
+            const rankingModal = document.querySelector('#rankingModalOverlay');
+            if (rankingModal) rankingModal.remove();
+
+            const inviteModal = document.querySelector('#inviteModalOverlay');
+            if (inviteModal) inviteModal.remove();
+
+            // Восстанавливаем скролл body
+            document.body.style.overflow = '';
+            document.body.style.position = '';
+            document.body.style.width = '';
+            document.body.classList.remove('modal-open');
+
+            renderUI();
+        }
+        function openRankingModal() {
+            if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); return; }
+
+            let sortType = 'power';
+
+            const modalHtml = `
+        <div class="modal-overlay" id="rankingModalOverlay" onclick="if(event.target === this) closeRankingModal()">
+            <div class="modal-window">
+                <div class="modal-window-header">
+                    <div class="modal-window-title">🏆 РЕЙТИНГ ИГРОКОВ</div>
+                    <button class="modal-window-close" onclick="closeRankingModal()">✕</button>
+                </div>
+                <div class="modal-window-content">
+                    <div class="sort-buttons" style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 15px;">
+                        <button class="sort-btn" data-sort="power">💪 Мощь</button>
+                        <button class="sort-btn" data-sort="strength">💪 Сила</button>
+                        <button class="sort-btn" data-sort="authority">⭐ Авторитет</button>
+                        <button class="sort-btn" data-sort="level">📈 Уровень</button>
+                        <button class="sort-btn" data-sort="defense">🛡️ Защита</button>
+                    </div>
+                    <div id="rankListContainer" style="max-height: 50vh; overflow-y: auto; padding-right: 5px;"></div>
+                </div>
+            </div>
+        </div>
+    `;
+
+            const existing = document.querySelector('.modal-overlay');
+            if (existing) existing.remove();
+
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+            if (tg) tg.BackButton.show();
+
+            const renderRank = () => {
+                let list = [...allPlayers];
+                if (sortType === 'power') list.sort((a, b) => b.power - a.power);
+                else if (sortType === 'strength') list.sort((a, b) => (b.strength || 0) - (a.strength || 0));
+                else if (sortType === 'authority') list.sort((a, b) => b.authority - a.authority);
+                else if (sortType === 'level') list.sort((a, b) => b.level - a.level);
+                else if (sortType === 'defense') list.sort((a, b) => (b.defense || 0) - (a.defense || 0));
+
+                const container = document.getElementById('rankListContainer');
+                if (!container) return;
+
+                container.innerHTML = list.slice(0, 100).map((p, idx) => `
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:12px; border-bottom:1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.2); border-radius: 12px; margin-bottom: 5px;">
+                <div style="width:40px; font-weight:bold; color:#e94560;">${idx + 1}</div>
+                <div><strong style="color: #ffd966;">${escapeHtml(p.username)}</strong></div>
+                <div>⭐ ${p.level} ур.</div>
+                <div>💪 ${p.power}</div>
+            </div>
+        `).join('');
+            };
+
+            renderRank();
+
+            document.querySelectorAll('#rankingModalOverlay .sort-btn').forEach(btn => {
+                btn.onclick = () => {
+                    sortType = btn.getAttribute('data-sort');
+                    document.querySelectorAll('#rankingModalOverlay .sort-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    renderRank();
+                };
+            });
+
+            document.querySelector('#rankingModalOverlay .sort-btn').classList.add('active');
+        }
+
+        function closeRankingModal() {
+            const modal = document.querySelector('#rankingModalOverlay');
+            if (modal) modal.remove();
+            if (tg) tg.BackButton.hide();
+        }
+
+        function openInviteModalFromSettings() {
+            if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); return; }
+
+            const gameUrl = window.location.href.split('?')[0];
+            const refLink = `${gameUrl}?ref=${currentPlayer.inviteCode}`;
+            const invitedCount = currentPlayer.invitedPlayers?.length || 0;
+            const maxInvites = clanMaxMembers;
+
+            const modalHtml = `
+        <div class="modal-overlay" id="inviteModalOverlay" onclick="if(event.target === this) closeInviteModal()">
+            <div class="modal-window">
+                <div class="modal-window-header">
+                    <div class="modal-window-title">👥 ПРИГЛАСИТЬ ДРУЗЕЙ</div>
+                    <button class="modal-window-close" onclick="closeInviteModal()">✕</button>
+                </div>
+                <div class="modal-window-content">
+                    <div style="background: rgba(139,69,19,0.2); border: 1px solid #8B4513; border-radius: 16px; padding: 15px; margin-bottom: 20px; text-align: center;">
+                        <div style="font-size: 12px; color: #c9a03d; margin-bottom: 8px;">✨ ТВОЯ РЕФЕРАЛЬНАЯ ССЫЛКА ✨</div>
+                        <div style="font-family: monospace; font-size: 12px; word-break: break-all; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 12px; margin: 10px 0; color: #ffd966;">${refLink}</div>
+                        <button class="btn-primary" onclick="copyToClipboard('${refLink}'); showToast('Ссылка скопирована!', 'success'); closeInviteModal();" style="width: 100%;">
+                            📋 КОПИРОВАТЬ ССЫЛКУ
+                        </button>
+                    </div>
+                    
+                    <div style="margin-top: 15px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <div style="font-size: 16px; font-weight: 700; color: #c9a03d;">👥 ПРИГЛАШЕННЫЕ ДРУЗЬЯ</div>
+                            <div style="background: #8B4513; padding: 4px 12px; border-radius: 20px; font-size: 12px;">${invitedCount}/${maxInvites}</div>
+                        </div>
+                        <div style="max-height: 250px; overflow-y: auto; padding-right: 5px;">
+                            ${currentPlayer.invitedPlayers?.length > 0 ?
+                    currentPlayer.invitedPlayers.map(f => `
+                                    <div style="background: rgba(30,36,64,0.6); border-radius: 12px; padding: 10px; margin-bottom: 8px; border-left: 3px solid #c9a03d;">
+                                        <span style="color: #ffd966;">👤 ${escapeHtml(f)}</span>
+                                    </div>
+                                `).join('') :
+                    '<div style="text-align: center; padding: 30px; color: #888;">🤝 Пока нет приглашенных друзей</div>'
+                }
+                        </div>
+                        ${invitedCount >= maxInvites ? '<div style="margin-top: 15px; padding: 10px; background: rgba(233,69,96,0.2); border-radius: 12px; text-align: center; font-size: 12px; color: #e94560;">⚠️ Вы достигли лимита приглашений!</div>' : ''}
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+            const existing = document.querySelector('.modal-overlay');
+            if (existing) existing.remove();
+
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+            if (tg) tg.BackButton.show();
+        }
+
+        function closeInviteModal() {
+            const modal = document.querySelector('#inviteModalOverlay');
+            if (modal) modal.remove();
+            if (tg) tg.BackButton.hide();
+        }
+	</script>
+	<script>
+	// ========== АЛГОРИТМЫ И ФУНКЦИИ ОКНА ОБЩАК ==========
+	
+	function openTreasuryModal() {
+            if (window._opening_modal) { console.log('Блокировка: окно уже открывается'); return; }
+            window._opening_modal = true;
+
+            if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); window._opening_modal = false; return; }
+            if (!currentPlayer) { window._opening_modal = false; return; }
+
+            getTreasuryTotal().then(async (treasuryTotal) => {
+                // Загружаем историю пополнений
+                let historyHtml = '';
+                try {
+                    const historySnapshot = await db.collection('treasuryHistory')
+                        .orderBy('timestamp', 'desc')
+                        .limit(20)
+                        .get();
+
+                    if (!historySnapshot.empty) {
+                        historyHtml = `
+                    <div class="treasury-history-title">
+                        <span>📜</span> ПОСЛЕДНИЕ ПОПОЛНЕНИЯ <span>📜</span>
+                    </div>
+                    <div class="treasury-history-list">
+                `;
+                        historySnapshot.forEach(doc => {
+                            const data = doc.data();
+                            const date = new Date(data.timestamp);
+                            const timeStr = `${date.getDate()}.${date.getMonth() + 1} ${date.getHours()}:${date.getMinutes().toString().padStart(2, '0')}`;
+                            historyHtml += `
+                        <div class="treasury-history-item">
+                            <div>
+                                <span class="treasury-history-player">👤 ${escapeHtml(data.playerName || 'Аноним')}</span>
+                                ${data.clanName && data.clanName !== '—' ? `<span style="color:#aaa; font-size:10px;"> (${escapeHtml(data.clanName)})</span>` : ''}
+                            </div>
+                            <div>
+                                <span class="treasury-history-amount">+${data.amount}💰</span>
+                                <span class="treasury-history-date"> ${timeStr}</span>
+                            </div>
+                        </div>
+                    `;
+                        });
+                        historyHtml += `</div>`;
+                    } else {
+                        historyHtml = '<div style="text-align:center; padding:20px; color:#aaa;">📭 Пока никто не пополнял общак...</div>';
+                    }
+                } catch (e) {
+                    console.error('Ошибка загрузки истории:', e);
+                    historyHtml = '<div style="text-align:center; padding:20px; color:#aaa;">⚠️ История временно недоступна</div>';
+                }
+
+                const modalHtml = `
+            <div class="treasury-fullscreen" id="treasuryFullscreen">
+                <div class="treasury-header-bar">
+                    <div class="treasury-header-content">
+                        <div class="treasury-header-title">ОБЩАК</div>
+                    </div>
+                </div>
+                <div class="treasury-content-area">
+                    <div class="treasury-card">
+                        <div class="treasury-amount">
+                            <div class="treasury-label">ВСЕГО В КАЗНЕ</div>
+                            <div class="treasury-value">${treasuryTotal.toLocaleString()} ₽</div>
+                        </div>
+                        
+                        <div class="treasury-donate-form">
+                            <input type="number" id="donateAmountInput" class="treasury-donate-input" placeholder="СУММА ПОПОЛНЕНИЯ" min="1">
+                            <button class="treasury-donate-btn" onclick="donateToTreasuryFromModal()">💰 ВНЕСТИ</button>
+                        </div>
+                        
+                        <div class="treasury-history">
+                            ${historyHtml}
+                        </div>
+                    </div>
+                </div>
+                <div class="treasury-bottom-nav">
+                    <div class="bottom-nav">
+                        <button class="treasury-tab-btn active" onclick="closeTreasuryModal()"><img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_6.png"  height="70px" width="55px" draggable="false"></button>
+                    </div>
+                </div>
+            </div>
+        `;
+                document.body.insertAdjacentHTML('beforeend', modalHtml);
+                if (tg) tg.BackButton.show();
+                setTimeout(() => { window._opening_modal = false; }, 500);
+            });
+        }
+		
+		function closeTreasuryModal() {
+            const modal = document.getElementById('treasuryFullscreen');
+            if (modal) modal.remove();
+            if (tg) tg.BackButton.hide();
+            currentBottomTab = 'city';  // ← ДОБАВЬ ЭТУ СТРОКУ
+
+            // Восстанавливаем скролл body
+            document.body.style.overflow = '';
+            document.body.style.position = '';
+            document.body.style.width = '';
+            document.body.classList.remove('modal-open');
+
+            renderUI();                  // ← И ЭТУ
+        }
+
+        async function donateToTreasuryFromModal() {
+            if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); return; }
+            const amount = parseInt(document.getElementById('donateAmountInput')?.value || 0);
+            if (amount <= 0) { showToast('Введите сумму', 'error'); return; }
+            if (currentPlayer.rubles < amount) { showToast(`Не хватает ${amount - currentPlayer.rubles} 💰!`, 'error'); return; }
+
+            await playerDocRef.update({ rubles: firebase.firestore.FieldValue.increment(-amount) });
+            const treasuryRef = db.collection('config').doc('treasury');
+            const treasuryDoc = await treasuryRef.get();
+            if (treasuryDoc.exists) await treasuryRef.update({ totalRubles: firebase.firestore.FieldValue.increment(amount) });
+            else await treasuryRef.set({ totalRubles: amount });
+
+            const playerClan = allClans.find(c => c.id === currentPlayer.clanId);
+            const playerClanName = playerClan?.name || '—';
+
+            // Сохраняем в историю
+            await db.collection('treasuryHistory').add({
+                type: 'player_donate',
+                amount: amount,
+                playerName: currentPlayer.username,
+                clanName: playerClanName,
+                timestamp: Date.now()
+            });
+
+            currentPlayer.rubles -= amount;
+            showToast(`💰 +${amount}₽ в общак!`, 'success');
+            closeTreasuryModal();
+            renderUI();
+        }
+		
+		async function getTreasuryTotal() { 
+		try { 
+		const doc = await db.collection('config').doc('treasury').get(); 
+		return doc.exists ? doc.data().totalRubles || 0 : 0; 
+		} 
+		catch (e) { 
+		return 0; 
+		} 
 		}
+	 // Функция-обёртка для открытия Общака
+        function openTreasuryModalWithReset() {
+            openTreasuryModal();
+            // После закрытия модалки вернёмся на Город
+            const checkInterval = setInterval(() => {
+                const modal = document.getElementById('treasuryFullscreen');
+                if (!modal) {
+                    clearInterval(checkInterval);
+                    currentBottomTab = 'city';
+                    renderUI();
+                }
+            }, 100);
+        }
+        
+	</script>
+	<script>
+	// ========== АЛГОРИТМЫ И ФУНКЦИИ ОКНА КЛАН ==========
+	
+	</script>
+	<script>
+	// ========== АЛГОРИТМЫ И ФУНКЦИИ ОКНА ЗАДАНИЯ ==========
 	
 	</script>
     <script>
@@ -6786,7 +7194,7 @@ async function startClanWar(targetClanId, targetClanName, targetClanLevel) {
         return;
     }
     
-    // Проверяем кулдаун атаки на этот клан (из настроек)
+    // Проверяем кулдаун атаки на этот клан
     const attackCooldownHours = window.WAR_ATTACK_COOLDOWN_HOURS || 48;
     const attackCooldownKey = `attackCooldown_${currentPlayer.clanId}_${targetClanId}`;
     const savedCooldown = localStorage.getItem(attackCooldownKey);
@@ -6796,13 +7204,26 @@ async function startClanWar(targetClanId, targetClanName, targetClanLevel) {
         return;
     }
     
-    // Проверяем глобальный кулдаун клана (из настроек)
+    // Проверяем глобальный кулдаун клана
     const warCooldownHours = window.WAR_COOLDOWN_HOURS || 24;
     const lastWarKey = `lastWar_${currentPlayer.clanId}`;
     const lastWarTime = localStorage.getItem(lastWarKey);
     if (lastWarTime && (Date.now() - parseInt(lastWarTime)) < warCooldownHours * 60 * 60 * 1000) {
         const remaining = warCooldownHours * 60 * 60 * 1000 - (Date.now() - parseInt(lastWarTime));
         showToast(`Клан может начинать войну раз в ${warCooldownHours} часов! Осталось: ${formatTimeDetailedFull(remaining)}`, 'warning');
+        return;
+    }
+    
+    // ========== ДОБАВЛЯЕМ ПОДТВЕРЖДЕНИЕ ==========
+    const confirmMessage = `⚔️ ПОДТВЕРДИТЕ НАПАДЕНИЕ ⚔️\n\n` +
+        `Ваш клан: ${myClan.name} (ур.${myClan.level})\n` +
+        `Цель: ${targetClanName} (ур.${targetClanLevel})\n\n` +
+        `⚠️ Война продлится ${WAR_DURATION_HOURS} часов!\n` +
+        `⚠️ После начала войны вы не сможете её отменить!\n\n` +
+        `Вы уверены, что хотите объявить войну?`;
+    
+    if (!confirm(confirmMessage)) {
+        showToast('⚔️ Нападение отменено', 'warning');
         return;
     }
     
@@ -6829,17 +7250,12 @@ async function startClanWar(targetClanId, targetClanName, targetClanLevel) {
     try {
         await db.collection('clanWars').add(warData);
         localStorage.setItem(lastWarKey, Date.now().toString());
-        
-        // Сохраняем кулдаун атаки на этот клан (из настроек)
         localStorage.setItem(attackCooldownKey, (Date.now() + attackCooldownHours * 60 * 60 * 1000).toString());
         
         showToast(`⚔️ Война объявлена клану "${targetClanName}"!`, 'success');
         notifyClanMembers(targetClanId, `⚠️ Клан "${myClan.name}" объявил войну вашему клану! Война продлится ${WAR_DURATION_HOURS} часов. Защищайтесь!`);
         
-        // ВАЖНО: НЕ закрываем модальное окно! Просто обновляем его содержимое
         updateWarWindowUI();
-        
-        // Обновляем UI без перезагрузки
         renderUI();
         
     } catch (e) {
@@ -10153,7 +10569,7 @@ function addNotification(type, title, message, targetPlayerId = null) {
                 <img class="loading-logo" src="https://sviter-pro.github.io/GameZone/src/test/logo124.png" alt="Тюряга 2.0" onerror="this.src='https://via.placeholder.com/180x180?text=Тюряга+2.0'">
                 <div class="loading-spinner-new"></div>
                 <div class="loading-tip-new" id="loadingTipNew">⚡ Загрузка игрового мира...</div>
-                <div class="loading-version">Зона 1.0.0.257 | Зона ждет</div>
+                <div class="loading-version">Зона 1.0.0.260 | Зона ждет</div>
             </div>
         `;
             const tipEl = document.getElementById('loadingTipNew');
@@ -10699,20 +11115,6 @@ function addNotification(type, title, message, targetPlayerId = null) {
             openClanFullModal();
         }
 
-        // Функция-обёртка для открытия Общака
-        function openTreasuryModalWithReset() {
-            openTreasuryModal();
-            // После закрытия модалки вернёмся на Город
-            const checkInterval = setInterval(() => {
-                const modal = document.getElementById('treasuryFullscreen');
-                if (!modal) {
-                    clearInterval(checkInterval);
-                    currentBottomTab = 'city';
-                    renderUI();
-                }
-            }, 100);
-        }
-
         // Функция-обёртка для открытия Сходки/Войны
         function openAttackMenuWithReset() {
             openAttackMenu();
@@ -10793,152 +11195,6 @@ function addNotification(type, title, message, targetPlayerId = null) {
             }
         }
 
-        function openInventoryModal() {
-    if (window._opening_modal) { console.log('Блокировка: окно уже открывается'); return; }
-    window._opening_modal = true;
-
-    if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); window._opening_modal = false; return; }
-    if (!currentPlayer) { window._opening_modal = false; return; }
-
-    // Получаем количество наколок
-    const tattoosCount = currentPlayer.tattoos?.length || 0;
-
-    // Получаем экипировку с красивыми иконками
-    const weapon = currentPlayer.equipped?.weapon || 'камень';
-    const armor = currentPlayer.equipped?.armor || 'роба';
-    const accessory = currentPlayer.equipped?.accessory || 'чифирная кружка';
-
-    // Получаем все купленные вещи
-    const purchasedEquipment = currentPlayer.purchasedEquipment || [];
-    
-    // Иконки для экипировки
-    const weaponIcons = { 'камень': '🪨', 'нож': '🔪', 'кастет': '👊', 'бита': '🏏', 'пистолет': '🔫', 'автомат': '🔫', 'обрез': '🔫' };
-    const armorIcons = { 'роба': '👕', 'кожанка': '🧥', 'броник': '🛡️', 'камуфляж': '🎖️', 'бронежилет': '🛡️' };
-    const accessoryIcons = { 'чифирная кружка': '☕', 'цепь': '⛓️', 'перстень': '💍', 'часы': '⌚', 'крест': '✝️' };
-
-    const weaponIcon = weaponIcons[weapon] || '🔪';
-    const armorIcon = armorIcons[armor] || '👕';
-    const accessoryIcon = accessoryIcons[accessory] || '💍';
-
-    // Список всех доступных предметов в магазине (для отображения)
-    const allWeapons = ['камень', 'нож', 'кастет', 'бита', 'пистолет', 'автомат', 'обрез'];
-    const allArmors = ['роба', 'кожанка', 'броник', 'камуфляж', 'бронежилет'];
-    const allAccessories = ['чифирная кружка', 'цепь', 'перстень', 'часы', 'крест'];
-    
-    // Функция для отображения списка предметов
-    const renderEquipmentList = (items, purchasedList, currentEquipped, slotName, iconsMap) => {
-        if (!items || items.length === 0) return '<div style="color:#aaa; padding: 10px; text-align: center;">❌ Нет доступных предметов</div>';
-        
-        return items.map(item => {
-            const isPurchased = purchasedList.includes(item);
-            const isEquipped = currentEquipped === item;
-            const icon = iconsMap[item] || '📦';
-            
-            let statusHtml = '';
-            if (isEquipped) {
-                statusHtml = '<span style="color: #4caf50; font-size: 10px;"> (НАДЕТО)</span>';
-            } else if (isPurchased) {
-                statusHtml = '<span style="color: #ff9800; font-size: 10px;"> (В ИНВЕНТАРЕ)</span>';
-            } else {
-                statusHtml = '<span style="color: #888; font-size: 10px;"> (НЕ КУПЛЕНО)</span>';
-            }
-            
-            return `<div class="inventory-row" style="cursor: ${isPurchased ? 'pointer' : 'default'}; opacity: ${isPurchased ? 1 : 0.5};" onclick="${isPurchased && !isEquipped ? `changeEquipment('${slotName}', '${item}')` : ''}">
-                <span class="inventory-label">${icon} ${item}</span>
-                <span class="inventory-value">${statusHtml}</span>
-            </div>`;
-        }).join('');
-    };
-    
-    const modalHtml = `
-        <div class="inventory-fullscreen" id="inventoryFullscreen">
-            <div class="inventory-header-bar">
-                <div class="inventory-header-content">
-                    <div class="inventory-header-title">КАМЕРА</div>
-                </div>
-            </div>
-            <div class="inventory-content-area">
-                <!-- ТЕКУЩАЯ ЭКИПИРОВКА -->
-                <div class="inventory-card">
-                    <h3>
-                        <span>🔧</span> 
-                        <span>ТЕКУЩАЯ ЭКИПИРОВКА</span>
-                        <span style="font-size: 10px; color: #8B4513;">⚡ надетая шмонка</span>
-                    </h3>
-                    <div class="inventory-row">
-                        <span class="inventory-label">${weaponIcon} ОРУЖИЕ</span>
-                        <span class="inventory-value">${escapeHtml(weapon)}</span>
-                    </div>
-                    <div class="inventory-row">
-                        <span class="inventory-label">${armorIcon} ОДЕЖДА</span>
-                        <span class="inventory-value">${escapeHtml(armor)}</span>
-                    </div>
-                    <div class="inventory-row">
-                        <span class="inventory-label">${accessoryIcon} АКСЕССУАР</span>
-                        <span class="inventory-value">${escapeHtml(accessory)}</span>
-                    </div>
-                </div>
-                
-                <!-- ВСЕ ОРУЖИЕ -->
-                <div class="inventory-card">
-                    <h3>
-                        <span>🔪</span> 
-                        <span>ОРУЖИЕ</span>
-                        <span style="font-size: 10px; color: #8B4513;">👆 нажми чтобы надеть</span>
-                    </h3>
-                    ${renderEquipmentList(allWeapons, purchasedEquipment, weapon, 'weapon', weaponIcons)}
-                </div>
-                
-                <!-- ВСЯ ОДЕЖДА -->
-                <div class="inventory-card">
-                    <h3>
-                        <span>👕</span> 
-                        <span>ОДЕЖДА</span>
-                        <span style="font-size: 10px; color: #8B4513;">👆 нажми чтобы надеть</span>
-                    </h3>
-                    ${renderEquipmentList(allArmors, purchasedEquipment, armor, 'armor', armorIcons)}
-                </div>
-                
-                <!-- ВСЕ АКСЕССУАРЫ -->
-                <div class="inventory-card">
-                    <h3>
-                        <span>💍</span> 
-                        <span>АКСЕССУАРЫ</span>
-                        <span style="font-size: 10px; color: #8B4513;">👆 нажми чтобы надеть</span>
-                    </h3>
-                    ${renderEquipmentList(allAccessories, purchasedEquipment, accessory, 'accessory', accessoryIcons)}
-                </div>
-                
-                <!-- НАКОЛКИ -->
-                <div class="inventory-card">
-                    <h3>
-                        <span>💉</span> 
-                        <span>НАКОЛКИ (${tattoosCount})</span>
-                        <span style="font-size: 10px; color: #8B4513;">🏆 воровская гордость</span>
-                    </h3>
-                    ${tattoosCount > 0 ?
-                        currentPlayer.tattoos.map(t => `<div class="tattoo-item">💉 ${escapeHtml(t)}</div>`).join('') :
-                        '<div style="color:#aaa; padding: 20px; text-align: center;">❌ Нет наколок<br><span style="font-size: 11px;">Купи в магазине у Барыги</span></div>'
-                    }
-                </div>
-            </div>
-            <div class="inventory-bottom-nav">
-                <div class="bottom-nav">
-                    <button class="inventory-tab-btn active" onclick="closeInventoryModal()">
-                        <span>←</span><span>НАЗАД</span>
-                    </button>
-                </div>
-            </div>
-        </div>
-    `;
-    document.body.insertAdjacentHTML('beforeend', modalHtml);
-    if (tg) tg.BackButton.show();
-
-    setTimeout(() => { window._opening_modal = false; }, 500);
-}
-
-
-        
 
         async function changeUsername() {
             if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); return; }
@@ -11259,85 +11515,6 @@ function addNotification(type, title, message, targetPlayerId = null) {
                 showToast('Не удалось скопировать', 'error');
             });
         }
-
-        function openSettingsModal() {
-            if (window._opening_modal) { console.log('Блокировка: окно уже открывается'); return; }
-            window._opening_modal = true;
-
-            if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); window._opening_modal = false; return; }
-            if (!currentPlayer) { window._opening_modal = false; return; }
-
-            const modalHtml = `
-        <div class="settings-fullscreen" id="settingsFullscreen">
-            <div class="settings-header-bar">
-                <div class="settings-header-content">
-                    <div class="settings-header-title">НАСТРОЙКИ</div>
-                </div>
-            </div>
-            <div class="settings-content-area">
-                <div class="settings-card">
-                    <div class="settings-switch">
-                        <span class="settings-switch-label">
-                            <span>🔔</span> УВЕДОМЛЕНИЯ В БОТА
-                        </span>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="notificationsToggle" ${settingsNotifications ? 'checked' : ''} onchange="toggleNotifications(this.checked)">
-                            <span class="toggle-slider"></span>
-                        </label>
-                    </div>
-                    
-                    <div class="settings-buttons">
-                        <button class="settings-rank-btn" onclick="openRankingModal();">🏆 РЕЙТИНГ</button>
-<button class="settings-invite-btn" onclick="openInviteModalFromSettings();">👥 ПРИГЛАСИТЬ</button>
-                    </div>
-                </div>
-                
-                <div class="settings-card">
-                    <div style="font-size: 13px; color: #aaa; text-align: center;">
-                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.257</div>
-                        <div style="font-size: 11px;">⚡ Клановые войны | Бесконечная прокачка</div>
-                    </div>
-                </div>
-            </div>
-            <div class="settings-bottom-nav">
-                <div class="bottom-nav">
-                    <button class="settings-tab-btn active" onclick="closeSettingsModal()"><img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_6.png"  height="70px" width="55px" draggable="false"></button>
-                </div>
-            </div>
-        </div>
-    `;
-            document.body.insertAdjacentHTML('beforeend', modalHtml);
-            if (tg) tg.BackButton.show();
-
-            setTimeout(() => { window._opening_modal = false; }, 500);
-        }
-
-        function toggleNotifications(enabled) {
-            settingsNotifications = enabled;
-            localStorage.setItem('settingsNotifications', enabled);
-            showToast(enabled ? 'Уведомления включены' : 'Уведомления выключены', 'success');
-        }
-
-        function closeSettingsModal() {
-            const modal = document.getElementById('settingsFullscreen');
-            if (modal) modal.remove();
-            if (tg) tg.BackButton.hide();
-
-            // Закрываем также любые открытые модальные окна
-            const rankingModal = document.querySelector('#rankingModalOverlay');
-            if (rankingModal) rankingModal.remove();
-
-            const inviteModal = document.querySelector('#inviteModalOverlay');
-            if (inviteModal) inviteModal.remove();
-
-            // Восстанавливаем скролл body
-            document.body.style.overflow = '';
-            document.body.style.position = '';
-            document.body.style.width = '';
-            document.body.classList.remove('modal-open');
-
-            renderUI();
-        }
 		
 	function updateWorkCountersOnMap() {
     const b2Element = document.querySelector('.building.b2');
@@ -11441,65 +11618,6 @@ function startWorkCountersOnMap() {
         }
     }, 1000);
 }
-
-        function openInviteModalFromSettings() {
-            if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); return; }
-
-            const gameUrl = window.location.href.split('?')[0];
-            const refLink = `${gameUrl}?ref=${currentPlayer.inviteCode}`;
-            const invitedCount = currentPlayer.invitedPlayers?.length || 0;
-            const maxInvites = clanMaxMembers;
-
-            const modalHtml = `
-        <div class="modal-overlay" id="inviteModalOverlay" onclick="if(event.target === this) closeInviteModal()">
-            <div class="modal-window">
-                <div class="modal-window-header">
-                    <div class="modal-window-title">👥 ПРИГЛАСИТЬ ДРУЗЕЙ</div>
-                    <button class="modal-window-close" onclick="closeInviteModal()">✕</button>
-                </div>
-                <div class="modal-window-content">
-                    <div style="background: rgba(139,69,19,0.2); border: 1px solid #8B4513; border-radius: 16px; padding: 15px; margin-bottom: 20px; text-align: center;">
-                        <div style="font-size: 12px; color: #c9a03d; margin-bottom: 8px;">✨ ТВОЯ РЕФЕРАЛЬНАЯ ССЫЛКА ✨</div>
-                        <div style="font-family: monospace; font-size: 12px; word-break: break-all; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 12px; margin: 10px 0; color: #ffd966;">${refLink}</div>
-                        <button class="btn-primary" onclick="copyToClipboard('${refLink}'); showToast('Ссылка скопирована!', 'success'); closeInviteModal();" style="width: 100%;">
-                            📋 КОПИРОВАТЬ ССЫЛКУ
-                        </button>
-                    </div>
-                    
-                    <div style="margin-top: 15px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                            <div style="font-size: 16px; font-weight: 700; color: #c9a03d;">👥 ПРИГЛАШЕННЫЕ ДРУЗЬЯ</div>
-                            <div style="background: #8B4513; padding: 4px 12px; border-radius: 20px; font-size: 12px;">${invitedCount}/${maxInvites}</div>
-                        </div>
-                        <div style="max-height: 250px; overflow-y: auto; padding-right: 5px;">
-                            ${currentPlayer.invitedPlayers?.length > 0 ?
-                    currentPlayer.invitedPlayers.map(f => `
-                                    <div style="background: rgba(30,36,64,0.6); border-radius: 12px; padding: 10px; margin-bottom: 8px; border-left: 3px solid #c9a03d;">
-                                        <span style="color: #ffd966;">👤 ${escapeHtml(f)}</span>
-                                    </div>
-                                `).join('') :
-                    '<div style="text-align: center; padding: 30px; color: #888;">🤝 Пока нет приглашенных друзей</div>'
-                }
-                        </div>
-                        ${invitedCount >= maxInvites ? '<div style="margin-top: 15px; padding: 10px; background: rgba(233,69,96,0.2); border-radius: 12px; text-align: center; font-size: 12px; color: #e94560;">⚠️ Вы достигли лимита приглашений!</div>' : ''}
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
-
-            const existing = document.querySelector('.modal-overlay');
-            if (existing) existing.remove();
-
-            document.body.insertAdjacentHTML('beforeend', modalHtml);
-            if (tg) tg.BackButton.show();
-        }
-
-        function closeInviteModal() {
-            const modal = document.querySelector('#inviteModalOverlay');
-            if (modal) modal.remove();
-            if (tg) tg.BackButton.hide();
-        }
 
     function openMineModal() {
     if (window._opening_modal) {
@@ -13580,34 +13698,34 @@ function closeMineModal() {
 
         // Функция обновления рандомного магазина
         function updateRandomShopIfNeeded(force = false) {
-            const now = Date.now();
-            if (force || randomShopItems.length === 0 || now - randomShopLastUpdate >= RANDOM_SHOP_UPDATE_INTERVAL) {
-                if (force && currentPlayer.rubles < 200) {
-                    showToast('Не хватает 200💰 для принудительного обновления!', 'error');
-                    return false;
-                }
-                randomShopItems = generateRandomShopItems();
-                randomShopLastUpdate = now;
-                purchasedRandomItems = {}; // Сбрасываем покупки при обновлении
-                // Сохраняем в localStorage
-                localStorage.setItem(`randomShopItems_${currentPlayer.id}`, JSON.stringify(randomShopItems));
-                localStorage.setItem(`randomShopLastUpdate_${currentPlayer.id}`, randomShopLastUpdate);
-                localStorage.setItem(`purchasedRandomItems_${currentPlayer.id}`, JSON.stringify(purchasedRandomItems));
-                if (currentShopCategory === 'random' && document.getElementById('shopFullscreen')) {
-                    renderShopModal();
-                }
-                if (force) {
-                    currentPlayer.rubles -= 200;
-                    playerDocRef.update({ rubles: currentPlayer.rubles });
-                    showToast('🎲 Ассортимент РАНДОМ обновлён! -200💰', 'success');
-                } else {
-                    //showToast('🎲 Ассортимент РАНДОМ обновлён!', 'success');
-                }
-                renderUI();
-                return true;
-            }
+    const now = Date.now();
+    if (force || randomShopItems.length === 0 || now - randomShopLastUpdate >= RANDOM_SHOP_UPDATE_INTERVAL) {
+        if (force && currentPlayer.rubles < 200) {
+            showToast('Не хватает 200💰 для принудительного обновления!', 'error');
             return false;
         }
+        randomShopItems = generateRandomShopItems();
+        randomShopLastUpdate = now;
+        purchasedRandomItems = {};
+        localStorage.setItem(`randomShopItems_${currentPlayer.id}`, JSON.stringify(randomShopItems));
+        localStorage.setItem(`randomShopLastUpdate_${currentPlayer.id}`, randomShopLastUpdate);
+        localStorage.setItem(`purchasedRandomItems_${currentPlayer.id}`, JSON.stringify(purchasedRandomItems));
+        
+        // ❌ УБРАТЬ ЭТУ СТРОКУ - она вызывает рекурсию!
+        // if (currentShopCategory === 'random' && document.getElementById('shopFullscreen')) {
+        //     renderShopModal();
+        // }
+        
+        if (force) {
+            currentPlayer.rubles -= 200;
+            playerDocRef.update({ rubles: currentPlayer.rubles });
+            showToast('🎲 Ассортимент РАНДОМ обновлён! -200💰', 'success');
+        }
+        renderUI();
+        return true;
+    }
+    return false;
+}
 
         // Функция загрузки рандомных товаров из localStorage
         function loadRandomShopFromStorage() {
@@ -13707,12 +13825,24 @@ function closeMineModal() {
             renderUI();
         }
 
-        function switchShopTab(tab) {
-            currentShopTab = tab;
-            renderShopModal();
-        }
+function switchShopTab(tab) {
+    currentShopTab = tab;
+    
+    const offersContainer = document.getElementById('shopOffersContainer');
+    const upgradeContainer = document.getElementById('shopUpgradeContainer');
+    
+    if (offersContainer) offersContainer.style.display = tab === 'offers' ? 'block' : 'none';
+    if (upgradeContainer) upgradeContainer.style.display = tab === 'upgrade' ? 'block' : 'none';
+    
+    // Обновляем активные классы на кнопках
+    const btns = document.querySelectorAll('.shop-tabs-header .shop-tab-btn');
+    if (btns.length >= 2) {
+        btns[0].classList.toggle('active', tab === 'offers');
+        btns[1].classList.toggle('active', tab === 'upgrade');
+    }
+}
 
-        function openShopModal() {
+    function openShopModal() {
     if (window._opening_modal) { 
         console.log('Блокировка: окно уже открывается'); 
         return; 
@@ -13722,10 +13852,6 @@ function closeMineModal() {
     if (maintenanceMode) { 
         showToast(maintenanceMessage, 'warning'); 
         window._opening_modal = false;
-        document.body.style.overflow = '';
-        document.body.style.position = '';
-        document.body.style.width = '';
-        document.body.classList.remove('modal-open');
         return; 
     }
     
@@ -13736,18 +13862,16 @@ function closeMineModal() {
 
     loadRandomShopFromStorage();
     
-    // Если окно уже создано - просто показываем его и обновляем данные
+    // Если окно уже создано - просто показываем его
     const existingModal = document.getElementById('shopFullscreen');
     if (existingModal) {
         existingModal.style.display = 'flex';
         if (tg) tg.BackButton.show();
-        // Обновляем содержимое (ресурсы, таймеры)
-        updateShopModalUI();
         window._opening_modal = false;
         return;
     }
     
-    // Создаём HTML окна (один раз!)
+    // Создаём HTML окна с ФИКСИРОВАННОЙ панелью ресурсов
     const modalHtml = `
         <div class="shop-fullscreen" id="shopFullscreen" style="display: flex;">
             <div class="shop-header-bar">
@@ -13755,80 +13879,40 @@ function closeMineModal() {
                     <div class="shop-header-title">БАРЫГА</div>
                 </div>
             </div>
-            <div style="background: linear-gradient(135deg, #1a1a2a, #0d0d15); border-radius: 1px; padding: 5px 20px; margin: 9px -15px; border: 1px solid #8B4513; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-        <div style="display: flex; gap: 1px; align-items: center; flex-wrap: wrap;">
-            <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
-                <span style="font-size: 11px;">🚬</span>
-                <span id="mineCigarettesValue" style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.cigarettes || 0)}</span>
-            </div>
-            <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
-                <span style="font-size: 11px;">📄</span>
-                <span id="minePaperValue" style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.mine?.paper || 0)}</span>
-            </div>
-            <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
-                <span style="font-size: 11px;">🌿</span>
-                <span id="mineMakhorkaValue" style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.mine?.makhorka || 0)}</span>
-            </div>
-            <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
-                <span style="font-size: 11px;">🪵</span>
-                <span id="mineWoodValue" style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.lumber?.wood || 0)}</span>
-            </div>
-            <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
-                <span style="font-size: 11px;">🪨</span>
-                <span id="mineStoneValue" style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.quarry?.stone || 0)}</span>
-            </div>
-        </div>
-    </div>
             
-            <!-- Вкладки -->
-            <div class="shop-tabs-header">
-                <button id="shopOffersTabBtn" class="shop-tab-btn2 ${currentShopTab === 'offers' ? 'active' : ''}">📦 ТОВАРЫ</button>
-                <button id="shopUpgradeTabBtn" class="shop-tab-btn2 ${currentShopTab === 'upgrade' ? 'active' : ''}">⬆️ ПРОКАЧКА</button>
-            </div>
-            
-            <div class="shop-content-area">
-                <!-- КОНТЕЙНЕР ТОВАРОВ -->
-                <div id="shopOffersContainer" style="display: ${currentShopTab === 'offers' ? 'block' : 'none'};">
-                    <div class="random-update-timer" id="randomUpdateTimer">
-                        <span>🔄 ОБНОВЛЕНИЕ ЧЕРЕЗ: ${formatTimeDetailedWithSeconds(getRandomShopUpdateRemaining())}</span>
-                        <button onclick="forceUpdateRandomShop()">🔄 ОБНОВИТЬ (200💰)</button>
+            <!-- ФИКСИРОВАННАЯ ПАНЕЛЬ РЕСУРСОВ (ВСЕГДА ВИДНА) -->
+            <div style="background: linear-gradient(135deg, #1a1a2a, #0d0d15); border-radius: 1px; padding: 7px 15px; margin: 3px 4px; border: 1px solid #8B4513; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                    <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                        <span style="font-size: 12px;">🚬</span>
+                        <span id="shopCigarettesValue" style="font-size: 10px; font-weight: bold; color: #ffd966;">${currentPlayer.cigarettes || 0}</span>
                     </div>
-                    
-                    <select id="shopCategorySelect" class="shop-category-select" onchange="switchShopCategoryUI(this.value)">
-                        ${shopCategoriesList.map(cat => `<option value="${cat.key}" ${currentShopCategory === cat.key ? 'selected' : ''}>${cat.label}</option>`).join('')}
-                    </select>
-                    
-                    <div id="shopItemsGrid" class="shop-grid">
-                        <!-- Сюда будет загружаться список товаров -->
+                    <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                        <span style="font-size: 12px;">💰</span>
+                        <span id="shopRublesValue" style="font-size: 10px; font-weight: bold; color: #ffd966;">${currentPlayer.rubles || 0}</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                        <span style="font-size: 12px;">🪵</span>
+                        <span id="shopWoodValue" style="font-size: 10px; font-weight: bold; color: #ffd966;">${currentPlayer.lumber?.wood || 0}</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                        <span style="font-size: 12px;">🪨</span>
+                        <span id="shopStoneValue" style="font-size: 10px; font-weight: bold; color: #ffd966;">${currentPlayer.quarry?.stone || 0}</span>
                     </div>
                 </div>
-                
-                <!-- КОНТЕЙНЕР ПРОКАЧКИ -->
-                <div id="shopUpgradeContainer" style="display: ${currentShopTab === 'upgrade' ? 'block' : 'none'};">
-                    <div class="shop-card">
-                        <div style="font-size: 48px; margin-bottom: 10px;">📈</div>
-                        <div class="bonus-info" style="background: rgba(139,69,19,0.2);">📊 УРОВЕНЬ МАГАЗИНА: <span id="shopLevelValue">${shopLevel}</span></div>
-                        <div class="bonus-info" style="background: rgba(139,69,19,0.2);">✨ ДОСТУПНО ТОВАРОВ: <span id="shopAvailableItems">${1 + shopLevel}</span> из 12</div>
-                        <div id="shopUpgradeActiveBlock" style="display: none;" class="busy-text">
-                            ⏳ ПРОКАЧКА ИДЕТ! ОСТАЛОСЬ: <span id="shopUpgradeTimer" class="timer-text"></span>
-                        </div>
-                        <div id="shopUpgradeAvailableBlock" style="display: flex; flex-direction: column;">
-                            <div class="bonus-info">⬆️ УЛУЧШЕНИЕ ДО <span id="shopNextLevel">${shopLevel + 1}</span> УРОВНЯ:</div>
-                            <div class="bonus-info" style="background: #1e2440; padding: 10px; border-radius: 16px; margin: 10px 0;">
-                                🚬 <span id="shopUpgradeCostCigarettes">${100 * shopLevel}</span> | 🪵 <span id="shopUpgradeCostWood">${50 * shopLevel}</span> | 🪨 <span id="shopUpgradeCostStone">${30 * shopLevel}</span>
-                            </div>
-                            <div class="bonus-info">⏳ ВРЕМЯ: <span id="shopUpgradeDuration">${Math.round((2 * 60 * 1000 * (1 + (shopLevel - 1) * 0.1)) / 60000)}</span> МИН</div>
-                            <button id="upgradeShopBtn" class="btn-primary" onclick="upgradeShop()" style="margin-top:15px; width:100%; padding: 14px;">
-                                ⬆️ УЛУЧШИТЬ МАГАЗИН
-                            </button>
-                        </div>
-                    </div>
+            </div>
+            
+            <!-- КОНТЕЙНЕР ДЛЯ ДИНАМИЧЕСКОГО КОНТЕНТА -->
+            <div class="shop-content-area" id="shopDynamicContent">
+                <div style="text-align: center; padding: 40px;">
+                    <div class="loading-spinner-new" style="width: 30px; height: 30px; margin: 0 auto 15px;"></div>
+                    <div>Загрузка...</div>
                 </div>
             </div>
             
             <div class="shop-bottom-nav">
                 <div class="bottom-nav">
-                    <button id="closeShopBtn" class="shop-tab-btn active"><img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_6.png"  height="70px" width="55px" draggable="false"></button>
+                    <button id="closeShopBtn" class="shop-tab-btn active"><img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_6.png" height="70px" width="55px" draggable="false"></button>
                 </div>
             </div>
         </div>
@@ -13837,46 +13921,233 @@ function closeMineModal() {
     document.body.insertAdjacentHTML('beforeend', modalHtml);
     if (tg) tg.BackButton.show();
     
-    // НАВЕШИВАЕМ ОБРАБОТЧИКИ ПЕРЕКЛЮЧЕНИЯ ВКЛАДОК (БЕЗ ПЕРЕРИСОВКИ)
-    const offersContainer = document.getElementById('shopOffersContainer');
-    const upgradeContainer = document.getElementById('shopUpgradeContainer');
-    const offersTabBtn = document.getElementById('shopOffersTabBtn');
-    const upgradeTabBtn = document.getElementById('shopUpgradeTabBtn');
-    const closeBtn = document.getElementById('closeShopBtn');
+    // Привязываем кнопку закрытия
+    document.getElementById('closeShopBtn')?.addEventListener('click', () => closeShopModal());
     
-    if (offersTabBtn) {
-        offersTabBtn.onclick = () => {
-            currentShopTab = 'offers';
-            offersTabBtn.classList.add('active');
-            upgradeTabBtn.classList.remove('active');
-            if (offersContainer) offersContainer.style.display = 'block';
-            if (upgradeContainer) upgradeContainer.style.display = 'none';
-            updateShopOffersContent(); // Обновляем содержимое товаров
-        };
-    }
+    // Заполняем динамический контент
+    renderShopDynamicContent();
     
-    if (upgradeTabBtn) {
-        upgradeTabBtn.onclick = () => {
-            currentShopTab = 'upgrade';
-            upgradeTabBtn.classList.add('active');
-            offersTabBtn.classList.remove('active');
-            if (offersContainer) offersContainer.style.display = 'none';
-            if (upgradeContainer) upgradeContainer.style.display = 'block';
-            updateShopUpgradeUI(); // Обновляем UI прокачки
-        };
-    }
-    
-    if (closeBtn) {
-        closeBtn.onclick = () => closeShopModal();
-    }
-    
-    // Загружаем начальное содержимое товаров (категория 'random' по умолчанию)
-    updateShopOffersContent();
-    
-    // Запускаем таймеры для обновления ресурсов и таймеров
+    // Запускаем таймеры
     startShopTimers();
     
-    setTimeout(() => { window._opening_modal = false; }, 500);
+    setTimeout(() => { 
+        window._opening_modal = false; 
+    }, 500);
+}
+function renderShopDynamicContent() {
+    const container = document.getElementById('shopDynamicContent');
+    if (!container) return;
+    
+    // Получаем актуальные товары
+    const activeRandomItems = randomShopItems.slice(0, 1 + shopLevel);
+    const isUpgradeActive = isShopUpgradeActive();
+    const upgradeRemaining = getShopUpgradeRemaining();
+    
+    const html = `
+        <!-- ВКЛАДКИ ТОВАРЫ / ПРОКАЧКА -->
+        <div class="shop-tabs-header">
+            <button class="shop-tab-btn2 ${currentShopTab === 'offers' ? 'active' : ''}" onclick="switchShopTab('offers')">📦 ТОВАРЫ</button>
+            <button class="shop-tab-btn2 ${currentShopTab === 'upgrade' ? 'active' : ''}" onclick="switchShopTab('upgrade')">⬆️ ПРОКАЧКА</button>
+        </div>
+        
+        <!-- КОНТЕЙНЕР ТОВАРОВ -->
+        <div id="shopOffersContainer" style="display: ${currentShopTab === 'offers' ? 'block' : 'none'};">
+            <div class="random-update-timer" id="randomUpdateTimer">
+                <span>🔄 ОБНОВЛЕНИЕ ЧЕРЕЗ: ${formatTimeDetailedWithSeconds(getRandomShopUpdateRemaining())}</span>
+                <button onclick="forceUpdateRandomShop()">🔄 ОБНОВИТЬ (200💰)</button>
+            </div>
+            
+            <select id="shopCategorySelect" class="shop-category-select" onchange="switchShopCategory(this.value)">
+                <option value="random" ${currentShopCategory === 'random' ? 'selected' : ''}>🎲 РАНДОМ</option>
+                <option value="all" ${currentShopCategory === 'all' ? 'selected' : ''}>📦 Все товары</option>
+                <option value="weapon" ${currentShopCategory === 'weapon' ? 'selected' : ''}>🔪 Оружие</option>
+                <option value="armor" ${currentShopCategory === 'armor' ? 'selected' : ''}>👕 Одежда</option>
+                <option value="accessory" ${currentShopCategory === 'accessory' ? 'selected' : ''}>💍 Аксессуары</option>
+                <option value="tattoos" ${currentShopCategory === 'tattoos' ? 'selected' : ''}>💉 Наколки</option>
+                <option value="consumables" ${currentShopCategory === 'consumables' ? 'selected' : ''}>🍺 Расходники</option>
+            </select>
+            
+            <div class="shop-grid" id="shopItemsGrid">
+                ${activeRandomItems.length === 0 ? '<div style="text-align:center; padding:20px;">🔍 ТОВАРОВ НЕТ...</div>' :
+                    activeRandomItems.map(item => {
+                        const isPurchased = purchasedRandomItems[item.id] || false;
+                        let priceSymbol = item.currency === 'rubles' ? '💰' : '🚬';
+                        return `
+                            <div class="shop-item-card">
+                                <div class="shop-item-name">${escapeHtml(item.name)}</div>
+                                <div class="shop-item-desc">${item.icon} ${item.amount} шт.</div>
+                                <div class="shop-item-price">${item.price} ${priceSymbol}</div>
+                                ${isPurchased ? '<div class="shop-item-owned">✓ ПРОДАНО</div>' : ''}
+                                ${!isPurchased ? `<button class="btn-primary" onclick="buyRandomItemFromModal(${JSON.stringify(item).replace(/"/g, '&quot;')})">КУПИТЬ</button>` : '<button class="btn-primary" disabled style="opacity:0.5;">ПРОДАНО</button>'}
+                            </div>
+                        `;
+                    }).join('')
+                }
+            </div>
+        </div>
+        
+        <!-- КОНТЕЙНЕР ПРОКАЧКИ -->
+        <div id="shopUpgradeContainer" style="display: ${currentShopTab === 'upgrade' ? 'block' : 'none'};">
+            <div class="shop-card">
+                <div style="font-size: 48px; margin-bottom: 10px;">📈</div>
+                <div class="bonus-info" style="background: rgba(139,69,19,0.2);">📊 УРОВЕНЬ МАГАЗИНА: ${shopLevel}</div>
+                <div class="bonus-info" style="background: rgba(139,69,19,0.2);">✨ ДОСТУПНО ТОВАРОВ: ${1 + shopLevel} из 12</div>
+                ${isUpgradeActive ? `
+                    <div class="busy-text">⏳ ПРОКАЧКА ИДЕТ! ОСТАЛОСЬ: <span id="shopUpgradeTimer" class="timer-text">${formatTimerMinutes(upgradeRemaining)}</span></div>
+                ` : `
+                    <div class="bonus-info">⬆️ УЛУЧШЕНИЕ ДО ${shopLevel + 1} УРОВНЯ:</div>
+                    <div class="bonus-info" style="background: #1e2440; padding: 10px; border-radius: 16px; margin: 10px 0;">
+                        🚬 ${100 * shopLevel} | 🪵 ${50 * shopLevel} | 🪨 ${30 * shopLevel}
+                    </div>
+                    <div class="bonus-info">⏳ ВРЕМЯ: ${Math.round((2 * 60 * 1000 * (1 + (shopLevel - 1) * 0.1)) / 60000)} МИН</div>
+                    <button id="upgradeShopBtn" class="btn-primary" onclick="upgradeShop()" style="margin-top:15px; width:100%; padding: 14px;" ${(currentPlayer.cigarettes < (100 * shopLevel) || (currentPlayer.lumber?.wood || 0) < (50 * shopLevel) || (currentPlayer.quarry?.stone || 0) < (30 * shopLevel)) ? 'disabled' : ''}>
+                        ⬆️ УЛУЧШИТЬ МАГАЗИН
+                    </button>
+                `}
+            </div>
+        </div>
+    `;
+    
+    container.innerHTML = html;
+}
+
+// Новая функция для заполнения содержимого магазина
+function renderShopModalContent() {
+    const container = document.querySelector('#shopFullscreen .shop-content-area');
+    if (!container) return;
+    
+    // Получаем актуальные товары
+    const activeRandomItems = randomShopItems.slice(0, 1 + shopLevel);
+    const isUpgradeActive = isShopUpgradeActive();
+    const upgradeRemaining = getShopUpgradeRemaining();
+    
+    const html = `
+        <!-- ПАНЕЛЬ РЕСУРСОВ -->
+        <div style="background: linear-gradient(135deg, #1a1a2a, #0d0d15); border-radius: 1px; padding: 7px 15px; margin: 3px 4px; border: 1px solid #8B4513; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+            <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                    <span style="font-size: 12px;">🚬</span>
+                    <span id="shopCigarettesValue" style="font-size: 10px; font-weight: bold; color: #ffd966;">${currentPlayer.cigarettes || 0}</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                    <span style="font-size: 12px;">💰</span>
+                    <span id="shopRublesValue" style="font-size: 10px; font-weight: bold; color: #ffd966;">${currentPlayer.rubles || 0}</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                    <span style="font-size: 12px;">🪵</span>
+                    <span id="shopWoodValue" style="font-size: 10px; font-weight: bold; color: #ffd966;">${currentPlayer.lumber?.wood || 0}</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                    <span style="font-size: 12px;">🪨</span>
+                    <span id="shopStoneValue" style="font-size: 10px; font-weight: bold; color: #ffd966;">${currentPlayer.quarry?.stone || 0}</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- ВКЛАДКИ ТОВАРЫ / ПРОКАЧКА -->
+        <div class="shop-tabs-header">
+            <button class="shop-tab-btn2 ${currentShopTab === 'offers' ? 'active' : ''}" onclick="switchShopTab('offers')">📦 ТОВАРЫ</button>
+            <button class="shop-tab-btn2 ${currentShopTab === 'upgrade' ? 'active' : ''}" onclick="switchShopTab('upgrade')">⬆️ ПРОКАЧКА</button>
+        </div>
+        
+        <!-- КОНТЕЙНЕР ТОВАРОВ -->
+        <div id="shopOffersContainer" style="display: ${currentShopTab === 'offers' ? 'block' : 'none'};">
+            <div class="random-update-timer" id="randomUpdateTimer">
+                <span>🔄 ОБНОВЛЕНИЕ ЧЕРЕЗ: ${formatTimeDetailedWithSeconds(getRandomShopUpdateRemaining())}</span>
+                <button onclick="forceUpdateRandomShop()">🔄 ОБНОВИТЬ (200💰)</button>
+            </div>
+            
+            <select id="shopCategorySelect" class="shop-category-select" onchange="switchShopCategory(this.value)">
+                <option value="random" ${currentShopCategory === 'random' ? 'selected' : ''}>🎲 РАНДОМ</option>
+                <option value="all" ${currentShopCategory === 'all' ? 'selected' : ''}>📦 Все товары</option>
+                <option value="weapon" ${currentShopCategory === 'weapon' ? 'selected' : ''}>🔪 Оружие</option>
+                <option value="armor" ${currentShopCategory === 'armor' ? 'selected' : ''}>👕 Одежда</option>
+                <option value="accessory" ${currentShopCategory === 'accessory' ? 'selected' : ''}>💍 Аксессуары</option>
+                <option value="tattoos" ${currentShopCategory === 'tattoos' ? 'selected' : ''}>💉 Наколки</option>
+                <option value="consumables" ${currentShopCategory === 'consumables' ? 'selected' : ''}>🍺 Расходники</option>
+            </select>
+            
+            <div class="shop-grid" id="shopItemsGrid">
+                ${activeRandomItems.map(item => {
+                    const isPurchased = purchasedRandomItems[item.id] || false;
+                    let priceSymbol = item.currency === 'rubles' ? '💰' : '🚬';
+                    return `
+                        <div class="shop-item-card">
+                            <div class="shop-item-name">${escapeHtml(item.name)}</div>
+                            <div class="shop-item-desc">${item.icon} ${item.amount} шт.</div>
+                            <div class="shop-item-price">${item.price} ${priceSymbol}</div>
+                            ${isPurchased ? '<div class="shop-item-owned">✓ ПРОДАНО</div>' : ''}
+                            ${!isPurchased ? `<button class="btn-primary" onclick="buyRandomItemFromModal(${JSON.stringify(item).replace(/"/g, '&quot;')})">КУПИТЬ</button>` : '<button class="btn-primary" disabled style="opacity:0.5;">ПРОДАНО</button>'}
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        </div>
+        
+        <!-- КОНТЕЙНЕР ПРОКАЧКИ -->
+        <div id="shopUpgradeContainer" style="display: ${currentShopTab === 'upgrade' ? 'block' : 'none'};">
+            <div class="shop-card">
+                <div style="font-size: 48px; margin-bottom: 10px;">📈</div>
+                <div class="bonus-info" style="background: rgba(139,69,19,0.2);">📊 УРОВЕНЬ МАГАЗИНА: ${shopLevel}</div>
+                <div class="bonus-info" style="background: rgba(139,69,19,0.2);">✨ ДОСТУПНО ТОВАРОВ: ${1 + shopLevel} из 12</div>
+                ${isUpgradeActive ? `
+                    <div class="busy-text">⏳ ПРОКАЧКА ИДЕТ! ОСТАЛОСЬ: <span id="shopUpgradeTimer" class="timer-text">${formatTimerMinutes(upgradeRemaining)}</span></div>
+                ` : `
+                    <div class="bonus-info">⬆️ УЛУЧШЕНИЕ ДО ${shopLevel + 1} УРОВНЯ:</div>
+                    <div class="bonus-info" style="background: #1e2440; padding: 10px; border-radius: 16px; margin: 10px 0;">
+                        🚬 ${100 * shopLevel} | 🪵 ${50 * shopLevel} | 🪨 ${30 * shopLevel}
+                    </div>
+                    <div class="bonus-info">⏳ ВРЕМЯ: ${Math.round((2 * 60 * 1000 * (1 + (shopLevel - 1) * 0.1)) / 60000)} МИН</div>
+                    <button id="upgradeShopBtn" class="btn-primary" onclick="upgradeShop()" style="margin-top:15px; width:100%; padding: 14px;" ${(currentPlayer.cigarettes < (100 * shopLevel) || (currentPlayer.lumber?.wood || 0) < (50 * shopLevel) || (currentPlayer.quarry?.stone || 0) < (30 * shopLevel)) ? 'disabled' : ''}>
+                        ⬆️ УЛУЧШИТЬ МАГАЗИН
+                    </button>
+                `}
+            </div>
+        </div>
+    `;
+    
+    container.innerHTML = html;
+}
+
+function startShopTimers() {
+    // Очищаем старые интервалы
+    if (window.shopTimerInterval) clearInterval(window.shopTimerInterval);
+    
+    // Запускаем новый интервал (каждую секунду)
+    window.shopTimerInterval = setInterval(() => {
+        const modal = document.getElementById('shopFullscreen');
+        if (!modal) {
+            // Если окно закрыто - останавливаем интервал
+            if (window.shopTimerInterval) clearInterval(window.shopTimerInterval);
+            return;
+        }
+        
+        // Обновляем ресурсы в фиксированной панели
+        const cigValue = document.getElementById('shopCigarettesValue');
+        const rublesValue = document.getElementById('shopRublesValue');
+        const woodValue = document.getElementById('shopWoodValue');
+        const stoneValue = document.getElementById('shopStoneValue');
+        
+        if (cigValue && currentPlayer) cigValue.textContent = formatNumberShort(currentPlayer.cigarettes || 0);
+        if (rublesValue && currentPlayer) rublesValue.textContent = formatNumberShort(currentPlayer.rubles || 0);
+        if (woodValue && currentPlayer) woodValue.textContent = formatNumberShort(currentPlayer.lumber?.wood || 0);
+        if (stoneValue && currentPlayer) stoneValue.textContent = formatNumberShort(currentPlayer.quarry?.stone || 0);
+        
+        // Обновляем таймер обновления в динамическом контенте
+        const timerEl = document.getElementById('randomUpdateTimer');
+        if (timerEl && currentShopTab === 'offers') {
+            const remaining = getRandomShopUpdateRemaining();
+            timerEl.innerHTML = `<span>🔄 ОБНОВЛЕНИЕ ЧЕРЕЗ: ${formatTimeDetailedWithSeconds(remaining)}</span><button onclick="forceUpdateRandomShop()">🔄 ОБНОВИТЬ (200💰)</button>`;
+        }
+        
+        // Обновляем таймер прокачки если активен
+        if (isShopUpgradeActive()) {
+            const upgradeTimer = document.getElementById('shopUpgradeTimer');
+            if (upgradeTimer) {
+                upgradeTimer.textContent = formatTimerMinutes(getShopUpgradeRemaining());
+            }
+        }
+    }, 1000);
 }
 
 // Функция обновления содержимого товаров (без перерисовки окна)
@@ -14115,30 +14386,19 @@ function updateShopModalUI() {
     const modal = document.getElementById('shopFullscreen');
     if (!modal) return;
     
-    // Обновляем ресурсы в верхней панели
+    // Обновляем ресурсы в ФИКСИРОВАННОЙ панели
     const cigValue = document.getElementById('shopCigarettesValue');
     const rublesValue = document.getElementById('shopRublesValue');
     const woodValue = document.getElementById('shopWoodValue');
     const stoneValue = document.getElementById('shopStoneValue');
     
-    if (cigValue && currentPlayer) cigValue.textContent = currentPlayer.cigarettes || 0;
-    if (rublesValue && currentPlayer) rublesValue.textContent = currentPlayer.rubles || 0;
-    if (woodValue && currentPlayer) woodValue.textContent = currentPlayer.lumber?.wood || 0;
-    if (stoneValue && currentPlayer) stoneValue.textContent = currentPlayer.quarry?.stone || 0;
+    if (cigValue && currentPlayer) cigValue.textContent = formatNumberShort(currentPlayer.cigarettes || 0);
+    if (rublesValue && currentPlayer) rublesValue.textContent = formatNumberShort(currentPlayer.rubles || 0);
+    if (woodValue && currentPlayer) woodValue.textContent = formatNumberShort(currentPlayer.lumber?.wood || 0);
+    if (stoneValue && currentPlayer) stoneValue.textContent = formatNumberShort(currentPlayer.quarry?.stone || 0);
     
-    // Обновляем таймер обновления
-    const timerEl = document.getElementById('randomUpdateTimer');
-    if (timerEl && currentShopTab === 'offers') {
-        const remaining = getRandomShopUpdateRemaining();
-        timerEl.innerHTML = `<span>🔄 ОБНОВЛЕНИЕ ЧЕРЕЗ: ${formatTimeDetailedWithSeconds(remaining)}</span><button onclick="forceUpdateRandomShop()">🔄 ОБНОВИТЬ (200💰)</button>`;
-    }
-    
-    // Обновляем содержимое в зависимости от активной вкладки
-    if (currentShopTab === 'offers') {
-        updateShopOffersContent();
-    } else if (currentShopTab === 'upgrade') {
-        updateShopUpgradeUI();
-    }
+    // Обновляем динамический контент
+    renderShopDynamicContent();
 }
 
 // Функция переключения категории (без перерисовки окна)
@@ -14152,10 +14412,27 @@ function switchShopCategoryUI(category) {
 }
 
 function forceUpdateRandomShop() {
-    updateRandomShopIfNeeded(true);
-    if (document.getElementById('shopFullscreen') && currentShopTab === 'offers') {
-        updateShopOffersContent();
+    if (currentPlayer.rubles < 200) {
+        showToast('Не хватает 200💰 для обновления!', 'error');
+        return;
     }
+    
+    randomShopItems = generateRandomShopItems();
+    randomShopLastUpdate = Date.now();
+    purchasedRandomItems = {};
+    
+    localStorage.setItem(`randomShopItems_${currentPlayer.id}`, JSON.stringify(randomShopItems));
+    localStorage.setItem(`randomShopLastUpdate_${currentPlayer.id}`, randomShopLastUpdate);
+    localStorage.setItem(`purchasedRandomItems_${currentPlayer.id}`, JSON.stringify(purchasedRandomItems));
+    
+    currentPlayer.rubles -= 200;
+    playerDocRef.update({ rubles: currentPlayer.rubles });
+    
+    showToast('🎲 Ассортимент РАНДОМ обновлён! -200💰', 'success');
+    
+    // Обновляем отображение
+    renderShopModalContent();
+    renderUI();
 }
 
         function renderShopModal() {
@@ -14464,9 +14741,6 @@ function calculateBattleRewards(attacker, defender) {
 function closeShopModal() {
     const modal = document.getElementById('shopFullscreen');
     if (modal) modal.remove();
-    if (window.randomShopTimerInterval) clearInterval(window.randomShopTimerInterval);
-    if (window.shopUpgradeTimerInterval) clearInterval(window.shopUpgradeTimerInterval);
-    if (window.shopResourcesInterval) clearInterval(window.shopResourcesInterval);
     if (tg) tg.BackButton.hide();
 
     document.body.style.overflow = '';
@@ -14474,6 +14748,9 @@ function closeShopModal() {
     document.body.style.width = '';
     document.body.classList.remove('modal-open');
 
+    // Сбрасываем блокировку
+    window._opening_modal = false;
+    
     renderUI();
 }
 
@@ -15702,138 +15979,6 @@ function updateGymTrainContent() {
 
             showToast(`⏳ Начата прокачка карт! Уровень повысится через ${Math.round(upgradeDurationMs / 60000)} мин.`, 'success');
             renderGameModal();
-            renderUI();
-        }
-
-        function openTreasuryModal() {
-            if (window._opening_modal) { console.log('Блокировка: окно уже открывается'); return; }
-            window._opening_modal = true;
-
-            if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); window._opening_modal = false; return; }
-            if (!currentPlayer) { window._opening_modal = false; return; }
-
-            getTreasuryTotal().then(async (treasuryTotal) => {
-                // Загружаем историю пополнений
-                let historyHtml = '';
-                try {
-                    const historySnapshot = await db.collection('treasuryHistory')
-                        .orderBy('timestamp', 'desc')
-                        .limit(20)
-                        .get();
-
-                    if (!historySnapshot.empty) {
-                        historyHtml = `
-                    <div class="treasury-history-title">
-                        <span>📜</span> ПОСЛЕДНИЕ ПОПОЛНЕНИЯ <span>📜</span>
-                    </div>
-                    <div class="treasury-history-list">
-                `;
-                        historySnapshot.forEach(doc => {
-                            const data = doc.data();
-                            const date = new Date(data.timestamp);
-                            const timeStr = `${date.getDate()}.${date.getMonth() + 1} ${date.getHours()}:${date.getMinutes().toString().padStart(2, '0')}`;
-                            historyHtml += `
-                        <div class="treasury-history-item">
-                            <div>
-                                <span class="treasury-history-player">👤 ${escapeHtml(data.playerName || 'Аноним')}</span>
-                                ${data.clanName && data.clanName !== '—' ? `<span style="color:#aaa; font-size:10px;"> (${escapeHtml(data.clanName)})</span>` : ''}
-                            </div>
-                            <div>
-                                <span class="treasury-history-amount">+${data.amount}💰</span>
-                                <span class="treasury-history-date"> ${timeStr}</span>
-                            </div>
-                        </div>
-                    `;
-                        });
-                        historyHtml += `</div>`;
-                    } else {
-                        historyHtml = '<div style="text-align:center; padding:20px; color:#aaa;">📭 Пока никто не пополнял общак...</div>';
-                    }
-                } catch (e) {
-                    console.error('Ошибка загрузки истории:', e);
-                    historyHtml = '<div style="text-align:center; padding:20px; color:#aaa;">⚠️ История временно недоступна</div>';
-                }
-
-                const modalHtml = `
-            <div class="treasury-fullscreen" id="treasuryFullscreen">
-                <div class="treasury-header-bar">
-                    <div class="treasury-header-content">
-                        <div class="treasury-header-title">ОБЩАК</div>
-                    </div>
-                </div>
-                <div class="treasury-content-area">
-                    <div class="treasury-card">
-                        <div class="treasury-amount">
-                            <div class="treasury-label">ВСЕГО В КАЗНЕ</div>
-                            <div class="treasury-value">${treasuryTotal.toLocaleString()} ₽</div>
-                        </div>
-                        
-                        <div class="treasury-donate-form">
-                            <input type="number" id="donateAmountInput" class="treasury-donate-input" placeholder="СУММА ПОПОЛНЕНИЯ" min="1">
-                            <button class="treasury-donate-btn" onclick="donateToTreasuryFromModal()">💰 ВНЕСТИ</button>
-                        </div>
-                        
-                        <div class="treasury-history">
-                            ${historyHtml}
-                        </div>
-                    </div>
-                </div>
-                <div class="treasury-bottom-nav">
-                    <div class="bottom-nav">
-                        <button class="treasury-tab-btn active" onclick="closeTreasuryModal()"><img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_6.png"  height="70px" width="55px" draggable="false"></button>
-                    </div>
-                </div>
-            </div>
-        `;
-                document.body.insertAdjacentHTML('beforeend', modalHtml);
-                if (tg) tg.BackButton.show();
-                setTimeout(() => { window._opening_modal = false; }, 500);
-            });
-        }
-
-
-        function closeTreasuryModal() {
-            const modal = document.getElementById('treasuryFullscreen');
-            if (modal) modal.remove();
-            if (tg) tg.BackButton.hide();
-            currentBottomTab = 'city';  // ← ДОБАВЬ ЭТУ СТРОКУ
-
-            // Восстанавливаем скролл body
-            document.body.style.overflow = '';
-            document.body.style.position = '';
-            document.body.style.width = '';
-            document.body.classList.remove('modal-open');
-
-            renderUI();                  // ← И ЭТУ
-        }
-
-        async function donateToTreasuryFromModal() {
-            if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); return; }
-            const amount = parseInt(document.getElementById('donateAmountInput')?.value || 0);
-            if (amount <= 0) { showToast('Введите сумму', 'error'); return; }
-            if (currentPlayer.rubles < amount) { showToast(`Не хватает ${amount - currentPlayer.rubles} 💰!`, 'error'); return; }
-
-            await playerDocRef.update({ rubles: firebase.firestore.FieldValue.increment(-amount) });
-            const treasuryRef = db.collection('config').doc('treasury');
-            const treasuryDoc = await treasuryRef.get();
-            if (treasuryDoc.exists) await treasuryRef.update({ totalRubles: firebase.firestore.FieldValue.increment(amount) });
-            else await treasuryRef.set({ totalRubles: amount });
-
-            const playerClan = allClans.find(c => c.id === currentPlayer.clanId);
-            const playerClanName = playerClan?.name || '—';
-
-            // Сохраняем в историю
-            await db.collection('treasuryHistory').add({
-                type: 'player_donate',
-                amount: amount,
-                playerName: currentPlayer.username,
-                clanName: playerClanName,
-                timestamp: Date.now()
-            });
-
-            currentPlayer.rubles -= amount;
-            showToast(`💰 +${amount}₽ в общак!`, 'success');
-            closeTreasuryModal();
             renderUI();
         }
 
@@ -20729,8 +20874,7 @@ function calculatePlayerPower(player) {
         shopUpgradeDuration: 0
     };
 }
-        
-        async function getTreasuryTotal() { try { const doc = await db.collection('config').doc('treasury').get(); return doc.exists ? doc.data().totalRubles || 0 : 0; } catch (e) { return 0; } }
+    
         function getDailyBonusAmount(day) { return Math.floor(10 * Math.pow(1.1, day - 1)); }
         function getNextBonusTime() { const lastClaim = dailyBonus.lastClaimTime || 0; return Math.max(0, (lastClaim + 24 * 60 * 60 * 1000) - Date.now()); }
         async function claimDailyBonus() {
@@ -20937,78 +21081,7 @@ async function loadAllPlayers() {
             }
         }
 
-        function openRankingModal() {
-            if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); return; }
-
-            let sortType = 'power';
-
-            const modalHtml = `
-        <div class="modal-overlay" id="rankingModalOverlay" onclick="if(event.target === this) closeRankingModal()">
-            <div class="modal-window">
-                <div class="modal-window-header">
-                    <div class="modal-window-title">🏆 РЕЙТИНГ ИГРОКОВ</div>
-                    <button class="modal-window-close" onclick="closeRankingModal()">✕</button>
-                </div>
-                <div class="modal-window-content">
-                    <div class="sort-buttons" style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 15px;">
-                        <button class="sort-btn" data-sort="power">💪 Мощь</button>
-                        <button class="sort-btn" data-sort="strength">💪 Сила</button>
-                        <button class="sort-btn" data-sort="authority">⭐ Авторитет</button>
-                        <button class="sort-btn" data-sort="level">📈 Уровень</button>
-                        <button class="sort-btn" data-sort="defense">🛡️ Защита</button>
-                    </div>
-                    <div id="rankListContainer" style="max-height: 50vh; overflow-y: auto; padding-right: 5px;"></div>
-                </div>
-            </div>
-        </div>
-    `;
-
-            const existing = document.querySelector('.modal-overlay');
-            if (existing) existing.remove();
-
-            document.body.insertAdjacentHTML('beforeend', modalHtml);
-            if (tg) tg.BackButton.show();
-
-            const renderRank = () => {
-                let list = [...allPlayers];
-                if (sortType === 'power') list.sort((a, b) => b.power - a.power);
-                else if (sortType === 'strength') list.sort((a, b) => (b.strength || 0) - (a.strength || 0));
-                else if (sortType === 'authority') list.sort((a, b) => b.authority - a.authority);
-                else if (sortType === 'level') list.sort((a, b) => b.level - a.level);
-                else if (sortType === 'defense') list.sort((a, b) => (b.defense || 0) - (a.defense || 0));
-
-                const container = document.getElementById('rankListContainer');
-                if (!container) return;
-
-                container.innerHTML = list.slice(0, 100).map((p, idx) => `
-            <div style="display:flex; justify-content:space-between; align-items:center; padding:12px; border-bottom:1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.2); border-radius: 12px; margin-bottom: 5px;">
-                <div style="width:40px; font-weight:bold; color:#e94560;">${idx + 1}</div>
-                <div><strong style="color: #ffd966;">${escapeHtml(p.username)}</strong></div>
-                <div>⭐ ${p.level} ур.</div>
-                <div>💪 ${p.power}</div>
-            </div>
-        `).join('');
-            };
-
-            renderRank();
-
-            document.querySelectorAll('#rankingModalOverlay .sort-btn').forEach(btn => {
-                btn.onclick = () => {
-                    sortType = btn.getAttribute('data-sort');
-                    document.querySelectorAll('#rankingModalOverlay .sort-btn').forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
-                    renderRank();
-                };
-            });
-
-            document.querySelector('#rankingModalOverlay .sort-btn').classList.add('active');
-        }
-
-        function closeRankingModal() {
-            const modal = document.querySelector('#rankingModalOverlay');
-            if (modal) modal.remove();
-            if (tg) tg.BackButton.hide();
-        }
+        
 
         function copyInviteCode() { navigator.clipboard.writeText(currentPlayer.inviteCode); showToast('Код скопирован!', 'success'); }
 
