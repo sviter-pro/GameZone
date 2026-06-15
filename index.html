@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Зона 1.0.0.262 - Карта зоны</title>
+    <title>Зона 1.0.0.263 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -6456,7 +6456,7 @@ async function changeEquipment(slot, itemName, stat, bonus) {
                 
                 <div class="settings-card">
                     <div style="font-size: 13px; color: #aaa; text-align: center;">
-                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.262</div>
+                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.263</div>
                         <div style="font-size: 11px;">⚡ Клановые войны | Бесконечная прокачка</div>
                     </div>
                 </div>
@@ -6942,21 +6942,21 @@ let warTimerElements = {
 
 // ========== НАСТРОЙКИ ВОЙН (можно менять вручную) ==========
 // Длительность войны (часов)
-const WAR_DURATION_HOURS = 1;
+const WAR_DURATION_HOURS = 1; //12
 
 // Кулдаун между войнами для клана (часов) - сколько ждать до следующей войны
-const WAR_COOLDOWN_HOURS = 1;  // ← ИЗМЕНЯЙТЕ ЭТО ЗНАЧЕНИЕ (0 = без кулдауна)
+const WAR_COOLDOWN_HOURS = 1;  // ← ИЗМЕНЯЙТЕ ЭТО ЗНАЧЕНИЕ (0 = без кулдауна) //24
 
 // Кулдаун на повторную атаку того же клана (часов)
-const WAR_ATTACK_COOLDOWN_HOURS = 1;  // ← ИЗМЕНЯЙТЕ ЭТО ЗНАЧЕНИЕ (0 = без кулдауна)
+const WAR_ATTACK_COOLDOWN_HOURS = 1;  // ← ИЗМЕНЯЙТЕ ЭТО ЗНАЧЕНИЕ (0 = без кулдауна) //48
 
 // Минимальный уровень для участия в войнах
-const WAR_MIN_LEVEL = 1;
+const WAR_MIN_LEVEL = 1; //5
 
 // Автоматические расчёты
-const WAR_DURATION_MS = WAR_DURATION_HOURS * 60 * 60 * 1000;
-const WAR_COOLDOWN_MS = WAR_COOLDOWN_HOURS * 60 * 60 * 1000;
-const WAR_ATTACK_COOLDOWN_MS = WAR_ATTACK_COOLDOWN_HOURS * 60 * 60 * 1000;
+const WAR_DURATION_MS = WAR_DURATION_HOURS * 1 * 60 * 1000;
+const WAR_COOLDOWN_MS = WAR_COOLDOWN_HOURS * 1 * 60 * 1000;
+const WAR_ATTACK_COOLDOWN_MS = WAR_ATTACK_COOLDOWN_HOURS * 1 * 60 * 1000;
 
 // Глобальные переменные для доступа из других функций
 window.WAR_DURATION_HOURS = WAR_DURATION_HOURS;
@@ -6983,6 +6983,29 @@ function getWarRewards(level) {
     return WAR_REWARDS_BASE[key];
 }
 
+// ========== ФУНКЦИЮ ДЛЯ ПРОВЕРКИ ЗАВЕРШЕНИЯ ВОЙНЫ ==========
+async function checkAndFinishExpiredWars() {
+    if (!db) return;
+    
+    try {
+        // Ищем все активные войны, у которых endTime истекло
+        const snapshot = await db.collection('clanWars')
+            .where('status', '==', 'active')
+            .get();
+        
+        for (const doc of snapshot.docs) {
+            const war = { id: doc.id, ...doc.data() };
+            if (war.endTime <= Date.now()) {
+                console.log('⏰ Война истекла, завершаем:', war.attackerClanName, 'vs', war.defenderClanName);
+                await finishClanWar(doc.id, war);
+            }
+        }
+    } catch (e) {
+        console.error('Ошибка проверки завершения войн:', e);
+    }
+}
+
+
 // ========== ПОДПИСКА НА ВОЙНЫ КЛАНА В FIRESTORE ==========
 function subscribeToClanWars() {
     if (clanWarUnsubscribe) {
@@ -6997,28 +7020,45 @@ function subscribeToClanWars() {
     
     console.log('📡 Подписываемся на войны клана:', currentPlayer.clanId);
     
-    // Подписываемся на войны, где клан атакует
-    const attackerQuery = db.collection('clanWars')
-        .where('attackerClanId', '==', currentPlayer.clanId)
+    // Подписываемся на все активные войны
+    const allWarsQuery = db.collection('clanWars')
         .where('status', '==', 'active');
     
-    const attackerUnsubscribe = attackerQuery.onSnapshot(async (snapshot) => {
+    const allWarsUnsubscribe = allWarsQuery.onSnapshot(async (snapshot) => {
         let warFound = false;
+        
         for (const doc of snapshot.docs) {
             const war = { id: doc.id, ...doc.data() };
-            if (war.endTime > Date.now()) {
+            
+            // Проверяем, не истекла ли война
+            if (war.endTime <= Date.now()) {
+                console.log('⏰ Война истекла, завершаем:', war.attackerClanName);
+                await finishClanWar(doc.id, war);
+                continue;
+            }
+            
+            // Если война активна и относится к нашему клану
+            if (war.attackerClanId === currentPlayer.clanId || war.defenderClanId === currentPlayer.clanId) {
                 warFound = true;
                 if (!activeClanWar || activeClanWar.id !== war.id) {
-                    console.log('🟢 Новая активная война (атакующая):', war);
+                    console.log('🟢 Новая активная война:', war);
                     activeClanWar = war;
                     await loadWarFightersFromStorage();
                     updateWarWindowUI();
                     
-                    const notificationKey = `war_notification_${war.id}_attacker`;
+                    // Проверяем уведомление
+                    const myRole = war.attackerClanId === currentPlayer.clanId ? 'attacker' : 'defender';
+                    const notificationKey = `war_notification_${war.id}_${myRole}`;
                     const wasNotified = localStorage.getItem(notificationKey);
+                    
                     if (!wasNotified) {
-                        addNotification('war', '⚔️ ВОЙНА НАЧАТА!', 
-                            `Ваш клан "${war.attackerClanName}" атакует клан "${war.defenderClanName}"! Война продлится 12 часов.`);
+                        if (myRole === 'attacker') {
+                            addNotification('war', '⚔️ ВОЙНА НАЧАТА!', 
+                                `Ваш клан "${war.attackerClanName}" атакует клан "${war.defenderClanName}"! Война продлится ${WAR_DURATION_HOURS} часов.`);
+                        } else {
+                            addNotification('war', '⚠️ НА КЛАН НАПАЛИ!', 
+                                `Клан "${war.attackerClanName}" объявил войну вашему клану "${war.defenderClanName}"! Защищайтесь! Война продлится ${WAR_DURATION_HOURS} часов.`);
+                        }
                         localStorage.setItem(notificationKey, Date.now().toString());
                         setTimeout(() => localStorage.removeItem(notificationKey), 24 * 60 * 60 * 1000);
                     }
@@ -7031,55 +7071,27 @@ function subscribeToClanWars() {
         }
         
         if (!warFound && activeClanWar) {
-            console.log('❌ Война завершена (атакующая)');
+            console.log('❌ Война завершена');
             activeClanWar = null;
             warFightersSent = { blats: 0, muzhiks: 0, fraers: 0 };
             localStorage.removeItem(`warFighters_${currentPlayer.id}`);
             updateWarWindowUI();
         }
     }, (error) => {
-        console.error('Ошибка подписки на атакующие войны:', error);
+        console.error('Ошибка подписки на войны:', error);
     });
     
-    // Подписываемся на войны, где клан защищается
-    const defenderQuery = db.collection('clanWars')
-        .where('defenderClanId', '==', currentPlayer.clanId)
-        .where('status', '==', 'active');
-    
-    const defenderUnsubscribe = defenderQuery.onSnapshot(async (snapshot) => {
-        for (const doc of snapshot.docs) {
-            const war = { id: doc.id, ...doc.data() };
-            if (war.endTime > Date.now()) {
-                if (!activeClanWar || activeClanWar.id !== war.id) {
-                    console.log('🟢 Новая активная война (защищающаяся):', war);
-                    activeClanWar = war;
-                    await loadWarFightersFromStorage();
-                    updateWarWindowUI();
-                    
-                    const notificationKey = `war_notification_${war.id}_defender`;
-                    const wasNotified = localStorage.getItem(notificationKey);
-                    if (!wasNotified) {
-                        addNotification('war', '⚠️ НА КЛАН НАПАЛИ!', 
-                            `Клан "${war.attackerClanName}" объявил войну вашему клану "${war.defenderClanName}"! Защищайтесь! Война продлится 12 часов.`);
-                        localStorage.setItem(notificationKey, Date.now().toString());
-                        setTimeout(() => localStorage.removeItem(notificationKey), 24 * 60 * 60 * 1000);
-                    }
-                } else if (activeClanWar && JSON.stringify(activeClanWar.defenderFighters) !== JSON.stringify(war.defenderFighters)) {
-                    activeClanWar.attackerFighters = war.attackerFighters;
-                    activeClanWar.defenderFighters = war.defenderFighters;
-                    updateWarWindowUI();
-                }
-            }
+    clanWarUnsubscribe = allWarsUnsubscribe;
+}
+
+// ========== ЗАПУСК ПЕРИОДИЧЕСКОЙ ПРОВЕРКИ ВОЙН (каждые 10 секунд) ==========
+function startWarCompletionChecker() {
+    if (window.warCompletionInterval) clearInterval(window.warCompletionInterval);
+    window.warCompletionInterval = setInterval(() => {
+        if (currentPlayer) {
+            checkAndFinishExpiredWars();
         }
-    }, (error) => {
-        console.error('Ошибка подписки на защищающиеся войны:', error);
-    });
-    
-    // Сохраняем обе функции отписки
-    clanWarUnsubscribe = () => {
-        attackerUnsubscribe();
-        defenderUnsubscribe();
-    };
+    }, 10000); // Проверяем каждые 10 секунд
 }
 
 // Функция для изменения настроек войн в реальном времени
@@ -10678,7 +10690,7 @@ function addNotification(type, title, message, targetPlayerId = null) {
                 <img class="loading-logo" src="https://sviter-pro.github.io/GameZone/src/test/logo124.png" alt="Тюряга 2.0" onerror="this.src='https://via.placeholder.com/180x180?text=Тюряга+2.0'">
                 <div class="loading-spinner-new"></div>
                 <div class="loading-tip-new" id="loadingTipNew">⚡ Загрузка игрового мира...</div>
-                <div class="loading-version">Зона 1.0.0.262 | Зона ждет</div>
+                <div class="loading-version">Зона 1.0.0.263 | Зона ждет</div>
             </div>
         `;
             const tipEl = document.getElementById('loadingTipNew');
@@ -21444,6 +21456,7 @@ async function startGame(id, name) {
         generateDynamicQuests(); 
         startEnergyTimer(); 
         startWarTimer();
+        startWarCompletionChecker();
 		startWorkCountersOnMap();
 		startBattleCountersOnMap();
 		showChatButton();
