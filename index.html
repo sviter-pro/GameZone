@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Зона 1.0.0.272 - Карта зоны</title>
+    <title>Зона 1.0.0.273 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -6740,7 +6740,7 @@ function closeHospitalModal() {
                 
                 <div class="settings-card">
                     <div style="font-size: 13px; color: #aaa; text-align: center;">
-                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.272</div>
+                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.273</div>
                         <div style="font-size: 11px;">⚡ Клановые войны | Бесконечная прокачка</div>
                     </div>
                 </div>
@@ -7599,49 +7599,50 @@ async function startClanWar(targetClanId, targetClanName, targetClanLevel) {
         localStorage.setItem(lastWarKey, Date.now().toString());
         localStorage.setItem(attackCooldownKey, (Date.now() + attackCooldownHours * 60 * 60 * 1000).toString());
         
-        // 3. ПОКАЗЫВАЕМ УВЕДОМЛЕНИЕ (успех) - БЕЗ renderUI()!
-        showToast(`⚔️ Война объявлена клану "${targetClanName}"!`, 'success');
+        // 3. ❌ НЕ ПОКАЗЫВАЕМ TOAST - убираем showToast!
+        // Вместо тоста - тихое уведомление в систему
+        addNotification('war', '⚔️ ВОЙНА НАЧАТА', 
+            `Ваш клан "${myClan.name}" атакует клан "${targetClanName}"!`);
         
-        // 4. ОТПРАВЛЯЕМ УВЕДОМЛЕНИЯ (асинхронно, НЕ БЛОКИРУЕМ UI)
-        setTimeout(() => {
-            notifyClanMembers(targetClanId, `⚠️ Клан "${myClan.name}" объявил войну вашему клану! Война продлится ${WAR_DURATION_HOURS} часов. Защищайтесь!`);
-        }, 1000);
+        // 4. ОТПРАВЛЯЕМ УВЕДОМЛЕНИЯ ВСЕМ УЧАСТНИКАМ КЛАНА (асинхронно)
+        notifyClanMembers(currentPlayer.clanId, `⚔️ Клан "${myClan.name}" объявил войну клану "${targetClanName}"!`);
+        notifyClanMembers(targetClanId, `⚠️ Клан "${myClan.name}" объявил войну вашему клану! Война продлится ${WAR_DURATION_HOURS} часов. Защищайтесь!`);
         
-        // 5. ❌ НЕ ЗАКРЫВАЕМ И НЕ ПЕРЕСОЗДАЁМ ОКНО ВОЙНЫ
-        // Просто обновляем кнопки в окне Сходка (если открыто)
+        // 5. ЗАКРЫВАЕМ ОКНО СХОДКА (если открыто)
         const attackModal = document.getElementById('attackDetailFullscreen');
         if (attackModal) {
-            updateAttackModalButtons();
+            closeAttackModal();
         }
         
-        // 6. ОБНОВЛЯЕМ ТОЛЬКО ВЕРХНЮЮ ПАНЕЛЬ (БЕЗ ПОЛНОЙ ПЕРЕРИСОВКИ)
+        // 6. ОТКРЫВАЕМ ОКНО ВОЙНЫ (если оно закрыто) ИЛИ ОБНОВЛЯЕМ ЕГО
+        const warModal = document.getElementById('warFullscreen');
+        if (warModal) {
+            // Если окно войны уже открыто - просто обновляем содержимое
+            updateWarWindowUI();
+        } else {
+            // Открываем окно войны с задержкой, чтобы данные успели записаться
+            setTimeout(() => {
+                openWarModal();
+            }, 300);
+        }
+        
+        // 7. ОБНОВЛЯЕМ СЧЁТЧИКИ НА КАРТЕ (без полной перерисовки)
+        updateBattleCountersOnMap();
         updateTopBarResources();
         
-        // 7. ❌ НЕ ВЫЗЫВАЕМ renderUI()!
-        // Это главная причина перезагрузки
+        // 8. ОБНОВЛЯЕМ БЕЙДЖ УВЕДОМЛЕНИЙ
+        updateNotificationBadge();
         
-        // 8. ОБНОВЛЯЕМ СЧЁТЧИКИ НА КАРТЕ
-        updateBattleCountersOnMap();
+        // 9. ❌ НЕ ВЫЗЫВАЕМ renderUI()!
+        // ✅ Вместо этого обновляем кнопки в навигации
+        updateNavButtons();
         
-        // 9. ЗАПУСКАЕМ ТАЙМЕР ВОЙНЫ (если он не запущен)
+        // 10. ЗАПУСКАЕМ ТАЙМЕР ВОЙНЫ (если он не запущен)
         if (!clanWarTimerInterval) {
             startWarTimer();
         }
         
-        // 10. ВЫЗЫВАЕМ ПОДПИСКУ ДЛЯ ОБНОВЛЕНИЯ ДАННЫХ (БЕЗ ПЕРЕРИСОВКИ)
-        if (window._pendingWarStart) {
-            clearTimeout(window._pendingWarStart);
-        }
-        window._pendingWarStart = setTimeout(() => {
-            // Проверяем, активна ли война и обновляем данные
-            if (activeClanWar) {
-                const warModal = document.getElementById('warFullscreen');
-                if (warModal) {
-                    // Обновляем содержимое без пересоздания
-                    updateWarWindowUI();
-                }
-            }
-        }, 500);
+        console.log(`⚔️ Война объявлена! ${myClan.name} vs ${targetClanName}`);
         
     } catch (e) {
         console.error('Ошибка начала войны:', e);
@@ -7657,6 +7658,17 @@ async function startClanWar(targetClanId, targetClanName, targetClanLevel) {
             }
         });
     }
+}
+
+function updateNavButtons() {
+    const navButtons = document.querySelectorAll('.nav-btn');
+    navButtons.forEach(btn => {
+        btn.classList.remove('active');
+        const img = btn.querySelector('img');
+        if (img && img.src && img.src.includes('Untitled_4')) {
+            btn.classList.add('active');
+        }
+    });
 }
 
 let cooldownTimerInterval = null;
@@ -8779,15 +8791,55 @@ function closeWarModal() {
     // ✅ Возвращаемся в город без перезагрузки
     if (currentBottomTab !== 'city') {
         currentBottomTab = 'city';
-        // ❌ НЕ ВЫЗЫВАЕМ renderUI()!
-        // ✅ Просто обновляем активную кнопку
+        // Обновляем активную кнопку навигации
         const navButtons = document.querySelectorAll('.nav-btn');
         navButtons.forEach(btn => {
             btn.classList.remove('active');
-            if (btn.querySelector('img')?.src?.includes('Untitled_1')) {
+            const img = btn.querySelector('img');
+            if (img && img.src && img.src.includes('Untitled_1')) {
                 btn.classList.add('active');
             }
         });
+    }
+}
+
+function safeUpdateWarWindow() {
+    const container = document.getElementById('warDynamicContent');
+    if (!container) return;
+    
+    if (!activeClanWar || activeClanWar.endTime <= Date.now()) {
+        // ❌ НЕ ВЫЗЫВАЕМ renderNoWarContent, которая может вызвать renderUI
+        // ✅ Показываем статическое сообщение
+        container.innerHTML = `
+            <div class="treasury-card" style="text-align: center;">
+                <div style="font-size: 48px; margin-bottom: 15px;">🕊️</div>
+                <div style="font-size: 20px; font-weight: 700; color: #c9a03d;">ВОЙНЫ НЕТ</div>
+                <div style="margin-top: 15px; color: #aaa;">Только главарь клана может объявить войну</div>
+            </div>
+        `;
+        return;
+    }
+    
+    // ✅ Обновляем только таймеры, без пересоздания всего контента
+    const remaining = Math.max(0, activeClanWar.endTime - Date.now());
+    const remainingHours = Math.floor(remaining / (60 * 60 * 1000));
+    const remainingMinutes = Math.floor((remaining % (60 * 60 * 1000)) / (60 * 1000));
+    const remainingSeconds = Math.floor((remaining % (60 * 1000)) / 1000);
+    const progressPercent = ((WAR_DURATION_MS - remaining) / WAR_DURATION_MS) * 100;
+    
+    // Обновляем существующие элементы, если они есть
+    const timerDisplay = document.getElementById('warTimerDisplay');
+    const remainingDisplay = document.getElementById('warRemainingDisplay');
+    const progressFill = document.getElementById('warProgressFill');
+    
+    if (timerDisplay) {
+        timerDisplay.textContent = `${remainingHours.toString().padStart(2, '0')}:${remainingMinutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+    }
+    if (remainingDisplay) {
+        remainingDisplay.textContent = `${remainingHours}ч ${remainingMinutes}м ${remainingSeconds}с`;
+    }
+    if (progressFill) {
+        progressFill.style.width = `${progressPercent}%`;
     }
 }
 
@@ -11311,7 +11363,7 @@ function addNotification(type, title, message, targetPlayerId = null) {
                 <img class="loading-logo" src="https://sviter-pro.github.io/GameZone/src/test/logo124.png" alt="Тюряга 2.0" onerror="this.src='https://via.placeholder.com/180x180?text=Тюряга+2.0'">
                 <div class="loading-spinner-new"></div>
                 <div class="loading-tip-new" id="loadingTipNew">⚡ Загрузка игрового мира...</div>
-                <div class="loading-version">Зона 1.0.0.272 | Зона ждет</div>
+                <div class="loading-version">Зона 1.0.0.273 | Зона ждет</div>
             </div>
         `;
             const tipEl = document.getElementById('loadingTipNew');
