@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Зона 1.0.0.271 - Карта зоны</title>
+    <title>Зона 1.0.0.272 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -6740,7 +6740,7 @@ function closeHospitalModal() {
                 
                 <div class="settings-card">
                     <div style="font-size: 13px; color: #aaa; text-align: center;">
-                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.271</div>
+                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.272</div>
                         <div style="font-size: 11px;">⚡ Клановые войны | Бесконечная прокачка</div>
                     </div>
                 </div>
@@ -7599,7 +7599,7 @@ async function startClanWar(targetClanId, targetClanName, targetClanLevel) {
         localStorage.setItem(lastWarKey, Date.now().toString());
         localStorage.setItem(attackCooldownKey, (Date.now() + attackCooldownHours * 60 * 60 * 1000).toString());
         
-        // 3. ПОКАЗЫВАЕМ УВЕДОМЛЕНИЕ (успех)
+        // 3. ПОКАЗЫВАЕМ УВЕДОМЛЕНИЕ (успех) - БЕЗ renderUI()!
         showToast(`⚔️ Война объявлена клану "${targetClanName}"!`, 'success');
         
         // 4. ОТПРАВЛЯЕМ УВЕДОМЛЕНИЯ (асинхронно, НЕ БЛОКИРУЕМ UI)
@@ -7607,28 +7607,41 @@ async function startClanWar(targetClanId, targetClanName, targetClanLevel) {
             notifyClanMembers(targetClanId, `⚠️ Клан "${myClan.name}" объявил войну вашему клану! Война продлится ${WAR_DURATION_HOURS} часов. Защищайтесь!`);
         }, 1000);
         
-        // 5. ЗАКРЫВАЕМ ОКНО ВОЙНЫ (если открыто) и ОТКРЫВАЕМ ЗАНОВО
-        const warModal = document.getElementById('warFullscreen');
-        if (warModal) {
-            // Закрываем окно
-            closeWarModal();
-            // Через небольшую задержку открываем заново
-            setTimeout(() => {
-                openWarModal();
-            }, 300);
-        }
-        
-        // 6. Обновляем кнопки в окне Сходка (если открыто)
+        // 5. ❌ НЕ ЗАКРЫВАЕМ И НЕ ПЕРЕСОЗДАЁМ ОКНО ВОЙНЫ
+        // Просто обновляем кнопки в окне Сходка (если открыто)
         const attackModal = document.getElementById('attackDetailFullscreen');
         if (attackModal) {
             updateAttackModalButtons();
         }
         
-        // 7. Обновляем только верхнюю панель (без полной перерисовки)
+        // 6. ОБНОВЛЯЕМ ТОЛЬКО ВЕРХНЮЮ ПАНЕЛЬ (БЕЗ ПОЛНОЙ ПЕРЕРИСОВКИ)
         updateTopBarResources();
         
-        // 8. ОБНОВЛЯЕМ СПИСОК КЛАНОВ В ОКНЕ ВОЙНЫ (если оно не открыто)
-        // Но НЕ вызываем renderUI()!
+        // 7. ❌ НЕ ВЫЗЫВАЕМ renderUI()!
+        // Это главная причина перезагрузки
+        
+        // 8. ОБНОВЛЯЕМ СЧЁТЧИКИ НА КАРТЕ
+        updateBattleCountersOnMap();
+        
+        // 9. ЗАПУСКАЕМ ТАЙМЕР ВОЙНЫ (если он не запущен)
+        if (!clanWarTimerInterval) {
+            startWarTimer();
+        }
+        
+        // 10. ВЫЗЫВАЕМ ПОДПИСКУ ДЛЯ ОБНОВЛЕНИЯ ДАННЫХ (БЕЗ ПЕРЕРИСОВКИ)
+        if (window._pendingWarStart) {
+            clearTimeout(window._pendingWarStart);
+        }
+        window._pendingWarStart = setTimeout(() => {
+            // Проверяем, активна ли война и обновляем данные
+            if (activeClanWar) {
+                const warModal = document.getElementById('warFullscreen');
+                if (warModal) {
+                    // Обновляем содержимое без пересоздания
+                    updateWarWindowUI();
+                }
+            }
+        }, 500);
         
     } catch (e) {
         console.error('Ошибка начала войны:', e);
@@ -8668,10 +8681,10 @@ function openWarModal() {
         return;
     }
     
-    // Проверяем, есть ли уже открытое окно войны
+    // ✅ ПРОВЕРЯЕМ, ЕСТЬ ЛИ УЖЕ ОТКРЫТОЕ ОКНО
     const existingModal = document.getElementById('warFullscreen');
     if (existingModal) {
-        // Если окно уже открыто, просто показываем его
+        // Если окно уже открыто, просто обновляем его содержимое
         existingModal.style.display = 'flex';
         if (tg) tg.BackButton.show();
         // ✅ ОБНОВЛЯЕМ ТОЛЬКО СОДЕРЖИМОЕ, НЕ ПЕРЕСОЗДАЁМ
@@ -11298,7 +11311,7 @@ function addNotification(type, title, message, targetPlayerId = null) {
                 <img class="loading-logo" src="https://sviter-pro.github.io/GameZone/src/test/logo124.png" alt="Тюряга 2.0" onerror="this.src='https://via.placeholder.com/180x180?text=Тюряга+2.0'">
                 <div class="loading-spinner-new"></div>
                 <div class="loading-tip-new" id="loadingTipNew">⚡ Загрузка игрового мира...</div>
-                <div class="loading-version">Зона 1.0.0.271 | Зона ждет</div>
+                <div class="loading-version">Зона 1.0.0.272 | Зона ждет</div>
             </div>
         `;
             const tipEl = document.getElementById('loadingTipNew');
