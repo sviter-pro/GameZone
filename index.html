@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Зона 1.0.0.278 - Карта зоны</title>
+    <title>Зона 1.0.0.275 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -6740,7 +6740,7 @@ function closeHospitalModal() {
                 
                 <div class="settings-card">
                     <div style="font-size: 13px; color: #aaa; text-align: center;">
-                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.278/div>
+                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.275</div>
                         <div style="font-size: 11px;">⚡ Клановые войны | Бесконечная прокачка</div>
                     </div>
                 </div>
@@ -7227,6 +7227,7 @@ let isFinishingWar = false;        // Флаг, что война уже зав�
 let finishedWarIds = new Set();     // Хранилище ID завершенных войн
 let isStartingWar = false;  // Добавьте глобальную переменную в начало файла
 let isUpdatingWarUI = false;
+let cooldownTimerInterval = null;
 
 // ========== НАСТРОЙКИ ВОЙН (можно менять вручную) ==========
 // Длительность войны (часов)
@@ -7269,6 +7270,72 @@ const WAR_REWARDS_BASE = {
 function getWarRewards(level) {
     const key = `level${Math.min(10, Math.max(1, level))}`;
     return WAR_REWARDS_BASE[key];
+}
+
+// ========== СОХРАНЕНИЕ КУЛДАУНОВ В FIREBASE ==========
+async function saveWarCooldowns() {
+    if (!currentPlayer) return;
+    
+    try {
+        // Получаем все ключи attackCooldown из localStorage
+        const attackCooldowns = {};
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith(`attackCooldown_${currentPlayer.clanId}_`)) {
+                const clanId = key.replace(`attackCooldown_${currentPlayer.clanId}_`, '');
+                const timestamp = parseInt(localStorage.getItem(key));
+                if (timestamp > Date.now()) {
+                    attackCooldowns[clanId] = timestamp;
+                }
+            }
+        }
+        
+        // Получаем время последней войны
+        const lastWarKey = `lastWar_${currentPlayer.clanId}`;
+        const lastWarTime = parseInt(localStorage.getItem(lastWarKey)) || 0;
+        
+        // Сохраняем в Firebase
+        await playerDocRef.update({
+            'warCooldowns.lastWarTime': lastWarTime,
+            'warCooldowns.attackCooldowns': attackCooldowns
+        });
+        
+        // Обновляем локальные данные
+        if (!currentPlayer.warCooldowns) currentPlayer.warCooldowns = {};
+        currentPlayer.warCooldowns.lastWarTime = lastWarTime;
+        currentPlayer.warCooldowns.attackCooldowns = attackCooldowns;
+        
+        console.log('✅ Кулдауны сохранены в Firebase');
+    } catch (e) {
+        console.error('Ошибка сохранения кулдаунов:', e);
+    }
+}
+
+// ========== ЗАГРУЗКА КУЛДАУНОВ ИЗ FIREBASE ==========
+function loadWarCooldownsFromFirebase() {
+    if (!currentPlayer) return;
+    
+    try {
+        const cooldowns = currentPlayer.warCooldowns || {};
+        const lastWarTime = cooldowns.lastWarTime || 0;
+        const attackCooldowns = cooldowns.attackCooldowns || {};
+        
+        // Сохраняем в localStorage
+        if (lastWarTime > 0) {
+            localStorage.setItem(`lastWar_${currentPlayer.clanId}`, lastWarTime.toString());
+        }
+        
+        // Сохраняем attackCooldowns
+        for (const [clanId, timestamp] of Object.entries(attackCooldowns)) {
+            if (timestamp > Date.now()) {
+                localStorage.setItem(`attackCooldown_${currentPlayer.clanId}_${clanId}`, timestamp.toString());
+            }
+        }
+        
+        console.log('✅ Кулдауны загружены из Firebase');
+    } catch (e) {
+        console.error('Ошибка загрузки кулдаунов:', e);
+    }
 }
 
 // ========== ФУНКЦИЮ ДЛЯ ПРОВЕРКИ ЗАВЕРШЕНИЯ ВОЙНЫ ==========
@@ -7486,33 +7553,33 @@ async function startClanWar(targetClanId, targetClanName, targetClanLevel) {
     }
     
     if (maintenanceMode) {
-        showToast(maintenanceMessage, 'warning');
+        console.log('⚠️ Режим обслуживания');
         return;
     }
     
     if (!currentPlayer.clanId || currentPlayer.username !== currentPlayer.clanLeader) {
-        showToast('Только главарь клана может начинать войну!', 'error');
+        console.log('⚠️ Только главарь клана');
         return;
     }
     
     if (currentPlayer.level < 5) {
-        showToast('Войны доступны с 5 уровня!', 'warning');
+        console.log('⚠️ Войны доступны с 5 уровня');
         return;
     }
     
     if (activeClanWar) {
-        showToast('Ваш клан уже участвует в войне!', 'warning');
+        console.log('⚠️ Ваш клан уже участвует в войне');
         return;
     }
     
     const myClan = allClans.find(c => c.id === currentPlayer.clanId);
     if (!myClan) {
-        showToast('Клан не найден!', 'error');
+        console.log('⚠️ Клан не найден');
         return;
     }
     
     if (myClan.level !== targetClanLevel) {
-        showToast('Воевать можно только с кланом того же уровня!', 'warning');
+        console.log('⚠️ Воевать можно только с кланом того же уровня');
         return;
     }
     
@@ -7520,27 +7587,26 @@ async function startClanWar(targetClanId, targetClanName, targetClanLevel) {
     const targetClan = allClans.find(c => c.id === targetClanId);
     if (targetClan && targetClan.defenseUntil && targetClan.defenseUntil > Date.now()) {
         const remaining = targetClan.defenseUntil - Date.now();
-        showToast(`Клан ${targetClanName} под защитой ещё ${formatTimeDetailedFull(remaining)}!`, 'warning');
+        console.log(`⚠️ Клан ${targetClanName} под защитой ещё ${formatTimeDetailedFull(remaining)}`);
         return;
     }
     
-    // Проверяем кулдаун атаки на этот клан
+    // Проверяем кулдаун атаки на этот клан (из Firebase)
     const attackCooldownHours = window.WAR_ATTACK_COOLDOWN_HOURS || 48;
-    const attackCooldownKey = `attackCooldown_${currentPlayer.clanId}_${targetClanId}`;
-    const savedCooldown = localStorage.getItem(attackCooldownKey);
-    if (savedCooldown && parseInt(savedCooldown) > Date.now()) {
-        const remaining = parseInt(savedCooldown) - Date.now();
-        showToast(`Нельзя атаковать клан ${targetClanName} ещё ${formatTimeDetailedFull(remaining)}!`, 'warning');
+    const attackCooldowns = currentPlayer.warCooldowns?.attackCooldowns || {};
+    const savedCooldown = attackCooldowns[targetClanId] || 0;
+    if (savedCooldown > Date.now()) {
+        const remaining = savedCooldown - Date.now();
+        console.log(`⚠️ Нельзя атаковать клан ${targetClanName} ещё ${formatTimeDetailedFull(remaining)}`);
         return;
     }
     
-    // Проверяем глобальный кулдаун клана
+    // Проверяем глобальный кулдаун клана (из Firebase)
     const warCooldownHours = window.WAR_COOLDOWN_HOURS || 24;
-    const lastWarKey = `lastWar_${currentPlayer.clanId}`;
-    const lastWarTime = localStorage.getItem(lastWarKey);
-    if (lastWarTime && (Date.now() - parseInt(lastWarTime)) < warCooldownHours * 60 * 60 * 1000) {
-        const remaining = warCooldownHours * 60 * 60 * 1000 - (Date.now() - parseInt(lastWarTime));
-        showToast(`Клан может начинать войну раз в ${warCooldownHours} часов! Осталось: ${formatTimeDetailedFull(remaining)}`, 'warning');
+    const lastWarTime = currentPlayer.warCooldowns?.lastWarTime || 0;
+    if (lastWarTime && (Date.now() - lastWarTime) < warCooldownHours * 60 * 60 * 1000) {
+        const remaining = warCooldownHours * 60 * 60 * 1000 - (Date.now() - lastWarTime);
+        console.log(`⚠️ Клан может начинать войну раз в ${warCooldownHours} часов! Осталось: ${formatTimeDetailedFull(remaining)}`);
         return;
     }
     
@@ -7553,7 +7619,7 @@ async function startClanWar(targetClanId, targetClanName, targetClanLevel) {
         `Вы уверены, что хотите объявить войну?`;
     
     if (!confirm(confirmMessage)) {
-        showToast('⚔️ Нападение отменено', 'warning');
+        console.log('⚔️ Нападение отменено');
         return;
     }
     
@@ -7589,72 +7655,62 @@ async function startClanWar(targetClanId, targetClanName, targetClanLevel) {
             attackerFighters: { blats: 0, muzhiks: 0, fraers: 0, total: 0 },
             defenderFighters: { blats: 0, muzhiks: 0, fraers: 0, total: 0 },
             attackerDonations: {},
-            defenderDonations: {},
-            // ===== ДОБАВЛЯЕМ ПОЛЕ ДЛЯ ПОТЕРЬ =====
-            casualties: {
-                attacker: { blats: 0, muzhiks: 0, fraers: 0 },
-                defender: { blats: 0, muzhiks: 0, fraers: 0 },
-                totalInjured: 0
-            }
+            defenderDonations: {}
         };
         
         // 1. СОЗДАЁМ ВОЙНУ В FIREBASE
         await db.collection('clanWars').add(warData);
         
-        // 2. СОХРАНЯЕМ КУЛДАУНЫ
-        localStorage.setItem(lastWarKey, Date.now().toString());
-        localStorage.setItem(attackCooldownKey, (Date.now() + attackCooldownHours * 60 * 60 * 1000).toString());
+        // 2. СОХРАНЯЕМ КУЛДАУНЫ В localStorage и Firebase
+        const now = Date.now();
+        const attackCooldownEnd = now + attackCooldownHours * 60 * 60 * 1000;
         
-        // 3. ЗАКРЫВАЕМ ОКНО ВОЙНЫ (если открыто) - ПЕРВЫМ ДЕЛОМ
-        const warModal = document.getElementById('warFullscreen');
-        if (warModal) {
-            closeWarModal();
-        }
+        // Сохраняем в localStorage
+        localStorage.setItem(`lastWar_${currentPlayer.clanId}`, now.toString());
+        localStorage.setItem(`attackCooldown_${currentPlayer.clanId}_${targetClanId}`, attackCooldownEnd.toString());
         
-        // 4. ЗАКРЫВАЕМ ОКНО СХОДКИ (если открыто)
+        // Сохраняем в Firebase
+        await saveWarCooldowns();
+        
+        // 3. ❌ НЕ ПОКАЗЫВАЕМ TOAST - убираем полностью!
+        
+        // 4. ОТПРАВЛЯЕМ УВЕДОМЛЕНИЯ ВСЕМ УЧАСТНИКАМ КЛАНА (асинхронно, без ожидания)
+        notifyClanMembers(currentPlayer.clanId, `⚔️ Клан "${myClan.name}" объявил войну клану "${targetClanName}"!`);
+        notifyClanMembers(targetClanId, `⚠️ Клан "${myClan.name}" объявил войну вашему клану! Война продлится ${WAR_DURATION_HOURS} часов. Защищайтесь!`);
+        
+        // 5. ЗАКРЫВАЕМ ВСЕ ОТКРЫТЫЕ ОКНА (кроме войны)
         const attackModal = document.getElementById('attackDetailFullscreen');
         if (attackModal) {
-            closeAttackModal();
+            attackModal.remove();
         }
         
-        // 5. ПОКАЗЫВАЕМ ТОСТ ОБ УСПЕХЕ - ВТОРЫМ
-        showToast(`⚔️ Война объявлена клану "${targetClanName}"!`, 'success');
+        // 6. ЗАКРЫВАЕМ СТАРОЕ ОКНО ВОЙНЫ ЕСЛИ ОНО БЫЛО ОТКРЫТО
+        const oldWarModal = document.getElementById('warFullscreen');
+        if (oldWarModal) {
+            oldWarModal.remove();
+        }
         
-        // 6. ОТПРАВЛЯЕМ УВЕДОМЛЕНИЯ ВСЕМ УЧАСТНИКАМ КЛАНА - ТРЕТЬИМ
-        // Отправляем уведомление атакуемому клану
-        await notifyClanMembers(targetClanId, `⚠️ Клан "${myClan.name}" объявил войну вашему клану! Война продлится ${WAR_DURATION_HOURS} часов. Защищайтесь!`);
+        // 7. СОЗДАЁМ НОВОЕ ОКНО ВОЙНЫ С ЗАДЕРЖКОЙ
+        setTimeout(() => {
+            // Принудительно создаём окно без вызова renderUI()
+            createWarWindowDirect();
+        }, 200);
         
-        // Отправляем уведомление своему клану
-        await notifyClanMembers(currentPlayer.clanId, `⚔️ Ваш клан "${myClan.name}" объявил войну клану "${targetClanName}"! Война продлится ${WAR_DURATION_HOURS} часов.`);
-        
-        // 7. ОБНОВЛЯЕМ ТОЛЬКО ВЕРХНЮЮ ПАНЕЛЬ И СЧЁТЧИКИ
-        updateTopBarResources();
+        // 8. ОБНОВЛЯЕМ СЧЁТЧИКИ НА КАРТЕ (без полной перерисовки)
         updateBattleCountersOnMap();
-        updateWorkCountersOnMap();
+        updateTopBarResources();
+        updateNotificationBadge();
         
-        // 8. ОБНОВЛЯЕМ БЕЙДЖИ УВЕДОМЛЕНИЙ
-        updateClanNotificationBadge();
-        updateQuestsNotificationBadge();
-        
-        // 9. ЗАПУСКАЕМ ПОДПИСКУ НА ВОЙНЫ ЗАНОВО, ЧТОБЫ ПОДХВАТИТЬ НОВУЮ ВОЙНУ
-        if (clanWarUnsubscribe) {
-            clanWarUnsubscribe();
-            clanWarUnsubscribe = null;
-        }
-        subscribeToClanWars();
-        
-        // 10. ОБНОВЛЯЕМ КНОПКУ "ВОЙНА" В НИЖНЕЙ ПАНЕЛИ (делаем активной)
-        const warNavBtn = document.querySelector('.nav-btn img[src*="Untitled_4"]')?.closest('.nav-btn');
-        if (warNavBtn) {
-            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
-            warNavBtn.classList.add('active');
+        // 9. ЗАПУСКАЕМ ТАЙМЕР ВОЙНЫ
+        if (!clanWarTimerInterval) {
+            startWarTimer();
         }
         
-        console.log('✅ Война успешно объявлена!');
+        console.log(`⚔️ Война объявлена! ${myClan.name} vs ${targetClanName}`);
         
     } catch (e) {
         console.error('Ошибка начала войны:', e);
-        showToast('Ошибка начала войны: ' + e.message, 'error');
+        // Показываем ошибку только в консоль
     } finally {
         isStartingWar = false;
         // Разблокируем кнопки
@@ -7668,7 +7724,129 @@ async function startClanWar(targetClanId, targetClanName, targetClanLevel) {
     }
 }
 
-let cooldownTimerInterval = null;
+// ========== ПРЯМОЕ СОЗДАНИЕ ОКНА ВОЙНЫ (БЕЗ RENDERUI) ==========
+function createWarWindowDirect() {
+    // Проверяем, есть ли уже окно
+    const existingModal = document.getElementById('warFullscreen');
+    if (existingModal) {
+        existingModal.style.display = 'flex';
+        updateWarWindowUI();
+        return;
+    }
+    
+    // Создаём окно
+    const modalHtml = `
+        <div class="treasury-fullscreen" id="warFullscreen" style="display: flex;">
+            <div class="treasury-header-bar">
+                <div class="treasury-header-content">
+                    <div class="treasury-header-title">⚔️ ВОЙНА ⚔️</div>
+                </div>
+            </div>
+            <div class="treasury-content-area" id="warContentArea" style="overflow-y: auto; padding: 16px; margin-bottom: 75px;">
+                <div id="warDynamicContent" style="min-height: 200px;">
+                    <div style="text-align: center; padding: 40px;">
+                        <div class="loading-spinner-new" style="width: 30px; height: 30px; margin: 0 auto 15px;"></div>
+                        <div>Загрузка...</div>
+                    </div>
+                </div>
+            </div>
+            <div class="treasury-bottom-nav">
+                <div class="bottom-nav">
+                    <button class="treasury-tab-btn active" id="closeWarBtn"><img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_6.png" height="70px" width="55px" draggable="false"></button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    if (tg) tg.BackButton.show();
+    
+    // Привязываем кнопку закрытия
+    document.getElementById('closeWarBtn')?.addEventListener('click', () => {
+        closeWarModal();
+    });
+    
+    // Заполняем содержимое
+    setTimeout(() => {
+        updateWarWindowUI();
+        if (!clanWarTimerInterval) {
+            startWarTimer();
+        }
+    }, 100);
+}
+
+// ========== ПЕРИОДИЧЕСКОЕ СОХРАНЕНИЕ КУЛДАУНОВ ==========
+function startWarCooldownsAutoSave() {
+    if (window._cooldownSaveInterval) {
+        clearInterval(window._cooldownSaveInterval);
+    }
+    
+    // Сохраняем кулдауны каждые 5 минут
+    window._cooldownSaveInterval = setInterval(() => {
+        if (currentPlayer && currentPlayer.clanId) {
+            saveWarCooldowns();
+        }
+    }, 5 * 60 * 1000);
+}
+
+// ========== ФУНКЦИЯ СБРОСА КУЛДАУНОВ ==========
+async function resetWarCooldowns() {
+    if (!currentPlayer) {
+        showToast('Нет игрока', 'warning');
+        return;
+    }
+    
+    try {
+        // Сбрасываем в Firebase
+        await playerDocRef.update({
+            'warCooldowns.lastWarTime': 0,
+            'warCooldowns.attackCooldowns': {}
+        });
+        
+        // Сбрасываем в localStorage
+        localStorage.removeItem(`lastWar_${currentPlayer.clanId}`);
+        
+        // Сбрасываем кулдауны атак на все кланы
+        const keysToRemove = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith(`attackCooldown_${currentPlayer.clanId}`)) {
+                keysToRemove.push(key);
+            }
+        }
+        keysToRemove.forEach(key => localStorage.removeItem(key));
+        
+        // Обновляем локальные данные
+        currentPlayer.warCooldowns = {
+            lastWarTime: 0,
+            attackCooldowns: {}
+        };
+        
+        showToast('✅ Все кулдауны войн сброшены!', 'success');
+        
+        // Обновляем UI
+        const warModal = document.getElementById('warFullscreen');
+        if (warModal) {
+            updateWarWindowUI();
+        }
+        renderUI();
+        
+    } catch (e) {
+        console.error('Ошибка сброса кулдаунов:', e);
+        showToast('Ошибка сброса кулдаунов', 'error');
+    }
+}
+
+function updateNavButtons() {
+    const navButtons = document.querySelectorAll('.nav-btn');
+    navButtons.forEach(btn => {
+        btn.classList.remove('active');
+        const img = btn.querySelector('img');
+        if (img && img.src && img.src.includes('Untitled_4')) {
+            btn.classList.add('active');
+        }
+    });
+}
 
 function startCooldownTimers() {
     if (cooldownTimerInterval) clearInterval(cooldownTimerInterval);
@@ -7685,196 +7863,7 @@ function startCooldownTimers() {
     }, 1000);
 }
 
-// ========== РАСЧЁТ ПОТЕРЬ БОЙЦОВ В КЛАНОВОЙ ВОЙНЕ ==========
-async function calculateWarCasualties(war, winnerClanId, loserClanId) {
-    // Процент потерь для победителя (меньше)
-    const winnerLossPercent = 0.05 + Math.random() * 0.1; // 5-15%
-    // Процент потерь для проигравшего (больше)
-    const loserLossPercent = 0.15 + Math.random() * 0.2; // 15-35%
-    
-    // Потери атакующего
-    const attackerFighters = war.attackerFighters || { blats: 0, muzhiks: 0, fraers: 0 };
-    const isAttackerWinner = winnerClanId === war.attackerClanId;
-    const attackerLossPercent = isAttackerWinner ? winnerLossPercent : loserLossPercent;
-    
-    const attackerLosses = {
-        blats: Math.floor(attackerFighters.blats * attackerLossPercent),
-        muzhiks: Math.floor(attackerFighters.muzhiks * attackerLossPercent),
-        fraers: Math.floor(attackerFighters.fraers * attackerLossPercent)
-    };
-    
-    // Потери защитника
-    const defenderFighters = war.defenderFighters || { blats: 0, muzhiks: 0, fraers: 0 };
-    const isDefenderWinner = winnerClanId === war.defenderClanId;
-    const defenderLossPercent = isDefenderWinner ? winnerLossPercent : loserLossPercent;
-    
-    const defenderLosses = {
-        blats: Math.floor(defenderFighters.blats * defenderLossPercent),
-        muzhiks: Math.floor(defenderFighters.muzhiks * defenderLossPercent),
-        fraers: Math.floor(defenderFighters.fraers * defenderLossPercent)
-    };
-    
-    // Общее количество погибших
-    const totalLosses = {
-        blats: attackerLosses.blats + defenderLosses.blats,
-        muzhiks: attackerLosses.muzhiks + defenderLosses.muzhiks,
-        fraers: attackerLosses.fraers + defenderLosses.fraers
-    };
-    
-    return { 
-        attackerLosses, 
-        defenderLosses, 
-        totalLosses,
-        attackerLossPercent,
-        defenderLossPercent 
-    };
-}
-// ========== ПРИМЕНЕНИЕ ПОТЕРЬ К УЧАСТНИКАМ КЛАНА ==========
-// ========== РАСЧЁТ ПОТЕРЬ БОЙЦОВ В КЛАНОВОЙ ВОЙНЕ ==========
-async function calculateWarCasualties(war, winnerClanId, loserClanId) {
-    // Процент потерь для победителя (меньше)
-    const winnerLossPercent = 0.05 + Math.random() * 0.1; // 5-15%
-    // Процент потерь для проигравшего (больше)
-    const loserLossPercent = 0.15 + Math.random() * 0.2; // 15-35%
-    
-    // Потери атакующего
-    const attackerFighters = war.attackerFighters || { blats: 0, muzhiks: 0, fraers: 0 };
-    const isAttackerWinner = winnerClanId === war.attackerClanId;
-    const attackerLossPercent = isAttackerWinner ? winnerLossPercent : loserLossPercent;
-    
-    const attackerLosses = {
-        blats: Math.floor(attackerFighters.blats * attackerLossPercent),
-        muzhiks: Math.floor(attackerFighters.muzhiks * attackerLossPercent),
-        fraers: Math.floor(attackerFighters.fraers * attackerLossPercent)
-    };
-    
-    // Потери защитника
-    const defenderFighters = war.defenderFighters || { blats: 0, muzhiks: 0, fraers: 0 };
-    const isDefenderWinner = winnerClanId === war.defenderClanId;
-    const defenderLossPercent = isDefenderWinner ? winnerLossPercent : loserLossPercent;
-    
-    const defenderLosses = {
-        blats: Math.floor(defenderFighters.blats * defenderLossPercent),
-        muzhiks: Math.floor(defenderFighters.muzhiks * defenderLossPercent),
-        fraers: Math.floor(defenderFighters.fraers * defenderLossPercent)
-    };
-    
-    return { 
-        attackerLosses, 
-        defenderLosses, 
-        attackerLossPercent,
-        defenderLossPercent 
-    };
-}
 
-// ========== ПРИМЕНЕНИЕ ПОТЕРЬ К УЧАСТНИКАМ КЛАНА ==========
-async function applyWarCasualties(clanId, losses, isWinner, war) {
-    if (!clanId) return 0;
-    
-    const clan = allClans.find(c => c.id === clanId);
-    if (!clan || !clan.membersIds || clan.membersIds.length === 0) return 0;
-    
-    // Получаем только тех, кто отправлял бойцов на войну
-    const isAttacker = war.attackerClanId === clanId;
-    const donationsField = isAttacker ? 'attackerDonations' : 'defenderDonations';
-    const donations = war[donationsField] || {};
-    const activeMemberIds = Object.keys(donations);
-    
-    // Если есть активные участники - распределяем потери только на них
-    const targetMembers = activeMemberIds.length > 0 ? activeMemberIds : clan.membersIds;
-    const targetCount = targetMembers.length;
-    
-    if (targetCount === 0) return 0;
-    
-    // Вычисляем потери на каждого участника
-    const perMemberLosses = {
-        blats: Math.floor(losses.blats / targetCount),
-        muzhiks: Math.floor(losses.muzhiks / targetCount),
-        fraers: Math.floor(losses.fraers / targetCount)
-    };
-    
-    // Минимальные потери - хотя бы 1 боец, если потери были
-    if (losses.blats > 0 && perMemberLosses.blats === 0) perMemberLosses.blats = 1;
-    if (losses.muzhiks > 0 && perMemberLosses.muzhiks === 0) perMemberLosses.muzhiks = 1;
-    if (losses.fraers > 0 && perMemberLosses.fraers === 0) perMemberLosses.fraers = 1;
-    
-    // Применяем потери к каждому участнику
-    let totalInjured = 0;
-    
-    for (const memberId of targetMembers) {
-        const memberRef = db.collection('players').doc(memberId);
-        const memberDoc = await memberRef.get();
-        
-        if (!memberDoc.exists) continue;
-        const memberData = memberDoc.data();
-        
-        // Проверяем, сколько бойцов у участника
-        const memberFighters = {
-            blats: memberData.gang?.blats?.fighters || 0,
-            muzhiks: memberData.gang?.muzhiks?.fighters || 0,
-            fraers: memberData.gang?.fraers?.fighters || 0
-        };
-        
-        // Реальные потери (не больше чем есть)
-        const actualLosses = {
-            blats: Math.min(perMemberLosses.blats, memberFighters.blats),
-            muzhiks: Math.min(perMemberLosses.muzhiks, memberFighters.muzhiks),
-            fraers: Math.min(perMemberLosses.fraers, memberFighters.fraers)
-        };
-        
-        const totalLost = actualLosses.blats + actualLosses.muzhiks + actualLosses.fraers;
-        
-        if (totalLost > 0) {
-            // Списываем бойцов
-            const updates = {};
-            if (actualLosses.blats > 0) {
-                updates['gang.blats.fighters'] = firebase.firestore.FieldValue.increment(-actualLosses.blats);
-            }
-            if (actualLosses.muzhiks > 0) {
-                updates['gang.muzhiks.fighters'] = firebase.firestore.FieldValue.increment(-actualLosses.muzhiks);
-            }
-            if (actualLosses.fraers > 0) {
-                updates['gang.fraers.fighters'] = firebase.firestore.FieldValue.increment(-actualLosses.fraers);
-            }
-            
-            await memberRef.update(updates);
-            
-            // Обновляем локальные данные для текущего игрока
-            if (currentPlayer && currentPlayer.id === memberId) {
-                if (currentPlayer.gang) {
-                    if (currentPlayer.gang.blats) {
-                        currentPlayer.gang.blats.fighters = Math.max(0, (currentPlayer.gang.blats.fighters || 0) - actualLosses.blats);
-                    }
-                    if (currentPlayer.gang.muzhiks) {
-                        currentPlayer.gang.muzhiks.fighters = Math.max(0, (currentPlayer.gang.muzhiks.fighters || 0) - actualLosses.muzhiks);
-                    }
-                    if (currentPlayer.gang.fraers) {
-                        currentPlayer.gang.fraers.fighters = Math.max(0, (currentPlayer.gang.fraers.fighters || 0) - actualLosses.fraers);
-                    }
-                }
-            }
-            
-            // Добавляем раненых (если бойцы не погибли, а ранены)
-            // Раненые = 30-50% от потерь
-            const injuredPercent = 0.3 + Math.random() * 0.2;
-            const injured = Math.floor(totalLost * injuredPercent);
-            
-            if (injured > 0) {
-                await memberRef.update({
-                    injuredFighters: firebase.firestore.FieldValue.increment(injured)
-                });
-                
-                // Обновляем локальные данные
-                if (currentPlayer && currentPlayer.id === memberId) {
-                    currentPlayer.injuredFighters = (currentPlayer.injuredFighters || 0) + injured;
-                }
-                totalInjured += injured;
-            }
-        }
-    }
-    
-    return totalInjured;
-}
 // ========== ОТПРАВКА БОЙЦОВ НА ВОЙНУ ==========
 async function sendFightersToWar() {
     if (!activeClanWar) {
@@ -8298,7 +8287,6 @@ async function calculateWarWinner(war) {
 }
 
 // ========== ЗАВЕРШЕНИЕ ВОЙНЫ ==========
-// ========== ЗАВЕРШЕНИЕ ВОЙНЫ ==========
 async function finishClanWar(warId, war) {
     // ========== ЗАЩИТА ОТ ПОВТОРНОГО ВЫЗОВА ==========
     if (isFinishingWar) {
@@ -8404,76 +8392,20 @@ async function finishClanWar(warId, war) {
         console.log('🏆 ПОБЕДИТЕЛЬ:', winnerClanName);
         console.log('🎁 НАГРАДА ПОБЕДИТЕЛЯМ:', rewards);
         
-        // ========== 1. РАСПРЕДЕЛЕНИЕ НАГРАД ==========
+        // ========== 1. РАСПРЕДЕЛЕНИЕ НАГРАД (ТОЛЬКО 1 РАЗ) ==========
         await distributeWarRewards(winnerClanId, loserClanId, rewards);
         
-        // ========== 2. РАСЧЁТ И ПРИМЕНЕНИЕ ПОТЕРЬ БОЙЦОВ ==========
-        let totalInjured = 0;
-        try {
-            // Расчёт потерь
-            const casualties = await calculateWarCasualties(war, winnerClanId, loserClanId);
-            
-            console.log(`💀 Потери в войне:`, casualties);
-            console.log(`   Атакующий (${war.attackerClanName}): потеряно ${casualties.attackerLosses.blats + casualties.attackerLosses.muzhiks + casualties.attackerLosses.fraers} бойцов (${(casualties.attackerLossPercent * 100).toFixed(1)}%)`);
-            console.log(`   Защитник (${war.defenderClanName}): потеряно ${casualties.defenderLosses.blats + casualties.defenderLosses.muzhiks + casualties.defenderLosses.fraers} бойцов (${(casualties.defenderLossPercent * 100).toFixed(1)}%)`);
-            
-            // Применяем потери к атакующему клану
-            const attackerInjured = await applyWarCasualties(
-                war.attackerClanId, 
-                casualties.attackerLosses, 
-                winnerClanId === war.attackerClanId,
-                war
-            );
-            
-            // Применяем потери к защищающемуся клану
-            const defenderInjured = await applyWarCasualties(
-                war.defenderClanId, 
-                casualties.defenderLosses, 
-                winnerClanId === war.defenderClanId,
-                war
-            );
-            
-            totalInjured = (attackerInjured || 0) + (defenderInjured || 0);
-            
-            // Сохраняем информацию о потерях для истории
-            war.casualties = {
-                attacker: casualties.attackerLosses,
-                defender: casualties.defenderLosses,
-                attackerLossPercent: casualties.attackerLossPercent,
-                defenderLossPercent: casualties.defenderLossPercent,
-                totalInjured: totalInjured
-            };
-            
-            // Если есть раненые - добавляем уведомление для текущего игрока
-            if (totalInjured > 0 && currentPlayer) {
-                const myClanId = currentPlayer.clanId;
-                let myInjured = 0;
-                if (myClanId === war.attackerClanId) {
-                    myInjured = attackerInjured || 0;
-                } else if (myClanId === war.defenderClanId) {
-                    myInjured = defenderInjured || 0;
-                }
-                if (myInjured > 0) {
-                    addNotification('war', '🏥 РАНЕНЫЕ БОЙЦЫ', `В войне ранено ${myInjured} бойцов! Лечи их в больнице.`);
-                }
-            }
-            
-            console.log(`🏥 Раненых бойцов всего: ${totalInjured}`);
-            
-        } catch (e) {
-            console.error('Ошибка при расчёте потерь:', e);
-        }
-        
-        // ========== 3. ОБНОВЛЕНИЕ СТАТИСТИКИ КЛАНОВ ==========
+        // ========== 2. ОБНОВЛЕНИЕ СТАТИСТИКИ КЛАНОВ ==========
         await updateClanWarStats(winnerClanId, loserClanId, winnerClanName, loserClanName, rewards, attackerScore, defenderScore);
         
-        // ========== 4. СОХРАНЕНИЕ ИСТОРИИ ВОЙНЫ ==========
+        // ========== 3. СОХРАНЕНИЕ ИСТОРИИ ВОЙНЫ (ТОЛЬКО 1 РАЗ) ==========
         const warHistoryRecord = {
             id: warId,
             attackerClanId: war.attackerClanId,
             attackerClanName: war.attackerClanName,
             attackerClanLevel: war.attackerClanLevel || 1,
             attackerPower: attackerPower,
+            // ===== ДОБАВЛЯЕМ ИНФОРМАЦИЮ О ВОЙСКАХ АТАКУЮЩЕГО =====
             attackerFighters: war.attackerFighters || { 
                 blats: 0, 
                 muzhiks: 0, 
@@ -8484,6 +8416,7 @@ async function finishClanWar(warId, war) {
             defenderClanName: war.defenderClanName,
             defenderClanLevel: war.defenderClanLevel || 1,
             defenderPower: defenderPower,
+            // ===== ДОБАВЛЯЕМ ИНФОРМАЦИЮ О ВОЙСКАХ ЗАЩИТНИКА =====
             defenderFighters: war.defenderFighters || { 
                 blats: 0, 
                 muzhiks: 0, 
@@ -8497,7 +8430,6 @@ async function finishClanWar(warId, war) {
             winnerScore: winner === 'attacker' ? attackerScore : defenderScore,
             loserScore: winner === 'attacker' ? defenderScore : attackerScore,
             rewards: rewards,
-            casualties: war.casualties || { attacker: { blats: 0, muzhiks: 0, fraers: 0 }, defender: { blats: 0, muzhiks: 0, fraers: 0 }, totalInjured: 0 },
             startTime: war.startTime,
             endTime: war.endTime,
             endTimeActual: Date.now(),
@@ -8508,41 +8440,39 @@ async function finishClanWar(warId, war) {
         const existingHistory = await db.collection('clanWarsHistory').doc(warId).get();
         if (!existingHistory.exists) {
             await db.collection('clanWarsHistory').doc(warId).set(warHistoryRecord);
-            console.log('✅ История войны сохранена с данными о войсках и потерях');
+            console.log('✅ История войны сохранена с данными о войсках');
         } else {
-            console.log('⚠️ История войны уже существует, обновляем данные о войсках и потерях');
+            console.log('⚠️ История войны уже существует, обновляем данные о войсках');
             await db.collection('clanWarsHistory').doc(warId).update({
                 attackerFighters: war.attackerFighters || { blats: 0, muzhiks: 0, fraers: 0, total: 0 },
-                defenderFighters: war.defenderFighters || { blats: 0, muzhiks: 0, fraers: 0, total: 0 },
-                casualties: war.casualties || { attacker: { blats: 0, muzhiks: 0, fraers: 0 }, defender: { blats: 0, muzhiks: 0, fraers: 0 }, totalInjured: 0 }
+                defenderFighters: war.defenderFighters || { blats: 0, muzhiks: 0, fraers: 0, total: 0 }
             });
         }
         
-        // ========== 5. ОБНОВЛЕНИЕ СТАТУСА ТЕКУЩЕЙ ВОЙНЫ ==========
+        // ========== 4. ОБНОВЛЕНИЕ СТАТУСА ТЕКУЩЕЙ ВОЙНЫ ==========
         await db.collection('clanWars').doc(warId).update({
             status: 'finished',
             winner: winnerClanId,
             winnerName: winnerClanName,
             rewards: rewards,
-            casualties: war.casualties || { attacker: { blats: 0, muzhiks: 0, fraers: 0 }, defender: { blats: 0, muzhiks: 0, fraers: 0 }, totalInjured: 0 },
             endTimeActual: Date.now()
         });
         
-        // ========== 6. ОТПРАВКА УВЕДОМЛЕНИЙ ==========
+        // ========== 5. ОТПРАВКА УВЕДОМЛЕНИЙ (ТОЛЬКО 1 РАЗ) ==========
         await sendWarFinishNotifications(winnerClanId, loserClanId, winnerClanName, loserClanName, rewards, attackerScore, defenderScore);
         
-        // ========== 7. ОЧИСТКА ЛОКАЛЬНЫХ ДАННЫХ ==========
+        // ========== 6. ОЧИСТКА ЛОКАЛЬНЫХ ДАННЫХ ==========
         if (currentPlayer && activeClanWar && activeClanWar.id === warId) {
             activeClanWar = null;
             warFightersSent = { blats: 0, muzhiks: 0, fraers: 0 };
             localStorage.removeItem(`warFighters_${currentPlayer.id}`);
         }
         
-        // ========== 8. ОБНОВЛЕНИЕ КЭША ==========
+        // ========== 7. ОБНОВЛЕНИЕ КЭША ==========
         cachedClanData.lastUpdate = 0;
         await loadAllClans();
         
-        // ========== 9. ОБНОВЛЕНИЕ UI ==========
+        // ========== 8. ОБНОВЛЕНИЕ UI ==========
         const warModal = document.getElementById('warFullscreen');
         if (warModal) {
             updateWarWindowUI();
@@ -8564,29 +8494,8 @@ async function finishClanWar(warId, war) {
 async function sendWarFinishNotifications(winnerClanId, loserClanId, winnerName, loserName, rewards, winnerScore, loserScore) {
     console.log('📨 Отправка уведомлений о завершении войны...');
     
-    // Получаем информацию о потерях
-    let casualtiesInfo = '';
-    let casualties = null;
-    
-    // Пытаемся получить данные о потерях из активной войны или переданного war объекта
-    try {
-        if (activeClanWar && activeClanWar.casualties) {
-            casualties = activeClanWar.casualties;
-        } else if (typeof war !== 'undefined' && war && war.casualties) {
-            casualties = war.casualties;
-        }
-        
-        if (casualties) {
-            const totalAttacker = (casualties.attacker?.blats || 0) + (casualties.attacker?.muzhiks || 0) + (casualties.attacker?.fraers || 0);
-            const totalDefender = (casualties.defender?.blats || 0) + (casualties.defender?.muzhiks || 0) + (casualties.defender?.fraers || 0);
-            casualtiesInfo = `\n💀 Потери: ${totalAttacker + totalDefender} бойцов\n🏥 Раненых: ${casualties.totalInjured || 0}`;
-        }
-    } catch (e) {
-        console.error('Ошибка получения данных о потерях:', e);
-    }
-    
-    const winnerMessage = `🏆 ПОБЕДА! Ваш клан "${winnerName}" выиграл войну против "${loserName}"!\n📊 Счёт: ${winnerScore} : ${loserScore}\n🎁 Награда: +${rewards.wood}🪵 +${rewards.stone}🪨 +${rewards.makhorka}🌿 +${rewards.paper}📄 +${rewards.cigarettes}🚬${casualtiesInfo}`;
-    const loserMessage = `💔 ПОРАЖЕНИЕ! Ваш клан "${loserName}" проиграл войну против "${winnerName}"!\n📊 Счёт: ${loserScore} : ${winnerScore}\n📉 Потеряно: -${rewards.wood}🪵 -${rewards.stone}🪨 -${rewards.makhorka}🌿 -${rewards.paper}📄 -${rewards.cigarettes}🚬${casualtiesInfo}`;
+    const winnerMessage = `🏆 ПОБЕДА! Ваш клан "${winnerName}" выиграл войну против "${loserName}"!\n📊 Счёт: ${winnerScore} : ${loserScore}\n🎁 Награда: +${rewards.wood}🪵 +${rewards.stone}🪨 +${rewards.makhorka}🌿 +${rewards.paper}📄 +${rewards.cigarettes}🚬`;
+    const loserMessage = `💔 ПОРАЖЕНИЕ! Ваш клан "${loserName}" проиграл войну против "${winnerName}"!\n📊 Счёт: ${loserScore} : ${winnerScore}\n📉 Потеряно: -${rewards.wood}🪵 -${rewards.stone}🪨 -${rewards.makhorka}🌿 -${rewards.paper}📄 -${rewards.cigarettes}🚬`;
     
     // Получаем список всех участников кланов
     const winnerClan = allClans.find(c => c.id === winnerClanId);
@@ -8655,6 +8564,34 @@ async function sendWarFinishNotifications(winnerClanId, loserClanId, winnerName,
         }
         console.log(`📨 Уведомления отправлены проигравшим (${loserClan.membersIds.length} чел)`);
     }
+}
+
+async function updateClanWarStats(winnerClanId, loserClanId, winnerName, loserName, rewards, winnerScore, loserScore) {
+    // Обновляем статистику победителя
+    const winnerRef = db.collection('clans').doc(winnerClanId);
+    // Используем инкремент для атомарного обновления
+    await winnerRef.update({
+        wins: firebase.firestore.FieldValue.increment(1),
+        totalWars: firebase.firestore.FieldValue.increment(1),
+        lastWarResult: 'win',
+        lastWarOpponent: loserName,
+        lastWarRewards: rewards,
+        lastWarScore: winnerScore,
+        lastWarTime: Date.now()
+    });
+    console.log(`📊 Победитель ${winnerName}: +1 победа, всего боев +1`);
+
+    // Обновляем статистику проигравшего
+    const loserRef = db.collection('clans').doc(loserClanId);
+    await loserRef.update({
+        losses: firebase.firestore.FieldValue.increment(1),
+        totalWars: firebase.firestore.FieldValue.increment(1),
+        lastWarResult: 'loss',
+        lastWarOpponent: winnerName,
+        lastWarScore: loserScore,
+        lastWarTime: Date.now()
+    });
+    console.log(`📊 Проигравший ${loserName}: +1 поражение, всего боев +1`);
 }
 
 async function loadClanWarHistory(clanId) {
@@ -8909,7 +8846,7 @@ function openWarModal() {
     window._opening_modal = true;
     
     if (maintenanceMode) {
-        showToast(maintenanceMessage, 'warning');
+        console.log('⚠️ Режим обслуживания');
         window._opening_modal = false;
         return;
     }
@@ -8920,69 +8857,19 @@ function openWarModal() {
     }
     
     if (currentPlayer.level < 5) {
-        showToast('Войны доступны с 5 уровня!', 'warning');
+        console.log('⚠️ Войны доступны с 5 уровня');
         window._opening_modal = false;
         return;
     }
     
     if (!currentPlayer.clanId) {
-        showToast('Войны доступны только для членов клана!', 'warning');
+        console.log('⚠️ Войны доступны только для членов клана');
         window._opening_modal = false;
         return;
     }
     
-    // Проверяем, есть ли уже открытое окно войны
-    const existingModal = document.getElementById('warFullscreen');
-    if (existingModal) {
-        // Если окно уже открыто, просто показываем его
-        existingModal.style.display = 'flex';
-        if (tg) tg.BackButton.show();
-        // ✅ ОБНОВЛЯЕМ ТОЛЬКО СОДЕРЖИМОЕ, НЕ ПЕРЕСОЗДАЁМ
-        updateWarWindowUI();
-        window._opening_modal = false;
-        return;
-    }
-    
-    // ✅ СОЗДАЁМ ОКНО ТОЛЬКО ОДИН РАЗ
-    const modalHtml = `
-        <div class="treasury-fullscreen" id="warFullscreen" style="display: flex;">
-            <div class="treasury-header-bar">
-                <div class="treasury-header-content">
-                    <div class="treasury-header-title">⚔️ ВОЙНА ⚔️</div>
-                </div>
-            </div>
-            <div class="treasury-content-area" id="warContentArea" style="overflow-y: auto; padding: 16px; margin-bottom: 75px;">
-                <div id="warDynamicContent" style="min-height: 200px;">
-                    <div style="text-align: center; padding: 40px;">
-                        <div class="loading-spinner-new" style="width: 30px; height: 30px; margin: 0 auto 15px;"></div>
-                        <div>Загрузка...</div>
-                    </div>
-                </div>
-            </div>
-            <div class="treasury-bottom-nav">
-                <div class="bottom-nav">
-                    <button class="treasury-tab-btn active" id="closeWarBtn"><img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_6.png" height="70px" width="55px" draggable="false"></button>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    document.body.insertAdjacentHTML('beforeend', modalHtml);
-    if (tg) tg.BackButton.show();
-    
-    // Привязываем кнопку закрытия
-    document.getElementById('closeWarBtn')?.addEventListener('click', () => {
-        closeWarModal();
-    });
-    
-    // ✅ ОБНОВЛЯЕМ СОДЕРЖИМОЕ БЕЗ ПЕРЕСОЗДАНИЯ
-    setTimeout(() => {
-        updateWarWindowUI();
-        // ✅ Запускаем таймер ТОЛЬКО ЕСЛИ ОН ЕЩЁ НЕ ЗАПУЩЕН
-        if (!clanWarTimerInterval) {
-            startWarTimer();
-        }
-    }, 50);
+    // Просто создаём окно
+    createWarWindowDirect();
     
     setTimeout(() => { 
         window._opening_modal = false; 
@@ -9021,7 +8908,7 @@ function closeWarModal() {
     document.body.style.width = '';
     document.body.classList.remove('modal-open');
     
-    // ❌ НЕ ВЫЗЫВАЕМ renderUI() ЗДЕСЬ!
+    // ❌ НЕ ВЫЗЫВАЕМ renderUI()!
     // ✅ Только обновляем кнопки на карте
     updateBattleCountersOnMap();
     updateTopBarResources();
@@ -9029,15 +8916,55 @@ function closeWarModal() {
     // ✅ Возвращаемся в город без перезагрузки
     if (currentBottomTab !== 'city') {
         currentBottomTab = 'city';
-        // ❌ НЕ ВЫЗЫВАЕМ renderUI()!
-        // ✅ Просто обновляем активную кнопку
+        // Обновляем активную кнопку навигации
         const navButtons = document.querySelectorAll('.nav-btn');
         navButtons.forEach(btn => {
             btn.classList.remove('active');
-            if (btn.querySelector('img')?.src?.includes('Untitled_1')) {
+            const img = btn.querySelector('img');
+            if (img && img.src && img.src.includes('Untitled_1')) {
                 btn.classList.add('active');
             }
         });
+    }
+}
+
+function safeUpdateWarWindow() {
+    const container = document.getElementById('warDynamicContent');
+    if (!container) return;
+    
+    if (!activeClanWar || activeClanWar.endTime <= Date.now()) {
+        // ❌ НЕ ВЫЗЫВАЕМ renderNoWarContent, которая может вызвать renderUI
+        // ✅ Показываем статическое сообщение
+        container.innerHTML = `
+            <div class="treasury-card" style="text-align: center;">
+                <div style="font-size: 48px; margin-bottom: 15px;">🕊️</div>
+                <div style="font-size: 20px; font-weight: 700; color: #c9a03d;">ВОЙНЫ НЕТ</div>
+                <div style="margin-top: 15px; color: #aaa;">Только главарь клана может объявить войну</div>
+            </div>
+        `;
+        return;
+    }
+    
+    // ✅ Обновляем только таймеры, без пересоздания всего контента
+    const remaining = Math.max(0, activeClanWar.endTime - Date.now());
+    const remainingHours = Math.floor(remaining / (60 * 60 * 1000));
+    const remainingMinutes = Math.floor((remaining % (60 * 60 * 1000)) / (60 * 1000));
+    const remainingSeconds = Math.floor((remaining % (60 * 1000)) / 1000);
+    const progressPercent = ((WAR_DURATION_MS - remaining) / WAR_DURATION_MS) * 100;
+    
+    // Обновляем существующие элементы, если они есть
+    const timerDisplay = document.getElementById('warTimerDisplay');
+    const remainingDisplay = document.getElementById('warRemainingDisplay');
+    const progressFill = document.getElementById('warProgressFill');
+    
+    if (timerDisplay) {
+        timerDisplay.textContent = `${remainingHours.toString().padStart(2, '0')}:${remainingMinutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+    }
+    if (remainingDisplay) {
+        remainingDisplay.textContent = `${remainingHours}ч ${remainingMinutes}м ${remainingSeconds}с`;
+    }
+    if (progressFill) {
+        progressFill.style.width = `${progressPercent}%`;
     }
 }
 
@@ -9190,15 +9117,15 @@ function renderNoWarContent(container) {
         c.level === (myClan?.level || 1)
     );
     
-    // Получаем время последней войны клана с учётом настроек
+    // Получаем кулдауны из Firebase (через localStorage)
     const warCooldownHours = window.WAR_COOLDOWN_HOURS || 24;
     const lastWarKey = `lastWar_${currentPlayer.clanId}`;
-    const lastWarTime = localStorage.getItem(lastWarKey);
+    const lastWarTime = parseInt(localStorage.getItem(lastWarKey)) || 0;
     let clanCooldownRemaining = 0;
     let clanCooldownText = '';
     
     if (lastWarTime && warCooldownHours > 0) {
-        const elapsed = Date.now() - parseInt(lastWarTime);
+        const elapsed = Date.now() - lastWarTime;
         const cooldownMs = warCooldownHours * 60 * 60 * 1000;
         if (elapsed < cooldownMs) {
             clanCooldownRemaining = cooldownMs - elapsed;
@@ -9219,6 +9146,19 @@ function renderNoWarContent(container) {
     
     // Формируем список кланов с защитой
     const attackCooldownHours = window.WAR_ATTACK_COOLDOWN_HOURS || 48;
+    // Получаем attackCooldowns из localStorage (они уже синхронизированы с Firebase)
+    const attackCooldowns = {};
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith(`attackCooldown_${currentPlayer.clanId}_`)) {
+            const clanId = key.replace(`attackCooldown_${currentPlayer.clanId}_`, '');
+            const timestamp = parseInt(localStorage.getItem(key));
+            if (timestamp > Date.now()) {
+                attackCooldowns[clanId] = timestamp;
+            }
+        }
+    }
+    
     const clansHtml = availableClans.map(clan => {
         const isDefended = clan.defenseUntil && clan.defenseUntil > Date.now();
         let defenseText = '';
@@ -9228,16 +9168,14 @@ function renderNoWarContent(container) {
             defenseText = formatTimeDetailedFull(remaining);
         }
         
-        const attackCooldownKey = `attackCooldown_${currentPlayer.clanId}_${clan.id}`;
-        const savedCooldown = localStorage.getItem(attackCooldownKey);
+        const savedCooldown = attackCooldowns[clan.id] || 0;
         let attackCooldownText = '';
         let isAttackOnCooldown = false;
         
-        if (savedCooldown && attackCooldownHours > 0) {
-            const cooldownEnd = parseInt(savedCooldown);
-            if (cooldownEnd > Date.now()) {
+        if (savedCooldown > 0 && attackCooldownHours > 0) {
+            if (savedCooldown > Date.now()) {
                 isAttackOnCooldown = true;
-                const remaining = cooldownEnd - Date.now();
+                const remaining = savedCooldown - Date.now();
                 attackCooldownText = formatTimeDetailedFull(remaining);
             }
         }
@@ -11561,7 +11499,7 @@ function addNotification(type, title, message, targetPlayerId = null) {
                 <img class="loading-logo" src="https://sviter-pro.github.io/GameZone/src/test/logo124.png" alt="Тюряга 2.0" onerror="this.src='https://via.placeholder.com/180x180?text=Тюряга+2.0'">
                 <div class="loading-spinner-new"></div>
                 <div class="loading-tip-new" id="loadingTipNew">⚡ Загрузка игрового мира...</div>
-                <div class="loading-version">Зона 1.0.0.278 | Зона ждет</div>
+                <div class="loading-version">Зона 1.0.0.275 | Зона ждет</div>
             </div>
         `;
             const tipEl = document.getElementById('loadingTipNew');
@@ -21709,7 +21647,7 @@ function calculatePlayerPower(player) {
         maxEnergy: 100,
         rubles: 0, 
         cigarettes: 50, 
-        tattoos: [],  // ← ВАЖНО: массив должен быть пустым, но инициализирован
+        tattoos: [],
         equipped: { weapon: 'камень', armor: 'роба', accessory: 'чифирная кружка' },
         stats: { strength: 10, defense: 5, critical: 5 }, 
         clanId: null, 
@@ -21750,7 +21688,13 @@ function calculatePlayerPower(player) {
         hasHadWar: false,
         shopLevel: 1,
         shopUpgradeStartTime: 0,
-        shopUpgradeDuration: 0
+        shopUpgradeDuration: 0,
+        // ↓↓↓ ДОБАВЬТЕ ЭТО ↓↓↓
+        warCooldowns: {
+            lastWarTime: 0,              // Время последней войны клана
+            attackCooldowns: {}          // Объект { clanId: timestamp }
+        }
+        // ↑↑↑ КОНЕЦ ДОБАВЛЕНИЯ ↑↑↑
     };
 }
     
@@ -22202,6 +22146,7 @@ async function startGame(id, name) {
         startWorkCountersOnMap();
         startBattleCountersOnMap();
         showChatButton();
+        startWarCooldownsAutoSave();
         if (currentPlayer.cardGameActive) await restoreCardGame();
         await restoreGym();
         await restorePendingGather();
