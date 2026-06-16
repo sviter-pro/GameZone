@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Зона 1.0.0.269 - Карта зоны</title>
+    <title>Зона 1.0.0.270 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -6405,7 +6405,176 @@ async function changeEquipment(slot, itemName, stat, bonus) {
 	</script>
 	<script>
 	// ========== АЛГОРИТМЫ И ФУНКЦИИ ОКНА БОЛЬНИЦА ==========
-	
+	function openHospitalModal() {
+    if (window._opening_modal) { 
+        console.log('Блокировка: окно уже открывается'); 
+        return; 
+    }
+    window._opening_modal = true;
+
+    if (document.querySelector('.modal') || document.querySelector('.clan-fullscreen') || document.querySelector('.shop-fullscreen') || document.querySelector('.mine-fullscreen')) {
+        console.log('Другое окно уже открыто');
+        window._opening_modal = false;
+        return;
+    }
+
+    if (maintenanceMode) { 
+        showToast(maintenanceMessage, 'warning'); 
+        window._opening_modal = false;
+        document.body.style.overflow = '';
+        document.body.style.position = '';
+        document.body.style.width = '';
+        document.body.classList.remove('modal-open');
+        return; 
+    }
+    
+    if (!currentPlayer) { 
+        window._opening_modal = false; 
+        return; 
+    }
+
+    const injuredFighters = currentPlayer.injuredFighters || 0;
+    const treatmentCost = injuredFighters * 10;
+    const treatmentTime = injuredFighters * 60 * 1000;
+    const canTreat = injuredFighters > 0 && currentPlayer.cigarettes >= treatmentCost;
+
+    // Информация о войне
+    let additionalInfo = '';
+    if (!currentPlayer.hasHadWar) {
+        additionalInfo = '<div class="bonus-info" style="background: rgba(139,69,19,0.2); border-left: 3px solid #8B4513; padding: 10px 12px; border-radius: 12px; margin: 10px 0; font-size: 12px; color: #c9a03d;">💡 После первой войны клана здесь будут появляться раненые бойцы</div>';
+    }
+
+    const modalHtml = `
+        <div class="treasury-fullscreen" id="hospitalFullscreen">
+            <div class="treasury-header-bar">
+                <div class="treasury-header-content">
+                    <div class="treasury-header-title">🏥 БОЛЬНИЦА</div>
+                </div>
+            </div>
+            <div class="treasury-content-area">
+                <!-- Карточка с информацией -->
+                <div class="treasury-card">
+                    <div style="text-align: center; margin-bottom: 20px;">
+                        <div style="font-size: 48px; margin-bottom: 10px;">🏥</div>
+                        <div style="font-size: 18px; font-weight: 700; color: #c9a03d;">ЛАЗАРЕТ</div>
+                        <div style="font-size: 12px; color: #aaa; margin-top: 5px;">⛓️ Тюремный медпункт ⛓️</div>
+                    </div>
+                    
+                    ${additionalInfo}
+                    
+                    <!-- СТАТУС РАНЕНЫХ -->
+                    <div style="background: rgba(0,0,0,0.3); border-radius: 16px; padding: 15px; margin-bottom: 20px; text-align: center;">
+                        <div style="display: flex; justify-content: center; gap: 30px; flex-wrap: wrap;">
+                            <div>
+                                <div style="font-size: 11px; color: #c9a03d;">🩸 РАНЕНЫХ БОЙЦОВ</div>
+                                <div style="font-size: 32px; font-weight: 800; color: #e94560; font-family: monospace;">${injuredFighters}</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 11px; color: #c9a03d;">💊 СТОИМОСТЬ ЛЕЧЕНИЯ</div>
+                                <div style="font-size: 32px; font-weight: 800; color: #ffd966; font-family: monospace;">${treatmentCost} 🚬</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 11px; color: #c9a03d;">⏱️ ВРЕМЯ ЛЕЧЕНИЯ</div>
+                                <div style="font-size: 32px; font-weight: 800; color: #4caf50; font-family: monospace;">${Math.ceil(treatmentTime / 60000)} мин</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- КНОПКА ЛЕЧЕНИЯ -->
+                    ${injuredFighters > 0 ? `
+                        <div style="margin-top: 10px;">
+                            <button class="btn-primary" onclick="treatInjured()" style="
+                                width: 100%; 
+                                padding: 14px; 
+                                background: linear-gradient(135deg, #8B4513, #5a2d0a);
+                                border: 1px solid #c9a03d;
+                                border-radius: 40px;
+                                font-weight: 700;
+                                font-size: 14px;
+                                color: #ffd966;
+                                cursor: pointer;
+                                transition: all 0.2s;
+                                ${!canTreat ? 'opacity: 0.5; cursor: not-allowed;' : ''}
+                            " ${!canTreat ? 'disabled' : ''}>
+                                💊 ВЫЛЕЧИТЬ ВСЕХ (${treatmentCost}🚬)
+                            </button>
+                            ${!canTreat && injuredFighters > 0 ? `
+                                <div style="text-align: center; margin-top: 10px; font-size: 11px; color: #e94560;">
+                                    ⚠️ Не хватает ${treatmentCost - currentPlayer.cigarettes} 🚬
+                                </div>
+                            ` : ''}
+                            ${treatmentTime > 0 ? `
+                                <div class="bonus-info" style="background: rgba(139,69,19,0.2); border-left: 3px solid #8B4513; padding: 10px 12px; border-radius: 12px; margin: 10px 0; font-size: 12px; text-align: center; color: #c9a03d;">
+                                    ⏱️ Лечение займёт <span id="treatmentTimer" style="color: #ffd966; font-weight: bold;">${Math.ceil(treatmentTime / 60000)}</span> минут
+                                </div>
+                            ` : ''}
+                        </div>
+                    ` : `
+                        <div style="text-align: center; padding: 20px;">
+                            <div style="font-size: 48px; margin-bottom: 10px;">✅</div>
+                            <div style="font-size: 18px; font-weight: 700; color: #4caf50;">ВСЕ БОЙЦЫ ЗДОРОВЫ</div>
+                            <div style="font-size: 12px; color: #aaa; margin-top: 5px;">🛡️ Никто не нуждается в лечении</div>
+                        </div>
+                    `}
+                    
+                    <!-- СТАТИСТИКА ЛЕЧЕНИЙ -->
+                    <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(139,69,19,0.2);">
+                        <div style="display: flex; justify-content: space-around; font-size: 11px; color: #888;">
+                            <div>🏥 Всего вылечено: <span style="color: #ffd966;">${currentPlayer.totalHealed || 0}</span></div>
+                            <div>💊 Потрачено на лечение: <span style="color: #ffd966;">${currentPlayer.totalHealingCost || 0} 🚬</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="treasury-bottom-nav">
+                <div class="bottom-nav">
+                    <button class="treasury-tab-btn active" onclick="closeHospitalModal()"><img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_6.png" height="70px" width="55px" draggable="false"></button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    const existingModal = document.getElementById('hospitalFullscreen');
+    if (existingModal) existingModal.remove();
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    if (tg) tg.BackButton.show();
+
+    if (currentPlayer.treatmentEndTime && currentPlayer.treatmentEndTime > Date.now()) {
+        startTreatmentTimer();
+    }
+
+    setTimeout(() => { window._opening_modal = false; }, 500);
+}
+        function startTreatmentTimer() {
+            const timerInterval = setInterval(() => {
+                const modal = document.getElementById('hospitalFullscreen');
+                if (!modal || !currentPlayer.treatmentEndTime || currentPlayer.treatmentEndTime <= Date.now()) {
+                    clearInterval(timerInterval);
+                    if (modal) openHospitalModal();
+                    return;
+                }
+                const timerEl = document.getElementById('treatmentTimer');
+                if (timerEl) {
+                    const remaining = Math.max(0, currentPlayer.treatmentEndTime - Date.now());
+                    timerEl.textContent = `⏱️ Осталось: ${Math.ceil(remaining / 60000)} мин`;
+                }
+            }, 1000);
+        }
+
+
+        function closeHospitalModal() {
+            const modal = document.getElementById('hospitalFullscreen');
+            if (modal) modal.remove();
+            if (tg) tg.BackButton.hide();
+
+            // Восстанавливаем скролл body
+            document.body.style.overflow = '';
+            document.body.style.position = '';
+            document.body.style.width = '';
+            document.body.classList.remove('modal-open');
+
+            renderUI();
+        }
 	</script>
 	<script>
 	// ========== АЛГОРИТМЫ И ФУНКЦИИ ОКНА СХОДКА ==========
@@ -6456,7 +6625,7 @@ async function changeEquipment(slot, itemName, stat, bonus) {
                 
                 <div class="settings-card">
                     <div style="font-size: 13px; color: #aaa; text-align: center;">
-                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.269</div>
+                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.270</div>
                         <div style="font-size: 11px;">⚡ Клановые войны | Бесконечная прокачка</div>
                     </div>
                 </div>
@@ -8387,15 +8556,16 @@ function openWarModal() {
     // Проверяем, есть ли уже открытое окно войны
     const existingModal = document.getElementById('warFullscreen');
     if (existingModal) {
-        // Если окно уже открыто, просто обновляем его содержимое
+        // Если окно уже открыто, просто показываем его
         existingModal.style.display = 'flex';
         if (tg) tg.BackButton.show();
+        // ✅ ОБНОВЛЯЕМ ТОЛЬКО СОДЕРЖИМОЕ, НЕ ПЕРЕСОЗДАЁМ
         updateWarWindowUI();
         window._opening_modal = false;
         return;
     }
     
-    // Создаём HTML окна (только если его нет)
+    // ✅ СОЗДАЁМ ОКНО ТОЛЬКО ОДИН РАЗ
     const modalHtml = `
         <div class="treasury-fullscreen" id="warFullscreen" style="display: flex;">
             <div class="treasury-header-bar">
@@ -8425,22 +8595,37 @@ function openWarModal() {
     // Привязываем кнопку закрытия
     document.getElementById('closeWarBtn')?.addEventListener('click', () => {
         closeWarModal();
-        // Возвращаемся в город после закрытия
-        if (currentBottomTab !== 'city') {
-            currentBottomTab = 'city';
-            renderUI();
-        }
     });
     
-    // Обновляем содержимое
+    // ✅ ОБНОВЛЯЕМ СОДЕРЖИМОЕ БЕЗ ПЕРЕСОЗДАНИЯ
     setTimeout(() => {
         updateWarWindowUI();
-        startWarTimer();
+        // ✅ Запускаем таймер ТОЛЬКО ЕСЛИ ОН ЕЩЁ НЕ ЗАПУЩЕН
+        if (!clanWarTimerInterval) {
+            startWarTimer();
+        }
     }, 50);
     
     setTimeout(() => { 
         window._opening_modal = false; 
     }, 500);
+}
+
+// Добавьте эту проверку в начало всех функций, которые могут вызвать renderUI()
+function safeUpdateUI() {
+    // Проверяем, не пересоздаётся ли уже приложение
+    if (window._isRendering) {
+        console.log('⚠️ Рендеринг уже выполняется, пропускаем');
+        return;
+    }
+    window._isRendering = true;
+    
+    try {
+        // Выполняем обновление
+        renderUI();
+    } finally {
+        window._isRendering = false;
+    }
 }
 
 function closeWarModal() {
@@ -8458,10 +8643,24 @@ function closeWarModal() {
     document.body.style.width = '';
     document.body.classList.remove('modal-open');
     
-    // НЕ вызываем renderUI() здесь, чтобы не перерисовывать всё приложение
-    // Просто обновляем кнопки на карте
+    // ❌ НЕ ВЫЗЫВАЕМ renderUI() ЗДЕСЬ!
+    // ✅ Только обновляем кнопки на карте
     updateBattleCountersOnMap();
     updateTopBarResources();
+    
+    // ✅ Возвращаемся в город без перезагрузки
+    if (currentBottomTab !== 'city') {
+        currentBottomTab = 'city';
+        // ❌ НЕ ВЫЗЫВАЕМ renderUI()!
+        // ✅ Просто обновляем активную кнопку
+        const navButtons = document.querySelectorAll('.nav-btn');
+        navButtons.forEach(btn => {
+            btn.classList.remove('active');
+            if (btn.querySelector('img')?.src?.includes('Untitled_1')) {
+                btn.classList.add('active');
+            }
+        });
+    }
 }
 
 function startWarTimer() {
@@ -8476,6 +8675,17 @@ function startWarTimer() {
         
         // Если нет активной войны, не обновляем таймер
         if (!activeClanWar || activeClanWar.endTime <= Date.now()) {
+            // Если война закончилась - обновляем UI ТОЛЬКО если окно открыто
+            if (activeClanWar && activeClanWar.endTime <= Date.now()) {
+                activeClanWar = null;
+                warFightersSent = { blats: 0, muzhiks: 0, fraers: 0 };
+                localStorage.removeItem(`warFighters_${currentPlayer.id}`);
+                // Обновляем содержимое окна БЕЗ полной перерисовки
+                const container = document.getElementById('warDynamicContent');
+                if (container) {
+                    renderNoWarContent(container); // ← Это только обновляет контент внутри окна
+                }
+            }
             return;
         }
         
@@ -8499,6 +8709,10 @@ function startWarTimer() {
         if (progressFill) {
             progressFill.style.width = `${progressPercent}%`;
         }
+        
+        // ❌ НЕ ВЫЗЫВАЕМ renderUI() здесь!
+        // ❌ НЕ ВЫЗЫВАЕМ updateWarWindowUI() здесь! (только если нужно обновить данные)
+        
     }, 1000);
 }
 
@@ -10922,7 +11136,7 @@ function addNotification(type, title, message, targetPlayerId = null) {
                 <img class="loading-logo" src="https://sviter-pro.github.io/GameZone/src/test/logo124.png" alt="Тюряга 2.0" onerror="this.src='https://via.placeholder.com/180x180?text=Тюряга+2.0'">
                 <div class="loading-spinner-new"></div>
                 <div class="loading-tip-new" id="loadingTipNew">⚡ Загрузка игрового мира...</div>
-                <div class="loading-version">Зона 1.0.0.269 | Зона ждет</div>
+                <div class="loading-version">Зона 1.0.0.270 | Зона ждет</div>
             </div>
         `;
             const tipEl = document.getElementById('loadingTipNew');
@@ -20707,149 +20921,6 @@ function updateGangModalUI() {
     renderUI();
 }
 
-        function openHospitalModal() {
-    if (window._opening_modal) { 
-        console.log('Блокировка: окно уже открывается'); 
-        return; 
-    }
-    window._opening_modal = true;
-
-    // Сначала проверяем модальные окна
-    if (document.querySelector('.modal') || document.querySelector('.clan-fullscreen') || document.querySelector('.shop-fullscreen') || document.querySelector('.mine-fullscreen')) {
-        console.log('Другое окно уже открыто');
-        window._opening_modal = false;
-        return;
-    }
-
-    if (maintenanceMode) { 
-        showToast(maintenanceMessage, 'warning'); 
-        window._opening_modal = false;
-        // Восстанавливаем скролл
-        document.body.style.overflow = '';
-        document.body.style.position = '';
-        document.body.style.width = '';
-        document.body.classList.remove('modal-open');
-        return; 
-    }
-    
-    if (!currentPlayer) { 
-        window._opening_modal = false; 
-        return; 
-    }
-
-    if (!currentPlayer.hasHadWar) {
-        showToast('🏥 Больница откроется только после первой войны клана!', 'warning');
-        window._opening_modal = false;
-        // ВАЖНО: Снимаем блокировку скролла при ошибке
-        document.body.style.overflow = '';
-        document.body.style.position = '';
-        document.body.style.width = '';
-        document.body.classList.remove('modal-open');
-        return;
-    }
-
-    const injuredFighters = currentPlayer.injuredFighters || 0;
-    const treatmentCost = injuredFighters * 10;
-    const treatmentTime = injuredFighters * 60 * 1000;
-    const canTreat = injuredFighters > 0 && currentPlayer.cigarettes >= treatmentCost;
-
-    const modalHtml = `
-        <div class="hospital-fullscreen" id="hospitalFullscreen">
-            <div class="hospital-header-bar">
-                <div class="hospital-header-content">
-                    <div class="hospital-header-title">🏥 БОЛЬНИЦА</div>
-                </div>
-            </div>
-            <div class="hospital-content-area">
-                <div class="hospital-card" style="text-align:center;">
-                    <div style="font-size:48px; margin-bottom:10px;">🏥</div>
-                    <div style="font-size:18px; font-weight:700;">Раненых бойцов: ${injuredFighters}</div>
-                    <div class="bonus-info">💊 Лечение 1 бойца: 10🚬</div>
-                    <div class="bonus-info">⏳ Время лечения: 1 мин/боец</div>
-                    ${injuredFighters > 0 ? `
-                        <button class="btn-primary" onclick="treatInjured()" style="margin-top:15px; width:100%;" ${!canTreat ? 'disabled' : ''}>💊 Вылечить всех (${treatmentCost}🚬)</button>
-                        ${treatmentTime > 0 ? `<div class="bonus-info" id="treatmentTimer">⏱️ Время лечения: ${Math.ceil(treatmentTime / 60000)} мин</div>` : ''}
-                    ` : '<div style="color:#4caf50; margin-top:15px;">✅ Все бойцы здоровы!</div>'}
-                </div>
-            </div>
-            <div class="hospital-bottom-nav">
-                <div class="bottom-nav">
-                    <button class="hospital-tab-btn active" onclick="closeHospitalModal()"><img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_6.png"  height="70px" width="55px" draggable="false"></button>
-                </div>
-            </div>
-        </div>
-    `;
-
-    const existingModal = document.getElementById('hospitalFullscreen');
-    if (existingModal) existingModal.remove();
-    document.body.insertAdjacentHTML('beforeend', modalHtml);
-    if (tg) tg.BackButton.show();
-
-    if (currentPlayer.treatmentEndTime && currentPlayer.treatmentEndTime > Date.now()) {
-        startTreatmentTimer();
-    }
-
-    setTimeout(() => { window._opening_modal = false; }, 500);
-}
-
-        function startTreatmentTimer() {
-            const timerInterval = setInterval(() => {
-                const modal = document.getElementById('hospitalFullscreen');
-                if (!modal || !currentPlayer.treatmentEndTime || currentPlayer.treatmentEndTime <= Date.now()) {
-                    clearInterval(timerInterval);
-                    if (modal) openHospitalModal();
-                    return;
-                }
-                const timerEl = document.getElementById('treatmentTimer');
-                if (timerEl) {
-                    const remaining = Math.max(0, currentPlayer.treatmentEndTime - Date.now());
-                    timerEl.textContent = `⏱️ Осталось: ${Math.ceil(remaining / 60000)} мин`;
-                }
-            }, 1000);
-        }
-
-        async function treatInjured() {
-            if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); return; }
-            const injured = currentPlayer.injuredFighters || 0;
-            if (injured === 0) { showToast('Нет раненых!', 'warning'); return; }
-            const cost = injured * 10;
-            if (currentPlayer.cigarettes < cost) { showToast(`Не хватает ${cost - currentPlayer.cigarettes} 🚬!`, 'error'); return; }
-
-            await playerDocRef.update({
-                cigarettes: firebase.firestore.FieldValue.increment(-cost),
-                injuredFighters: 0,
-                treatmentEndTime: Date.now() + (injured * 60 * 1000)
-            });
-            currentPlayer.cigarettes -= cost;
-            currentPlayer.injuredFighters = 0;
-            currentPlayer.treatmentEndTime = Date.now() + (injured * 60 * 1000);
-
-            showToast(`💊 Лечение началось! Через ${injured} мин бойцы вернутся в строй.`, 'success');
-            startTreatmentTimer();
-            setTimeout(() => {
-                if (currentPlayer) {
-                    showToast('🏥 Лечение завершено! Бойцы здоровы!', 'success');
-                    renderUI();
-                }
-            }, injured * 60 * 1000);
-            closeHospitalModal();
-            renderUI();
-        }
-
-        function closeHospitalModal() {
-            const modal = document.getElementById('hospitalFullscreen');
-            if (modal) modal.remove();
-            if (tg) tg.BackButton.hide();
-
-            // Восстанавливаем скролл body
-            document.body.style.overflow = '';
-            document.body.style.position = '';
-            document.body.style.width = '';
-            document.body.classList.remove('modal-open');
-
-            renderUI();
-        }
-
         async function sendTelegramNotificationToUser(telegramId, message) {
             if (!tg || !telegramId || !settingsNotifications) return false;
             try { tg.sendData(JSON.stringify({ type: 'notification', telegramId: telegramId, message: message })); return true; } catch (e) { return false; }
@@ -21514,11 +21585,11 @@ async function startGame(id, name) {
     lastWorkNotified = { mine: false, lumber: false, quarry: false };
     lastWorkRemainingState = { mine: 0, lumber: 0, quarry: 0 };
     
-    // ПРИНУДИТЕЛЬНОЕ ОТКЛЮЧЕНИЕ КОНТЕКСТНОГО МЕНЮ ДЛЯ ВСЕХ ЭЛЕМЕНТОВ
+    // ПРИНУДИТЕЛЬНОЕ ОТКЛЮЧЕНИЕ КОНТЕКСТНОГО МЕНЮ
     document.body.style.webkitTouchCallout = 'none';
     document.body.style.userSelect = 'none';
 
-    // Перехватываем и блокируем все возможные события контекстного меню
+    // Блокируем контекстное меню
     document.addEventListener('contextmenu', (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -21527,9 +21598,7 @@ async function startGame(id, name) {
 
     document.addEventListener('touchstart', (e) => {
         const target = e.target;
-        // Если это кнопка или изображение - блокируем долгое нажатие
         if (target.closest('.nav-btn') || target.closest('.building') || target.closest('img')) {
-            // Не блокируем сразу, а через таймер
             let timer;
             const cancelTimer = () => {
                 if (timer) clearTimeout(timer);
@@ -21561,7 +21630,7 @@ async function startGame(id, name) {
         
         let player = { id: doc.id, ...doc.data() };
         
-        // Инициализация структур данных, если их нет
+        // Инициализация структур данных
         if (!player.mine) player.mine = { paperLevel: 1, makhorkaLevel: 1, lastMineTime: 0, paper: 0, makhorka: 0, paperUpgradeStartTime: 0, paperUpgradeDuration: 0, makhorkaUpgradeStartTime: 0, makhorkaUpgradeDuration: 0 };
         if (!player.lumber) player.lumber = { level: 1, lastGatherTime: 0, wood: 0, upgradeStartTime: 0, upgradeDuration: 0 };
         if (!player.quarry) player.quarry = { level: 1, lastGatherTime: 0, stone: 0, upgradeStartTime: 0, upgradeDuration: 0 };
@@ -21593,7 +21662,6 @@ async function startGame(id, name) {
             };
             await db.collection('players').doc(id).update({ gang: player.gang });
         } else {
-            // Добавляем недостающие поля
             if (!player.gang.blats) player.gang.blats = { level: 1, lastGatherTime: 0, fighters: 0, upgradeStartTime: 0, upgradeDuration: 0 };
             if (!player.gang.muzhiks) player.gang.muzhiks = { level: 1, lastGatherTime: 0, fighters: 0, upgradeStartTime: 0, upgradeDuration: 0 };
             if (!player.gang.fraers) player.gang.fraers = { level: 1, lastGatherTime: 0, fighters: 0, upgradeStartTime: 0, upgradeDuration: 0 };
@@ -21705,17 +21773,42 @@ async function startGame(id, name) {
         await checkActiveWar();
         generateDynamicQuests(); 
         startEnergyTimer(); 
-        startWarTimer();
         startWarCompletionChecker();
-		startWorkCountersOnMap();
-		startBattleCountersOnMap();
-		showChatButton();
+        startWorkCountersOnMap();
+        startBattleCountersOnMap();
+        showChatButton();
         if (currentPlayer.cardGameActive) await restoreCardGame();
         await restoreGym();
+        await restorePendingGather();
+        checkAndFixStuckData();
         
-		await restorePendingGather();
-		checkAndFixStuckData();
+        // ========== ОДИН РАЗ СОЗДАЁМ ВСЕ ИНТЕРВАЛЫ ==========
+        // Таймер войны (один раз)
+        startWarTimer();
+        
+        // ========== ГЛАВНЫЙ ИНТЕРВАЛ ОБНОВЛЕНИЯ UI (ТОЛЬКО ТОЧЕЧНЫЕ ОБНОВЛЕНИЯ) ==========
+        if (window.mapCountersInterval) clearInterval(window.mapCountersInterval);
+        window.mapCountersInterval = setInterval(() => {
+            if (!currentPlayer) {
+                if (window.mapCountersInterval) clearInterval(window.mapCountersInterval);
+                return;
+            }
+            // ✅ ТОЛЬКО ТОЧЕЧНЫЕ ОБНОВЛЕНИЯ, БЕЗ renderUI()
+            updateBattleCountersOnMap();
+            checkWorkCompletion();        
+            checkAndNotifyWorkAvailable();
+            updateTopBarResources();
+            
+            // Обновляем таймеры в окне войны (если оно открыто)
+            const warModal = document.getElementById('warFullscreen');
+            if (warModal && activeClanWar) {
+                updateWarTimersOnly();
+            }
+        }, 1000);
+        
         hideLoadingScreen();
+        
+        // ========== ПЕРВЫЙ РЕНДЕР UI ==========
         renderUI();
         
         setTimeout(() => {
@@ -21791,253 +21884,259 @@ async function startGame(id, name) {
 }
 
         function renderUI() {
-            if (!currentPlayer) return;
-            let casteIcon = currentPlayer.caste === 'Блатные' ? '👑' : (currentPlayer.caste === 'Мужики' ? '🔨' : '🐑');
-            const paper = currentPlayer.mine?.paper || 0;
-            const makhorka = currentPlayer.mine?.makhorka || 0;
-            const wood = currentPlayer.lumber?.wood || 0;
-            const stone = currentPlayer.quarry?.stone || 0;
+    if (!currentPlayer) return;
+    
+    // Защита от множественных вызовов
+    if (window._isRendering) {
+        console.log('⚠️ Рендеринг уже выполняется, пропускаем');
+        return;
+    }
+    window._isRendering = true;
+    
+    try {
+        let casteIcon = currentPlayer.caste === 'Блатные' ? '👑' : (currentPlayer.caste === 'Мужики' ? '🔨' : '🐑');
+        const paper = currentPlayer.mine?.paper || 0;
+        const makhorka = currentPlayer.mine?.makhorka || 0;
+        const wood = currentPlayer.lumber?.wood || 0;
+        const stone = currentPlayer.quarry?.stone || 0;
 
-            const mineData = currentPlayer.mine || { paperLevel: 1, makhorkaLevel: 1, lastMineTime: 0, paper: 0, makhorka: 0, paperUpgradeStartTime: 0, paperUpgradeDuration: 0, makhorkaUpgradeStartTime: 0, makhorkaUpgradeDuration: 0 };
-            const lumber = currentPlayer.lumber || { level: 1, lastGatherTime: 0, wood: 0, upgradeStartTime: 0, upgradeDuration: 0 };
-            const quarry = currentPlayer.quarry || { level: 1, lastGatherTime: 0, stone: 0, upgradeStartTime: 0, upgradeDuration: 0 };
+        const mineData = currentPlayer.mine || { paperLevel: 1, makhorkaLevel: 1, lastMineTime: 0, paper: 0, makhorka: 0, paperUpgradeStartTime: 0, paperUpgradeDuration: 0, makhorkaUpgradeStartTime: 0, makhorkaUpgradeDuration: 0 };
+        const lumber = currentPlayer.lumber || { level: 1, lastGatherTime: 0, wood: 0, upgradeStartTime: 0, upgradeDuration: 0 };
+        const quarry = currentPlayer.quarry || { level: 1, lastGatherTime: 0, stone: 0, upgradeStartTime: 0, upgradeDuration: 0 };
 
-            const isWorkActive = (type) => {
-                let lastTime, cooldownMs;
-                if (type === 'mine') {
-                    lastTime = mineData.lastMineTime || 0;
-                    cooldownMs = 2 * 60 * 1000;
-                    cooldownMs = Math.floor(cooldownMs * (1 + (mineData.paperLevel - 1) * 0.05));
-                } else if (type === 'lumber') {
-                    lastTime = lumber.lastGatherTime || 0;
-                    cooldownMs = 2 * 60 * 1000;
-                    cooldownMs = Math.floor(cooldownMs * (1 + (lumber.level - 1) * 0.05));
-                } else {
-                    lastTime = quarry.lastGatherTime || 0;
-                    cooldownMs = 2 * 60 * 1000;
-                    cooldownMs = Math.floor(cooldownMs * (1 + (quarry.level - 1) * 0.05));
+        const isWorkActive = (type) => {
+            let lastTime, cooldownMs;
+            if (type === 'mine') {
+                lastTime = mineData.lastMineTime || 0;
+                cooldownMs = 2 * 60 * 1000;
+                cooldownMs = Math.floor(cooldownMs * (1 + (mineData.paperLevel - 1) * 0.05));
+            } else if (type === 'lumber') {
+                lastTime = lumber.lastGatherTime || 0;
+                cooldownMs = 2 * 60 * 1000;
+                cooldownMs = Math.floor(cooldownMs * (1 + (lumber.level - 1) * 0.05));
+            } else {
+                lastTime = quarry.lastGatherTime || 0;
+                cooldownMs = 2 * 60 * 1000;
+                cooldownMs = Math.floor(cooldownMs * (1 + (quarry.level - 1) * 0.05));
+            }
+            return (Date.now() - lastTime) < cooldownMs;
+        };
+
+        const getWorkRemainingSec = (type) => {
+            let lastTime, cooldownMs;
+            if (type === 'mine') {
+                lastTime = mineData.lastMineTime || 0;
+                cooldownMs = 2 * 60 * 1000;
+                cooldownMs = Math.floor(cooldownMs * (1 + (mineData.paperLevel - 1) * 0.05));
+            } else if (type === 'lumber') {
+                lastTime = lumber.lastGatherTime || 0;
+                cooldownMs = 2 * 60 * 1000;
+                cooldownMs = Math.floor(cooldownMs * (1 + (lumber.level - 1) * 0.05));
+            } else {
+                lastTime = quarry.lastGatherTime || 0;
+                cooldownMs = 2 * 60 * 1000;
+                cooldownMs = Math.floor(cooldownMs * (1 + (quarry.level - 1) * 0.05));
+            }
+            return Math.max(0, cooldownMs - (Date.now() - lastTime));
+        };
+
+        const isUpgradeWorkActive = (type) => {
+            if (type === 'mine_paper') return isMineUpgradeActive('paper');
+            if (type === 'mine_makhorka') return isMineUpgradeActive('makhorka');
+            if (type === 'lumber') return isLumberUpgradeActive();
+            if (type === 'quarry') return isQuarryUpgradeActive();
+            return false;
+        };
+
+        const getUpgradeWorkRemainingSec = (type) => {
+            if (type === 'mine_paper') return getMineUpgradeRemaining('paper');
+            if (type === 'mine_makhorka') return getMineUpgradeRemaining('makhorka');
+            if (type === 'lumber') return getLumberUpgradeRemaining();
+            if (type === 'quarry') return getQuarryUpgradeRemaining();
+            return 0;
+        };
+
+        const formatMapTimer = (ms) => {
+            if (ms <= 0) return '';
+            const totalSeconds = Math.floor(ms / 1000);
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            if (minutes > 0) return `${minutes}м ${seconds}с`;
+            return `${seconds}с`;
+        };
+
+        let workTimers = [];
+        let upgradeWorkTimers = [];
+
+        if (isWorkActive('mine')) {
+            const remaining = getWorkRemainingSec('mine');
+            if (remaining > 0) workTimers.push(`⛏️ ${formatMapTimer(remaining)}`);
+        }
+        if (isUpgradeWorkActive('mine_paper')) {
+            const remaining = getUpgradeWorkRemainingSec('mine_paper');
+            if (remaining > 0) upgradeWorkTimers.push(`📄 ${formatMapTimer(remaining)}`);
+        }
+        if (isUpgradeWorkActive('mine_makhorka')) {
+            const remaining = getUpgradeWorkRemainingSec('mine_makhorka');
+            if (remaining > 0) upgradeWorkTimers.push(`🌿 ${formatMapTimer(remaining)}`);
+        }
+        if (isWorkActive('lumber')) {
+            const remaining = getWorkRemainingSec('lumber');
+            if (remaining > 0) workTimers.push(`🪓 ${formatMapTimer(remaining)}`);
+        }
+        if (isUpgradeWorkActive('lumber')) {
+            const remaining = getUpgradeWorkRemainingSec('lumber');
+            if (remaining > 0) upgradeWorkTimers.push(`🪵 ${formatMapTimer(remaining)}`);
+        }
+        if (isWorkActive('quarry')) {
+            const remaining = getWorkRemainingSec('quarry');
+            if (remaining > 0) workTimers.push(`⛏️ ${formatMapTimer(remaining)}`);
+        }
+        if (isUpgradeWorkActive('quarry')) {
+            const remaining = getUpgradeWorkRemainingSec('quarry');
+            if (remaining > 0) upgradeWorkTimers.push(`🪨 ${formatMapTimer(remaining)}`);
+        }
+
+        let countersHtmlWork = '';
+        if (workTimers.length > 0 || upgradeWorkTimers.length > 0) {
+            countersHtmlWork = `<div class="counters-container-work">`;
+            if (workTimers.length > 0) {
+                for (let timer of workTimers) {
+                    countersHtmlWork += `<div class="work-counter">${timer}</div>`;
                 }
-                return (Date.now() - lastTime) < cooldownMs;
-            };
-
-            const getWorkRemainingSec = (type) => {
-                let lastTime, cooldownMs;
-                if (type === 'mine') {
-                    lastTime = mineData.lastMineTime || 0;
-                    cooldownMs = 2 * 60 * 1000;
-                    cooldownMs = Math.floor(cooldownMs * (1 + (mineData.paperLevel - 1) * 0.05));
-                } else if (type === 'lumber') {
-                    lastTime = lumber.lastGatherTime || 0;
-                    cooldownMs = 2 * 60 * 1000;
-                    cooldownMs = Math.floor(cooldownMs * (1 + (lumber.level - 1) * 0.05));
-                } else {
-                    lastTime = quarry.lastGatherTime || 0;
-                    cooldownMs = 2 * 60 * 1000;
-                    cooldownMs = Math.floor(cooldownMs * (1 + (quarry.level - 1) * 0.05));
+            }
+            if (upgradeWorkTimers.length > 0) {
+                for (let timer of upgradeWorkTimers) {
+                    countersHtmlWork += `<div class="upgrade-work-counter">⬆️ ${timer}</div>`;
                 }
-                return Math.max(0, cooldownMs - (Date.now() - lastTime));
-            };
-
-            const isUpgradeWorkActive = (type) => {
-                if (type === 'mine_paper') return isMineUpgradeActive('paper');
-                if (type === 'mine_makhorka') return isMineUpgradeActive('makhorka');
-                if (type === 'lumber') return isLumberUpgradeActive();
-                if (type === 'quarry') return isQuarryUpgradeActive();
-                return false;
-            };
-
-            const getUpgradeWorkRemainingSec = (type) => {
-                if (type === 'mine_paper') return getMineUpgradeRemaining('paper');
-                if (type === 'mine_makhorka') return getMineUpgradeRemaining('makhorka');
-                if (type === 'lumber') return getLumberUpgradeRemaining();
-                if (type === 'quarry') return getQuarryUpgradeRemaining();
-                return 0;
-            };
-
-            const formatMapTimer = (ms) => {
-                if (ms <= 0) return '';
-                const totalSeconds = Math.floor(ms / 1000);
-                const minutes = Math.floor(totalSeconds / 60);
-                const seconds = totalSeconds % 60;
-                if (minutes > 0) return `${minutes}м ${seconds}с`;
-                return `${seconds}с`;
-            };
-
-            let workTimers = [];
-            let upgradeWorkTimers = [];
-
-            if (isWorkActive('mine')) {
-                const remaining = getWorkRemainingSec('mine');
-                if (remaining > 0) workTimers.push(`⛏️ ${formatMapTimer(remaining)}`);
             }
-            if (isUpgradeWorkActive('mine_paper')) {
-                const remaining = getUpgradeWorkRemainingSec('mine_paper');
-                if (remaining > 0) upgradeWorkTimers.push(`📄 ${formatMapTimer(remaining)}`);
-            }
-            if (isUpgradeWorkActive('mine_makhorka')) {
-                const remaining = getUpgradeWorkRemainingSec('mine_makhorka');
-                if (remaining > 0) upgradeWorkTimers.push(`🌿 ${formatMapTimer(remaining)}`);
-            }
-            if (isWorkActive('lumber')) {
-                const remaining = getWorkRemainingSec('lumber');
-                if (remaining > 0) workTimers.push(`🪓 ${formatMapTimer(remaining)}`);
-            }
-            if (isUpgradeWorkActive('lumber')) {
-                const remaining = getUpgradeWorkRemainingSec('lumber');
-                if (remaining > 0) upgradeWorkTimers.push(`🪵 ${formatMapTimer(remaining)}`);
-            }
-            if (isWorkActive('quarry')) {
-                const remaining = getWorkRemainingSec('quarry');
-                if (remaining > 0) workTimers.push(`⛏️ ${formatMapTimer(remaining)}`);
-            }
-            if (isUpgradeWorkActive('quarry')) {
-                const remaining = getUpgradeWorkRemainingSec('quarry');
-                if (remaining > 0) upgradeWorkTimers.push(`🪨 ${formatMapTimer(remaining)}`);
-            }
+            countersHtmlWork += `</div>`;
+        }
 
-            let countersHtmlWork = '';
-            if (workTimers.length > 0 || upgradeWorkTimers.length > 0) {
-                countersHtmlWork = `<div class="counters-container-work">`;
-                if (workTimers.length > 0) {
-                    for (let timer of workTimers) {
-                        countersHtmlWork += `<div class="work-counter">${timer}</div>`;
-                    }
-                }
-                if (upgradeWorkTimers.length > 0) {
-                    for (let timer of upgradeWorkTimers) {
-                        countersHtmlWork += `<div class="upgrade-work-counter">⬆️ ${timer}</div>`;
-                    }
-                }
-                countersHtmlWork += `</div>`;
-            }
+        const gang = currentPlayer.gang || { blats: { level: 1, lastGatherTime: 0, fighters: 0, upgradeStartTime: 0, upgradeDuration: 0 }, muzhiks: { level: 1, lastGatherTime: 0, fighters: 0, upgradeStartTime: 0, upgradeDuration: 0 }, fraers: { level: 1, lastGatherTime: 0, fighters: 0, upgradeStartTime: 0, upgradeDuration: 0 } };
 
-            const gang = currentPlayer.gang || { blats: { level: 1, lastGatherTime: 0, fighters: 0, upgradeStartTime: 0, upgradeDuration: 0 }, muzhiks: { level: 1, lastGatherTime: 0, fighters: 0, upgradeStartTime: 0, upgradeDuration: 0 }, fraers: { level: 1, lastGatherTime: 0, fighters: 0, upgradeStartTime: 0, upgradeDuration: 0 } };
+        const isRecruitingActive = (type) => {
+            const lastGather = gang[type].lastGatherTime || 0;
+            let cooldownMs = 2 * 60 * 1000;
+            cooldownMs = Math.floor(cooldownMs * (1 + (gang[type].level - 1) * 0.05));
+            return (Date.now() - lastGather) < cooldownMs;
+        };
+        const getRecruitRemainingSec = (type) => {
+            const lastGather = gang[type].lastGatherTime || 0;
+            let cooldownMs = 2 * 60 * 1000;
+            cooldownMs = Math.floor(cooldownMs * (1 + (gang[type].level - 1) * 0.05));
+            const remaining = Math.max(0, cooldownMs - (Date.now() - lastGather));
+            return remaining;
+        };
+        const isUpgradeActiveForRender = (type) => {
+            const upgradeStart = gang[type].upgradeStartTime || 0;
+            const upgradeDuration = gang[type].upgradeDuration || 0;
+            return upgradeStart > 0 && (Date.now() - upgradeStart) < upgradeDuration;
+        };
+        const getUpgradeRemainingSec = (type) => {
+            const upgradeStart = gang[type].upgradeStartTime || 0;
+            const upgradeDuration = gang[type].upgradeDuration || 0;
+            if (upgradeStart === 0 || upgradeDuration === 0) return 0;
+            return Math.max(0, upgradeDuration - (Date.now() - upgradeStart));
+        };
 
-            const isRecruitingActive = (type) => {
-                const lastGather = gang[type].lastGatherTime || 0;
-                let cooldownMs = 2 * 60 * 1000;
-                cooldownMs = Math.floor(cooldownMs * (1 + (gang[type].level - 1) * 0.05));
-                return (Date.now() - lastGather) < cooldownMs;
-            };
-            const getRecruitRemainingSec = (type) => {
-                const lastGather = gang[type].lastGatherTime || 0;
-                let cooldownMs = 2 * 60 * 1000;
-                cooldownMs = Math.floor(cooldownMs * (1 + (gang[type].level - 1) * 0.05));
-                const remaining = Math.max(0, cooldownMs - (Date.now() - lastGather));
-                return remaining;
-            };
-            const isUpgradeActiveForRender = (type) => {
-                const upgradeStart = gang[type].upgradeStartTime || 0;
-                const upgradeDuration = gang[type].upgradeDuration || 0;
-                return upgradeStart > 0 && (Date.now() - upgradeStart) < upgradeDuration;
-            };
-            const getUpgradeRemainingSec = (type) => {
-                const upgradeStart = gang[type].upgradeStartTime || 0;
-                const upgradeDuration = gang[type].upgradeDuration || 0;
-                if (upgradeStart === 0 || upgradeDuration === 0) return 0;
-                return Math.max(0, upgradeDuration - (Date.now() - upgradeStart));
-            };
+        let recruitTimers = [];
+        let upgradeTimers = [];
 
-            let recruitTimers = [];
-            let upgradeTimers = [];
-
-            ['blats', 'muzhiks', 'fraers'].forEach(type => {
-                if (isRecruitingActive(type)) {
-                    const remaining = getRecruitRemainingSec(type);
-                    if (remaining > 0) {
-                        recruitTimers.push(formatMapTimer(remaining));
-                    }
-                }
-                if (isUpgradeActiveForRender(type)) {
-                    const remaining = getUpgradeRemainingSec(type);
-                    if (remaining > 0) {
-                        upgradeTimers.push(formatMapTimer(remaining));
-                    }
-                }
-            });
-
-            let countersHtml = '';
-            if (recruitTimers.length > 0 || upgradeTimers.length > 0) {
-                countersHtml = `<div class="counters-container">`;
-                if (recruitTimers.length > 0) {
-                    for (let timer of recruitTimers) {
-                        countersHtml += `<div class="recruit-counter">👥 ${timer}</div>`;
-                    }
-                }
-                if (upgradeTimers.length > 0) {
-                    for (let timer of upgradeTimers) {
-                        countersHtml += `<div class="upgrade-counter">⬆️ ${timer}</div>`;
-                    }
-                }
-                countersHtml += `</div>`;
-            }
-
-            // ========== СЧЕТЧИКИ ДЛЯ ИГРОВОЙ (b3) ==========
-            let gameActiveTimers = [];
-            let gameUpgradeTimers = [];
-
-            if (cardGameActive) {
-                const remaining = Math.max(0, cardGameDuration - (Date.now() - cardGameStartTime));
+        ['blats', 'muzhiks', 'fraers'].forEach(type => {
+            if (isRecruitingActive(type)) {
+                const remaining = getRecruitRemainingSec(type);
                 if (remaining > 0) {
-                    gameActiveTimers.push(`🎴 ${formatMapTimer(remaining)}`);
+                    recruitTimers.push(formatMapTimer(remaining));
                 }
             }
-            if (gymActive) {
-                const remaining = Math.max(0, getGymDuration() - (Date.now() - gymStartTime));
+            if (isUpgradeActiveForRender(type)) {
+                const remaining = getUpgradeRemainingSec(type);
                 if (remaining > 0) {
-                    gameActiveTimers.push(`💪 ${formatMapTimer(remaining)}`);
+                    upgradeTimers.push(formatMapTimer(remaining));
                 }
             }
-            if (isCardGameUpgradeActive()) {
-                const remaining = getCardGameUpgradeRemaining();
-                if (remaining > 0) {
-                    gameUpgradeTimers.push(`🎴 ${formatMapTimer(remaining)}`);
-                }
-            }
-            if (isGymUpgradeActive()) {
-                const remaining = getGymUpgradeRemaining();
-                if (remaining > 0) {
-                    gameUpgradeTimers.push(`💪 ${formatMapTimer(remaining)}`);
-                }
-            }
+        });
 
-            let countersHtmlGame = '';
-            if (gameActiveTimers.length > 0 || gameUpgradeTimers.length > 0) {
-                countersHtmlGame = `<div class="counters-container-game">`;
-                if (gameActiveTimers.length > 0) {
-                    for (let timer of gameActiveTimers) {
-                        countersHtmlGame += `<div class="game-active-counter">${timer}</div>`;
-                    }
+        let countersHtml = '';
+        if (recruitTimers.length > 0 || upgradeTimers.length > 0) {
+            countersHtml = `<div class="counters-container">`;
+            if (recruitTimers.length > 0) {
+                for (let timer of recruitTimers) {
+                    countersHtml += `<div class="recruit-counter">👥 ${timer}</div>`;
                 }
-                if (gameUpgradeTimers.length > 0) {
-                    for (let timer of gameUpgradeTimers) {
-                        countersHtmlGame += `<div class="game-upgrade-counter">⬆️ ${timer}</div>`;
-                    }
+            }
+            if (upgradeTimers.length > 0) {
+                for (let timer of upgradeTimers) {
+                    countersHtml += `<div class="upgrade-counter">⬆️ ${timer}</div>`;
                 }
-                countersHtmlGame += `</div>`;
             }
+            countersHtml += `</div>`;
+        }
 
-            // Обновляем счетчики уведомлений
-            const newQuestCount = checkQuestsCompletion();
-            if (newQuestCount !== questNotificationCount) {
-                questNotificationCount = newQuestCount;
-                updateQuestsNotificationBadge();
+        // ========== СЧЕТЧИКИ ДЛЯ ИГРОВОЙ (b3) ==========
+        let gameActiveTimers = [];
+        let gameUpgradeTimers = [];
+
+        if (cardGameActive) {
+            const remaining = Math.max(0, cardGameDuration - (Date.now() - cardGameStartTime));
+            if (remaining > 0) {
+                gameActiveTimers.push(`🎴 ${formatMapTimer(remaining)}`);
             }
-			// Обновляем счетчики боев на карте
-			updateBattleCountersOnMap();
+        }
+        if (gymActive) {
+            const remaining = Math.max(0, getGymDuration() - (Date.now() - gymStartTime));
+            if (remaining > 0) {
+                gameActiveTimers.push(`💪 ${formatMapTimer(remaining)}`);
+            }
+        }
+        if (isCardGameUpgradeActive()) {
+            const remaining = getCardGameUpgradeRemaining();
+            if (remaining > 0) {
+                gameUpgradeTimers.push(`🎴 ${formatMapTimer(remaining)}`);
+            }
+        }
+        if (isGymUpgradeActive()) {
+            const remaining = getGymUpgradeRemaining();
+            if (remaining > 0) {
+                gameUpgradeTimers.push(`💪 ${formatMapTimer(remaining)}`);
+            }
+        }
 
-            if (currentPlayer.clanId) {
-                const newReadyCount = checkClanQuestsReady();
-                if (newReadyCount !== clanQuestReadyCount) {
-                    clanQuestReadyCount = newReadyCount;
-                    updateClanNotificationBadge();
+        let countersHtmlGame = '';
+        if (gameActiveTimers.length > 0 || gameUpgradeTimers.length > 0) {
+            countersHtmlGame = `<div class="counters-container-game">`;
+            if (gameActiveTimers.length > 0) {
+                for (let timer of gameActiveTimers) {
+                    countersHtmlGame += `<div class="game-active-counter">${timer}</div>`;
                 }
-                // Показываем кнопку чата (должна быть видна всегда после загрузки игры)
-                // Показываем/скрываем кнопку чата в зависимости от наличия игрока
-
             }
+            if (gameUpgradeTimers.length > 0) {
+                for (let timer of gameUpgradeTimers) {
+                    countersHtmlGame += `<div class="game-upgrade-counter">⬆️ ${timer}</div>`;
+                }
+            }
+            countersHtmlGame += `</div>`;
+        }
 
-            document.getElementById('app').innerHTML = `
+        // Обновляем счетчики уведомлений
+        const newQuestCount = checkQuestsCompletion();
+        if (newQuestCount !== questNotificationCount) {
+            questNotificationCount = newQuestCount;
+            updateQuestsNotificationBadge();
+        }
+        updateBattleCountersOnMap();
+
+        if (currentPlayer.clanId) {
+            const newReadyCount = checkClanQuestsReady();
+            if (newReadyCount !== clanQuestReadyCount) {
+                clanQuestReadyCount = newReadyCount;
+                updateClanNotificationBadge();
+            }
+        }
+
+        // ========== СОЗДАЁМ HTML ==========
+        const appHtml = `
     <div class="fixed-top-bar">
         <div class="top-bar-content">
             <div class="left-profile">
@@ -22108,60 +22207,34 @@ async function startGame(id, name) {
     ${toast.show ? `<div class="toast ${toast.type === 'error' ? 'error' : (toast.type === 'success' ? 'success' : 'warning')}">${toast.message}</div>` : ''}
 `;
 
-            document.querySelectorAll('.building').forEach(building => {
-                building.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    document.querySelectorAll('.building').forEach(el => el.classList.remove('active'));
-                    building.classList.add('active');
-                    setTimeout(() => { building.classList.remove('active'); }, 1000);
-                });
-            });
-            // Принудительно добавляем защитные атрибуты всем изображениям
-            document.querySelectorAll('img').forEach(img => {
-                img.setAttribute('draggable', 'false');
-                img.setAttribute('ontouchstart', 'return true;');
-            });
-            if (window.mapCountersInterval) clearInterval(window.mapCountersInterval);
-            window.mapCountersInterval = setInterval(() => {
-                if (!currentPlayer) {
-                    if (window.mapCountersInterval) clearInterval(window.mapCountersInterval);
-                    return;
-                }
-                // Обновляем счетчики на карте без полного перерендера
-				updateBattleCountersOnMap();
-				checkWorkCompletion();        
-				checkAndNotifyWorkAvailable();
-				updateTopBarResources();
-            }, 1000);
-        }  
-        // Загружаем картинки после отрисовки
-        if (typeof loadAllCachedImages === 'function') {
-            setTimeout(() => {
-                loadAllCachedImages();
-            }, 100);
-            // Показываем кнопку уведомлений ТОЛЬКО после загрузки игрока
-            if (currentPlayer) {
-                showNotificationsButton();
-                // Загружаем уведомления ПОСЛЕ загрузки всех данных
-                console.log("🔔 startGame: загружаем уведомления...");
-                loadNotificationsFromFirebase();
-            }
-            // Создаем кнопку если её нет (но она останется скрытой)
-            addNotificationsButton();
-            loadNotifications();
-			updateTopBarResources();
-            if (currentPlayer) {
-                setTimeout(() => {
-                    showChatButton();
-                }, 100);
-            } else {
-                // Скрываем кнопку если нет игрока
-                const chatBtn = document.getElementById('chatBtn');
-                if (chatBtn) chatBtn.style.display = 'none';
-            }
+        // Обновляем DOM
+        const app = document.getElementById('app');
+        if (app) {
+            app.innerHTML = appHtml;
         }
 
+        // Навешиваем обработчики на здания
+        document.querySelectorAll('.building').forEach(building => {
+            building.addEventListener('click', (e) => {
+                e.stopPropagation();
+                document.querySelectorAll('.building').forEach(el => el.classList.remove('active'));
+                building.classList.add('active');
+                setTimeout(() => { building.classList.remove('active'); }, 1000);
+            });
+        });
 
+        // Защита изображений
+        document.querySelectorAll('img').forEach(img => {
+            img.setAttribute('draggable', 'false');
+            img.setAttribute('ontouchstart', 'return true;');
+        });
+
+    } catch (e) {
+        console.error('Ошибка в renderUI:', e);
+    } finally {
+        window._isRendering = false;
+    }
+}
         function showOldLoginForm() {
             showLoginForm();
         }
