@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Зона 1.0.0.273 - Карта зоны</title>
+    <title>Зона 1.0.0.274 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -6740,7 +6740,7 @@ function closeHospitalModal() {
                 
                 <div class="settings-card">
                     <div style="font-size: 13px; color: #aaa; text-align: center;">
-                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.273</div>
+                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.274</div>
                         <div style="font-size: 11px;">⚡ Клановые войны | Бесконечная прокачка</div>
                     </div>
                 </div>
@@ -7227,6 +7227,7 @@ let isFinishingWar = false;        // Флаг, что война уже зав�
 let finishedWarIds = new Set();     // Хранилище ID завершенных войн
 let isStartingWar = false;  // Добавьте глобальную переменную в начало файла
 let isUpdatingWarUI = false;
+let cooldownTimerInterval = null;
 
 // ========== НАСТРОЙКИ ВОЙН (можно менять вручную) ==========
 // Длительность войны (часов)
@@ -7269,6 +7270,72 @@ const WAR_REWARDS_BASE = {
 function getWarRewards(level) {
     const key = `level${Math.min(10, Math.max(1, level))}`;
     return WAR_REWARDS_BASE[key];
+}
+
+// ========== СОХРАНЕНИЕ КУЛДАУНОВ В FIREBASE ==========
+async function saveWarCooldowns() {
+    if (!currentPlayer) return;
+    
+    try {
+        // Получаем все ключи attackCooldown из localStorage
+        const attackCooldowns = {};
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith(`attackCooldown_${currentPlayer.clanId}_`)) {
+                const clanId = key.replace(`attackCooldown_${currentPlayer.clanId}_`, '');
+                const timestamp = parseInt(localStorage.getItem(key));
+                if (timestamp > Date.now()) {
+                    attackCooldowns[clanId] = timestamp;
+                }
+            }
+        }
+        
+        // Получаем время последней войны
+        const lastWarKey = `lastWar_${currentPlayer.clanId}`;
+        const lastWarTime = parseInt(localStorage.getItem(lastWarKey)) || 0;
+        
+        // Сохраняем в Firebase
+        await playerDocRef.update({
+            'warCooldowns.lastWarTime': lastWarTime,
+            'warCooldowns.attackCooldowns': attackCooldowns
+        });
+        
+        // Обновляем локальные данные
+        if (!currentPlayer.warCooldowns) currentPlayer.warCooldowns = {};
+        currentPlayer.warCooldowns.lastWarTime = lastWarTime;
+        currentPlayer.warCooldowns.attackCooldowns = attackCooldowns;
+        
+        console.log('✅ Кулдауны сохранены в Firebase');
+    } catch (e) {
+        console.error('Ошибка сохранения кулдаунов:', e);
+    }
+}
+
+// ========== ЗАГРУЗКА КУЛДАУНОВ ИЗ FIREBASE ==========
+function loadWarCooldownsFromFirebase() {
+    if (!currentPlayer) return;
+    
+    try {
+        const cooldowns = currentPlayer.warCooldowns || {};
+        const lastWarTime = cooldowns.lastWarTime || 0;
+        const attackCooldowns = cooldowns.attackCooldowns || {};
+        
+        // Сохраняем в localStorage
+        if (lastWarTime > 0) {
+            localStorage.setItem(`lastWar_${currentPlayer.clanId}`, lastWarTime.toString());
+        }
+        
+        // Сохраняем attackCooldowns
+        for (const [clanId, timestamp] of Object.entries(attackCooldowns)) {
+            if (timestamp > Date.now()) {
+                localStorage.setItem(`attackCooldown_${currentPlayer.clanId}_${clanId}`, timestamp.toString());
+            }
+        }
+        
+        console.log('✅ Кулдауны загружены из Firebase');
+    } catch (e) {
+        console.error('Ошибка загрузки кулдаунов:', e);
+    }
 }
 
 // ========== ФУНКЦИЮ ДЛЯ ПРОВЕРКИ ЗАВЕРШЕНИЯ ВОЙНЫ ==========
@@ -7524,22 +7591,21 @@ async function startClanWar(targetClanId, targetClanName, targetClanLevel) {
         return;
     }
     
-    // Проверяем кулдаун атаки на этот клан
+    // Проверяем кулдаун атаки на этот клан (из Firebase)
     const attackCooldownHours = window.WAR_ATTACK_COOLDOWN_HOURS || 48;
-    const attackCooldownKey = `attackCooldown_${currentPlayer.clanId}_${targetClanId}`;
-    const savedCooldown = localStorage.getItem(attackCooldownKey);
-    if (savedCooldown && parseInt(savedCooldown) > Date.now()) {
-        const remaining = parseInt(savedCooldown) - Date.now();
+    const attackCooldowns = currentPlayer.warCooldowns?.attackCooldowns || {};
+    const savedCooldown = attackCooldowns[targetClanId] || 0;
+    if (savedCooldown > Date.now()) {
+        const remaining = savedCooldown - Date.now();
         showToast(`Нельзя атаковать клан ${targetClanName} ещё ${formatTimeDetailedFull(remaining)}!`, 'warning');
         return;
     }
     
-    // Проверяем глобальный кулдаун клана
+    // Проверяем глобальный кулдаун клана (из Firebase)
     const warCooldownHours = window.WAR_COOLDOWN_HOURS || 24;
-    const lastWarKey = `lastWar_${currentPlayer.clanId}`;
-    const lastWarTime = localStorage.getItem(lastWarKey);
-    if (lastWarTime && (Date.now() - parseInt(lastWarTime)) < warCooldownHours * 60 * 60 * 1000) {
-        const remaining = warCooldownHours * 60 * 60 * 1000 - (Date.now() - parseInt(lastWarTime));
+    const lastWarTime = currentPlayer.warCooldowns?.lastWarTime || 0;
+    if (lastWarTime && (Date.now() - lastWarTime) < warCooldownHours * 60 * 60 * 1000) {
+        const remaining = warCooldownHours * 60 * 60 * 1000 - (Date.now() - lastWarTime);
         showToast(`Клан может начинать войну раз в ${warCooldownHours} часов! Осталось: ${formatTimeDetailedFull(remaining)}`, 'warning');
         return;
     }
@@ -7595,9 +7661,16 @@ async function startClanWar(targetClanId, targetClanName, targetClanLevel) {
         // 1. СОЗДАЁМ ВОЙНУ В FIREBASE
         await db.collection('clanWars').add(warData);
         
-        // 2. СОХРАНЯЕМ КУЛДАУНЫ
-        localStorage.setItem(lastWarKey, Date.now().toString());
-        localStorage.setItem(attackCooldownKey, (Date.now() + attackCooldownHours * 60 * 60 * 1000).toString());
+        // 2. СОХРАНЯЕМ КУЛДАУНЫ В localStorage и Firebase
+        const now = Date.now();
+        const attackCooldownEnd = now + attackCooldownHours * 60 * 60 * 1000;
+        
+        // Сохраняем в localStorage
+        localStorage.setItem(`lastWar_${currentPlayer.clanId}`, now.toString());
+        localStorage.setItem(`attackCooldown_${currentPlayer.clanId}_${targetClanId}`, attackCooldownEnd.toString());
+        
+        // Сохраняем в Firebase
+        await saveWarCooldowns();
         
         // 3. ❌ НЕ ПОКАЗЫВАЕМ TOAST - убираем showToast!
         // Вместо тоста - тихое уведомление в систему
@@ -7660,6 +7733,68 @@ async function startClanWar(targetClanId, targetClanName, targetClanLevel) {
     }
 }
 
+// ========== ПЕРИОДИЧЕСКОЕ СОХРАНЕНИЕ КУЛДАУНОВ ==========
+function startWarCooldownsAutoSave() {
+    if (window._cooldownSaveInterval) {
+        clearInterval(window._cooldownSaveInterval);
+    }
+    
+    // Сохраняем кулдауны каждые 5 минут
+    window._cooldownSaveInterval = setInterval(() => {
+        if (currentPlayer && currentPlayer.clanId) {
+            saveWarCooldowns();
+        }
+    }, 5 * 60 * 1000);
+}
+
+// ========== ФУНКЦИЯ СБРОСА КУЛДАУНОВ ==========
+async function resetWarCooldowns() {
+    if (!currentPlayer) {
+        showToast('Нет игрока', 'warning');
+        return;
+    }
+    
+    try {
+        // Сбрасываем в Firebase
+        await playerDocRef.update({
+            'warCooldowns.lastWarTime': 0,
+            'warCooldowns.attackCooldowns': {}
+        });
+        
+        // Сбрасываем в localStorage
+        localStorage.removeItem(`lastWar_${currentPlayer.clanId}`);
+        
+        // Сбрасываем кулдауны атак на все кланы
+        const keysToRemove = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith(`attackCooldown_${currentPlayer.clanId}`)) {
+                keysToRemove.push(key);
+            }
+        }
+        keysToRemove.forEach(key => localStorage.removeItem(key));
+        
+        // Обновляем локальные данные
+        currentPlayer.warCooldowns = {
+            lastWarTime: 0,
+            attackCooldowns: {}
+        };
+        
+        showToast('✅ Все кулдауны войн сброшены!', 'success');
+        
+        // Обновляем UI
+        const warModal = document.getElementById('warFullscreen');
+        if (warModal) {
+            updateWarWindowUI();
+        }
+        renderUI();
+        
+    } catch (e) {
+        console.error('Ошибка сброса кулдаунов:', e);
+        showToast('Ошибка сброса кулдаунов', 'error');
+    }
+}
+
 function updateNavButtons() {
     const navButtons = document.querySelectorAll('.nav-btn');
     navButtons.forEach(btn => {
@@ -7670,8 +7805,6 @@ function updateNavButtons() {
         }
     });
 }
-
-let cooldownTimerInterval = null;
 
 function startCooldownTimers() {
     if (cooldownTimerInterval) clearInterval(cooldownTimerInterval);
@@ -8992,15 +9125,15 @@ function renderNoWarContent(container) {
         c.level === (myClan?.level || 1)
     );
     
-    // Получаем время последней войны клана с учётом настроек
+    // Получаем кулдауны из Firebase (через localStorage)
     const warCooldownHours = window.WAR_COOLDOWN_HOURS || 24;
     const lastWarKey = `lastWar_${currentPlayer.clanId}`;
-    const lastWarTime = localStorage.getItem(lastWarKey);
+    const lastWarTime = parseInt(localStorage.getItem(lastWarKey)) || 0;
     let clanCooldownRemaining = 0;
     let clanCooldownText = '';
     
     if (lastWarTime && warCooldownHours > 0) {
-        const elapsed = Date.now() - parseInt(lastWarTime);
+        const elapsed = Date.now() - lastWarTime;
         const cooldownMs = warCooldownHours * 60 * 60 * 1000;
         if (elapsed < cooldownMs) {
             clanCooldownRemaining = cooldownMs - elapsed;
@@ -9021,6 +9154,19 @@ function renderNoWarContent(container) {
     
     // Формируем список кланов с защитой
     const attackCooldownHours = window.WAR_ATTACK_COOLDOWN_HOURS || 48;
+    // Получаем attackCooldowns из localStorage (они уже синхронизированы с Firebase)
+    const attackCooldowns = {};
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith(`attackCooldown_${currentPlayer.clanId}_`)) {
+            const clanId = key.replace(`attackCooldown_${currentPlayer.clanId}_`, '');
+            const timestamp = parseInt(localStorage.getItem(key));
+            if (timestamp > Date.now()) {
+                attackCooldowns[clanId] = timestamp;
+            }
+        }
+    }
+    
     const clansHtml = availableClans.map(clan => {
         const isDefended = clan.defenseUntil && clan.defenseUntil > Date.now();
         let defenseText = '';
@@ -9030,16 +9176,14 @@ function renderNoWarContent(container) {
             defenseText = formatTimeDetailedFull(remaining);
         }
         
-        const attackCooldownKey = `attackCooldown_${currentPlayer.clanId}_${clan.id}`;
-        const savedCooldown = localStorage.getItem(attackCooldownKey);
+        const savedCooldown = attackCooldowns[clan.id] || 0;
         let attackCooldownText = '';
         let isAttackOnCooldown = false;
         
-        if (savedCooldown && attackCooldownHours > 0) {
-            const cooldownEnd = parseInt(savedCooldown);
-            if (cooldownEnd > Date.now()) {
+        if (savedCooldown > 0 && attackCooldownHours > 0) {
+            if (savedCooldown > Date.now()) {
                 isAttackOnCooldown = true;
-                const remaining = cooldownEnd - Date.now();
+                const remaining = savedCooldown - Date.now();
                 attackCooldownText = formatTimeDetailedFull(remaining);
             }
         }
@@ -11363,7 +11507,7 @@ function addNotification(type, title, message, targetPlayerId = null) {
                 <img class="loading-logo" src="https://sviter-pro.github.io/GameZone/src/test/logo124.png" alt="Тюряга 2.0" onerror="this.src='https://via.placeholder.com/180x180?text=Тюряга+2.0'">
                 <div class="loading-spinner-new"></div>
                 <div class="loading-tip-new" id="loadingTipNew">⚡ Загрузка игрового мира...</div>
-                <div class="loading-version">Зона 1.0.0.273 | Зона ждет</div>
+                <div class="loading-version">Зона 1.0.0.274 | Зона ждет</div>
             </div>
         `;
             const tipEl = document.getElementById('loadingTipNew');
@@ -21511,7 +21655,7 @@ function calculatePlayerPower(player) {
         maxEnergy: 100,
         rubles: 0, 
         cigarettes: 50, 
-        tattoos: [],  // ← ВАЖНО: массив должен быть пустым, но инициализирован
+        tattoos: [],
         equipped: { weapon: 'камень', armor: 'роба', accessory: 'чифирная кружка' },
         stats: { strength: 10, defense: 5, critical: 5 }, 
         clanId: null, 
@@ -21552,7 +21696,13 @@ function calculatePlayerPower(player) {
         hasHadWar: false,
         shopLevel: 1,
         shopUpgradeStartTime: 0,
-        shopUpgradeDuration: 0
+        shopUpgradeDuration: 0,
+        // ↓↓↓ ДОБАВЬТЕ ЭТО ↓↓↓
+        warCooldowns: {
+            lastWarTime: 0,              // Время последней войны клана
+            attackCooldowns: {}          // Объект { clanId: timestamp }
+        }
+        // ↑↑↑ КОНЕЦ ДОБАВЛЕНИЯ ↑↑↑
     };
 }
     
@@ -22004,6 +22154,7 @@ async function startGame(id, name) {
         startWorkCountersOnMap();
         startBattleCountersOnMap();
         showChatButton();
+        startWarCooldownsAutoSave();
         if (currentPlayer.cardGameActive) await restoreCardGame();
         await restoreGym();
         await restorePendingGather();
