@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Зона 1.0.0.270 - Карта зоны</title>
+    <title>Зона 1.0.0.271 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -6438,6 +6438,10 @@ async function changeEquipment(slot, itemName, stat, bonus) {
     const treatmentTime = injuredFighters * 60 * 1000;
     const canTreat = injuredFighters > 0 && currentPlayer.cigarettes >= treatmentCost;
 
+    // Проверяем, не идет ли уже лечение
+    const isTreatmentActive = currentPlayer.treatmentEndTime && currentPlayer.treatmentEndTime > Date.now();
+    const remainingTime = isTreatmentActive ? Math.ceil((currentPlayer.treatmentEndTime - Date.now()) / 60000) : 0;
+
     // Информация о войне
     let additionalInfo = '';
     if (!currentPlayer.hasHadWar) {
@@ -6452,7 +6456,6 @@ async function changeEquipment(slot, itemName, stat, bonus) {
                 </div>
             </div>
             <div class="treasury-content-area">
-                <!-- Карточка с информацией -->
                 <div class="treasury-card">
                     <div style="text-align: center; margin-bottom: 20px;">
                         <div style="font-size: 48px; margin-bottom: 10px;">🏥</div>
@@ -6467,7 +6470,7 @@ async function changeEquipment(slot, itemName, stat, bonus) {
                         <div style="display: flex; justify-content: center; gap: 30px; flex-wrap: wrap;">
                             <div>
                                 <div style="font-size: 11px; color: #c9a03d;">🩸 РАНЕНЫХ БОЙЦОВ</div>
-                                <div style="font-size: 32px; font-weight: 800; color: #e94560; font-family: monospace;">${injuredFighters}</div>
+                                <div style="font-size: 32px; font-weight: 800; color: ${isTreatmentActive ? '#ff9800' : '#e94560'}; font-family: monospace;">${injuredFighters}</div>
                             </div>
                             <div>
                                 <div style="font-size: 11px; color: #c9a03d;">💊 СТОИМОСТЬ ЛЕЧЕНИЯ</div>
@@ -6475,13 +6478,19 @@ async function changeEquipment(slot, itemName, stat, bonus) {
                             </div>
                             <div>
                                 <div style="font-size: 11px; color: #c9a03d;">⏱️ ВРЕМЯ ЛЕЧЕНИЯ</div>
-                                <div style="font-size: 32px; font-weight: 800; color: #4caf50; font-family: monospace;">${Math.ceil(treatmentTime / 60000)} мин</div>
+                                <div style="font-size: 32px; font-weight: 800; color: #4caf50; font-family: monospace;">${isTreatmentActive ? remainingTime : Math.ceil(treatmentTime / 60000)} мин</div>
                             </div>
                         </div>
                     </div>
                     
                     <!-- КНОПКА ЛЕЧЕНИЯ -->
-                    ${injuredFighters > 0 ? `
+                    ${isTreatmentActive ? `
+                        <div style="text-align: center; padding: 20px;">
+                            <div style="font-size: 48px; margin-bottom: 10px;">⏳</div>
+                            <div style="font-size: 18px; font-weight: 700; color: #ff9800;">ЛЕЧЕНИЕ ИДЁТ...</div>
+                            <div style="font-size: 14px; color: #aaa; margin-top: 5px;">Осталось: <span id="treatmentTimer" style="color: #ffd966; font-weight: bold;">${remainingTime}</span> минут</div>
+                        </div>
+                    ` : injuredFighters > 0 ? `
                         <div style="margin-top: 10px;">
                             <button class="btn-primary" onclick="treatInjured()" style="
                                 width: 100%; 
@@ -6501,11 +6510,6 @@ async function changeEquipment(slot, itemName, stat, bonus) {
                             ${!canTreat && injuredFighters > 0 ? `
                                 <div style="text-align: center; margin-top: 10px; font-size: 11px; color: #e94560;">
                                     ⚠️ Не хватает ${treatmentCost - currentPlayer.cigarettes} 🚬
-                                </div>
-                            ` : ''}
-                            ${treatmentTime > 0 ? `
-                                <div class="bonus-info" style="background: rgba(139,69,19,0.2); border-left: 3px solid #8B4513; padding: 10px 12px; border-radius: 12px; margin: 10px 0; font-size: 12px; text-align: center; color: #c9a03d;">
-                                    ⏱️ Лечение займёт <span id="treatmentTimer" style="color: #ffd966; font-weight: bold;">${Math.ceil(treatmentTime / 60000)}</span> минут
                                 </div>
                             ` : ''}
                         </div>
@@ -6539,42 +6543,153 @@ async function changeEquipment(slot, itemName, stat, bonus) {
     document.body.insertAdjacentHTML('beforeend', modalHtml);
     if (tg) tg.BackButton.show();
 
-    if (currentPlayer.treatmentEndTime && currentPlayer.treatmentEndTime > Date.now()) {
+    // Если лечение активно - запускаем таймер
+    if (isTreatmentActive) {
         startTreatmentTimer();
     }
 
     setTimeout(() => { window._opening_modal = false; }, 500);
 }
-        function startTreatmentTimer() {
-            const timerInterval = setInterval(() => {
-                const modal = document.getElementById('hospitalFullscreen');
-                if (!modal || !currentPlayer.treatmentEndTime || currentPlayer.treatmentEndTime <= Date.now()) {
-                    clearInterval(timerInterval);
-                    if (modal) openHospitalModal();
-                    return;
+
+async function treatInjured() {
+    if (maintenanceMode) { 
+        showToast(maintenanceMessage, 'warning'); 
+        return; 
+    }
+    
+    const injured = currentPlayer.injuredFighters || 0;
+    if (injured === 0) { 
+        showToast('Нет раненых!', 'warning'); 
+        return; 
+    }
+    
+    const cost = injured * 10;
+    if (currentPlayer.cigarettes < cost) { 
+        showToast(`Не хватает ${cost - currentPlayer.cigarettes} 🚬!`, 'error'); 
+        return; 
+    }
+
+    // Сохраняем статистику лечения
+    const totalHealed = (currentPlayer.totalHealed || 0) + injured;
+    const totalHealingCost = (currentPlayer.totalHealingCost || 0) + cost;
+
+    try {
+        await playerDocRef.update({
+            cigarettes: firebase.firestore.FieldValue.increment(-cost),
+            injuredFighters: 0,
+            treatmentEndTime: Date.now() + (injured * 60 * 1000),
+            totalHealed: totalHealed,
+            totalHealingCost: totalHealingCost
+        });
+        
+        currentPlayer.cigarettes -= cost;
+        currentPlayer.injuredFighters = 0;
+        currentPlayer.treatmentEndTime = Date.now() + (injured * 60 * 1000);
+        currentPlayer.totalHealed = totalHealed;
+        currentPlayer.totalHealingCost = totalHealingCost;
+
+        showToast(`💊 Лечение началось! Через ${injured} мин бойцы вернутся в строй.`, 'success');
+        
+        // Закрываем текущее окно больницы
+        closeHospitalModal();
+        
+        // Открываем заново для обновления информации
+        setTimeout(() => {
+            openHospitalModal();
+        }, 500);
+        
+        // Запускаем таймер лечения
+        startTreatmentTimer();
+        
+        // Автоматическое завершение лечения через нужное время
+        setTimeout(() => {
+            if (currentPlayer) {
+                // Проверяем, не началось ли новое лечение
+                if (currentPlayer.injuredFighters === 0) {
+                    showToast('🏥 Лечение завершено! Бойцы здоровы!', 'success');
+                    renderUI();
+                    // Обновляем окно больницы если открыто
+                    const hospitalModal = document.getElementById('hospitalFullscreen');
+                    if (hospitalModal) {
+                        openHospitalModal();
+                    }
                 }
-                const timerEl = document.getElementById('treatmentTimer');
-                if (timerEl) {
-                    const remaining = Math.max(0, currentPlayer.treatmentEndTime - Date.now());
-                    timerEl.textContent = `⏱️ Осталось: ${Math.ceil(remaining / 60000)} мин`;
+            }
+        }, injured * 60 * 1000);
+        
+    } catch (e) {
+        console.error('Ошибка лечения:', e);
+        showToast('Ошибка при лечении: ' + e.message, 'error');
+    }
+}
+
+function startTreatmentTimer() {
+    // Очищаем старый интервал если есть
+    if (window.treatmentTimerInterval) {
+        clearInterval(window.treatmentTimerInterval);
+        window.treatmentTimerInterval = null;
+    }
+    
+    window.treatmentTimerInterval = setInterval(() => {
+        // Проверяем, существует ли окно больницы
+        const modal = document.getElementById('hospitalFullscreen');
+        if (!modal || !currentPlayer.treatmentEndTime || currentPlayer.treatmentEndTime <= Date.now()) {
+            // Если лечение завершено или окно закрыто
+            if (currentPlayer && currentPlayer.treatmentEndTime && currentPlayer.treatmentEndTime <= Date.now()) {
+                // Если лечение завершено и есть раненые, но они уже должны быть 0
+                if (currentPlayer.injuredFighters > 0) {
+                    // Автоматически завершаем лечение
+                    currentPlayer.injuredFighters = 0;
+                    playerDocRef.update({ injuredFighters: 0 });
                 }
-            }, 1000);
+                currentPlayer.treatmentEndTime = 0;
+                playerDocRef.update({ treatmentEndTime: 0 });
+            }
+            
+            // Останавливаем интервал
+            if (window.treatmentTimerInterval) {
+                clearInterval(window.treatmentTimerInterval);
+                window.treatmentTimerInterval = null;
+            }
+            return;
         }
-
-
-        function closeHospitalModal() {
-            const modal = document.getElementById('hospitalFullscreen');
-            if (modal) modal.remove();
-            if (tg) tg.BackButton.hide();
-
-            // Восстанавливаем скролл body
-            document.body.style.overflow = '';
-            document.body.style.position = '';
-            document.body.style.width = '';
-            document.body.classList.remove('modal-open');
-
-            renderUI();
+        
+        // Обновляем таймер в окне больницы
+        const timerEl = document.getElementById('treatmentTimer');
+        if (timerEl) {
+            const remaining = Math.max(0, currentPlayer.treatmentEndTime - Date.now());
+            const minutes = Math.ceil(remaining / 60000);
+            timerEl.textContent = minutes;
         }
+        
+        // Обновляем кнопку лечения если она есть
+        const treatBtn = document.querySelector('#hospitalFullscreen .btn-primary');
+        if (treatBtn && !treatBtn.disabled) {
+            treatBtn.disabled = true;
+            treatBtn.textContent = '⏳ ЛЕЧЕНИЕ ИДЁТ...';
+        }
+    }, 1000);
+}
+
+function closeHospitalModal() {
+    // Останавливаем таймер лечения
+    if (window.treatmentTimerInterval) {
+        clearInterval(window.treatmentTimerInterval);
+        window.treatmentTimerInterval = null;
+    }
+    
+    const modal = document.getElementById('hospitalFullscreen');
+    if (modal) modal.remove();
+    if (tg) tg.BackButton.hide();
+
+    // Восстанавливаем скролл body
+    document.body.style.overflow = '';
+    document.body.style.position = '';
+    document.body.style.width = '';
+    document.body.classList.remove('modal-open');
+
+    renderUI();
+}
 	</script>
 	<script>
 	// ========== АЛГОРИТМЫ И ФУНКЦИИ ОКНА СХОДКА ==========
@@ -6625,7 +6740,7 @@ async function changeEquipment(slot, itemName, stat, bonus) {
                 
                 <div class="settings-card">
                     <div style="font-size: 13px; color: #aaa; text-align: center;">
-                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.270</div>
+                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.271</div>
                         <div style="font-size: 11px;">⚡ Клановые войны | Бесконечная прокачка</div>
                     </div>
                 </div>
@@ -9909,30 +10024,78 @@ function addNotification(type, title, message, targetPlayerId = null) {
         }
 
         function addNotificationsButton() {
-            if (document.getElementById('notificationsBtn')) {
-                console.log("🔔 Кнопка уже существует");
-                return;
-            }
+    // Проверяем, существует ли уже кнопка
+    if (document.getElementById('notificationsBtn')) {
+        console.log("🔔 Кнопка уже существует");
+        return;
+    }
 
-            const btnHtml = `<div class="notifications-btn" id="notificationsBtn" onclick="toggleNotificationsModal()"><span class="bell-icon">🔔</span></div>`;
-            document.body.insertAdjacentHTML('beforeend', btnHtml);
-            console.log("🔔 Кнопка уведомлений СОЗДАНА");
-
-            // Кнопка скрыта по умолчанию (display: none из CSS)
-        }
+    // Создаём кнопку
+    const btn = document.createElement('div');
+    btn.className = 'notifications-btn';
+    btn.id = 'notificationsBtn';
+    btn.innerHTML = '<span class="bell-icon">🔔</span>';
+    btn.onclick = toggleNotificationsModal;
+    
+    // Принудительно устанавливаем стили
+    btn.style.cssText = `
+        position: fixed;
+        right: 16px;
+        width: 44px;
+        height: 44px;
+        background: rgba(255, 255, 255, 0.2);
+        backdrop-filter: blur(10px);
+        border-radius: 50%;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        z-index: 1001;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
+        color: white;
+        transition: all 0.2s;
+    `;
+    
+    document.body.appendChild(btn);
+    console.log("🔔 Кнопка уведомлений СОЗДАНА");
+    
+    // Если есть игрок - показываем, иначе скрываем
+    if (currentPlayer) {
+        btn.style.display = 'flex';
+    } else {
+        btn.style.display = 'none';
+    }
+}
 
         function showNotificationsButton() {
-            const btn = document.getElementById('notificationsBtn');
-            console.log("🔔 showNotificationsButton: btn найден?", btn ? "да" : "нет", "currentPlayer:", currentPlayer ? currentPlayer.id : "null");
+    const btn = document.getElementById('notificationsBtn');
+    console.log("🔔 showNotificationsButton: btn найден?", btn ? "да" : "нет", "currentPlayer:", currentPlayer ? currentPlayer.id : "null");
 
-            if (btn && currentPlayer) {
-                btn.style.display = 'flex';
-                console.log("🔔 Кнопка уведомлений ПОКАЗАНА");
-            } else if (btn && !currentPlayer) {
-                btn.style.display = 'none';
-                console.log("🔔 Кнопка уведомлений СКРЫТА (нет игрока)");
-            }
-        }
+    if (btn && currentPlayer) {
+        btn.style.display = 'flex';  // ← МЕНЯЕМ НА 'flex', А НЕ 'block'
+        btn.style.position = 'fixed';
+        btn.style.right = '16px';
+        btn.style.width = '44px';
+        btn.style.height = '44px';
+        btn.style.background = 'rgba(255, 255, 255, 0.2)';
+        btn.style.backdropFilter = 'blur(10px)';
+        btn.style.borderRadius = '50%';
+        btn.style.border = '1px solid rgba(255, 255, 255, 0.3)';
+        btn.style.zIndex = '1001';
+        btn.style.cursor = 'pointer';
+        btn.style.display = 'flex';  // ← ПОВТОРНО УСТАНАВЛИВАЕМ
+        btn.style.alignItems = 'center';
+        btn.style.justifyContent = 'center';
+        console.log("🔔 Кнопка уведомлений ПОКАЗАНА");
+    } else if (btn && !currentPlayer) {
+        btn.style.display = 'none';
+        console.log("🔔 Кнопка уведомлений СКРЫТА (нет игрока)");
+    } else {
+        // Если кнопки нет - создаём
+        addNotificationsButton();
+    }
+}
 
         // ========== ФУНКЦИИ ЧАТА ==========
         // Установить ответ на сообщение
@@ -10885,63 +11048,62 @@ function addNotification(type, title, message, targetPlayerId = null) {
         }
 
         async function loadNotificationsFromFirebase() {
-            console.log("🔔 loadNotificationsFromFirebase START, currentPlayer:", currentPlayer ? currentPlayer.id : "null");
+    console.log("🔔 loadNotificationsFromFirebase START, currentPlayer:", currentPlayer ? currentPlayer.id : "null");
 
-            if (!currentPlayer) {
-                console.log("🔔 Нет currentPlayer, выходим");
-                return;
-            }
+    if (!currentPlayer) {
+        console.log("🔔 Нет currentPlayer, выходим");
+        return;
+    }
 
-            console.log("📨 Загружаем уведомления из Firebase для игрока:", currentPlayer.id);
+    console.log("📨 Загружаем уведомления из Firebase для игрока:", currentPlayer.id);
 
-            try {
-                const notifDoc = await db.collection('playerNotifications').doc(currentPlayer.id).get();
-                console.log("📨 Документ существует:", notifDoc.exists);
+    try {
+        const notifDoc = await db.collection('playerNotifications').doc(currentPlayer.id).get();
+        console.log("📨 Документ существует:", notifDoc.exists);
 
-                if (notifDoc.exists && notifDoc.data().notifications) {
-                    const firebaseNotifs = notifDoc.data().notifications;
-                    console.log("📨 Найдено уведомлений в Firebase:", firebaseNotifs.length);
+        if (notifDoc.exists && notifDoc.data().notifications) {
+            const firebaseNotifs = notifDoc.data().notifications;
+            console.log("📨 Найдено уведомлений в Firebase:", firebaseNotifs.length);
 
-                    let newNotificationsCount = 0;
+            let newNotificationsCount = 0;
 
-                    for (const notif of firebaseNotifs) {
-                        console.log("📨 Обработка уведомления:", notif.id, notif.title);
+            for (const notif of firebaseNotifs) {
+                console.log("📨 Обработка уведомления:", notif.id, notif.title);
 
-                        // Проверяем, нет ли уже такого уведомления
-                        const exists = notifications.some(n => n.id === notif.id);
-                        if (!exists) {
-                            notifications.push(notif);
-                            newNotificationsCount++;
-                            console.log("📨 ДОБАВЛЕНО новое уведомление:", notif.title);
-                        } else {
-                            console.log("📨 Уведомление уже есть, пропускаем");
-                        }
-                    }
-
-                    if (newNotificationsCount > 0) {
-                        notifications.sort((a, b) => b.timestamp - a.timestamp);
-                        saveNotifications();
-                        updateNotificationBadge();
-                        console.log("📨 Сохранено уведомлений в localStorage:", notifications.length);
-                        showToast(`🔔 У вас ${newNotificationsCount} новое уведомление!`, 'success');
-                    }
-
-                    // Очищаем Firebase уведомления после загрузки
-                    await db.collection('playerNotifications').doc(currentPlayer.id).delete();
-                    console.log("📨 Firebase уведомления очищены");
+                const exists = notifications.some(n => n.id === notif.id);
+                if (!exists) {
+                    notifications.push(notif);
+                    newNotificationsCount++;
+                    console.log("📨 ДОБАВЛЕНО новое уведомление:", notif.title);
                 } else {
-                    console.log("📨 Нет новых уведомлений в Firebase");
+                    console.log("📨 Уведомление уже есть, пропускаем");
                 }
-            } catch (e) {
-                console.error("❌ Ошибка загрузки уведомлений из Firebase:", e);
             }
 
-            console.log("🔔 Итоговое количество уведомлений в notifications:", notifications.length);
-            console.log("🔔 Непрочитанных:", getUnreadCount());
+            if (newNotificationsCount > 0) {
+                notifications.sort((a, b) => b.timestamp - a.timestamp);
+                saveNotifications();
+                updateNotificationBadge();
+                console.log("📨 Сохранено уведомлений в localStorage:", notifications.length);
+                showToast(`🔔 У вас ${newNotificationsCount} новое уведомление!`, 'success');
+            }
 
-            updateNotificationBadge();
-            showNotificationsButton();
+            // Очищаем Firebase уведомления после загрузки
+            await db.collection('playerNotifications').doc(currentPlayer.id).delete();
+            console.log("📨 Firebase уведомления очищены");
+        } else {
+            console.log("📨 Нет новых уведомлений в Firebase");
         }
+    } catch (e) {
+        console.error("❌ Ошибка загрузки уведомлений из Firebase:", e);
+    }
+
+    console.log("🔔 Итоговое количество уведомлений в notifications:", notifications.length);
+    console.log("🔔 Непрочитанных:", getUnreadCount());
+
+    updateNotificationBadge();
+    showNotificationsButton();  // ← ДОБАВЛЯЕМ ЭТУ СТРОКУ
+}
 
         // ========== НОВАЯ СИСТЕМА ЗАДАНИЙ КЛАНА (ИЗ КОДА 2) ==========
         let clanQuests = [
@@ -11136,7 +11298,7 @@ function addNotification(type, title, message, targetPlayerId = null) {
                 <img class="loading-logo" src="https://sviter-pro.github.io/GameZone/src/test/logo124.png" alt="Тюряга 2.0" onerror="this.src='https://via.placeholder.com/180x180?text=Тюряга+2.0'">
                 <div class="loading-spinner-new"></div>
                 <div class="loading-tip-new" id="loadingTipNew">⚡ Загрузка игрового мира...</div>
-                <div class="loading-version">Зона 1.0.0.270 | Зона ждет</div>
+                <div class="loading-version">Зона 1.0.0.271 | Зона ждет</div>
             </div>
         `;
             const tipEl = document.getElementById('loadingTipNew');
@@ -23825,6 +23987,10 @@ async function upgradeClanLevel() {
 		window.forceCompleteUpgrade = forceCompleteUpgrade;
 		window.resetWarCooldowns = resetWarCooldowns;
 		window.setWarSettings = setWarSettings;
+        window.treatInjured = treatInjured;
+        window.startTreatmentTimer = startTreatmentTimer;
+        window.closeHospitalModal = closeHospitalModal;
+        window.openHospitalModal = openHospitalModal;
     </script>
 </body>
 </html>
