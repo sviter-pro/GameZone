@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Зона 1.0.0.280 - Карта зоны</title>
+    <title>Зона 1.0.0.281 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -6740,7 +6740,7 @@ function closeHospitalModal() {
                 
                 <div class="settings-card">
                     <div style="font-size: 13px; color: #aaa; text-align: center;">
-                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.280</div>
+                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.281</div>
                         <div style="font-size: 11px;">⚡ Клановые войны | Бесконечная прокачка</div>
                     </div>
                 </div>
@@ -7612,120 +7612,12 @@ async function startClanWar(targetClanId, targetClanName, targetClanLevel) {
         return;
     }
     
+    // ✅ ТОЛЬКО ПОКАЗЫВАЕМ МОДАЛЬНОЕ ОКНО
+    // ВСЯ ЛОГИКА НАЧАЛА ВОЙНЫ ПЕРЕНЕСЕНА В startClanWarConfirmed()
     showWarConfirmModal(targetClanId, targetClanName, targetClanLevel);
     
-    // Блокируем кнопку
-    isStartingWar = true;
-    
-    // Находим и блокируем все кнопки атаки
-    const allAttackButtons = document.querySelectorAll('.clan-card-item .btn-primary');
-    allAttackButtons.forEach(btn => {
-        if (btn.textContent.includes('АТАКОВАТЬ')) {
-            btn.disabled = true;
-            btn.textContent = '⏳ ОТПРАВКА...';
-        }
-    });
-    
-    try {
-        const endTime = Date.now() + WAR_DURATION_MS;
-        
-        const warData = {
-            attackerClanId: currentPlayer.clanId,
-            attackerClanName: myClan.name,
-            attackerClanLevel: myClan.level,
-            attackerPower: myClan.totalPower || 0,
-            defenderClanId: targetClanId,
-            defenderClanName: targetClanName,
-            defenderClanLevel: targetClanLevel,
-            defenderPower: 0,
-            startTime: Date.now(),
-            endTime: endTime,
-            status: 'active',
-            winner: null,
-            rewards: null,
-            attackerFighters: { blats: 0, muzhiks: 0, fraers: 0, total: 0 },
-            defenderFighters: { blats: 0, muzhiks: 0, fraers: 0, total: 0 },
-            attackerDonations: {},
-            defenderDonations: {},
-            // ===== ДОБАВЛЯЕМ ПОЛЕ ДЛЯ ПОТЕРЬ =====
-            casualties: {
-                attacker: { blats: 0, muzhiks: 0, fraers: 0 },
-                defender: { blats: 0, muzhiks: 0, fraers: 0 },
-                totalInjured: 0
-            }
-        };
-        
-        // 1. СОЗДАЁМ ВОЙНУ В FIREBASE
-        await db.collection('clanWars').add(warData);
-        
-        // 2. СОХРАНЯЕМ КУЛДАУНЫ
-        localStorage.setItem(lastWarKey, Date.now().toString());
-        localStorage.setItem(attackCooldownKey, (Date.now() + attackCooldownHours * 60 * 60 * 1000).toString());
-        
-        // 3. ЗАКРЫВАЕМ ОКНО ВОЙНЫ (если открыто) - ПЕРВЫМ ДЕЛОМ
-        const warModal = document.getElementById('warFullscreen');
-        if (warModal) {
-            closeWarModal();
-        }
-        
-        // 4. ЗАКРЫВАЕМ ОКНО СХОДКИ (если открыто)
-        const attackModal = document.getElementById('attackDetailFullscreen');
-if (attackModal) {
-    // Просто скрываем, но не закрываем полностью
-    attackModal.style.display = 'none';
-    // Или используем специальную функцию без renderUI()
-    closeAttackModalSilent();
-}
-        
-        // 5. ПОКАЗЫВАЕМ ТОСТ ОБ УСПЕХЕ - ВТОРЫМ
-        showToast(`⚔️ Война объявлена клану "${targetClanName}"!`, 'success');
-        
-        // 6. ОТПРАВЛЯЕМ УВЕДОМЛЕНИЯ ВСЕМ УЧАСТНИКАМ КЛАНА - ТРЕТЬИМ
-        // Отправляем уведомление атакуемому клану
-        await notifyClanMembers(targetClanId, `⚠️ Клан "${myClan.name}" объявил войну вашему клану! Война продлится ${WAR_DURATION_HOURS} часов. Защищайтесь!`);
-        
-        // Отправляем уведомление своему клану
-        await notifyClanMembers(currentPlayer.clanId, `⚔️ Ваш клан "${myClan.name}" объявил войну клану "${targetClanName}"! Война продлится ${WAR_DURATION_HOURS} часов.`);
-        
-        // 7. ОБНОВЛЯЕМ ТОЛЬКО ВЕРХНЮЮ ПАНЕЛЬ И СЧЁТЧИКИ
-        updateTopBarResources();
-        updateBattleCountersOnMap();
-        updateWorkCountersOnMap();
-        
-        // 8. ОБНОВЛЯЕМ БЕЙДЖИ УВЕДОМЛЕНИЙ
-        updateClanNotificationBadge();
-        updateQuestsNotificationBadge();
-        
-        // 9. ЗАПУСКАЕМ ПОДПИСКУ НА ВОЙНЫ ЗАНОВО, ЧТОБЫ ПОДХВАТИТЬ НОВУЮ ВОЙНУ
-        if (clanWarUnsubscribe) {
-            clanWarUnsubscribe();
-            clanWarUnsubscribe = null;
-        }
-        subscribeToClanWars();
-        
-        // 10. ОБНОВЛЯЕМ КНОПКУ "ВОЙНА" В НИЖНЕЙ ПАНЕЛИ (делаем активной)
-        const warNavBtn = document.querySelector('.nav-btn img[src*="Untitled_4"]')?.closest('.nav-btn');
-        if (warNavBtn) {
-            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
-            warNavBtn.classList.add('active');
-        }
-        
-        console.log('✅ Война успешно объявлена!');
-        
-    } catch (e) {
-        console.error('Ошибка начала войны:', e);
-        showToast('Ошибка начала войны: ' + e.message, 'error');
-    } finally {
-        isStartingWar = false;
-        // Разблокируем кнопки
-        const allAttackButtons = document.querySelectorAll('.clan-card-item .btn-primary');
-        allAttackButtons.forEach(btn => {
-            if (btn.textContent.includes('ОТПРАВКА') || btn.textContent.includes('⏳')) {
-                btn.disabled = false;
-                btn.textContent = '⚔️ АТАКОВАТЬ';
-            }
-        });
-    }
+    // ❌ ВАЖНО: ЗДЕСЬ НЕ ДОЛЖНО БЫТЬ КОДА, КОТОРЫЙ НАЧИНАЕТ ВОЙНУ!
+    // ВСЯ ЛОГИКА ДОЛЖНА БЫТЬ В startClanWarConfirmed()
 }
 
 function closeAttackModalSilent() {
@@ -7854,30 +7746,44 @@ async function calculateWarCasualties(war, winnerClanId, loserClanId) {
 }
 
 function showWarConfirmModal(targetClanId, targetClanName, targetClanLevel) {
+    // Закрываем старую модалку если есть
+    const existing = document.getElementById('warConfirmModal');
+    if (existing) existing.remove();
+    
+    // Блокируем скролл
+    document.body.style.overflow = 'hidden';
+    document.body.style.position = 'fixed';
+    document.body.style.width = '100%';
+    document.body.classList.add('modal-open');
+    
+    // Экранируем имя клана для безопасности
+    const safeClanName = escapeHtml(targetClanName);
+    
     const modalHtml = `
-        <div class="modal-overlay" id="warConfirmModal" style="z-index: 30000;">
-            <div class="modal-window">
-                <div class="modal-window-header">
-                    <div class="modal-window-title">⚔️ ПОДТВЕРДИТЕ НАПАДЕНИЕ</div>
-                    <button class="modal-window-close" onclick="closeWarConfirmModal()">✕</button>
+        <div class="modal-overlay" id="warConfirmModal" style="z-index: 30000; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(12px); display: flex; align-items: center; justify-content: center;">
+            <div class="modal-window" style="max-width: 400px; background: linear-gradient(135deg, #0a0a0f, #14141f); border: 2px solid #8B4513; border-radius: 24px; width: 90%; position: relative; animation: modalSlideIn 0.3s ease-out;">
+                <div class="modal-window-header" style="background: linear-gradient(135deg, #1a1a2a, #0d0d15); border-bottom: 2px solid #8B4513; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;">
+                    <div class="modal-window-title" style="font-size: 18px; font-weight: 800; background: linear-gradient(135deg, #c9a03d, #8B6914); -webkit-background-clip: text; background-clip: text; color: transparent;">⚔️ ПОДТВЕРДИТЕ НАПАДЕНИЕ</div>
+                    <button class="modal-window-close" onclick="closeWarConfirmModal()" style="background: rgba(139,69,19,0.3); border: none; border-radius: 50%; width: 32px; height: 32px; cursor: pointer; color: white; font-size: 20px; display: flex; align-items: center; justify-content: center;">✕</button>
                 </div>
-                <div class="modal-window-content">
+                <div class="modal-window-content" style="padding: 20px;">
                     <div style="text-align: center; margin-bottom: 20px;">
-                        <div style="font-size: 36px;">⚔️</div>
-                        <div style="font-size: 16px; color: #ffd966; margin: 10px 0;">
-                            Ваш клан атакует клан "${targetClanName}"
+                        <div style="font-size: 48px; margin-bottom: 15px;">⚔️</div>
+                        <div style="font-size: 16px; color: #ffd966; margin: 10px 0; font-weight: bold;">
+                            Ваш клан атакует<br>
+                            <span style="font-size: 20px; color: #c9a03d;">"${safeClanName}"</span>
                         </div>
-                        <div style="font-size: 12px; color: #aaa;">
-                            ⚠️ Война продлится ${WAR_DURATION_HOURS} часов!
-                            <br>⚠️ После начала войны вы не сможете её отменить!
+                        <div style="font-size: 12px; color: #aaa; margin-top: 15px; background: rgba(233,69,96,0.15); padding: 12px; border-radius: 12px; border-left: 3px solid #e94560;">
+                            ⚠️ Война продлится ${WAR_DURATION_HOURS} часов<br>
+                            ⚠️ После начала войны вы не сможете её отменить!
                         </div>
                     </div>
-                    <div style="display: flex; gap: 10px;">
-                        <button class="btn-primary" style="flex: 1; background: linear-gradient(135deg, #e94560, #c73e54);" 
-                            onclick="closeWarConfirmModal(); startClanWarConfirmed('${targetClanId}', '${targetClanName}', ${targetClanLevel})">
+                    <div style="display: flex; gap: 10px; margin-top: 10px;">
+                        <button class="btn-primary" style="flex: 1; background: linear-gradient(135deg, #e94560, #c73e54); border: none; padding: 14px; border-radius: 40px; font-size: 14px; font-weight: 700; color: white; cursor: pointer; transition: all 0.2s;" 
+                            onclick="closeWarConfirmModal(); startClanWarConfirmed('${targetClanId}', '${safeClanName}', ${targetClanLevel})">
                             ⚔️ НАПАСТЬ
                         </button>
-                        <button class="btn-secondary" style="flex: 1;" onclick="closeWarConfirmModal()">
+                        <button class="btn-secondary" style="flex: 1; background: rgba(30, 36, 64, 0.8); border: 1px solid rgba(233, 69, 96, 0.3); padding: 14px; border-radius: 40px; font-size: 14px; font-weight: 600; color: white; cursor: pointer; transition: all 0.2s;" onclick="closeWarConfirmModal()">
                             ОТМЕНА
                         </button>
                     </div>
@@ -7885,7 +7791,15 @@ function showWarConfirmModal(targetClanId, targetClanName, targetClanLevel) {
             </div>
         </div>
     `;
+    
     document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    // Добавляем обработчик для закрытия по клику вне окна
+    document.getElementById('warConfirmModal')?.addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeWarConfirmModal();
+        }
+    });
 }
 
 function closeWarConfirmModal() {
@@ -8012,7 +7926,7 @@ async function startClanWarConfirmed(targetClanId, targetClanName, targetClanLev
         localStorage.setItem(lastWarKey, Date.now().toString());
         localStorage.setItem(attackCooldownKey, (Date.now() + attackCooldownHours * 60 * 60 * 1000).toString());
         
-        // 3. ЗАКРЫВАЕМ ОКНО ВОЙНЫ (если открыто) - ПЕРВЫМ ДЕЛОМ
+        // 3. ЗАКРЫВАЕМ ОКНО ВОЙНЫ (если открыто)
         const warModal = document.getElementById('warFullscreen');
         if (warModal) {
             closeWarModal();
@@ -8021,7 +7935,6 @@ async function startClanWarConfirmed(targetClanId, targetClanName, targetClanLev
         // 4. ЗАКРЫВАЕМ ОКНО СХОДКИ (если открыто) - БЕЗ renderUI()
         const attackModal = document.getElementById('attackDetailFullscreen');
         if (attackModal) {
-            // Просто удаляем модалку, без вызова renderUI()
             attackModal.remove();
             if (tg) tg.BackButton.hide();
             document.body.style.overflow = '';
@@ -8035,10 +7948,7 @@ async function startClanWarConfirmed(targetClanId, targetClanName, targetClanLev
         showToast(`⚔️ Война объявлена клану "${targetClanName}"!`, 'success');
         
         // 6. ОТПРАВЛЯЕМ УВЕДОМЛЕНИЯ ВСЕМ УЧАСТНИКАМ КЛАНА
-        // Отправляем уведомление атакуемому клану
         await notifyClanMembers(targetClanId, `⚠️ Клан "${myClan.name}" объявил войну вашему клану! Война продлится ${WAR_DURATION_HOURS} часов. Защищайтесь!`);
-        
-        // Отправляем уведомление своему клану
         await notifyClanMembers(currentPlayer.clanId, `⚔️ Ваш клан "${myClan.name}" объявил войну клану "${targetClanName}"! Война продлится ${WAR_DURATION_HOURS} часов.`);
         
         // 7. ОБНОВЛЯЕМ ТОЛЬКО ВЕРХНЮЮ ПАНЕЛЬ И СЧЁТЧИКИ
@@ -8050,14 +7960,14 @@ async function startClanWarConfirmed(targetClanId, targetClanName, targetClanLev
         updateClanNotificationBadge();
         updateQuestsNotificationBadge();
         
-        // 9. ЗАПУСКАЕМ ПОДПИСКУ НА ВОЙНЫ ЗАНОВО, ЧТОБЫ ПОДХВАТИТЬ НОВУЮ ВОЙНУ
+        // 9. ЗАПУСКАЕМ ПОДПИСКУ НА ВОЙНЫ ЗАНОВО
         if (clanWarUnsubscribe) {
             clanWarUnsubscribe();
             clanWarUnsubscribe = null;
         }
         subscribeToClanWars();
         
-        // 10. ОБНОВЛЯЕМ КНОПКУ "ВОЙНА" В НИЖНЕЙ ПАНЕЛИ (делаем активной)
+        // 10. ОБНОВЛЯЕМ КНОПКУ "ВОЙНА" В НИЖНЕЙ ПАНЕЛИ
         const warNavBtn = document.querySelector('.nav-btn img[src*="Untitled_4"]')?.closest('.nav-btn');
         if (warNavBtn) {
             document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
@@ -11987,7 +11897,7 @@ function addNotification(type, title, message, targetPlayerId = null) {
                 <img class="loading-logo" src="https://sviter-pro.github.io/GameZone/src/test/logo124.png" alt="Тюряга 2.0" onerror="this.src='https://via.placeholder.com/180x180?text=Тюряга+2.0'">
                 <div class="loading-spinner-new"></div>
                 <div class="loading-tip-new" id="loadingTipNew">⚡ Загрузка игрового мира...</div>
-                <div class="loading-version">Зона 1.0.0.280 | Зона ждет</div>
+                <div class="loading-version">Зона 1.0.0.281 | Зона ждет</div>
             </div>
         `;
             const tipEl = document.getElementById('loadingTipNew');
