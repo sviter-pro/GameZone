@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Зона 1.0.0.283 - Карта зоны</title>
+    <title>Зона 1.0.0.284 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -6740,7 +6740,7 @@ function closeHospitalModal() {
                 
                 <div class="settings-card">
                     <div style="font-size: 13px; color: #aaa; text-align: center;">
-                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.283</div>
+                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.284</div>
                         <div style="font-size: 11px;">⚡ Клановые войны | Бесконечная прокачка</div>
                     </div>
                 </div>
@@ -11909,7 +11909,7 @@ function addNotification(type, title, message, targetPlayerId = null) {
                 <img class="loading-logo" src="https://sviter-pro.github.io/GameZone/src/test/logo124.png" alt="Тюряга 2.0" onerror="this.src='https://via.placeholder.com/180x180?text=Тюряга+2.0'">
                 <div class="loading-spinner-new"></div>
                 <div class="loading-tip-new" id="loadingTipNew">⚡ Загрузка игрового мира...</div>
-                <div class="loading-version">Зона 1.0.0.283 | Зона ждет</div>
+                <div class="loading-version">Зона 1.0.0.284 | Зона ждет</div>
             </div>
         `;
             const tipEl = document.getElementById('loadingTipNew');
@@ -14141,52 +14141,55 @@ function startMineTimers() {
 }
 
         async function addWorkExperience(amount) {
-            if (!currentPlayer) return;
-            let newAuthority = currentPlayer.authority + amount;
-            let newLevel = currentPlayer.level;
-            let leveledUp = false;
-            let newAuthorityToNext = currentPlayer.authorityToNext;
-            let newMaxEnergy = currentPlayer.maxEnergy;
-            let newStrength = currentPlayer.stats.strength;
-            let newDefense = currentPlayer.stats.defense;
+    if (!currentPlayer) return;
+    let newAuthority = currentPlayer.authority + amount;
+    let newLevel = currentPlayer.level;
+    let leveledUp = false;
+    let newAuthorityToNext = currentPlayer.authorityToNext;
+    let newMaxEnergy = currentPlayer.maxEnergy;
+    let newStrength = currentPlayer.stats.strength;
+    let newDefense = currentPlayer.stats.defense;
 
-            if (newAuthority >= currentPlayer.authorityToNext) {
-                newLevel++;
-                newAuthority = 0;
-                newAuthorityToNext = Math.floor(currentPlayer.authorityToNext * 1.5);
-                newMaxEnergy = currentPlayer.maxEnergy + 5;
-                newStrength = currentPlayer.stats.strength + 3;
-                newDefense = currentPlayer.stats.defense + 2;
-                leveledUp = true;
-                if (cardGameActive) {
-                    cardGameBonusPercent = getCardGameBonusFromLevel(newLevel);
-                    await playerDocRef.update({ cardGameBonusPercent: cardGameBonusPercent });
-                }
-            }
-
-            await playerDocRef.update({
-                authority: newAuthority,
-                level: newLevel,
-                authorityToNext: newAuthorityToNext,
-                maxEnergy: newMaxEnergy,
-                'stats.strength': newStrength,
-                'stats.defense': newDefense
-            });
-
-            currentPlayer.authority = newAuthority;
-            currentPlayer.level = newLevel;
-            currentPlayer.authorityToNext = newAuthorityToNext;
-            currentPlayer.maxEnergy = newMaxEnergy;
-            currentPlayer.stats.strength = newStrength;
-            currentPlayer.stats.defense = newDefense;
-
-            if (leveledUp) {
-                showToast(`🎉 УРОВЕНЬ ${newLevel}! +5 энергии, +3 силы, +2 защиты!`, 'success');
-            }
-
-            await updateQuestProgress('authority', amount);
-            renderUI();
+    if (newAuthority >= currentPlayer.authorityToNext) {
+        newLevel++;
+        newAuthority = 0;
+        newAuthorityToNext = Math.floor(currentPlayer.authorityToNext * 1.5);
+        newMaxEnergy = currentPlayer.maxEnergy + 5;
+        newStrength = currentPlayer.stats.strength + 3;
+        newDefense = currentPlayer.stats.defense + 2;
+        leveledUp = true;
+        if (cardGameActive) {
+            cardGameBonusPercent = getCardGameBonusFromLevel(newLevel);
+            await playerDocRef.update({ cardGameBonusPercent: cardGameBonusPercent });
         }
+    }
+
+    await playerDocRef.update({
+        authority: newAuthority,
+        level: newLevel,
+        authorityToNext: newAuthorityToNext,
+        maxEnergy: newMaxEnergy,
+        'stats.strength': newStrength,
+        'stats.defense': newDefense
+    });
+
+    currentPlayer.authority = newAuthority;
+    currentPlayer.level = newLevel;
+    currentPlayer.authorityToNext = newAuthorityToNext;
+    currentPlayer.maxEnergy = newMaxEnergy;
+    currentPlayer.stats.strength = newStrength;
+    currentPlayer.stats.defense = newDefense;
+
+    if (leveledUp) {
+        showToast(`🎉 УРОВЕНЬ ${newLevel}! +5 энергии, +3 силы, +2 защиты!`, 'success');
+    }
+
+    await updateQuestProgress('authority', amount);
+    
+    // ✅ ТОЧЕЧНОЕ ОБНОВЛЕНИЕ, БЕЗ renderUI()
+    updateTopBarResources();
+    updateBattleCountersOnMap();
+}
 
         async function spendEnergyForWork(cost) {
             if (currentPlayer.energy < cost) {
@@ -14269,18 +14272,16 @@ function isMineUpgradeActive(type) {
                 currentPlayer.mine.makhorkaUpgradeDuration = 0;
             }
             
-            showToast(`✅ ${type === 'paper' ? 'Бумага' : 'Махорка'} улучшена до ${newLevel} уровня!`, 'success');
-            
-            // Обновляем все UI
+            // ✅ ТОЧЕЧНОЕ ОБНОВЛЕНИЕ, БЕЗ renderUI()
             updateWorkCountersOnMap();
             updateTopBarResources();
+            updateBattleCountersOnMap();
             
             const mineModal = document.getElementById('mineFullscreen');
             if (mineModal && mineModal.style.display === 'flex') {
                 updateMineModalUI();
             }
             
-            renderUI();
             return true;
             
         } catch (e) {
@@ -14314,18 +14315,16 @@ function isMineUpgradeActive(type) {
         currentPlayer.lumber.upgradeStartTime = 0;
         currentPlayer.lumber.upgradeDuration = 0;
         
+        // ✅ ТОЧЕЧНОЕ ОБНОВЛЕНИЕ, БЕЗ renderUI()
+        updateWorkCountersOnMap();
+        updateTopBarResources();
+        updateBattleCountersOnMap();
+        
         const mineModal = document.getElementById('mineFullscreen');
         if (mineModal && mineModal.style.display === 'flex') {
             updateMineModalUI();
-        } else {
-            showToast(`✅ Лесоповал улучшен до ${currentLevel + 1} уровня!`, 'success');
-            if (settingsNotifications) {
-                sendTelegramNotification(`✅ Прокачка завершена! Лесоповал улучшен до ${currentLevel + 1} уровня!`);
-            }
         }
         
-        renderUI();
-        updateWorkCountersOnMap();
         return true;
     }
     return false;
@@ -14447,18 +14446,16 @@ function checkAndNotifyWorkAvailable() {
         currentPlayer.quarry.upgradeStartTime = 0;
         currentPlayer.quarry.upgradeDuration = 0;
         
+        // ✅ ТОЧЕЧНОЕ ОБНОВЛЕНИЕ, БЕЗ renderUI()
+        updateWorkCountersOnMap();
+        updateTopBarResources();
+        updateBattleCountersOnMap();
+        
         const mineModal = document.getElementById('mineFullscreen');
         if (mineModal && mineModal.style.display === 'flex') {
             updateMineModalUI();
-        } else {
-            showToast(`✅ Каменоломня улучшена до ${currentLevel + 1} уровня!`, 'success');
-            if (settingsNotifications) {
-                sendTelegramNotification(`✅ Прокачка завершена! Каменоломня улучшена до ${currentLevel + 1} уровня!`);
-            }
         }
         
-        renderUI();
-        updateWorkCountersOnMap();
         return true;
     }
     return false;
@@ -14497,6 +14494,7 @@ async function completeMineWork() {
     // ✅ ТОЧЕЧНОЕ ОБНОВЛЕНИЕ, БЕЗ renderUI()
     updateTopBarResources();
     updateWorkCountersOnMap();
+    updateBattleCountersOnMap();
     
     // Если окно шахты открыто - обновляем его содержимое
     const mineModal = document.getElementById('mineFullscreen');
@@ -14522,9 +14520,10 @@ async function completeLumberWork() {
     
     showToast(`🪓 Работа на лесоповале завершена! +${woodGain}🪵 дерева, +${workExp}⭐ опыта`, 'success');
     
-    // ✅ ТОЧЕЧНОЕ ОБНОВЛЕНИЕ
+    // ✅ ТОЧЕЧНОЕ ОБНОВЛЕНИЕ, БЕЗ renderUI()
     updateTopBarResources();
     updateWorkCountersOnMap();
+    updateBattleCountersOnMap();
     
     const mineModal = document.getElementById('mineFullscreen');
     if (mineModal && mineModal.style.display === 'flex') {
@@ -14549,9 +14548,10 @@ async function completeQuarryWork() {
     
     showToast(`⛏️ Работа в каменоломне завершена! +${stoneGain}🪨 камня, +${workExp}⭐ опыта`, 'success');
     
-    // ✅ ТОЧЕЧНОЕ ОБНОВЛЕНИЕ
+    // ✅ ТОЧЕЧНОЕ ОБНОВЛЕНИЕ, БЕЗ renderUI()
     updateTopBarResources();
     updateWorkCountersOnMap();
+    updateBattleCountersOnMap();
     
     const mineModal = document.getElementById('mineFullscreen');
     if (mineModal && mineModal.style.display === 'flex') {
@@ -14673,11 +14673,9 @@ function closeMineModal() {
         return; 
     }
 
-    // Списываем ресурсы
     await playerDocRef.update({ cigarettes: firebase.firestore.FieldValue.increment(-cost) });
     currentPlayer.cigarettes -= cost;
 
-    // Время прокачки
     let upgradeDurationMs = 2 * 60 * 1000;
     upgradeDurationMs = Math.floor(upgradeDurationMs * (1 + (currentLevel - 1) * 0.1));
     const upgradeStartTime = Date.now();
@@ -14693,7 +14691,6 @@ function closeMineModal() {
     
     await playerDocRef.update(updateObj);
 
-    // Обновляем локальные данные
     if (type === 'paper') {
         currentPlayer.mine.paperUpgradeStartTime = upgradeStartTime;
         currentPlayer.mine.paperUpgradeDuration = upgradeDurationMs;
@@ -14706,14 +14703,15 @@ function closeMineModal() {
     const seconds = Math.floor((upgradeDurationMs % 60000) / 1000);
     showToast(`⏳ Начата прокачка ${type === 'paper' ? 'бумаги' : 'махорки'}! Завершится через ${minutes} мин ${seconds} сек.`, 'success');
     
+    // ✅ ТОЧЕЧНОЕ ОБНОВЛЕНИЕ, БЕЗ renderUI()
     updateWorkCountersOnMap();
+    updateTopBarResources();
+    updateBattleCountersOnMap();
     
     const mineModal = document.getElementById('mineFullscreen');
     if (mineModal && mineModal.style.display === 'flex') {
         updateMineModalUI();
     }
-    
-    renderUI();
 }
 
         async function mineResourcesFromModal() {
@@ -14781,41 +14779,57 @@ function closeMineModal() {
         }
 
         async function upgradeLumberFromModal() {
-            if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); return; }
+    if (maintenanceMode) { 
+        showToast(maintenanceMessage, 'warning'); 
+        return; 
+    }
 
-            if (isLumberUpgradeActive()) {
-                showToast('Прокачка уже идет! Дождитесь завершения.', 'warning');
-                return;
-            }
+    if (isLumberUpgradeActive()) {
+        showToast('Прокачка уже идет! Дождитесь завершения.', 'warning');
+        return;
+    }
 
-            if (getWorkRemaining('lumber') > 0) {
-                showToast('Невозможно улучшить во время работы! Дождитесь окончания работы.', 'warning');
-                return;
-            }
+    if (getWorkRemaining('lumber') > 0) {
+        showToast('Невозможно улучшить во время работы! Дождитесь окончания работы.', 'warning');
+        return;
+    }
 
-            const level = currentPlayer.lumber?.level || 1;
-            const cost = 50 * level;
-            if (currentPlayer.cigarettes < cost) { showToast(`Не хватает ${cost - currentPlayer.cigarettes} 🚬!`, 'error'); return; }
+    const level = currentPlayer.lumber?.level || 1;
+    const cost = 50 * level;
+    if (currentPlayer.cigarettes < cost) { 
+        showToast(`Не хватает ${cost - currentPlayer.cigarettes} 🚬!`, 'error'); 
+        return; 
+    }
 
-            await playerDocRef.update({ cigarettes: firebase.firestore.FieldValue.increment(-cost) });
-            currentPlayer.cigarettes -= cost;
+    await playerDocRef.update({ cigarettes: firebase.firestore.FieldValue.increment(-cost) });
+    currentPlayer.cigarettes -= cost;
 
-            let upgradeDurationMs = 2 * 60 * 1000;
-            upgradeDurationMs = Math.floor(upgradeDurationMs * (1 + (level - 1) * 0.1));
-            const upgradeStartTime = Date.now();
+    let upgradeDurationMs = 2 * 60 * 1000;
+    upgradeDurationMs = Math.floor(upgradeDurationMs * (1 + (level - 1) * 0.1));
+    const upgradeStartTime = Date.now();
 
-            await playerDocRef.update({
-                'lumber.upgradeStartTime': upgradeStartTime,
-                'lumber.upgradeDuration': upgradeDurationMs
-            });
-            if (!currentPlayer.lumber) currentPlayer.lumber = { level: 1, lastGatherTime: 0, wood: 0 };
-            currentPlayer.lumber.upgradeStartTime = upgradeStartTime;
-            currentPlayer.lumber.upgradeDuration = upgradeDurationMs;
+    await playerDocRef.update({
+        'lumber.upgradeStartTime': upgradeStartTime,
+        'lumber.upgradeDuration': upgradeDurationMs
+    });
+    if (!currentPlayer.lumber) currentPlayer.lumber = { level: 1, lastGatherTime: 0, wood: 0 };
+    currentPlayer.lumber.upgradeStartTime = upgradeStartTime;
+    currentPlayer.lumber.upgradeDuration = upgradeDurationMs;
 
-            showToast(`⏳ Начата прокачка лесоповала! Уровень повысится через ${Math.round(upgradeDurationMs / 60000)} мин.`, 'success');
-            renderMineModal();
-            renderUI();
-        }
+    const minutes = Math.floor(upgradeDurationMs / 60000);
+    const seconds = Math.floor((upgradeDurationMs % 60000) / 1000);
+    showToast(`⏳ Начата прокачка лесоповала! Уровень повысится через ${minutes} мин ${seconds} сек.`, 'success');
+    
+    // ✅ ТОЧЕЧНОЕ ОБНОВЛЕНИЕ, БЕЗ renderUI()
+    updateWorkCountersOnMap();
+    updateTopBarResources();
+    updateBattleCountersOnMap();
+    
+    const mineModal = document.getElementById('mineFullscreen');
+    if (mineModal && mineModal.style.display === 'flex') {
+        updateMineModalUI();
+    }
+}
 
         async function gatherLumberFromModal() {
     if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); return; }
@@ -14882,41 +14896,57 @@ function closeMineModal() {
         }
 
         async function upgradeQuarryFromModal() {
-            if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); return; }
+    if (maintenanceMode) { 
+        showToast(maintenanceMessage, 'warning'); 
+        return; 
+    }
 
-            if (isQuarryUpgradeActive()) {
-                showToast('Прокачка уже идет! Дождитесь завершения.', 'warning');
-                return;
-            }
+    if (isQuarryUpgradeActive()) {
+        showToast('Прокачка уже идет! Дождитесь завершения.', 'warning');
+        return;
+    }
 
-            if (getWorkRemaining('quarry') > 0) {
-                showToast('Невозможно улучшить во время работы! Дождитесь окончания работы.', 'warning');
-                return;
-            }
+    if (getWorkRemaining('quarry') > 0) {
+        showToast('Невозможно улучшить во время работы! Дождитесь окончания работы.', 'warning');
+        return;
+    }
 
-            const level = currentPlayer.quarry?.level || 1;
-            const cost = 50 * level;
-            if (currentPlayer.cigarettes < cost) { showToast(`Не хватает ${cost - currentPlayer.cigarettes} 🚬!`, 'error'); return; }
+    const level = currentPlayer.quarry?.level || 1;
+    const cost = 50 * level;
+    if (currentPlayer.cigarettes < cost) { 
+        showToast(`Не хватает ${cost - currentPlayer.cigarettes} 🚬!`, 'error'); 
+        return; 
+    }
 
-            await playerDocRef.update({ cigarettes: firebase.firestore.FieldValue.increment(-cost) });
-            currentPlayer.cigarettes -= cost;
+    await playerDocRef.update({ cigarettes: firebase.firestore.FieldValue.increment(-cost) });
+    currentPlayer.cigarettes -= cost;
 
-            let upgradeDurationMs = 2 * 60 * 1000;
-            upgradeDurationMs = Math.floor(upgradeDurationMs * (1 + (level - 1) * 0.1));
-            const upgradeStartTime = Date.now();
+    let upgradeDurationMs = 2 * 60 * 1000;
+    upgradeDurationMs = Math.floor(upgradeDurationMs * (1 + (level - 1) * 0.1));
+    const upgradeStartTime = Date.now();
 
-            await playerDocRef.update({
-                'quarry.upgradeStartTime': upgradeStartTime,
-                'quarry.upgradeDuration': upgradeDurationMs
-            });
-            if (!currentPlayer.quarry) currentPlayer.quarry = { level: 1, lastGatherTime: 0, stone: 0 };
-            currentPlayer.quarry.upgradeStartTime = upgradeStartTime;
-            currentPlayer.quarry.upgradeDuration = upgradeDurationMs;
+    await playerDocRef.update({
+        'quarry.upgradeStartTime': upgradeStartTime,
+        'quarry.upgradeDuration': upgradeDurationMs
+    });
+    if (!currentPlayer.quarry) currentPlayer.quarry = { level: 1, lastGatherTime: 0, stone: 0 };
+    currentPlayer.quarry.upgradeStartTime = upgradeStartTime;
+    currentPlayer.quarry.upgradeDuration = upgradeDurationMs;
 
-            showToast(`⏳ Начата прокачка каменоломни! Уровень повысится через ${Math.round(upgradeDurationMs / 60000)} мин.`, 'success');
-            renderMineModal();
-            renderUI();
-        }
+    const minutes = Math.floor(upgradeDurationMs / 60000);
+    const seconds = Math.floor((upgradeDurationMs % 60000) / 1000);
+    showToast(`⏳ Начата прокачка каменоломни! Уровень повысится через ${minutes} мин ${seconds} сек.`, 'success');
+    
+    // ✅ ТОЧЕЧНОЕ ОБНОВЛЕНИЕ, БЕЗ renderUI()
+    updateWorkCountersOnMap();
+    updateTopBarResources();
+    updateBattleCountersOnMap();
+    
+    const mineModal = document.getElementById('mineFullscreen');
+    if (mineModal && mineModal.style.display === 'flex') {
+        updateMineModalUI();
+    }
+}
 
         async function gatherStoneFromModal() {
     if (maintenanceMode) { showToast(maintenanceMessage, 'warning'); return; }
