@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Зона 1.0.0.284 - Карта зоны</title>
+    <title>Зона 1.0.0.285 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -6740,7 +6740,7 @@ function closeHospitalModal() {
                 
                 <div class="settings-card">
                     <div style="font-size: 13px; color: #aaa; text-align: center;">
-                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.284</div>
+                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.285</div>
                         <div style="font-size: 11px;">⚡ Клановые войны | Бесконечная прокачка</div>
                     </div>
                 </div>
@@ -11909,7 +11909,7 @@ function addNotification(type, title, message, targetPlayerId = null) {
                 <img class="loading-logo" src="https://sviter-pro.github.io/GameZone/src/test/logo124.png" alt="Тюряга 2.0" onerror="this.src='https://via.placeholder.com/180x180?text=Тюряга+2.0'">
                 <div class="loading-spinner-new"></div>
                 <div class="loading-tip-new" id="loadingTipNew">⚡ Загрузка игрового мира...</div>
-                <div class="loading-version">Зона 1.0.0.284 | Зона ждет</div>
+                <div class="loading-version">Зона 1.0.0.285 | Зона ждет</div>
             </div>
         `;
             const tipEl = document.getElementById('loadingTipNew');
@@ -14368,8 +14368,10 @@ function checkWorkCompletion() {
                 }
             }
             
-            // Обновляем UI
-            renderUI();
+            // ✅ ТОЧЕЧНОЕ ОБНОВЛЕНИЕ, БЕЗ renderUI()
+            updateWorkCountersOnMap();
+            updateTopBarResources();
+            updateBattleCountersOnMap();
         }
         
         lastWorkRemainingState[type] = remaining;
@@ -14560,29 +14562,27 @@ async function completeQuarryWork() {
 }
 
         function getWorkRemaining(type) {
-            if (type === 'mine') {
-                const lastMine = currentPlayer.mine?.lastMineTime || 0;
-                const paperLevel = currentPlayer.mine?.paperLevel || 1;
-                let cooldownMs = 2 * 60 * 1000; // База 2 минуты
-                cooldownMs = Math.floor(cooldownMs * (1 + (paperLevel - 1) * 0.05)); // +5% за уровень
-                return Math.max(0, cooldownMs - (Date.now() - lastMine));
-            } else if (type === 'lumber') {
-                const lastGather = currentPlayer.lumber?.lastGatherTime || 0;
-                const level = currentPlayer.lumber?.level || 1;
-                let cooldownMs = 2 * 60 * 1000;
-                cooldownMs = Math.floor(cooldownMs * (1 + (level - 1) * 0.05));
-                return Math.max(0, cooldownMs - (Date.now() - lastGather));
-            } else if (type === 'quarry') {
-                const lastGather = currentPlayer.quarry?.lastGatherTime || 0;
-                const level = currentPlayer.quarry?.level || 1;
-                let cooldownMs = 2 * 60 * 1000;
-                cooldownMs = Math.floor(cooldownMs * (1 + (level - 1) * 0.05));
-                return Math.max(0, cooldownMs - (Date.now() - lastGather));
-            }
-            return 0;
-        }
-
-        
+    if (type === 'mine') {
+        const lastMine = currentPlayer.mine?.lastMineTime || 0;
+        const paperLevel = currentPlayer.mine?.paperLevel || 1;
+        let cooldownMs = 2 * 60 * 1000; // База 2 минуты
+        cooldownMs = Math.floor(cooldownMs * (1 + (paperLevel - 1) * 0.05)); // +5% за уровень
+        return Math.max(0, cooldownMs - (Date.now() - lastMine));
+    } else if (type === 'lumber') {
+        const lastGather = currentPlayer.lumber?.lastGatherTime || 0;
+        const level = currentPlayer.lumber?.level || 1;
+        let cooldownMs = 2 * 60 * 1000;
+        cooldownMs = Math.floor(cooldownMs * (1 + (level - 1) * 0.05));
+        return Math.max(0, cooldownMs - (Date.now() - lastGather));
+    } else if (type === 'quarry') {
+        const lastGather = currentPlayer.quarry?.lastGatherTime || 0;
+        const level = currentPlayer.quarry?.level || 1;
+        let cooldownMs = 2 * 60 * 1000;
+        cooldownMs = Math.floor(cooldownMs * (1 + (level - 1) * 0.05));
+        return Math.max(0, cooldownMs - (Date.now() - lastGather));
+    }
+    return 0;
+}
 
     function startMineTimers() {
     if (mineTimerInterval) clearInterval(mineTimerInterval);
@@ -22607,18 +22607,28 @@ async function startGame(id, name) {
                 if (window.mapCountersInterval) clearInterval(window.mapCountersInterval);
                 return;
             }
-            // ✅ ТОЛЬКО ТОЧЕЧНЫЕ ОБНОВЛЕНИЯ, БЕЗ renderUI()
-            updateBattleCountersOnMap();
-            checkWorkCompletion();        
+            // ✅ ТОЛЬКО ТОЧЕЧНЫЕ ОБНОВЛЕНИЯ
+    try {
+        updateBattleCountersOnMap();
+        
+        // Проверяем завершение работы БЕЗ перерисовки
+        if (!window._isUpdatingWork) {
+            window._isUpdatingWork = true;
+            checkWorkCompletion();
             checkAndNotifyWorkAvailable();
-            updateTopBarResources();
-            
-            // Обновляем таймеры в окне войны (если оно открыто)
-            const warModal = document.getElementById('warFullscreen');
-            if (warModal && activeClanWar) {
-                updateWarTimersOnly();
-            }
-        }, 1000);
+            window._isUpdatingWork = false;
+        }
+        
+        updateTopBarResources();
+        
+        const warModal = document.getElementById('warFullscreen');
+        if (warModal && activeClanWar) {
+            updateWarTimersOnly();
+        }
+    } catch (e) {
+        console.error('Ошибка в интервале обновления:', e);
+    }
+}, 1000);
         
         hideLoadingScreen();
         
