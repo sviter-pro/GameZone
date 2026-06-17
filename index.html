@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Зона 1.0.0.282 - Карта зоны</title>
+    <title>Зона 1.0.0.283 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -6740,7 +6740,7 @@ function closeHospitalModal() {
                 
                 <div class="settings-card">
                     <div style="font-size: 13px; color: #aaa; text-align: center;">
-                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.282</div>
+                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.283</div>
                         <div style="font-size: 11px;">⚡ Клановые войны | Бесконечная прокачка</div>
                     </div>
                 </div>
@@ -7612,112 +7612,12 @@ async function startClanWar(targetClanId, targetClanName, targetClanLevel) {
         return;
     }
     
-    // Подтверждение
-    const confirmMessage = `⚔️ ПОДТВЕРДИТЕ НАПАДЕНИЕ ⚔️\n\n` +
-        `Ваш клан: ${myClan.name} (ур.${myClan.level})\n` +
-        `Цель: ${targetClanName} (ур.${targetClanLevel})\n\n` +
-        `⚠️ Война продлится ${WAR_DURATION_HOURS} часов!\n` +
-        `⚠️ После начала войны вы не сможете её отменить!\n\n` +
-        `Вы уверены, что хотите объявить войну?`;
+    // ✅ ТОЛЬКО ПОКАЗЫВАЕМ МОДАЛЬНОЕ ОКНО
+    // ВСЯ ЛОГИКА НАЧАЛА ВОЙНЫ ПЕРЕНЕСЕНА В startClanWarConfirmed()
+    showWarConfirmModal(targetClanId, targetClanName, targetClanLevel);
     
-    if (!confirm(confirmMessage)) {
-        showToast('⚔️ Нападение отменено', 'warning');
-        return;
-    }
-    
-    // Блокируем кнопку
-    isStartingWar = true;
-    
-    try {
-        const endTime = Date.now() + WAR_DURATION_MS;
-        
-        const warData = {
-            attackerClanId: currentPlayer.clanId,
-            attackerClanName: myClan.name,
-            attackerClanLevel: myClan.level,
-            attackerPower: myClan.totalPower || 0,
-            defenderClanId: targetClanId,
-            defenderClanName: targetClanName,
-            defenderClanLevel: targetClanLevel,
-            defenderPower: 0,
-            startTime: Date.now(),
-            endTime: endTime,
-            status: 'active',
-            winner: null,
-            rewards: null,
-            attackerFighters: { blats: 0, muzhiks: 0, fraers: 0, total: 0 },
-            defenderFighters: { blats: 0, muzhiks: 0, fraers: 0, total: 0 },
-            attackerDonations: {},
-            defenderDonations: {},
-            casualties: {
-                attacker: { blats: 0, muzhiks: 0, fraers: 0 },
-                defender: { blats: 0, muzhiks: 0, fraers: 0 },
-                totalInjured: 0
-            }
-        };
-        
-        // 1. СОЗДАЁМ ВОЙНУ В FIREBASE
-        await db.collection('clanWars').add(warData);
-        
-        // 2. СОХРАНЯЕМ КУЛДАУНЫ
-        localStorage.setItem(lastWarKey, Date.now().toString());
-        localStorage.setItem(attackCooldownKey, (Date.now() + attackCooldownHours * 60 * 60 * 1000).toString());
-        
-        // 3. ЗАКРЫВАЕМ СТАРОЕ ОКНО ВОЙНЫ (если открыто)
-        const oldWarModal = document.getElementById('warFullscreen');
-        if (oldWarModal) {
-            oldWarModal.remove();
-        }
-        
-        // 4. ЗАКРЫВАЕМ ОКНО СХОДКИ (если открыто)
-        const attackModal = document.getElementById('attackDetailFullscreen');
-        if (attackModal) {
-            attackModal.remove();
-        }
-        
-        // 5. ПОКАЗЫВАЕМ ТОСТ ОБ УСПЕХЕ
-        showToast(`⚔️ Война объявлена клану "${targetClanName}"!`, 'success');
-        
-        // 6. ОТПРАВЛЯЕМ УВЕДОМЛЕНИЯ ВСЕМ УЧАСТНИКАМ КЛАНА
-        await notifyClanMembers(targetClanId, `⚠️ Клан "${myClan.name}" объявил войну вашему клану! Война продлится ${WAR_DURATION_HOURS} часов. Защищайтесь!`);
-        await notifyClanMembers(currentPlayer.clanId, `⚔️ Ваш клан "${myClan.name}" объявил войну клану "${targetClanName}"! Война продлится ${WAR_DURATION_HOURS} часов.`);
-        
-        // 7. ОТКРЫВАЕМ НОВОЕ ОКНО ВОЙНЫ (как в СИЗО - сразу показывает счетчик)
-        setTimeout(() => {
-            openWarModal();
-        }, 300);
-        
-        // 8. ОБНОВЛЯЕМ ТОЛЬКО ВЕРХНЮЮ ПАНЕЛЬ И СЧЁТЧИКИ (НЕ renderUI!)
-        updateTopBarResources();
-        updateBattleCountersOnMap();
-        updateWorkCountersOnMap();
-        
-        // 9. ОБНОВЛЯЕМ БЕЙДЖИ УВЕДОМЛЕНИЙ
-        updateClanNotificationBadge();
-        updateQuestsNotificationBadge();
-        
-        // 10. ЗАПУСКАЕМ ПОДПИСКУ НА ВОЙНЫ ЗАНОВО
-        if (clanWarUnsubscribe) {
-            clanWarUnsubscribe();
-            clanWarUnsubscribe = null;
-        }
-        subscribeToClanWars();
-        
-        // 11. ОБНОВЛЯЕМ КНОПКУ "ВОЙНА" В НИЖНЕЙ ПАНЕЛИ (делаем активной)
-        const warNavBtn = document.querySelector('.nav-btn img[src*="Untitled_4"]')?.closest('.nav-btn');
-        if (warNavBtn) {
-            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
-            warNavBtn.classList.add('active');
-        }
-        
-        console.log('✅ Война успешно объявлена!');
-        
-    } catch (e) {
-        console.error('Ошибка начала войны:', e);
-        showToast('Ошибка начала войны: ' + e.message, 'error');
-    } finally {
-        isStartingWar = false;
-    }
+    // ❌ ВАЖНО: ЗДЕСЬ НЕ ДОЛЖНО БЫТЬ КОДА, КОТОРЫЙ НАЧИНАЕТ ВОЙНУ!
+    // ВСЯ ЛОГИКА ДОЛЖНА БЫТЬ В startClanWarConfirmed()
 }
 
 function closeAttackModalSilent() {
@@ -8026,13 +7926,11 @@ async function startClanWarConfirmed(targetClanId, targetClanName, targetClanLev
         localStorage.setItem(lastWarKey, Date.now().toString());
         localStorage.setItem(attackCooldownKey, (Date.now() + attackCooldownHours * 60 * 60 * 1000).toString());
         
-        // 3. ЗАКРЫВАЕМ ОКНО ВОЙНЫ (если открыто)
-        const warModal = document.getElementById('warFullscreen');
-        if (warModal) {
-            closeWarModal();
-        }
+        // 3. ЗАКРЫВАЕМ МОДАЛЬНОЕ ОКНО ПОДТВЕРЖДЕНИЯ (если открыто)
+        const confirmModal = document.getElementById('warConfirmModal');
+        if (confirmModal) confirmModal.remove();
         
-        // 4. ЗАКРЫВАЕМ ОКНО СХОДКИ (если открыто) - БЕЗ renderUI()
+        // 4. ЗАКРЫВАЕМ ОКНО СХОДКИ (если открыто)
         const attackModal = document.getElementById('attackDetailFullscreen');
         if (attackModal) {
             attackModal.remove();
@@ -8041,7 +7939,6 @@ async function startClanWarConfirmed(targetClanId, targetClanName, targetClanLev
             document.body.style.position = '';
             document.body.style.width = '';
             document.body.classList.remove('modal-open');
-            currentBottomTab = 'city';
         }
         
         // 5. ПОКАЗЫВАЕМ ТОСТ ОБ УСПЕХЕ
@@ -8067,7 +7964,19 @@ async function startClanWarConfirmed(targetClanId, targetClanName, targetClanLev
         }
         subscribeToClanWars();
         
-        // 10. ОБНОВЛЯЕМ КНОПКУ "ВОЙНА" В НИЖНЕЙ ПАНЕЛИ
+        // 10. ОТКРЫВАЕМ ОКНО ВОЙНЫ (если оно закрыто)
+        const warModal = document.getElementById('warFullscreen');
+        if (!warModal) {
+            createWarWindowDirect();
+        } else {
+            // Обновляем содержимое окна войны
+            updateWarWindowUI();
+        }
+        
+        // 11. ЗАПУСКАЕМ ТАЙМЕР ВОЙНЫ
+        startWarTimer();
+        
+        // 12. ОБНОВЛЯЕМ КНОПКУ "ВОЙНА" В НИЖНЕЙ ПАНЕЛИ
         const warNavBtn = document.querySelector('.nav-btn img[src*="Untitled_4"]')?.closest('.nav-btn');
         if (warNavBtn) {
             document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
@@ -8150,7 +8059,7 @@ async function applyWarCasualties(clanId, losses, isWinner, war) {
         const totalLost = actualLosses.blats + actualLosses.muzhiks + actualLosses.fraers;
         
         if (totalLost > 0) {
-            // ===== СПИСЫВАЕМ БОЙЦОВ =====
+            // Списываем бойцов
             const updates = {};
             if (actualLosses.blats > 0) {
                 updates['gang.blats.fighters'] = firebase.firestore.FieldValue.increment(-actualLosses.blats);
@@ -8163,10 +8072,12 @@ async function applyWarCasualties(clanId, losses, isWinner, war) {
             }
             
             await memberRef.update(updates);
+            console.log(`💰 Потери для клана ${clanId}:`, losses);
+            console.log(`🏥 На одного участника:`, perMemberLosses);
+            console.log(`📊 Всего раненых: ${totalInjured}`);
             
-            // ===== ОБНОВЛЯЕМ ЛОКАЛЬНЫЕ ДАННЫЕ ДЛЯ ТЕКУЩЕГО ИГРОКА =====
+            // Обновляем локальные данные для текущего игрока
             if (currentPlayer && currentPlayer.id === memberId) {
-                // Обновляем банду
                 if (currentPlayer.gang) {
                     if (currentPlayer.gang.blats) {
                         currentPlayer.gang.blats.fighters = Math.max(0, (currentPlayer.gang.blats.fighters || 0) - actualLosses.blats);
@@ -8180,30 +8091,25 @@ async function applyWarCasualties(clanId, losses, isWinner, war) {
                 }
             }
             
-            // ===== ДОБАВЛЯЕМ РАНЕНЫХ (30-50% от потерь) =====
+            // Добавляем раненых (если бойцы не погибли, а ранены)
+            // Раненые = 30-50% от потерь
             const injuredPercent = 0.3 + Math.random() * 0.2;
             const injured = Math.floor(totalLost * injuredPercent);
             
-            console.log(`💊 Раненых: ${injured} из ${totalLost} потерянных бойцов (${(injuredPercent * 100).toFixed(0)}%)`);
-            
             if (injured > 0) {
-                // ОБНОВЛЯЕМ В FIRESTORE
                 await memberRef.update({
                     injuredFighters: firebase.firestore.FieldValue.increment(injured)
                 });
                 
-                // ОБНОВЛЯЕМ ЛОКАЛЬНЫЕ ДАННЫЕ
+                // Обновляем локальные данные
                 if (currentPlayer && currentPlayer.id === memberId) {
                     currentPlayer.injuredFighters = (currentPlayer.injuredFighters || 0) + injured;
-                    console.log(`🏥 Раненые добавлены в больницу: ${currentPlayer.injuredFighters} бойцов`);
                 }
-                
                 totalInjured += injured;
             }
         }
     }
     
-    console.log(`🏥 Всего раненых в клане: ${totalInjured}`);
     return totalInjured;
 }
 
@@ -9342,7 +9248,7 @@ function openWarModal() {
     window._opening_modal = true;
     
     if (maintenanceMode) {
-        showToast(maintenanceMessage, 'warning');
+        console.log('⚠️ Режим обслуживания');
         window._opening_modal = false;
         return;
     }
@@ -9353,68 +9259,19 @@ function openWarModal() {
     }
     
     if (currentPlayer.level < 5) {
-        showToast('Войны доступны с 5 уровня!', 'warning');
+        console.log('⚠️ Войны доступны с 5 уровня');
         window._opening_modal = false;
         return;
     }
     
     if (!currentPlayer.clanId) {
-        showToast('Войны доступны только для членов клана!', 'warning');
+        console.log('⚠️ Войны доступны только для членов клана');
         window._opening_modal = false;
         return;
     }
     
-    // Проверяем, есть ли уже открытое окно войны
-    const existingModal = document.getElementById('warFullscreen');
-    if (existingModal) {
-        // Если окно уже открыто, просто показываем его и обновляем
-        existingModal.style.display = 'flex';
-        if (tg) tg.BackButton.show();
-        updateWarWindowUI();
-        window._opening_modal = false;
-        return;
-    }
-    
-    // ✅ СОЗДАЁМ ОКНО ТОЛЬКО ОДИН РАЗ
-    const modalHtml = `
-        <div class="treasury-fullscreen" id="warFullscreen" style="display: flex;">
-            <div class="treasury-header-bar">
-                <div class="treasury-header-content">
-                    <div class="treasury-header-title">⚔️ ВОЙНА ⚔️</div>
-                </div>
-            </div>
-            <div class="treasury-content-area" id="warContentArea" style="overflow-y: auto; padding: 16px; margin-bottom: 75px;">
-                <div id="warDynamicContent" style="min-height: 200px;">
-                    <div style="text-align: center; padding: 40px;">
-                        <div class="loading-spinner-new" style="width: 30px; height: 30px; margin: 0 auto 15px;"></div>
-                        <div>Загрузка...</div>
-                    </div>
-                </div>
-            </div>
-            <div class="treasury-bottom-nav">
-                <div class="bottom-nav">
-                    <button class="treasury-tab-btn active" id="closeWarBtn"><img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_6.png" height="70px" width="55px" draggable="false"></button>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    document.body.insertAdjacentHTML('beforeend', modalHtml);
-    if (tg) tg.BackButton.show();
-    
-    // Привязываем кнопку закрытия
-    document.getElementById('closeWarBtn')?.addEventListener('click', () => {
-        closeWarModal();
-    });
-    
-    // ✅ ОБНОВЛЯЕМ СОДЕРЖИМОЕ БЕЗ ПЕРЕСОЗДАНИЯ
-    setTimeout(() => {
-        updateWarWindowUI();
-        // ✅ Запускаем таймер ТОЛЬКО ЕСЛИ ОН ЕЩЁ НЕ ЗАПУЩЕН
-        if (!clanWarTimerInterval) {
-            startWarTimer();
-        }
-    }, 50);
+    // Просто создаём окно
+    createWarWindowDirect();
     
     setTimeout(() => { 
         window._opening_modal = false; 
@@ -9461,12 +9318,12 @@ function closeWarModal() {
     // ✅ Возвращаемся в город без перезагрузки
     if (currentBottomTab !== 'city') {
         currentBottomTab = 'city';
-        // ❌ НЕ ВЫЗЫВАЕМ renderUI()!
-        // ✅ Просто обновляем активную кнопку
+        // Обновляем активную кнопку навигации
         const navButtons = document.querySelectorAll('.nav-btn');
         navButtons.forEach(btn => {
             btn.classList.remove('active');
-            if (btn.querySelector('img')?.src?.includes('Untitled_1')) {
+            const img = btn.querySelector('img');
+            if (img && img.src && img.src.includes('Untitled_1')) {
                 btn.classList.add('active');
             }
         });
@@ -12052,7 +11909,7 @@ function addNotification(type, title, message, targetPlayerId = null) {
                 <img class="loading-logo" src="https://sviter-pro.github.io/GameZone/src/test/logo124.png" alt="Тюряга 2.0" onerror="this.src='https://via.placeholder.com/180x180?text=Тюряга+2.0'">
                 <div class="loading-spinner-new"></div>
                 <div class="loading-tip-new" id="loadingTipNew">⚡ Загрузка игрового мира...</div>
-                <div class="loading-version">Зона 1.0.0.282 | Зона ждет</div>
+                <div class="loading-version">Зона 1.0.0.283 | Зона ждет</div>
             </div>
         `;
             const tipEl = document.getElementById('loadingTipNew');
@@ -14637,7 +14494,7 @@ async function completeMineWork() {
     
     showToast(`⛏️ Работа в шахте завершена! +${paperGain}📄, +${makhorkaGain}🌿, +${workExp}⭐ опыта`, 'success');
     
-    // ОБНОВЛЯЕМ ТОЛЬКО НЕОБХОДИМЫЕ ЭЛЕМЕНТЫ, НЕ ПЕРЕСОЗДАЁМ ВСЁ
+    // ✅ ТОЧЕЧНОЕ ОБНОВЛЕНИЕ, БЕЗ renderUI()
     updateTopBarResources();
     updateWorkCountersOnMap();
     
@@ -14647,6 +14504,7 @@ async function completeMineWork() {
         updateMineModalUI();
     }
 }
+
 async function completeLumberWork() {
     if (!currentPlayer) return;
     
@@ -14664,6 +14522,7 @@ async function completeLumberWork() {
     
     showToast(`🪓 Работа на лесоповале завершена! +${woodGain}🪵 дерева, +${workExp}⭐ опыта`, 'success');
     
+    // ✅ ТОЧЕЧНОЕ ОБНОВЛЕНИЕ
     updateTopBarResources();
     updateWorkCountersOnMap();
     
@@ -14672,6 +14531,7 @@ async function completeLumberWork() {
         updateMineModalUI();
     }
 }
+
 async function completeQuarryWork() {
     if (!currentPlayer) return;
     
@@ -14689,6 +14549,7 @@ async function completeQuarryWork() {
     
     showToast(`⛏️ Работа в каменоломне завершена! +${stoneGain}🪨 камня, +${workExp}⭐ опыта`, 'success');
     
+    // ✅ ТОЧЕЧНОЕ ОБНОВЛЕНИЕ
     updateTopBarResources();
     updateWorkCountersOnMap();
     
