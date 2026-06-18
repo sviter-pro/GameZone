@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Зона 1.0.0.296 - Карта зоны</title>
+    <title>Зона 1.0.0.297 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -6990,11 +6990,15 @@ async function completeWorkSafe(type) {
     
     console.log(`✅ Завершение работы ${type}`);
     
+    // Сохраняем ссылку на currentPlayer для использования в finally
+    const playerSnapshot = currentPlayer;
+    
     try {
         let paperGain = 0, makhorkaGain = 0, woodGain = 0, stoneGain = 0;
         let workExp = 0;
         let successMessage = '';
         let updateObj = {};
+        let levelUpData = null;
         
         if (type === 'mine') {
             if (isMineUpgradeActive('paper') || isMineUpgradeActive('makhorka')) {
@@ -7090,6 +7094,13 @@ async function completeWorkSafe(type) {
             if (cardGameActive) {
                 cardGameBonusPercent = getCardGameBonusFromLevel(newLevel);
             }
+            
+            levelUpData = {
+                level: newLevel,
+                maxEnergy: newMaxEnergy,
+                strength: newStrength,
+                defense: newDefense
+            };
         }
 
         await playerDocRef.update({
@@ -7131,8 +7142,50 @@ async function completeWorkSafe(type) {
     } finally {
         workPendingCompletion[type] = false;
         
-        // ✅ БЕЗОПАСНОЕ ОБНОВЛЕНИЕ UI
-        safeUpdateUIAfterWork();
+        // ✅ БЕЗОПАСНОЕ ОБНОВЛЕНИЕ UI - ТОЛЬКО ЧЕРЕЗ setTimeout
+        setTimeout(() => {
+            try {
+                // Проверяем, существует ли DOM элемент app
+                const app = document.getElementById('app');
+                if (!app) {
+                    console.warn('⚠️ DOM элемент app не найден, пропускаем обновление UI');
+                    return;
+                }
+                
+                // Обновляем ресурсы с защитой от ошибок
+                try {
+                    updateTopBarResources();
+                } catch (e) {
+                    console.warn('⚠️ Ошибка обновления ресурсов:', e);
+                }
+                
+                try {
+                    updateWorkCountersOnMap();
+                } catch (e) {
+                    console.warn('⚠️ Ошибка обновления счетчиков работы:', e);
+                }
+                
+                try {
+                    updateBattleCountersOnMap();
+                } catch (e) {
+                    console.warn('⚠️ Ошибка обновления счетчиков боя:', e);
+                }
+                
+                // Проверяем, открыто ли окно шахты
+                try {
+                    const mineModal = document.getElementById('mineFullscreen');
+                    if (mineModal && mineModal.style.display === 'flex') {
+                        updateMineModalUI();
+                    }
+                } catch (e) {
+                    console.warn('⚠️ Ошибка обновления окна шахты:', e);
+                }
+                
+                console.log('✅ UI безопасно обновлен после работы');
+            } catch (e) {
+                console.error('❌ Критическая ошибка при обновлении UI:', e);
+            }
+        }, 200); // Увеличил задержку для безопасности
     }
 }
 
@@ -7789,7 +7842,7 @@ function closeHospitalModal() {
                 
                 <div class="settings-card">
                     <div style="font-size: 13px; color: #aaa; text-align: center;">
-                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.296</div>
+                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.297</div>
                         <div style="font-size: 11px;">⚡ Клановые войны | Бесконечная прокачка</div>
                     </div>
                 </div>
@@ -12941,7 +12994,7 @@ function addNotification(type, title, message, targetPlayerId = null) {
                 <img class="loading-logo" src="https://sviter-pro.github.io/GameZone/src/test/logo124.png" alt="Тюряга 2.0" onerror="this.src='https://via.placeholder.com/180x180?text=Тюряга+2.0'">
                 <div class="loading-spinner-new"></div>
                 <div class="loading-tip-new" id="loadingTipNew">⚡ Загрузка игрового мира...</div>
-                <div class="loading-version">Зона 1.0.0.296 | Зона ждет</div>
+                <div class="loading-version">Зона 1.0.0.297 | Зона ждет</div>
             </div>
         `;
             const tipEl = document.getElementById('loadingTipNew');
