@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Зона 1.0.0.307 - Карта зоны</title>
+    <title>Зона 1.0.0.308 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -6405,6 +6405,8 @@ let renderUICallStack = [];
 let lastRenderUITime = 0;
 let isUIUpdating = false;
 let pendingUIUpdate = false;
+let isUpdatingAfterWork = false;
+let pendingWorkUpdate = false;
 
 // Очередь обновлений UI
 let uiUpdateQueue = [];
@@ -6419,6 +6421,94 @@ let workPendingCompletion = {
     lumber: false,
     quarry: false
 };
+
+function safeUpdateAfterWork() {
+    // Если уже идет обновление - ставим в очередь
+    if (isUpdatingAfterWork) {
+        pendingWorkUpdate = true;
+        crashLog('⏳ Обновление уже идет, ставим в очередь');
+        return;
+    }
+    
+    isUpdatingAfterWork = true;
+    pendingWorkUpdate = false;
+    
+    crashLog('🔄 Начинаем безопасное обновление после работы');
+    
+    // Даем время на завершение всех операций
+    setTimeout(() => {
+        try {
+            // Проверяем, существует ли app
+            const app = document.getElementById('app');
+            if (!app) {
+                crashLog('⚠️ app не найден, пропускаем обновление');
+                isUpdatingAfterWork = false;
+                return;
+            }
+            
+            // Проверяем, существует ли карта
+            let mapWrapper = document.querySelector('.map-wrapper');
+            if (!mapWrapper) {
+                crashLog('⚠️ .map-wrapper не найден, восстанавливаем');
+                const restored = restoreMap();
+                if (!restored) {
+                    crashLog('❌ Не удалось восстановить карту');
+                    isUpdatingAfterWork = false;
+                    return;
+                }
+                mapWrapper = document.querySelector('.map-wrapper');
+            }
+            
+            // Проверяем, существует ли b2
+            let b2Element = document.querySelector('.building.b2');
+            if (!b2Element) {
+                crashLog('⚠️ .building.b2 не найден, создаем заново');
+                b2Element = document.createElement('div');
+                b2Element.className = 'building b2';
+                b2Element.setAttribute('data-building', 'b2');
+                b2Element.style.top = '18%';
+                b2Element.style.left = '3%';
+                b2Element.style.width = '38%';
+                b2Element.style.height = '18%';
+                
+                const label = document.createElement('div');
+                label.className = 'building-label';
+                label.textContent = 'Работа';
+                b2Element.appendChild(label);
+                
+                b2Element.onclick = function() {
+                    if (window.openMineModal) {
+                        window.openMineModal();
+                    }
+                };
+                
+                mapWrapper.appendChild(b2Element);
+                crashLog('✅ .building.b2 восстановлен');
+            }
+            
+            // Обновляем счетчики
+            updateWorkCountersOnMap();
+            updateBattleCountersOnMap();
+            updateTopBarResources();
+            updateClanNotificationBadge();
+            updateQuestsNotificationBadge();
+            
+            crashLog('✅ UI успешно обновлен после работы');
+            
+        } catch (e) {
+            crashLog('❌ Ошибка безопасного обновления', { error: e.message });
+        } finally {
+            isUpdatingAfterWork = false;
+            
+            // Если есть отложенные обновления - запускаем снова
+            if (pendingWorkUpdate) {
+                pendingWorkUpdate = false;
+                crashLog('🔄 Запускаем отложенное обновление');
+                safeUpdateAfterWork();
+            }
+        }
+    }, 4000); // Ждем 4 секунды после завершения работы
+}
 
 function logRenderUI(caller) {
     const now = Date.now();
@@ -6500,7 +6590,9 @@ function checkWorkCompletion() {
         const remaining = getWorkRemaining(work.type);
         const lastRemaining = lastWorkRemainingState[work.type] || 0;
         
+        // Если работа была активна и теперь завершилась
         if (lastRemaining > 0 && remaining <= 0) {
+            // Проверяем, не началась ли прокачка
             let isUpgradeActive = false;
             if (work.type === 'mine') {
                 isUpgradeActive = isMineUpgradeActive('paper') || isMineUpgradeActive('makhorka');
@@ -6511,8 +6603,13 @@ function checkWorkCompletion() {
             }
             
             if (!isUpgradeActive) {
-                console.log(`✅ Работа ${work.type} завершена! Выполняем...`);
-                completeWork(work.type);
+                crashLog(`✅ Работа ${work.type} завершена! Выполняем...`);
+                // НЕ вызываем completeWork напрямую, используем setTimeout
+                setTimeout(() => {
+                    if (!workPendingCompletion[work.type]) {
+                        completeWork(work.type);
+                    }
+                }, 500);
             }
         }
         
@@ -7433,23 +7530,9 @@ async function completeWork(type) {
     } finally {
         workPendingCompletion[type] = false;
         
-        // ОБНОВЛЯЕМ UI С ЗАЩИТОЙ
-        setTimeout(() => {
-            try {
-                crashLog('🔄 Обновляем UI после работы');
-                updateTopBarResources();
-                updateWorkCountersOnMap();
-                updateBattleCountersOnMap();
-                
-                const mineModal = document.getElementById('mineFullscreen');
-                if (mineModal && mineModal.style.display === 'flex') {
-                    updateMineModalUI();
-                }
-                crashLog('✅ UI обновлен');
-            } catch (e) {
-                crashLog('❌ Ошибка обновления UI', { error: e.message });
-            }
-        }, 500);
+        // ✅ ВАЖНО: Используем безопасное обновление с задержкой
+        crashLog('⏳ Запускаем безопасное обновление UI');
+        safeUpdateAfterWork();
     }
 }
 
@@ -7902,7 +7985,7 @@ function closeHospitalModal() {
                 
                 <div class="settings-card">
                     <div style="font-size: 13px; color: #aaa; text-align: center;">
-                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.307</div>
+                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.308</div>
                         <div style="font-size: 11px;">⚡ Клановые войны | Бесконечная прокачка</div>
                     </div>
                 </div>
@@ -13480,7 +13563,7 @@ function addNotification(type, title, message, targetPlayerId = null) {
                 <img class="loading-logo" src="https://sviter-pro.github.io/GameZone/src/test/logo124.png" alt="Тюряга 2.0" onerror="this.src='https://via.placeholder.com/180x180?text=Тюряга+2.0'">
                 <div class="loading-spinner-new"></div>
                 <div class="loading-tip-new" id="loadingTipNew">⚡ Загрузка игрового мира...</div>
-                <div class="loading-version">Зона 1.0.0.307 | Зона ждет</div>
+                <div class="loading-version">Зона 1.0.0.308 | Зона ждет</div>
             </div>
         `;
             const tipEl = document.getElementById('loadingTipNew');
@@ -24210,22 +24293,35 @@ window.mapCountersInterval = setInterval(() => {
     }
     
     try {
-        // В Telegram используем try-catch для каждой операции
-        try { updateWorkCountersOnMap(); } catch(e) {}
-        try { updateBattleCountersOnMap(); } catch(e) {}
-        try { updateTopBarResources(); } catch(e) {}
-        try { updateClanNotificationBadge(); } catch(e) {}
-        try { updateQuestsNotificationBadge(); } catch(e) {}
+        // Проверяем, существует ли app
+        const app = document.getElementById('app');
+        if (!app) {
+            crashLog('⚠️ app не найден, пропускаем обновление');
+            return;
+        }
         
-        try { checkWorkCompletion(); } catch(e) {}
-        try { checkAndNotifyWorkAvailable(); } catch(e) {}
+        // Проверяем, не идет ли обновление после работы
+        if (isUpdatingAfterWork) {
+            crashLog('⏳ Идет обновление после работы, пропускаем интервал');
+            return;
+        }
+        
+        // Только точечные обновления
+        updateWorkCountersOnMap();
+        updateBattleCountersOnMap();
+        updateTopBarResources();
+        updateClanNotificationBadge();
+        updateQuestsNotificationBadge();
+        
+        checkWorkCompletion();
+        checkAndNotifyWorkAvailable();
         
         const warModal = document.getElementById('warFullscreen');
         if (warModal && activeClanWar) {
-            try { updateWarTimersOnly(); } catch(e) {}
+            updateWarTimersOnly();
         }
     } catch (e) {
-        console.error('Ошибка в интервале обновления:', e);
+        crashLog('❌ Ошибка в интервале', { error: e.message });
     }
 }, 1000);
         
