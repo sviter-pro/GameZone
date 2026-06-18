@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Зона 1.0.0.288 - Карта зоны</title>
+    <title>Зона 1.0.0.289 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -6392,7 +6392,492 @@ async function changeEquipment(slot, itemName, stat, bonus) {
 	</script>
 	<script>
 	// ========== АЛГОРИТМЫ И ФУНКЦИИ ОКНА РАБОТА ==========
-	
+
+let workCheckIntervals = {
+    mine: null,
+    lumber: null,
+    quarry: null
+};
+
+let workPendingCompletion = {
+    mine: false,
+    lumber: false,
+    quarry: false
+};
+
+// ========== ФУНКЦИЯ ЗАПУСКА РАБОТЫ В ШАХТЕ ==========
+async function mineResourcesFromModal() {
+    if (maintenanceMode) { 
+        showToast(maintenanceMessage, 'warning'); 
+        return; 
+    }
+
+    if (isMineUpgradeActive('paper') || isMineUpgradeActive('makhorka')) {
+        showToast('Невозможно работать во время прокачки!', 'warning');
+        return;
+    }
+
+    const now = Date.now();
+    const lastMine = currentPlayer.mine?.lastMineTime || 0;
+    const paperLevel = currentPlayer.mine?.paperLevel || 1;
+    let cooldownMs = 2 * 60 * 1000;
+    cooldownMs = Math.floor(cooldownMs * (1 + (paperLevel - 1) * 0.05));
+    
+    if ((now - lastMine) < cooldownMs) { 
+        showToast('Работа еще не доступна!', 'warning'); 
+        return; 
+    }
+
+    currentPlayer.mine.lastMineTime = now;
+    await playerDocRef.update({ 'mine.lastMineTime': now });
+    
+    showToast(`⛏️ Начата работа в шахте! Ресурсы придут через ${Math.ceil(cooldownMs / 60000)} мин.`, 'success');
+    
+    // Обновляем счетчики
+    updateWorkCountersOnMap();
+    updateTopBarResources();
+    updateBattleCountersOnMap();
+    
+    const mineModal = document.getElementById('mineFullscreen');
+    if (mineModal && mineModal.style.display === 'flex') {
+        updateMineModalUI();
+    }
+    
+    // Запускаем проверку завершения (уникальный ID для этой работы)
+    const workId = Date.now() + Math.random();
+    startWorkCheck('mine', now, cooldownMs, workId);
+}
+
+// ========== ФУНКЦИЯ ЗАПУСКА РАБОТЫ В ЛЕСОПОВАЛЕ ==========
+async function gatherLumberFromModal() {
+    if (maintenanceMode) { 
+        showToast(maintenanceMessage, 'warning'); 
+        return; 
+    }
+
+    if (isLumberUpgradeActive()) {
+        showToast('Невозможно работать во время прокачки!', 'warning');
+        return;
+    }
+
+    const now = Date.now();
+    const lumber = currentPlayer.lumber || { level: 1, lastGatherTime: 0, wood: 0 };
+    let cooldownMs = 2 * 60 * 1000;
+    cooldownMs = Math.floor(cooldownMs * (1 + (lumber.level - 1) * 0.05));
+    
+    if ((now - (lumber.lastGatherTime || 0)) < cooldownMs) { 
+        showToast('Работа еще не доступна!', 'warning'); 
+        return; 
+    }
+
+    await playerDocRef.update({ 'lumber.lastGatherTime': now });
+    if (!currentPlayer.lumber) currentPlayer.lumber = { level: 1, lastGatherTime: 0, wood: 0 };
+    currentPlayer.lumber.lastGatherTime = now;
+    
+    showToast(`🪓 Начата работа на лесоповале! Ресурсы придут через ${Math.ceil(cooldownMs / 60000)} мин.`, 'success');
+    
+    updateWorkCountersOnMap();
+    updateTopBarResources();
+    updateBattleCountersOnMap();
+    
+    const mineModal = document.getElementById('mineFullscreen');
+    if (mineModal && mineModal.style.display === 'flex') {
+        updateMineModalUI();
+    }
+    
+    const workId = Date.now() + Math.random();
+    startWorkCheck('lumber', now, cooldownMs, workId);
+}
+
+// ========== ФУНКЦИЯ ЗАПУСКА РАБОТЫ В КАМЕНОЛОМНЕ ==========
+async function gatherStoneFromModal() {
+    if (maintenanceMode) { 
+        showToast(maintenanceMessage, 'warning'); 
+        return; 
+    }
+
+    if (isQuarryUpgradeActive()) {
+        showToast('Невозможно работать во время прокачки!', 'warning');
+        return;
+    }
+
+    const now = Date.now();
+    const quarry = currentPlayer.quarry || { level: 1, lastGatherTime: 0, stone: 0 };
+    let cooldownMs = 2 * 60 * 1000;
+    cooldownMs = Math.floor(cooldownMs * (1 + (quarry.level - 1) * 0.05));
+    
+    if ((now - (quarry.lastGatherTime || 0)) < cooldownMs) { 
+        showToast('Работа еще не доступна!', 'warning'); 
+        return; 
+    }
+
+    await playerDocRef.update({ 'quarry.lastGatherTime': now });
+    if (!currentPlayer.quarry) currentPlayer.quarry = { level: 1, lastGatherTime: 0, stone: 0 };
+    currentPlayer.quarry.lastGatherTime = now;
+    
+    showToast(`⛏️ Начата работа в каменоломне! Ресурсы придут через ${Math.ceil(cooldownMs / 60000)} мин.`, 'success');
+    
+    updateWorkCountersOnMap();
+    updateTopBarResources();
+    updateBattleCountersOnMap();
+    
+    const mineModal = document.getElementById('mineFullscreen');
+    if (mineModal && mineModal.style.display === 'flex') {
+        updateMineModalUI();
+    }
+    
+    const workId = Date.now() + Math.random();
+    startWorkCheck('quarry', now, cooldownMs, workId);
+}
+
+// ========== УНИВЕРСАЛЬНАЯ ФУНКЦИЯ ПРОВЕРКИ ЗАВЕРШЕНИЯ РАБОТЫ ==========
+function startWorkCheck(type, startTime, cooldownMs, workId) {
+    // Очищаем старый интервал для этого типа
+    if (workCheckIntervals[type]) {
+        clearInterval(workCheckIntervals[type]);
+        workCheckIntervals[type] = null;
+    }
+    
+    // Сохраняем ID работы для проверки
+    localStorage.setItem(`work_${type}_id`, workId.toString());
+    localStorage.setItem(`work_${type}_start`, startTime.toString());
+    localStorage.setItem(`work_${type}_duration`, cooldownMs.toString());
+    
+    // Запускаем интервал проверки
+    workCheckIntervals[type] = setInterval(async () => {
+        try {
+            // Проверяем, не изменился ли ID работы (защита от старых таймеров)
+            const savedId = localStorage.getItem(`work_${type}_id`);
+            if (savedId !== workId.toString()) {
+                clearInterval(workCheckIntervals[type]);
+                workCheckIntervals[type] = null;
+                console.log(`⏹️ Работа ${type} отменена (новый ID)`);
+                return;
+            }
+            
+            const elapsed = Date.now() - startTime;
+            
+            if (elapsed >= cooldownMs) {
+                // Останавливаем интервал
+                clearInterval(workCheckIntervals[type]);
+                workCheckIntervals[type] = null;
+                
+                // Очищаем сохранённые данные
+                localStorage.removeItem(`work_${type}_id`);
+                localStorage.removeItem(`work_${type}_start`);
+                localStorage.removeItem(`work_${type}_duration`);
+                
+                // Выполняем завершение работы
+                await completeWork(type);
+            }
+        } catch (e) {
+            console.error(`Ошибка в проверке работы ${type}:`, e);
+            // Не останавливаем интервал при ошибке
+        }
+    }, 1000);
+}
+
+// ========== ФУНКЦИЯ ЗАВЕРШЕНИЯ РАБОТЫ ==========
+async function completeWork(type) {
+    if (!currentPlayer) {
+        console.log('❌ Нет игрока');
+        return;
+    }
+    
+    console.log(`✅ Завершение работы: ${type}`);
+    
+    // Проверяем, не была ли уже завершена эта работа
+    if (workPendingCompletion[type]) {
+        console.log(`⚠️ Работа ${type} уже завершается`);
+        return;
+    }
+    workPendingCompletion[type] = true;
+    
+    try {
+        let resourceGain = 0;
+        let workExp = 0;
+        let resourceName = '';
+        let resourceIcon = '';
+        let updateObj = {};
+        let successMessage = '';
+        
+        if (type === 'mine') {
+            // Проверяем, не началась ли прокачка во время работы
+            if (isMineUpgradeActive('paper') || isMineUpgradeActive('makhorka')) {
+                console.log('⚠️ Прокачка активна, работа отменена');
+                workPendingCompletion[type] = false;
+                return;
+            }
+            
+            const paperLevel = currentPlayer.mine?.paperLevel || 1;
+            const makhorkaLevel = currentPlayer.mine?.makhorkaLevel || 1;
+            
+            let paperGain = 5 * paperLevel;
+            let makhorkaGain = 3 * makhorkaLevel;
+            if (currentPlayer.caste === 'Мужики') { 
+                paperGain = Math.floor(paperGain * 1.05); 
+                makhorkaGain = Math.floor(makhorkaGain * 1.05); 
+            }
+            
+            currentPlayer.mine.paper = (currentPlayer.mine?.paper || 0) + paperGain;
+            currentPlayer.mine.makhorka = (currentPlayer.mine?.makhorka || 0) + makhorkaGain;
+            
+            workExp = 25 + (paperLevel * 3) + (makhorkaLevel * 2);
+            resourceName = 'ресурсов';
+            resourceIcon = '📄🌿';
+            resourceGain = paperGain + makhorkaGain;
+            
+            updateObj = {
+                'mine.paper': currentPlayer.mine.paper,
+                'mine.makhorka': currentPlayer.mine.makhorka
+            };
+            
+            successMessage = `⛏️ Работа в шахте завершена! +${paperGain}📄, +${makhorkaGain}🌿, +${workExp}⭐ опыта`;
+            
+        } else if (type === 'lumber') {
+            if (isLumberUpgradeActive()) {
+                console.log('⚠️ Прокачка активна, работа отменена');
+                workPendingCompletion[type] = false;
+                return;
+            }
+            
+            let woodGain = 5 * (currentPlayer.lumber?.level || 1);
+            if (currentPlayer.caste === 'Мужики') woodGain = Math.floor(woodGain * 1.05);
+            
+            if (!currentPlayer.lumber) currentPlayer.lumber = { wood: 0 };
+            currentPlayer.lumber.wood = (currentPlayer.lumber.wood || 0) + woodGain;
+            
+            workExp = 30 + ((currentPlayer.lumber?.level || 1) * 4);
+            resourceName = 'дерева';
+            resourceIcon = '🪵';
+            resourceGain = woodGain;
+            
+            updateObj = { 'lumber.wood': currentPlayer.lumber.wood };
+            
+            successMessage = `🪓 Работа на лесоповале завершена! +${woodGain}🪵 дерева, +${workExp}⭐ опыта`;
+            
+        } else if (type === 'quarry') {
+            if (isQuarryUpgradeActive()) {
+                console.log('⚠️ Прокачка активна, работа отменена');
+                workPendingCompletion[type] = false;
+                return;
+            }
+            
+            let stoneGain = 4 * (currentPlayer.quarry?.level || 1);
+            if (currentPlayer.caste === 'Мужики') stoneGain = Math.floor(stoneGain * 1.05);
+            
+            if (!currentPlayer.quarry) currentPlayer.quarry = { stone: 0 };
+            currentPlayer.quarry.stone = (currentPlayer.quarry.stone || 0) + stoneGain;
+            
+            workExp = 28 + ((currentPlayer.quarry?.level || 1) * 3);
+            resourceName = 'камня';
+            resourceIcon = '🪨';
+            resourceGain = stoneGain;
+            
+            updateObj = { 'quarry.stone': currentPlayer.quarry.stone };
+            
+            successMessage = `⛏️ Работа в каменоломне завершена! +${stoneGain}🪨 камня, +${workExp}⭐ опыта`;
+        }
+        
+        // Обновляем данные в Firebase
+        if (Object.keys(updateObj).length > 0) {
+            await playerDocRef.update(updateObj);
+        }
+        
+        // Добавляем опыт
+        await addWorkExperience(workExp);
+        
+        // Обновляем прогресс заданий
+        await updateQuestProgress('work', resourceGain);
+        
+        // ✅ ПОКАЗЫВАЕМ TOAST ОБ УСПЕХЕ
+        showToast(successMessage, 'success');
+        
+        // Отправляем уведомление в Telegram если включено
+        if (settingsNotifications) {
+            sendTelegramNotification(successMessage);
+        }
+        
+        console.log(`✅ Работа ${type} успешно завершена!`);
+        
+    } catch (e) {
+        console.error(`❌ Ошибка завершения работы ${type}:`, e);
+        showToast(`Ошибка при завершении работы: ${e.message}`, 'error');
+    } finally {
+        workPendingCompletion[type] = false;
+        
+        // Обновляем UI
+        updateWorkCountersOnMap();
+        updateTopBarResources();
+        updateBattleCountersOnMap();
+        
+        // Обновляем окно шахты если открыто
+        const mineModal = document.getElementById('mineFullscreen');
+        if (mineModal && mineModal.style.display === 'flex') {
+            updateMineModalUI();
+        }
+    }
+}
+
+// ========== ВОССТАНОВЛЕНИЕ РАБОТЫ ПРИ ПЕРЕЗАГРУЗКЕ ==========
+function restoreWorkTimers() {
+    if (!currentPlayer) return;
+    
+    const workTypes = ['mine', 'lumber', 'quarry'];
+    
+    for (const type of workTypes) {
+        const savedId = localStorage.getItem(`work_${type}_id`);
+        const savedStart = localStorage.getItem(`work_${type}_start`);
+        const savedDuration = localStorage.getItem(`work_${type}_duration`);
+        
+        if (savedId && savedStart && savedDuration) {
+            const startTime = parseInt(savedStart);
+            const duration = parseInt(savedDuration);
+            const elapsed = Date.now() - startTime;
+            
+            if (elapsed < duration) {
+                // Работа еще не завершена - восстанавливаем таймер
+                const remaining = duration - elapsed;
+                console.log(`🔄 Восстановлена работа ${type}, осталось ${Math.ceil(remaining / 60000)} мин`);
+                startWorkCheck(type, startTime, duration, savedId);
+            } else {
+                // Работа уже должна быть завершена - выполняем завершение
+                console.log(`⏰ Работа ${type} должна быть завершена, выполняем...`);
+                localStorage.removeItem(`work_${type}_id`);
+                localStorage.removeItem(`work_${type}_start`);
+                localStorage.removeItem(`work_${type}_duration`);
+                
+                // Проверяем, не было ли уже завершение
+                if (!workPendingCompletion[type]) {
+                    setTimeout(() => {
+                        completeWork(type);
+                    }, 500);
+                }
+            }
+        }
+    }
+}
+
+// ========== ОБНОВЛЕННАЯ ФУНКЦИЯ ОБНОВЛЕНИЯ СЧЁТЧИКОВ ==========
+function updateWorkCountersOnMap() {
+    const b2Element = document.querySelector('.building.b2');
+    if (!b2Element) return;
+    
+    // Собираем ВСЕ активные счетчики
+    const activeCounters = [];
+    
+    // 1. Работа в ШАХТЕ
+    const mineWorkRemaining = getWorkRemaining('mine');
+    if (mineWorkRemaining > 0) {
+        activeCounters.push({ type: 'work', icon: '⛏️', remaining: mineWorkRemaining, name: 'Шахта' });
+    }
+    
+    // 2. Прокачка БУМАГИ в шахте
+    const minePaperUpgradeRemaining = getMineUpgradeRemaining('paper');
+    if (minePaperUpgradeRemaining > 0) {
+        activeCounters.push({ type: 'upgrade', icon: '📄⬆️', remaining: minePaperUpgradeRemaining, name: 'Бумага' });
+    }
+    
+    // 3. Прокачка МАХОРКИ в шахте
+    const mineMakhorkaUpgradeRemaining = getMineUpgradeRemaining('makhorka');
+    if (mineMakhorkaUpgradeRemaining > 0) {
+        activeCounters.push({ type: 'upgrade', icon: '🌿⬆️', remaining: mineMakhorkaUpgradeRemaining, name: 'Махорка' });
+    }
+    
+    // 4. Работа в ЛЕСОПОВАЛЕ
+    const lumberWorkRemaining = getWorkRemaining('lumber');
+    if (lumberWorkRemaining > 0) {
+        activeCounters.push({ type: 'work', icon: '🪓', remaining: lumberWorkRemaining, name: 'Лесоповал' });
+    }
+    
+    // 5. Прокачка ЛЕСОПОВАЛА
+    const lumberUpgradeRemaining = getLumberUpgradeRemaining();
+    if (lumberUpgradeRemaining > 0) {
+        activeCounters.push({ type: 'upgrade', icon: '🪵⬆️', remaining: lumberUpgradeRemaining, name: 'Лесоповал' });
+    }
+    
+    // 6. Работа в КАМЕНОЛОМНЕ
+    const quarryWorkRemaining = getWorkRemaining('quarry');
+    if (quarryWorkRemaining > 0) {
+        activeCounters.push({ type: 'work', icon: '⛏️', remaining: quarryWorkRemaining, name: 'Каменоломня' });
+    }
+    
+    // 7. Прокачка КАМЕНОЛОМНИ
+    const quarryUpgradeRemaining = getQuarryUpgradeRemaining();
+    if (quarryUpgradeRemaining > 0) {
+        activeCounters.push({ type: 'upgrade', icon: '🪨⬆️', remaining: quarryUpgradeRemaining, name: 'Каменоломня' });
+    }
+    
+    const formatMapTimer = (ms) => {
+        if (ms <= 0) return '';
+        const totalSeconds = Math.floor(ms / 1000);
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        if (minutes > 0) return `${minutes}м ${seconds}с`;
+        return `${seconds}с`;
+    };
+    
+    // Находим или создаём контейнер
+    let countersDiv = b2Element.querySelector('.counters-container-work');
+    
+    if (activeCounters.length > 0) {
+        if (!countersDiv) {
+            countersDiv = document.createElement('div');
+            countersDiv.className = 'counters-container-work';
+            b2Element.appendChild(countersDiv);
+        }
+        
+        // Сортируем: сначала работа, потом прокачка
+        activeCounters.sort((a, b) => {
+            if (a.type === 'work' && b.type === 'upgrade') return -1;
+            if (a.type === 'upgrade' && b.type === 'work') return 1;
+            return 0;
+        });
+        
+        let html = '';
+        for (const counter of activeCounters) {
+            const timerText = formatMapTimer(counter.remaining);
+            if (counter.type === 'work') {
+                html += `<div class="work-counter" title="${counter.name}">${counter.icon} ${timerText}</div>`;
+            } else {
+                html += `<div class="upgrade-work-counter" title="${counter.name}">⬆️ ${timerText}</div>`;
+            }
+        }
+        
+        countersDiv.innerHTML = html;
+        countersDiv.style.display = 'flex';
+    } else {
+        if (countersDiv) {
+            countersDiv.style.display = 'none';
+        }
+    }
+}
+
+// ========== ДОБАВИТЬ ВЫЗОВ ВОССТАНОВЛЕНИЯ В startGame ==========
+// Добавьте эту строку в функцию startGame после загрузки игрока:
+// restoreWorkTimers();
+
+// ========== ОЧИСТКА ТАЙМЕРОВ ПРИ ВЫХОДЕ ==========
+function clearAllWorkTimers() {
+    for (const type of ['mine', 'lumber', 'quarry']) {
+        if (workCheckIntervals[type]) {
+            clearInterval(workCheckIntervals[type]);
+            workCheckIntervals[type] = null;
+        }
+        localStorage.removeItem(`work_${type}_id`);
+        localStorage.removeItem(`work_${type}_start`);
+        localStorage.removeItem(`work_${type}_duration`);
+    }
+    workPendingCompletion = {
+        mine: false,
+        lumber: false,
+        quarry: false
+    };
+}
+
+// ========== УДАЛИТЬ СТАРЫЕ setTimeout ВЫЗОВЫ ==========
+// В функциях mineResourcesFromModal, gatherLumberFromModal, gatherStoneFromModal 
+// нужно удалить блоки setTimeout, так как теперь используется startWorkCheck
 	</script>
 	<script>
 	// ========== АЛГОРИТМЫ И ФУНКЦИИ ОКНА ИГРОВАЯ ==========
@@ -6738,7 +7223,7 @@ function closeHospitalModal() {
                 
                 <div class="settings-card">
                     <div style="font-size: 13px; color: #aaa; text-align: center;">
-                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.288</div>
+                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.289</div>
                         <div style="font-size: 11px;">⚡ Клановые войны | Бесконечная прокачка</div>
                     </div>
                 </div>
@@ -11890,7 +12375,7 @@ function addNotification(type, title, message, targetPlayerId = null) {
                 <img class="loading-logo" src="https://sviter-pro.github.io/GameZone/src/test/logo124.png" alt="Тюряга 2.0" onerror="this.src='https://via.placeholder.com/180x180?text=Тюряга+2.0'">
                 <div class="loading-spinner-new"></div>
                 <div class="loading-tip-new" id="loadingTipNew">⚡ Загрузка игрового мира...</div>
-                <div class="loading-version">Зона 1.0.0.288 | Зона ждет</div>
+                <div class="loading-version">Зона 1.0.0.289 | Зона ждет</div>
             </div>
         `;
             const tipEl = document.getElementById('loadingTipNew');
@@ -12892,100 +13377,6 @@ function addNotification(type, title, message, targetPlayerId = null) {
                 showToast('Не удалось скопировать', 'error');
             });
         }
-		
-	function updateWorkCountersOnMap() {
-    const b2Element = document.querySelector('.building.b2');
-    if (!b2Element) return;
-    
-    // Собираем ВСЕ активные счетчики
-    const activeCounters = [];
-    
-    // 1. Работа в ШАХТЕ
-    const mineWorkRemaining = getWorkRemaining('mine');
-    if (mineWorkRemaining > 0) {
-        activeCounters.push({ type: 'work', icon: '⛏️', remaining: mineWorkRemaining, name: 'Шахта' });
-    }
-    
-    // 2. Прокачка БУМАГИ в шахте
-    const minePaperUpgradeRemaining = getMineUpgradeRemaining('paper');
-    if (minePaperUpgradeRemaining > 0) {
-        activeCounters.push({ type: 'upgrade', icon: '📄⬆️', remaining: minePaperUpgradeRemaining, name: 'Бумага' });
-    }
-    
-    // 3. Прокачка МАХОРКИ в шахте
-    const mineMakhorkaUpgradeRemaining = getMineUpgradeRemaining('makhorka');
-    if (mineMakhorkaUpgradeRemaining > 0) {
-        activeCounters.push({ type: 'upgrade', icon: '🌿⬆️', remaining: mineMakhorkaUpgradeRemaining, name: 'Махорка' });
-    }
-    
-    // 4. Работа в ЛЕСОПОВАЛЕ
-    const lumberWorkRemaining = getWorkRemaining('lumber');
-    if (lumberWorkRemaining > 0) {
-        activeCounters.push({ type: 'work', icon: '🪓', remaining: lumberWorkRemaining, name: 'Лесоповал' });
-    }
-    
-    // 5. Прокачка ЛЕСОПОВАЛА
-    const lumberUpgradeRemaining = getLumberUpgradeRemaining();
-    if (lumberUpgradeRemaining > 0) {
-        activeCounters.push({ type: 'upgrade', icon: '🪵⬆️', remaining: lumberUpgradeRemaining, name: 'Лесоповал' });
-    }
-    
-    // 6. Работа в КАМЕНОЛОМНЕ
-    const quarryWorkRemaining = getWorkRemaining('quarry');
-    if (quarryWorkRemaining > 0) {
-        activeCounters.push({ type: 'work', icon: '⛏️', remaining: quarryWorkRemaining, name: 'Каменоломня' });
-    }
-    
-    // 7. Прокачка КАМЕНОЛОМНИ
-    const quarryUpgradeRemaining = getQuarryUpgradeRemaining();
-    if (quarryUpgradeRemaining > 0) {
-        activeCounters.push({ type: 'upgrade', icon: '🪨⬆️', remaining: quarryUpgradeRemaining, name: 'Каменоломня' });
-    }
-    
-    const formatMapTimer = (ms) => {
-        if (ms <= 0) return '';
-        const totalSeconds = Math.floor(ms / 1000);
-        const minutes = Math.floor(totalSeconds / 60);
-        const seconds = totalSeconds % 60;
-        if (minutes > 0) return `${minutes}м ${seconds}с`;
-        return `${seconds}с`;
-    };
-    
-    // Находим или создаём контейнер
-    let countersDiv = b2Element.querySelector('.counters-container-work');
-    
-    if (activeCounters.length > 0) {
-        if (!countersDiv) {
-            countersDiv = document.createElement('div');
-            countersDiv.className = 'counters-container-work';
-            b2Element.appendChild(countersDiv);
-        }
-        
-        // Сортируем: сначала работа, потом прокачка
-        activeCounters.sort((a, b) => {
-            if (a.type === 'work' && b.type === 'upgrade') return -1;
-            if (a.type === 'upgrade' && b.type === 'work') return 1;
-            return 0;
-        });
-        
-        let html = '';
-        for (const counter of activeCounters) {
-            const timerText = formatMapTimer(counter.remaining);
-            if (counter.type === 'work') {
-                html += `<div class="work-counter" title="${counter.name}">${counter.icon} ${timerText}</div>`;
-            } else {
-                html += `<div class="upgrade-work-counter" title="${counter.name}">⬆️ ${timerText}</div>`;
-            }
-        }
-        
-        countersDiv.innerHTML = html;
-        countersDiv.style.display = 'flex';
-    } else {
-        if (countersDiv) {
-            countersDiv.style.display = 'none';
-        }
-    }
-}
 
 function startWorkCountersOnMap() {
     if (window.workCountersInterval) clearInterval(window.workCountersInterval);
@@ -14760,56 +15151,6 @@ function closeMineModal() {
     }
 }
 
-    async function mineResourcesFromModal() {
-    if (maintenanceMode) { 
-        showToast(maintenanceMessage, 'warning'); 
-        return; 
-    }
-
-    if (isMineUpgradeActive('paper') || isMineUpgradeActive('makhorka')) {
-        showToast('Невозможно работать во время прокачки!', 'warning');
-        return;
-    }
-
-    const now = Date.now();
-    const lastMine = currentPlayer.mine?.lastMineTime || 0;
-    const paperLevel = currentPlayer.mine?.paperLevel || 1;
-    let cooldownMs = 2 * 60 * 1000;
-    cooldownMs = Math.floor(cooldownMs * (1 + (paperLevel - 1) * 0.05));
-    
-    if ((now - lastMine) < cooldownMs) { 
-        showToast('Работа еще не доступна!', 'warning'); 
-        return; 
-    }
-
-    currentPlayer.mine.lastMineTime = now;
-    await playerDocRef.update({ 'mine.lastMineTime': now });
-    
-    showToast(`⛏️ Начата работа в шахте! Ресурсы придут через ${Math.ceil(cooldownMs / 60000)} мин.`, 'success');
-    
-    setTimeout(() => {
-        completeMineWork();
-        // После завершения работы обновляем кнопку в окне, если оно открыто
-        const mineModal = document.getElementById('mineFullscreen');
-        if (mineModal && mineModal.style.display === 'flex') {
-            const workBtn = document.getElementById('mineWorkBtn');
-            if (workBtn) {
-                workBtn.disabled = false;
-                workBtn.textContent = '⛏️ РАБОТАТЬ';
-            }
-        }
-    }, cooldownMs);
-
-    updateTopBarResources();
-    updateWorkCountersOnMap();
-    updateBattleCountersOnMap();
-    
-    const mineModal = document.getElementById('mineFullscreen');
-    if (mineModal && mineModal.style.display === 'flex') {
-        updateMineModalUI();
-    }
-}
-
 async function exchangeToCigarettesFromModal() {
     if (maintenanceMode) { 
         showToast(maintenanceMessage, 'warning'); 
@@ -14888,67 +15229,6 @@ async function exchangeToCigarettesFromModal() {
 
     updateWorkCountersOnMap();
     updateTopBarResources();
-    updateBattleCountersOnMap();
-    
-    const mineModal = document.getElementById('mineFullscreen');
-    if (mineModal && mineModal.style.display === 'flex') {
-        updateMineModalUI();
-    }
-}
-
-    async function gatherLumberFromModal() {
-    if (maintenanceMode) { 
-        showToast(maintenanceMessage, 'warning'); 
-        return; 
-    }
-
-    if (isLumberUpgradeActive()) {
-        showToast('Невозможно работать во время прокачки!', 'warning');
-        return;
-    }
-
-    const now = Date.now();
-    const lumber = currentPlayer.lumber || { level: 1, lastGatherTime: 0, wood: 0 };
-    let cooldownMs = 2 * 60 * 1000;
-    cooldownMs = Math.floor(cooldownMs * (1 + (lumber.level - 1) * 0.05));
-    
-    if ((now - (lumber.lastGatherTime || 0)) < cooldownMs) { 
-        showToast('Работа еще не доступна!', 'warning'); 
-        return; 
-    }
-
-    await playerDocRef.update({ 'lumber.lastGatherTime': now });
-    if (!currentPlayer.lumber) currentPlayer.lumber = { level: 1, lastGatherTime: 0, wood: 0 };
-    currentPlayer.lumber.lastGatherTime = now;
-    
-    showToast(`🪓 Начата работа на лесоповале! Ресурсы придут через ${Math.ceil(cooldownMs / 60000)} мин.`, 'success');
-    
-    setTimeout(async () => {
-        if (isLumberUpgradeActive()) return;
-        
-        let woodGain = 5 * (currentPlayer.lumber?.level || 1);
-        if (currentPlayer.caste === 'Мужики') woodGain = Math.floor(woodGain * 1.05);
-        
-        currentPlayer.lumber.wood = (currentPlayer.lumber?.wood || 0) + woodGain;
-        await playerDocRef.update({ 'lumber.wood': currentPlayer.lumber.wood });
-        
-        const workExp = 30 + ((currentPlayer.lumber?.level || 1) * 4);
-        await addWorkExperience(workExp);
-        
-        showToast(`🪓 Работа на лесоповале завершена! +${woodGain}🪵 дерева, +${workExp}⭐ опыта`, 'success');
-
-        updateTopBarResources();
-        updateWorkCountersOnMap();
-        updateBattleCountersOnMap();
-        
-        const mineModal = document.getElementById('mineFullscreen');
-        if (mineModal && mineModal.style.display === 'flex') {
-            updateMineModalUI();
-        }
-    }, cooldownMs);
-
-    updateTopBarResources();
-    updateWorkCountersOnMap();
     updateBattleCountersOnMap();
     
     const mineModal = document.getElementById('mineFullscreen');
@@ -15038,66 +15318,7 @@ async function exchangeWoodToCigarettesFromModal() {
     }
 }
 
-    async function gatherStoneFromModal() {
-    if (maintenanceMode) { 
-        showToast(maintenanceMessage, 'warning'); 
-        return; 
-    }
-
-    if (isQuarryUpgradeActive()) {
-        showToast('Невозможно работать во время прокачки!', 'warning');
-        return;
-    }
-
-    const now = Date.now();
-    const quarry = currentPlayer.quarry || { level: 1, lastGatherTime: 0, stone: 0 };
-    let cooldownMs = 2 * 60 * 1000;
-    cooldownMs = Math.floor(cooldownMs * (1 + (quarry.level - 1) * 0.05));
     
-    if ((now - (quarry.lastGatherTime || 0)) < cooldownMs) { 
-        showToast('Работа еще не доступна!', 'warning'); 
-        return; 
-    }
-
-    await playerDocRef.update({ 'quarry.lastGatherTime': now });
-    if (!currentPlayer.quarry) currentPlayer.quarry = { level: 1, lastGatherTime: 0, stone: 0 };
-    currentPlayer.quarry.lastGatherTime = now;
-    
-    showToast(`⛏️ Начата работа в каменоломне! Ресурсы придут через ${Math.ceil(cooldownMs / 60000)} мин.`, 'success');
-    
-    setTimeout(async () => {
-        if (isQuarryUpgradeActive()) return;
-        
-        let stoneGain = 4 * (currentPlayer.quarry?.level || 1);
-        if (currentPlayer.caste === 'Мужики') stoneGain = Math.floor(stoneGain * 1.05);
-        
-        currentPlayer.quarry.stone = (currentPlayer.quarry?.stone || 0) + stoneGain;
-        await playerDocRef.update({ 'quarry.stone': currentPlayer.quarry.stone });
-        
-        const workExp = 28 + ((currentPlayer.quarry?.level || 1) * 3);
-        await addWorkExperience(workExp);
-        
-        showToast(`⛏️ Работа в каменоломне завершена! +${stoneGain}🪨 камня, +${workExp}⭐ опыта`, 'success');
-
-        updateTopBarResources();
-        updateWorkCountersOnMap();
-        updateBattleCountersOnMap();
-        
-        const mineModal = document.getElementById('mineFullscreen');
-        if (mineModal && mineModal.style.display === 'flex') {
-            updateMineModalUI();
-        }
-    }, cooldownMs);
-
-    updateTopBarResources();
-    updateWorkCountersOnMap();
-    updateBattleCountersOnMap();
-    
-    const mineModal = document.getElementById('mineFullscreen');
-    if (mineModal && mineModal.style.display === 'flex') {
-        updateMineModalUI();
-    }
-}
 
 async function exchangeStoneToCigarettesFromModal() {
     if (maintenanceMode) { 
