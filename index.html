@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Зона 1.0.0.305 - Карта зоны</title>
+    <title>Зона 1.0.0.306 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -7902,7 +7902,7 @@ function closeHospitalModal() {
                 
                 <div class="settings-card">
                     <div style="font-size: 13px; color: #aaa; text-align: center;">
-                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.305</div>
+                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.306</div>
                         <div style="font-size: 11px;">⚡ Клановые войны | Бесконечная прокачка</div>
                     </div>
                 </div>
@@ -10802,6 +10802,9 @@ function startWarTimer() {
 
 function updateWarTimersOnly() {
     try {
+        const warModal = document.getElementById('warFullscreen');
+        if (!warModal) return;
+        
         if (!activeClanWar || activeClanWar.endTime <= Date.now()) {
             const timerElement = document.getElementById('warTimerDisplay');
             const remainingElement = document.getElementById('warRemainingDisplay');
@@ -10833,6 +10836,7 @@ function updateWarTimersOnly() {
         crashLog('❌ Ошибка updateWarTimersOnly', { error: e.message });
     }
 }
+
 
 function updateWarWindowUI() {
     const container = document.getElementById('warDynamicContent');
@@ -13476,7 +13480,7 @@ function addNotification(type, title, message, targetPlayerId = null) {
                 <img class="loading-logo" src="https://sviter-pro.github.io/GameZone/src/test/logo124.png" alt="Тюряга 2.0" onerror="this.src='https://via.placeholder.com/180x180?text=Тюряга+2.0'">
                 <div class="loading-spinner-new"></div>
                 <div class="loading-tip-new" id="loadingTipNew">⚡ Загрузка игрового мира...</div>
-                <div class="loading-version">Зона 1.0.0.305 | Зона ждет</div>
+                <div class="loading-version">Зона 1.0.0.306 | Зона ждет</div>
             </div>
         `;
             const tipEl = document.getElementById('loadingTipNew');
@@ -14490,13 +14494,47 @@ function addNotification(type, title, message, targetPlayerId = null) {
 		
 function updateWorkCountersOnMap() {
     try {
-        const b2Element = document.querySelector('.building.b2');
-        if (!b2Element) {
-            crashLog('⚠️ Элемент .building.b2 не найден');
+        // Проверяем, существует ли карта
+        const mapWrapper = document.querySelector('.map-wrapper');
+        if (!mapWrapper) {
+            crashLog('⚠️ .map-wrapper не найден, пропускаем обновление');
             return;
         }
         
-        // ✅ ОПРЕДЕЛЯЕМ ФУНКЦИЮ ВНУТРИ
+        // Проверяем, существует ли b2
+        let b2Element = document.querySelector('.building.b2');
+        if (!b2Element) {
+            crashLog('⚠️ .building.b2 не найден, создаем заново');
+            
+            // Пытаемся восстановить элемент b2
+            const mapImage = document.querySelector('.map-image');
+            if (mapImage && mapImage.parentNode) {
+                // Создаем b2 заново
+                b2Element = document.createElement('div');
+                b2Element.className = 'building b2';
+                b2Element.setAttribute('data-building', 'b2');
+                b2Element.onclick = function() { 
+                    if (window.safeOpenModal) {
+                        window.safeOpenModal('mine', () => window.openMineModal ? window.openMineModal() : null);
+                    }
+                };
+                
+                // Добавляем лейбл
+                const label = document.createElement('div');
+                label.className = 'building-label';
+                label.textContent = 'Работа';
+                b2Element.appendChild(label);
+                
+                // Добавляем в карту
+                mapWrapper.appendChild(b2Element);
+                crashLog('✅ .building.b2 восстановлен');
+            } else {
+                crashLog('❌ Не удалось восстановить .building.b2');
+                return;
+            }
+        }
+        
+        // Определяем formatMapTimer внутри функции
         const formatMapTimer = (ms) => {
             if (ms <= 0) return '';
             const totalSeconds = Math.floor(ms / 1000);
@@ -14509,6 +14547,7 @@ function updateWorkCountersOnMap() {
         let countersDiv = b2Element.querySelector('.counters-container-work');
         const activeCounters = [];
         
+        // Собираем активные счетчики
         const mineWorkRemaining = getWorkRemaining('mine');
         if (mineWorkRemaining > 0) {
             activeCounters.push({ type: 'work', icon: '⛏️', remaining: mineWorkRemaining });
@@ -14544,6 +14583,7 @@ function updateWorkCountersOnMap() {
             activeCounters.push({ type: 'upgrade', icon: '🪨⬆️', remaining: quarryUpgradeRemaining });
         }
         
+        // Обновляем или создаем контейнер счетчиков
         if (activeCounters.length > 0) {
             if (!countersDiv) {
                 countersDiv = document.createElement('div');
@@ -14573,10 +14613,43 @@ function updateWorkCountersOnMap() {
 
 function updateBattleCountersOnMap() {
     try {
-        const b6Element = document.querySelector('.building.b6');
-        if (!b6Element) return;
+        // Проверяем, существует ли карта
+        const mapWrapper = document.querySelector('.map-wrapper');
+        if (!mapWrapper) {
+            crashLog('⚠️ .map-wrapper не найден, пропускаем обновление');
+            return;
+        }
         
-        // ✅ ОПРЕДЕЛЯЕМ ФУНКЦИЮ ВНУТРИ
+        // Проверяем, существует ли b6
+        let b6Element = document.querySelector('.building.b6');
+        if (!b6Element) {
+            crashLog('⚠️ .building.b6 не найден, создаем заново');
+            
+            // Пытаемся восстановить элемент b6
+            const mapImage = document.querySelector('.map-image');
+            if (mapImage && mapImage.parentNode) {
+                b6Element = document.createElement('div');
+                b6Element.className = 'building b6';
+                b6Element.setAttribute('data-building', 'b6');
+                b6Element.onclick = function() { 
+                    if (window.safeOpenModal) {
+                        window.safeOpenModal('attack', () => window.openAttackModal ? window.openAttackModal() : null);
+                    }
+                };
+                
+                const label = document.createElement('div');
+                label.className = 'building-label';
+                label.textContent = 'Сходка';
+                b6Element.appendChild(label);
+                
+                mapWrapper.appendChild(b6Element);
+                crashLog('✅ .building.b6 восстановлен');
+            } else {
+                crashLog('❌ Не удалось восстановить .building.b6');
+                return;
+            }
+        }
+        
         const formatMapTimer = (ms) => {
             if (ms <= 0) return '';
             const totalSeconds = Math.floor(ms / 1000);
@@ -14608,11 +14681,16 @@ function updateBattleCountersOnMap() {
     }
 }
 
-
-
 function updateTopBarResources() {
     try {
         if (!currentPlayer) return;
+        
+        // Проверяем, существует ли верхняя панель
+        const topBar = document.querySelector('.fixed-top-bar');
+        if (!topBar) {
+            crashLog('⚠️ .fixed-top-bar не найден, пропускаем обновление');
+            return;
+        }
         
         const cigSpan = document.getElementById('resourceCigarettes');
         const rublesSpan = document.getElementById('resourceRubles');
@@ -14635,7 +14713,6 @@ function updateTopBarResources() {
         crashLog('❌ Ошибка updateTopBarResources', { error: e.message });
     }
 }
-
 
 function checkStuckWork() {
     if (!currentPlayer) return;
