@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Зона 1.0.0.295 - Карта зоны</title>
+    <title>Зона 1.0.0.296 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -7123,20 +7123,60 @@ async function completeWorkSafe(type) {
         
     } catch (e) {
         console.error(`❌ Ошибка завершения работы ${type}:`, e);
-        showToast(`Ошибка при завершении работы: ${e.message}`, 'error');
+        try {
+            showToast(`Ошибка при завершении работы: ${e.message}`, 'error');
+        } catch (e2) {
+            console.warn('Ошибка показа TOAST ошибки:', e2);
+        }
     } finally {
         workPendingCompletion[type] = false;
         
-        // ✅ ОБНОВЛЯЕМ UI ТОЛЬКО ЧЕРЕЗ setTimeout
-        setTimeout(() => {
-            try {
-                updateTopBarResources();
-                updateWorkCountersOnMap();
-                updateBattleCountersOnMap();
-            } catch (uiError) {
-                console.warn('Ошибка обновления UI:', uiError);
+        // ✅ БЕЗОПАСНОЕ ОБНОВЛЕНИЕ UI
+        safeUpdateUIAfterWork();
+    }
+}
+
+function safeUpdateUIAfterWork() {
+    try {
+        // Проверяем, существует ли DOM элемент app
+        const app = document.getElementById('app');
+        if (!app) {
+            console.warn('⚠️ DOM элемент app не найден, пропускаем обновление UI');
+            return;
+        }
+        
+        // Обновляем ресурсы с защитой от ошибок
+        try {
+            updateTopBarResources();
+        } catch (e) {
+            console.warn('⚠️ Ошибка обновления ресурсов:', e);
+        }
+        
+        try {
+            updateWorkCountersOnMap();
+        } catch (e) {
+            console.warn('⚠️ Ошибка обновления счетчиков работы:', e);
+        }
+        
+        try {
+            updateBattleCountersOnMap();
+        } catch (e) {
+            console.warn('⚠️ Ошибка обновления счетчиков боя:', e);
+        }
+        
+        // Проверяем, открыто ли окно шахты
+        try {
+            const mineModal = document.getElementById('mineFullscreen');
+            if (mineModal && mineModal.style.display === 'flex') {
+                updateMineModalUI();
             }
-        }, 100);
+        } catch (e) {
+            console.warn('⚠️ Ошибка обновления окна шахты:', e);
+        }
+        
+        console.log('✅ UI безопасно обновлен после работы');
+    } catch (e) {
+        console.error('❌ Критическая ошибка при обновлении UI:', e);
     }
 }
 
@@ -7161,7 +7201,6 @@ async function completeWork(type) {
         let updateObj = {};
         
         if (type === 'mine') {
-            // Проверяем, не началась ли прокачка во время работы
             if (isMineUpgradeActive('paper') || isMineUpgradeActive('makhorka')) {
                 console.log('⚠️ Прокачка активна, работа отменена');
                 workPendingCompletion[type] = false;
@@ -7277,12 +7316,8 @@ async function completeWork(type) {
             showToast(`🎉 УРОВЕНЬ ${newLevel}! +5 энергии, +3 силы, +2 защиты!`, 'success');
         }
         
-        // ✅ ПОКАЗЫВАЕМ TOAST (БЕЗОПАСНО)
-        try {
-            showToast(successMessage, 'success');
-        } catch (e) {
-            console.warn('Ошибка показа TOAST:', e);
-        }
+        // ✅ ПОКАЗЫВАЕМ TOAST
+        showToast(successMessage, 'success');
         
         if (settingsNotifications) {
             sendTelegramNotification(successMessage);
@@ -7300,21 +7335,8 @@ async function completeWork(type) {
     } finally {
         workPendingCompletion[type] = false;
         
-        // ✅ ОБНОВЛЯЕМ UI ЧЕРЕЗ setTimeout (как в прокачке)
-        setTimeout(() => {
-            try {
-                updateTopBarResources();
-                updateWorkCountersOnMap();
-                updateBattleCountersOnMap();
-                
-                const mineModal = document.getElementById('mineFullscreen');
-                if (mineModal && mineModal.style.display === 'flex') {
-                    updateMineModalUI();
-                }
-            } catch (uiError) {
-                console.warn('Ошибка обновления UI:', uiError);
-            }
-        }, 100);
+        // ✅ БЕЗОПАСНОЕ ОБНОВЛЕНИЕ UI
+        safeUpdateUIAfterWork();
     }
 }
 
@@ -7767,7 +7789,7 @@ function closeHospitalModal() {
                 
                 <div class="settings-card">
                     <div style="font-size: 13px; color: #aaa; text-align: center;">
-                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.295</div>
+                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.296</div>
                         <div style="font-size: 11px;">⚡ Клановые войны | Бесконечная прокачка</div>
                     </div>
                 </div>
@@ -12919,7 +12941,7 @@ function addNotification(type, title, message, targetPlayerId = null) {
                 <img class="loading-logo" src="https://sviter-pro.github.io/GameZone/src/test/logo124.png" alt="Тюряга 2.0" onerror="this.src='https://via.placeholder.com/180x180?text=Тюряга+2.0'">
                 <div class="loading-spinner-new"></div>
                 <div class="loading-tip-new" id="loadingTipNew">⚡ Загрузка игрового мира...</div>
-                <div class="loading-version">Зона 1.0.0.295 | Зона ждет</div>
+                <div class="loading-version">Зона 1.0.0.296 | Зона ждет</div>
             </div>
         `;
             const tipEl = document.getElementById('loadingTipNew');
@@ -13930,7 +13952,10 @@ function addNotification(type, title, message, targetPlayerId = null) {
 	function updateWorkCountersOnMap() {
     try {
         const b2Element = document.querySelector('.building.b2');
-        if (!b2Element) return;
+        if (!b2Element) {
+            console.warn('⚠️ Элемент .building.b2 не найден');
+            return;
+        }
         
         const activeCounters = [];
         
@@ -14011,7 +14036,7 @@ function addNotification(type, title, message, targetPlayerId = null) {
             }
         }
     } catch (e) {
-        console.warn('Ошибка обновления счетчиков на карте:', e);
+        console.warn('⚠️ Ошибка обновления счетчиков на карте:', e);
     }
 }
 
