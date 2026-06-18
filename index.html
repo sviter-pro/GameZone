@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Зона 1.0.0.302 - Карта зоны</title>
+    <title>Зона 1.0.0.303 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -7282,24 +7282,17 @@ function safeUpdateUIAfterWork() {
 
 async function completeWork(type) {
     if (!currentPlayer) {
-        console.log('❌ Нет игрока');
+        tgLog('❌ Нет игрока в completeWork');
         return;
     }
     
     if (workPendingCompletion[type]) {
-        console.log(`⚠️ Работа ${type} уже завершается`);
+        tgLog(`⚠️ Работа ${type} уже завершается`);
         return;
     }
     workPendingCompletion[type] = true;
     
-    // В Telegram используем специальную обработку
-    if (isTelegramWebApp) {
-        try {
-            tg.sendData(JSON.stringify({ type: 'debug', message: `Завершение работы ${type}` }));
-        } catch(e) {}
-    }
-    
-    console.log(`✅ Завершение работы ${type}`);
+    tgLog(`✅ Начинаем завершение работы ${type}`);
     
     try {
         let paperGain = 0, makhorkaGain = 0, woodGain = 0, stoneGain = 0;
@@ -7307,8 +7300,10 @@ async function completeWork(type) {
         let successMessage = '';
         let updateObj = {};
         
+        // --- ЛОГИКА РАБОТЫ ---
         if (type === 'mine') {
             if (isMineUpgradeActive('paper') || isMineUpgradeActive('makhorka')) {
+                tgLog('⚠️ Прокачка активна, работа отменена');
                 workPendingCompletion[type] = false;
                 return;
             }
@@ -7338,6 +7333,7 @@ async function completeWork(type) {
             
         } else if (type === 'lumber') {
             if (isLumberUpgradeActive()) {
+                tgLog('⚠️ Прокачка лесоповала активна, работа отменена');
                 workPendingCompletion[type] = false;
                 return;
             }
@@ -7356,6 +7352,7 @@ async function completeWork(type) {
             
         } else if (type === 'quarry') {
             if (isQuarryUpgradeActive()) {
+                tgLog('⚠️ Прокачка каменоломни активна, работа отменена');
                 workPendingCompletion[type] = false;
                 return;
             }
@@ -7373,12 +7370,13 @@ async function completeWork(type) {
             successMessage = `⛏️ Работа в каменоломне завершена! +${stoneGain}🪨 камня, +${workExp}⭐ опыта`;
         }
         
-        // ✅ ОБНОВЛЯЕМ Firebase
+        // --- ОБНОВЛЯЕМ FIREBASE ---
         if (Object.keys(updateObj).length > 0) {
+            tgLog('📤 Обновляем Firebase', updateObj);
             await playerDocRef.update(updateObj);
         }
         
-        // ✅ ОБНОВЛЯЕМ опыт
+        // --- ОБНОВЛЯЕМ ОПЫТ ---
         let newAuthority = currentPlayer.authority + workExp;
         let newLevel = currentPlayer.level;
         let leveledUp = false;
@@ -7417,53 +7415,41 @@ async function completeWork(type) {
         currentPlayer.stats.defense = newDefense;
 
         if (leveledUp) {
+            tgLog('🎉 УРОВЕНЬ ПОВЫШЕН', { newLevel: newLevel });
             showToast(`🎉 УРОВЕНЬ ${newLevel}! +5 энергии, +3 силы, +2 защиты!`, 'success');
         }
         
-        // ✅ ПОКАЗЫВАЕМ TOAST
+        // --- ПОКАЗЫВАЕМ TOAST ---
         showToast(successMessage, 'success');
-        
-        if (settingsNotifications) {
-            sendTelegramNotification(successMessage);
-        }
-        
-        console.log(`✅ Работа ${type} успешно завершена!`);
+        tgLog('✅ Работа завершена', { type: type, message: successMessage });
         
     } catch (e) {
-        console.error(`❌ Ошибка завершения работы ${type}:`, e);
-        try {
-            showToast(`Ошибка при завершении работы: ${e.message}`, 'error');
-        } catch (e2) {
-            console.warn('Ошибка показа TOAST ошибки:', e2);
-        }
+        tgLog('❌ Ошибка завершения работы', { 
+            type: type, 
+            error: e.message,
+            stack: e.stack 
+        });
+        showToast(`Ошибка при завершении работы: ${e.message}`, 'error');
     } finally {
         workPendingCompletion[type] = false;
         
-        // ✅ ДЛЯ TELEGRAM - ОБНОВЛЯЕМ UI С ЗАДЕРЖКОЙ И ЗАЩИТОЙ
+        // --- ОБНОВЛЯЕМ UI С ЗАЩИТОЙ ---
         setTimeout(() => {
             try {
-                // Проверяем, существует ли DOM
-                if (!document.getElementById('app')) {
-                    console.warn('⚠️ DOM не существует, пропускаем обновление');
-                    return;
-                }
-                
-                // Обновляем только существующие элементы
+                tgLog('🔄 Обновляем UI после работы');
                 updateTopBarResources();
                 updateWorkCountersOnMap();
                 updateBattleCountersOnMap();
                 
-                // Обновляем окно шахты если открыто
                 const mineModal = document.getElementById('mineFullscreen');
                 if (mineModal && mineModal.style.display === 'flex') {
                     updateMineModalUI();
                 }
-                
-                console.log('✅ UI обновлен после работы');
+                tgLog('✅ UI обновлен');
             } catch (e) {
-                console.warn('Ошибка обновления UI:', e);
+                tgLog('❌ Ошибка обновления UI', { error: e.message });
             }
-        }, 300); // Увеличиваем задержку для Telegram
+        }, 500); // Увеличенная задержка для Telegram
     }
 }
 
@@ -7916,7 +7902,7 @@ function closeHospitalModal() {
                 
                 <div class="settings-card">
                     <div style="font-size: 13px; color: #aaa; text-align: center;">
-                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.302</div>
+                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.303</div>
                         <div style="font-size: 11px;">⚡ Клановые войны | Бесконечная прокачка</div>
                     </div>
                 </div>
@@ -11365,6 +11351,13 @@ async function forceCompleteUpgrade(type) {
             // Предотвращаем краши при ошибках в WebView
             window.addEventListener('error', function(e) {
             console.error('Global error:', e.error);
+            tgLog('❌ Ошибка в WebApp', {
+            message: e.message,
+            filename: e.filename,
+            lineno: e.lineno,
+            colno: e.colno,
+            stack: e.error?.stack
+        });
             // Не показываем тост при ошибках, чтобы не усугублять
             e.preventDefault();
             return false;
@@ -11378,10 +11371,15 @@ async function forceCompleteUpgrade(type) {
             tg.expand();
             // Перехватываем непойманные Promise ошибки
             window.addEventListener('unhandledrejection', function(e) {
+            tgLog('❌ Необработанный Promise', {
+            reason: e.reason?.message || String(e.reason),
+            stack: e.reason?.stack
+        });
             console.log('⚠️ Необработанный Promise в WebApp:', e.reason);
             e.preventDefault();
             return true;
             });
+             tgLog('✅ Приложение загружено в Telegram WebApp');
 
             if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
                 tgUser = tg.initDataUnsafe.user;
@@ -11417,6 +11415,39 @@ async function forceCompleteUpgrade(type) {
         let chatButtonCheckInterval = null;
         let replyToMessage = null; // { id, playerName, message }
 		
+        function tgLog(message, data = null) {
+    try {
+        const logs = JSON.parse(localStorage.getItem('debug_logs') || '[]');
+        logs.push({
+            time: new Date().toISOString(),
+            message: message,
+            data: data
+        });
+        if (logs.length > 100) logs.shift();
+        localStorage.setItem('debug_logs', JSON.stringify(logs));
+    } catch(e) {}
+}
+
+// Выводим логи на экран (для отладки)
+setInterval(() => {
+    const logs = localStorage.getItem('debug_logs');
+    if (logs) {
+        const debugDiv = document.getElementById('debugLogs');
+        if (!debugDiv) {
+            const div = document.createElement('div');
+            div.id = 'debugLogs';
+            div.style.cssText = 'position:fixed; bottom:0; left:0; right:0; background:rgba(0,0,0,0.9); color:white; font-size:10px; padding:10px; max-height:200px; overflow-y:auto; z-index:999999;';
+            document.body.appendChild(div);
+        }
+        const debugDiv2 = document.getElementById('debugLogs');
+        if (debugDiv2) {
+            const parsed = JSON.parse(logs);
+            debugDiv2.innerHTML = parsed.slice(-10).map(l => 
+                `<div>${l.time} - ${l.message} ${l.data ? JSON.stringify(l.data) : ''}</div>`
+            ).join('');
+        }
+    }
+}, 1000);
 // ========== ПЕРЕМЕННЫЕ ДЛЯ АКТИВНОГО БОЯ (Firestore синхронизация) ==========
 let isRendering = false;
 let activeBattleData = null;
@@ -13291,7 +13322,7 @@ function addNotification(type, title, message, targetPlayerId = null) {
                 <img class="loading-logo" src="https://sviter-pro.github.io/GameZone/src/test/logo124.png" alt="Тюряга 2.0" onerror="this.src='https://via.placeholder.com/180x180?text=Тюряга+2.0'">
                 <div class="loading-spinner-new"></div>
                 <div class="loading-tip-new" id="loadingTipNew">⚡ Загрузка игрового мира...</div>
-                <div class="loading-version">Зона 1.0.0.302 | Зона ждет</div>
+                <div class="loading-version">Зона 1.0.0.303 | Зона ждет</div>
             </div>
         `;
             const tipEl = document.getElementById('loadingTipNew');
@@ -24057,38 +24088,41 @@ function createMainUIHTML() {
     function renderUI() {
 const originalRenderUI = window.renderUI;
 window.renderUI = function() {
-    // В Telegram WebApp логируем в специальное место
-    if (isTelegramWebApp) {
-        try {
-            // Отправляем лог в Telegram для отладки
-            if (tg && tg.sendData) {
-                tg.sendData(JSON.stringify({ 
-                    type: 'debug', 
-                    message: 'renderUI called',
-                    stack: new Error().stack 
-                }));
-            }
-        } catch(e) {}
-    }
-    
-    // Блокируем вызовы из таймеров и функций обновления
     const stack = new Error().stack || '';
-    const blockedFunctions = ['updateTopBarResources', 'updateWorkCountersOnMap', 'updateBattleCountersOnMap', 
-                              'completeWork', 'safeUpdateUIAfterWork', 'setInterval', 'setTimeout'];
+    const caller = stack.split('\n')[2] || 'unknown';
+    
+    // Логируем вызов renderUI
+    tgLog('🔍 Вызов renderUI', { caller: caller });
+    
+    // Блокируем вызовы из опасных мест
+    const blockedFunctions = [
+        'updateTopBarResources', 
+        'updateWorkCountersOnMap', 
+        'updateBattleCountersOnMap',
+        'completeWork', 
+        'safeUpdateUIAfterWork',
+        'setInterval',
+        'setTimeout',
+        'checkWorkCompletion'
+    ];
     
     for (const func of blockedFunctions) {
         if (stack.includes(func)) {
-            if (isTelegramWebApp) {
-                try {
-                    tg.sendData(JSON.stringify({ type: 'debug', message: `Блокируем renderUI из ${func}` }));
-                } catch(e) {}
-            }
+            tgLog('⛔ Блокируем renderUI', { from: func });
             return;
         }
     }
     
+    // Проверяем, есть ли модальные окна
+    const hasModal = document.querySelector('.mine-fullscreen, .shop-fullscreen, .cardgame-fullscreen, .treasury-fullscreen, .attack-fullscreen, .clan-fullscreen, .profile-fullscreen, .settings-fullscreen, .inventory-fullscreen, .quests-fullscreen, .gang-fullscreen, .hospital-fullscreen, #warFullscreen, .modal');
+    if (hasModal) {
+        tgLog('⛔ Блокируем renderUI (есть модальное окно)');
+        return;
+    }
+    
     // Вызываем оригинал только если нужно
     if (typeof originalRenderUI === 'function') {
+        tgLog('✅ Вызываем оригинальный renderUI');
         return originalRenderUI.apply(this, arguments);
     }
 };
