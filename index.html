@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Зона 1.0.0.303 - Карта зоны</title>
+    <title>Зона 1.0.0.305 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -7281,18 +7281,18 @@ function safeUpdateUIAfterWork() {
 }
 
 async function completeWork(type) {
+    crashLog('📌 completeWork начат', { type: type });
+    
     if (!currentPlayer) {
-        tgLog('❌ Нет игрока в completeWork');
+        crashLog('❌ Нет игрока в completeWork');
         return;
     }
     
     if (workPendingCompletion[type]) {
-        tgLog(`⚠️ Работа ${type} уже завершается`);
+        crashLog(`⚠️ Работа ${type} уже завершается`);
         return;
     }
     workPendingCompletion[type] = true;
-    
-    tgLog(`✅ Начинаем завершение работы ${type}`);
     
     try {
         let paperGain = 0, makhorkaGain = 0, woodGain = 0, stoneGain = 0;
@@ -7300,10 +7300,11 @@ async function completeWork(type) {
         let successMessage = '';
         let updateObj = {};
         
-        // --- ЛОГИКА РАБОТЫ ---
+        crashLog('📊 Расчет ресурсов', { type: type });
+        
         if (type === 'mine') {
             if (isMineUpgradeActive('paper') || isMineUpgradeActive('makhorka')) {
-                tgLog('⚠️ Прокачка активна, работа отменена');
+                crashLog('⚠️ Прокачка активна, работа отменена');
                 workPendingCompletion[type] = false;
                 return;
             }
@@ -7333,7 +7334,7 @@ async function completeWork(type) {
             
         } else if (type === 'lumber') {
             if (isLumberUpgradeActive()) {
-                tgLog('⚠️ Прокачка лесоповала активна, работа отменена');
+                crashLog('⚠️ Прокачка лесоповала активна, работа отменена');
                 workPendingCompletion[type] = false;
                 return;
             }
@@ -7352,7 +7353,7 @@ async function completeWork(type) {
             
         } else if (type === 'quarry') {
             if (isQuarryUpgradeActive()) {
-                tgLog('⚠️ Прокачка каменоломни активна, работа отменена');
+                crashLog('⚠️ Прокачка каменоломни активна, работа отменена');
                 workPendingCompletion[type] = false;
                 return;
             }
@@ -7370,13 +7371,13 @@ async function completeWork(type) {
             successMessage = `⛏️ Работа в каменоломне завершена! +${stoneGain}🪨 камня, +${workExp}⭐ опыта`;
         }
         
-        // --- ОБНОВЛЯЕМ FIREBASE ---
+        crashLog('📤 Обновление Firebase', updateObj);
+        
         if (Object.keys(updateObj).length > 0) {
-            tgLog('📤 Обновляем Firebase', updateObj);
             await playerDocRef.update(updateObj);
         }
         
-        // --- ОБНОВЛЯЕМ ОПЫТ ---
+        // Обновляем опыт
         let newAuthority = currentPlayer.authority + workExp;
         let newLevel = currentPlayer.level;
         let leveledUp = false;
@@ -7415,16 +7416,15 @@ async function completeWork(type) {
         currentPlayer.stats.defense = newDefense;
 
         if (leveledUp) {
-            tgLog('🎉 УРОВЕНЬ ПОВЫШЕН', { newLevel: newLevel });
+            crashLog('🎉 УРОВЕНЬ ПОВЫШЕН', { newLevel: newLevel });
             showToast(`🎉 УРОВЕНЬ ${newLevel}! +5 энергии, +3 силы, +2 защиты!`, 'success');
         }
         
-        // --- ПОКАЗЫВАЕМ TOAST ---
         showToast(successMessage, 'success');
-        tgLog('✅ Работа завершена', { type: type, message: successMessage });
+        crashLog('✅ Работа завершена', { type: type });
         
     } catch (e) {
-        tgLog('❌ Ошибка завершения работы', { 
+        crashLog('❌ Ошибка завершения работы', { 
             type: type, 
             error: e.message,
             stack: e.stack 
@@ -7433,10 +7433,10 @@ async function completeWork(type) {
     } finally {
         workPendingCompletion[type] = false;
         
-        // --- ОБНОВЛЯЕМ UI С ЗАЩИТОЙ ---
+        // ОБНОВЛЯЕМ UI С ЗАЩИТОЙ
         setTimeout(() => {
             try {
-                tgLog('🔄 Обновляем UI после работы');
+                crashLog('🔄 Обновляем UI после работы');
                 updateTopBarResources();
                 updateWorkCountersOnMap();
                 updateBattleCountersOnMap();
@@ -7445,11 +7445,11 @@ async function completeWork(type) {
                 if (mineModal && mineModal.style.display === 'flex') {
                     updateMineModalUI();
                 }
-                tgLog('✅ UI обновлен');
+                crashLog('✅ UI обновлен');
             } catch (e) {
-                tgLog('❌ Ошибка обновления UI', { error: e.message });
+                crashLog('❌ Ошибка обновления UI', { error: e.message });
             }
-        }, 500); // Увеличенная задержка для Telegram
+        }, 500);
     }
 }
 
@@ -7902,7 +7902,7 @@ function closeHospitalModal() {
                 
                 <div class="settings-card">
                     <div style="font-size: 13px; color: #aaa; text-align: center;">
-                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.303</div>
+                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.305</div>
                         <div style="font-size: 11px;">⚡ Клановые войны | Бесконечная прокачка</div>
                     </div>
                 </div>
@@ -10801,32 +10801,36 @@ function startWarTimer() {
 }
 
 function updateWarTimersOnly() {
-    if (!activeClanWar || activeClanWar.endTime <= Date.now()) {
+    try {
+        if (!activeClanWar || activeClanWar.endTime <= Date.now()) {
+            const timerElement = document.getElementById('warTimerDisplay');
+            const remainingElement = document.getElementById('warRemainingDisplay');
+            if (timerElement) timerElement.textContent = '00:00:00';
+            if (remainingElement) remainingElement.textContent = 'Война завершена';
+            return;
+        }
+        
+        const remaining = Math.max(0, activeClanWar.endTime - Date.now());
+        const remainingHours = Math.floor(remaining / (60 * 60 * 1000));
+        const remainingMinutes = Math.floor((remaining % (60 * 60 * 1000)) / (60 * 1000));
+        const remainingSeconds = Math.floor((remaining % (60 * 1000)) / 1000);
+        const progressPercent = ((WAR_DURATION_MS - remaining) / WAR_DURATION_MS) * 100;
+        
         const timerElement = document.getElementById('warTimerDisplay');
         const remainingElement = document.getElementById('warRemainingDisplay');
-        if (timerElement) timerElement.textContent = '00:00:00';
-        if (remainingElement) remainingElement.textContent = 'Война завершена';
-        return;
-    }
-    
-    const remaining = Math.max(0, activeClanWar.endTime - Date.now());
-    const remainingHours = Math.floor(remaining / (60 * 60 * 1000));
-    const remainingMinutes = Math.floor((remaining % (60 * 60 * 1000)) / (60 * 1000));
-    const remainingSeconds = Math.floor((remaining % (60 * 1000)) / 1000);
-    const progressPercent = ((WAR_DURATION_MS - remaining) / WAR_DURATION_MS) * 100;
-    
-    const timerElement = document.getElementById('warTimerDisplay');
-    const remainingElement = document.getElementById('warRemainingDisplay');
-    const progressFill = document.getElementById('warProgressFill');
-    
-    if (timerElement) {
-        timerElement.textContent = `${remainingHours.toString().padStart(2, '0')}:${remainingMinutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
-    }
-    if (remainingElement) {
-        remainingElement.textContent = `${remainingHours}ч ${remainingMinutes}м ${remainingSeconds}с`;
-    }
-    if (progressFill) {
-        progressFill.style.width = `${progressPercent}%`;
+        const progressFill = document.getElementById('warProgressFill');
+        
+        if (timerElement) {
+            timerElement.textContent = `${remainingHours.toString().padStart(2, '0')}:${remainingMinutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+        }
+        if (remainingElement) {
+            remainingElement.textContent = `${remainingHours}ч ${remainingMinutes}м ${remainingSeconds}с`;
+        }
+        if (progressFill) {
+            progressFill.style.width = `${Math.min(100, progressPercent)}%`;
+        }
+    } catch (e) {
+        crashLog('❌ Ошибка updateWarTimersOnly', { error: e.message });
     }
 }
 
@@ -11414,8 +11418,7 @@ async function forceCompleteUpgrade(type) {
 
         let chatButtonCheckInterval = null;
         let replyToMessage = null; // { id, playerName, message }
-		
-        function tgLog(message, data = null) {
+		function tgLog(message, data = null) {
     try {
         const logs = JSON.parse(localStorage.getItem('debug_logs') || '[]');
         logs.push({
@@ -11427,27 +11430,178 @@ async function forceCompleteUpgrade(type) {
         localStorage.setItem('debug_logs', JSON.stringify(logs));
     } catch(e) {}
 }
+        function crashLog(message, data = null) {
+        try {
+        // Получаем существующие логи
+        let logs = [];
+        try {
+            const saved = localStorage.getItem('crash_logs');
+            if (saved) logs = JSON.parse(saved);
+        } catch(e) {}
+        
+        // Добавляем новую запись с timestamp
+        logs.push({
+            time: new Date().toISOString(),
+            message: message,
+            data: data,
+            url: window.location.href,
+            userAgent: navigator.userAgent
+        });
+        
+        // Ограничиваем количество записей
+        if (logs.length > 50) logs = logs.slice(-50);
+        
+        // Сохраняем в localStorage
+        localStorage.setItem('crash_logs', JSON.stringify(logs));
+        
+        // Также пробуем отправить в Telegram если есть возможность
+        try {
+            if (window.tg && window.tg.sendData) {
+                window.tg.sendData(JSON.stringify({
+                    type: 'crash_log',
+                    message: message,
+                    data: data
+                }));
+            }
+        } catch(e) {}
+        
+    } catch(e) {
+        // Игнорируем ошибки логирования
+    }
+}
 
-// Выводим логи на экран (для отладки)
-setInterval(() => {
-    const logs = localStorage.getItem('debug_logs');
-    if (logs) {
-        const debugDiv = document.getElementById('debugLogs');
-        if (!debugDiv) {
-            const div = document.createElement('div');
-            div.id = 'debugLogs';
-            div.style.cssText = 'position:fixed; bottom:20; left:0; right:0; background:rgba(0,0,0,0.9); color:white; font-size:10px; padding:10px; max-height:200px; overflow-y:auto; z-index:999999;';
-            document.body.appendChild(div);
+// Показываем логи на экране после перезагрузки
+function showCrashLogs() {
+    try {
+        const saved = localStorage.getItem('crash_logs');
+        if (!saved) return;
+        
+        const logs = JSON.parse(saved);
+        if (logs.length === 0) return;
+        
+        // Создаем окошко с логами
+        const div = document.createElement('div');
+        div.id = 'crashLogsDisplay';
+        div.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.95);
+            color: #0f0;
+            font-family: monospace;
+            font-size: 11px;
+            padding: 20px;
+            overflow-y: auto;
+            z-index: 999999;
+            pointer-events: none;
+        `;
+        
+        let html = '<h2 style="color:#ff6b6b;">🔍 CRASH LOGS (последние 10)</h2>';
+        const recentLogs = logs.slice(-10);
+        
+        for (const log of recentLogs) {
+            const color = log.message.includes('❌') ? '#ff6b6b' : 
+                         log.message.includes('⚠️') ? '#ffd93d' : 
+                         log.message.includes('✅') ? '#6bcb6b' : '#ffffff';
+            html += `<div style="color:${color}; margin-bottom:8px; border-bottom:1px solid #333; padding-bottom:8px;">
+                <span style="color:#888;">[${log.time}]</span> 
+                ${log.message}
+                ${log.data ? `<br><span style="color:#aaa; font-size:10px; margin-left:20px;">${JSON.stringify(log.data)}</span>` : ''}
+            </div>`;
         }
-        const debugDiv2 = document.getElementById('debugLogs');
-        if (debugDiv2) {
-            const parsed = JSON.parse(logs);
-            debugDiv2.innerHTML = parsed.slice(-10).map(l => 
-                `<div>${l.time} - ${l.message} ${l.data ? JSON.stringify(l.data) : ''}</div>`
-            ).join('');
+        
+        html += `
+            <div style="margin-top:20px; color:#888; font-size:10px;">
+                <button onclick="document.getElementById('crashLogsDisplay').remove(); localStorage.removeItem('crash_logs');" 
+                    style="background:#ff6b6b; color:white; border:none; padding:10px 20px; border-radius:8px; cursor:pointer; pointer-events:auto;">
+                    🗑️ Очистить логи и закрыть
+                </button>
+                <button onclick="document.getElementById('crashLogsDisplay').remove();" 
+                    style="background:#333; color:white; border:none; padding:10px 20px; border-radius:8px; cursor:pointer; pointer-events:auto; margin-left:10px;">
+                    ✕ Закрыть
+                </button>
+                <div style="margin-top:10px; color:#666;">Всего логов: ${logs.length}</div>
+            </div>
+        `;
+        
+        div.innerHTML = html;
+        document.body.appendChild(div);
+        
+        // Автоматически скрываем через 10 секунд
+        setTimeout(() => {
+            const el = document.getElementById('crashLogsDisplay');
+            if (el) el.remove();
+        }, 10000);
+        
+    } catch(e) {}
+}
+
+// Показываем логи при загрузке страницы
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(showCrashLogs, 1000);
+});
+
+// ========== ПЕРЕХВАТ ВСЕХ ОШИБОК ==========
+window.addEventListener('error', function(e) {
+    crashLog('❌ Ошибка', {
+        message: e.message,
+        filename: e.filename,
+        lineno: e.lineno,
+        colno: e.colno,
+        stack: e.error?.stack
+    });
+    return true;
+});
+
+window.addEventListener('unhandledrejection', function(e) {
+    crashLog('❌ Необработанный Promise', {
+        reason: e.reason?.message || String(e.reason)
+    });
+    return true;
+});
+
+// ========== ПЕРЕХВАТ RENDERUI ==========
+
+window.renderUI = function() {
+    const stack = new Error().stack || '';
+    crashLog('🔍 Вызов renderUI', { 
+        caller: stack.split('\n')[2] || 'unknown'
+    });
+    
+    // Блокируем вызовы из опасных мест
+    const blockedFunctions = [
+        'updateTopBarResources', 
+        'updateWorkCountersOnMap', 
+        'updateBattleCountersOnMap',
+        'completeWork', 
+        'safeUpdateUIAfterWork',
+        'setInterval',
+        'setTimeout',
+        'checkWorkCompletion'
+    ];
+    
+    for (const func of blockedFunctions) {
+        if (stack.includes(func)) {
+            crashLog('⛔ Блокируем renderUI', { from: func });
+            return;
         }
     }
-}, 1000);
+    
+    // Проверяем, есть ли модальные окна
+    const hasModal = document.querySelector('.mine-fullscreen, .shop-fullscreen, .cardgame-fullscreen, .treasury-fullscreen, .attack-fullscreen, .clan-fullscreen, .profile-fullscreen, .settings-fullscreen, .inventory-fullscreen, .quests-fullscreen, .gang-fullscreen, .hospital-fullscreen, #warFullscreen, .modal');
+    if (hasModal) {
+        crashLog('⛔ Блокируем renderUI (есть модальное окно)');
+        return;
+    }
+    
+    // Вызываем оригинал только если нужно
+    if (typeof originalRenderUI === 'function') {
+        crashLog('✅ Вызываем оригинальный renderUI');
+        return originalRenderUI.apply(this, arguments);
+    }
+};
 // ========== ПЕРЕМЕННЫЕ ДЛЯ АКТИВНОГО БОЯ (Firestore синхронизация) ==========
 let isRendering = false;
 let activeBattleData = null;
@@ -13322,7 +13476,7 @@ function addNotification(type, title, message, targetPlayerId = null) {
                 <img class="loading-logo" src="https://sviter-pro.github.io/GameZone/src/test/logo124.png" alt="Тюряга 2.0" onerror="this.src='https://via.placeholder.com/180x180?text=Тюряга+2.0'">
                 <div class="loading-spinner-new"></div>
                 <div class="loading-tip-new" id="loadingTipNew">⚡ Загрузка игрового мира...</div>
-                <div class="loading-version">Зона 1.0.0.303 | Зона ждет</div>
+                <div class="loading-version">Зона 1.0.0.305 | Зона ждет</div>
             </div>
         `;
             const tipEl = document.getElementById('loadingTipNew');
@@ -14337,7 +14491,20 @@ function addNotification(type, title, message, targetPlayerId = null) {
 function updateWorkCountersOnMap() {
     try {
         const b2Element = document.querySelector('.building.b2');
-        if (!b2Element) return;
+        if (!b2Element) {
+            crashLog('⚠️ Элемент .building.b2 не найден');
+            return;
+        }
+        
+        // ✅ ОПРЕДЕЛЯЕМ ФУНКЦИЮ ВНУТРИ
+        const formatMapTimer = (ms) => {
+            if (ms <= 0) return '';
+            const totalSeconds = Math.floor(ms / 1000);
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            if (minutes > 0) return `${minutes}м ${seconds}с`;
+            return `${seconds}с`;
+        };
         
         let countersDiv = b2Element.querySelector('.counters-container-work');
         const activeCounters = [];
@@ -14377,15 +14544,6 @@ function updateWorkCountersOnMap() {
             activeCounters.push({ type: 'upgrade', icon: '🪨⬆️', remaining: quarryUpgradeRemaining });
         }
         
-        const formatMapTimer = (ms) => {
-            if (ms <= 0) return '';
-            const totalSeconds = Math.floor(ms / 1000);
-            const minutes = Math.floor(totalSeconds / 60);
-            const seconds = totalSeconds % 60;
-            if (minutes > 0) return `${minutes}м ${seconds}с`;
-            return `${seconds}с`;
-        };
-        
         if (activeCounters.length > 0) {
             if (!countersDiv) {
                 countersDiv = document.createElement('div');
@@ -14407,8 +14565,9 @@ function updateWorkCountersOnMap() {
         } else if (countersDiv) {
             countersDiv.style.display = 'none';
         }
+        
     } catch (e) {
-        console.warn('⚠️ Ошибка обновления счетчиков работы:', e);
+        crashLog('❌ Ошибка updateWorkCountersOnMap', { error: e.message });
     }
 }
 
@@ -14417,15 +14576,22 @@ function updateBattleCountersOnMap() {
         const b6Element = document.querySelector('.building.b6');
         if (!b6Element) return;
         
+        // ✅ ОПРЕДЕЛЯЕМ ФУНКЦИЮ ВНУТРИ
+        const formatMapTimer = (ms) => {
+            if (ms <= 0) return '';
+            const totalSeconds = Math.floor(ms / 1000);
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            if (minutes > 0) return `${minutes}м ${seconds}с`;
+            return `${seconds}с`;
+        };
+        
         let countersDiv = b6Element.querySelector('.battle-counters');
         const hasActive = activeBattleData && activeBattleEndTime > Date.now();
         
         if (hasActive) {
             const remaining = activeBattleEndTime - Date.now();
-            const totalSeconds = Math.floor(remaining / 1000);
-            const minutes = Math.floor(totalSeconds / 60);
-            const seconds = totalSeconds % 60;
-            const timerText = minutes > 0 ? `${minutes}м ${seconds}с` : `${seconds}с`;
+            const timerText = formatMapTimer(remaining);
             
             if (!countersDiv) {
                 countersDiv = document.createElement('div');
@@ -14438,9 +14604,10 @@ function updateBattleCountersOnMap() {
             countersDiv.style.display = 'none';
         }
     } catch (e) {
-        console.warn('⚠️ Ошибка обновления счетчиков боя:', e);
+        crashLog('❌ Ошибка updateBattleCountersOnMap', { error: e.message });
     }
 }
+
 
 
 function updateTopBarResources() {
@@ -14465,9 +14632,10 @@ function updateTopBarResources() {
         if (woodSpan) woodSpan.textContent = formatNumberShort(currentPlayer.lumber?.wood || 0);
         if (stoneSpan) stoneSpan.textContent = formatNumberShort(currentPlayer.quarry?.stone || 0);
     } catch (e) {
-        console.warn('⚠️ Ошибка обновления ресурсов:', e);
+        crashLog('❌ Ошибка updateTopBarResources', { error: e.message });
     }
 }
+
 
 function checkStuckWork() {
     if (!currentPlayer) return;
@@ -15908,46 +16076,49 @@ function isMineUpgradeActive(type) {
 function checkAndNotifyWorkAvailable() {
     if (!currentPlayer) return;
     
-    // При первом запуске не показываем уведомления
-    if (!workNotificationsInitialized) {
-        // Просто запоминаем текущее состояние, но не показываем уведомления
-        const workTypes = ['mine', 'lumber', 'quarry'];
-        for (const work of workTypes) {
-            const remaining = getWorkRemaining(work);
-            lastWorkNotified[work] = (remaining <= 0);
-        }
-        workNotificationsInitialized = true;
-        return;
-    }
-    
-    // Проверяем, открыто ли какое-либо модальное окно
-    const anyModal = document.querySelector('.modal, .mine-fullscreen, .shop-fullscreen, .cardgame-fullscreen, .treasury-fullscreen, .attack-fullscreen, .clan-fullscreen, .profile-fullscreen, .settings-fullscreen, .inventory-fullscreen, .quests-fullscreen, .gang-fullscreen, .hospital-fullscreen, #warFullscreen');
-    if (anyModal) {
-        return;
-    }
-    
-    const workTypes = [
-        { type: 'mine', name: 'Шахта' },
-        { type: 'lumber', name: 'Лесоповал' },
-        { type: 'quarry', name: 'Каменоломня' }
-    ];
-    
-    for (const work of workTypes) {
-        const remaining = getWorkRemaining(work.type);
-        const wasNotified = lastWorkNotified[work.type];
-        
-        if (remaining <= 0 && !wasNotified) {
-            const mineModal = document.getElementById('mineFullscreen');
-            if (!mineModal) {
-                showToast(`✅ Работа в ${work.name} снова доступна!`, 'success');
-                if (settingsNotifications) {
-                    sendTelegramNotification(`✅ Работа в ${work.name} снова доступна!`);
-                }
+    try {
+        // При первом запуске не показываем уведомления
+        if (!workNotificationsInitialized) {
+            const workTypes = ['mine', 'lumber', 'quarry'];
+            for (const work of workTypes) {
+                const remaining = getWorkRemaining(work);
+                lastWorkNotified[work] = (remaining <= 0);
             }
-            lastWorkNotified[work.type] = true;
-        } else if (remaining > 0) {
-            lastWorkNotified[work.type] = false;
+            workNotificationsInitialized = true;
+            return;
         }
+        
+        // Проверяем, открыто ли какое-либо модальное окно
+        const anyModal = document.querySelector('.modal, .mine-fullscreen, .shop-fullscreen, .cardgame-fullscreen, .treasury-fullscreen, .attack-fullscreen, .clan-fullscreen, .profile-fullscreen, .settings-fullscreen, .inventory-fullscreen, .quests-fullscreen, .gang-fullscreen, .hospital-fullscreen, #warFullscreen');
+        if (anyModal) {
+            return;
+        }
+        
+        const workTypes = [
+            { type: 'mine', name: 'Шахта' },
+            { type: 'lumber', name: 'Лесоповал' },
+            { type: 'quarry', name: 'Каменоломня' }
+        ];
+        
+        for (const work of workTypes) {
+            const remaining = getWorkRemaining(work.type);
+            const wasNotified = lastWorkNotified[work.type];
+            
+            if (remaining <= 0 && !wasNotified) {
+                const mineModal = document.getElementById('mineFullscreen');
+                if (!mineModal) {
+                    showToast(`✅ Работа в ${work.name} снова доступна!`, 'success');
+                    if (settingsNotifications) {
+                        sendTelegramNotification(`✅ Работа в ${work.name} снова доступна!`);
+                    }
+                }
+                lastWorkNotified[work.type] = true;
+            } else if (remaining > 0) {
+                lastWorkNotified[work.type] = false;
+            }
+        }
+    } catch (e) {
+        crashLog('❌ Ошибка checkAndNotifyWorkAvailable', { error: e.message });
     }
 }
 
