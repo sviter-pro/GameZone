@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Зона 1.0.0.300 - Карта зоны</title>
+    <title>Зона 1.0.0.301 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -7260,38 +7260,29 @@ function safeUpdateUIAfterWork() {
             return;
         }
         
-        // Обновляем ресурсы с защитой от ошибок
+        // ТОЛЬКО ТОЧЕЧНЫЕ ОБНОВЛЕНИЯ - БЕЗ renderUI()!
         try {
             updateTopBarResources();
         } catch (e) {
             console.warn('⚠️ Ошибка обновления ресурсов:', e);
         }
         
-        // Обновляем счетчики на карте только если они существуют
         try {
-            const b2Element = document.querySelector('.building.b2');
-            if (b2Element) {
-                updateWorkCountersOnMap();
-            }
+            updateWorkCountersOnMap();
         } catch (e) {
             console.warn('⚠️ Ошибка обновления счетчиков работы:', e);
         }
         
-        // Обновляем счетчики боя
         try {
-            const b6Element = document.querySelector('.building.b6');
-            if (b6Element) {
-                updateBattleCountersOnMap();
-            }
+            updateBattleCountersOnMap();
         } catch (e) {
             console.warn('⚠️ Ошибка обновления счетчиков боя:', e);
         }
         
-        // Проверяем, открыто ли окно шахты ПЕРЕД обновлением
+        // Проверяем, открыто ли окно шахты
         try {
             const mineModal = document.getElementById('mineFullscreen');
-            // Проверяем не только наличие, но и видимость
-            if (mineModal && mineModal.style.display !== 'none' && mineModal.style.display !== '') {
+            if (mineModal && mineModal.style.display === 'flex') {
                 updateMineModalUI();
             }
         } catch (e) {
@@ -7912,7 +7903,7 @@ function closeHospitalModal() {
                 
                 <div class="settings-card">
                     <div style="font-size: 13px; color: #aaa; text-align: center;">
-                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.300</div>
+                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.301</div>
                         <div style="font-size: 11px;">⚡ Клановые войны | Бесконечная прокачка</div>
                     </div>
                 </div>
@@ -13250,7 +13241,7 @@ function addNotification(type, title, message, targetPlayerId = null) {
                 <img class="loading-logo" src="https://sviter-pro.github.io/GameZone/src/test/logo124.png" alt="Тюряга 2.0" onerror="this.src='https://via.placeholder.com/180x180?text=Тюряга+2.0'">
                 <div class="loading-spinner-new"></div>
                 <div class="loading-tip-new" id="loadingTipNew">⚡ Загрузка игрового мира...</div>
-                <div class="loading-version">Зона 1.0.0.300 | Зона ждет</div>
+                <div class="loading-version">Зона 1.0.0.301 | Зона ждет</div>
             </div>
         `;
             const tipEl = document.getElementById('loadingTipNew');
@@ -13583,48 +13574,50 @@ function addNotification(type, title, message, targetPlayerId = null) {
 
         // Функция обновления бейджа уведомлений на кнопке "Клан"
         function updateClanNotificationBadge() {
-            // Добавляем проверку существования DOM элемента
-            const clanBtn = document.querySelector('.nav-btn[onclick*="switchBottomTab(\'clan\')"]');
-            if (!clanBtn) return;
+    // Добавляем проверку существования DOM элемента
+    const clanBtn = document.querySelector('.nav-btn[onclick*="openClanFullModal"]') || 
+                     document.querySelector('.nav-btn[onclick*="switchBottomTab(\'clan\')"]');
+    if (!clanBtn) return;
 
-            const existingBadge = clanBtn.querySelector('.badge-count');
+    const existingBadge = clanBtn.querySelector('.badge-count');
 
-            if (clanQuestReadyCount > 0) {
-                if (existingBadge) {
-                    existingBadge.textContent = clanQuestReadyCount;
-                    existingBadge.style.display = 'flex';
-                } else {
-                    const badge = document.createElement('span');
-                    badge.className = 'badge-count';
-                    badge.textContent = clanQuestReadyCount;
-                    clanBtn.style.position = 'relative';
-                    clanBtn.appendChild(badge);
-                }
-            } else if (existingBadge) {
-                existingBadge.remove();
-            }
+    if (clanQuestReadyCount > 0) {
+        if (existingBadge) {
+            existingBadge.textContent = clanQuestReadyCount;
+            existingBadge.style.display = 'flex';
+        } else {
+            const badge = document.createElement('span');
+            badge.className = 'badge-count';
+            badge.textContent = clanQuestReadyCount;
+            clanBtn.style.position = 'relative';
+            clanBtn.appendChild(badge);
         }
+    } else if (existingBadge) {
+        existingBadge.remove();
+    }
+}
 
         // Функция обновления бейджа уведомлений на кнопке "Задания"
         function updateQuestsNotificationBadge() {
-            const questsBtn = document.querySelector('.nav-btn[onclick*="quests"]');
-            if (questsBtn) {
-                const existingBadge = questsBtn.querySelector('.badge-count');
-                if (questNotificationCount > 0) {
-                    if (existingBadge) {
-                        existingBadge.textContent = questNotificationCount;
-                    } else {
-                        const badge = document.createElement('span');
-                        badge.className = 'badge-count';
-                        badge.textContent = questNotificationCount;
-                        questsBtn.style.position = 'relative';
-                        questsBtn.appendChild(badge);
-                    }
-                } else if (existingBadge) {
-                    existingBadge.remove();
-                }
+    const questsBtn = document.querySelector('.nav-btn[onclick*="openQuestsModal"]') || 
+                      document.querySelector('.nav-btn[onclick*="switchBottomTab(\'quests\')"]');
+    if (questsBtn) {
+        const existingBadge = questsBtn.querySelector('.badge-count');
+        if (questNotificationCount > 0) {
+            if (existingBadge) {
+                existingBadge.textContent = questNotificationCount;
+            } else {
+                const badge = document.createElement('span');
+                badge.className = 'badge-count';
+                badge.textContent = questNotificationCount;
+                questsBtn.style.position = 'relative';
+                questsBtn.appendChild(badge);
             }
+        } else if (existingBadge) {
+            existingBadge.remove();
         }
+    }
+}
 
         // Открыть окно выбора аватаров
         function openAvatarModal() {
@@ -13870,9 +13863,10 @@ function addNotification(type, title, message, targetPlayerId = null) {
         const previousTab = currentBottomTab;
         currentBottomTab = tab;
 
+        // ТОЛЬКО ТОЧЕЧНЫЕ ОБНОВЛЕНИЯ
         updateTopBarResources();
-        updateBattleCountersOnMap();
         updateWorkCountersOnMap();
+        updateBattleCountersOnMap();
         
         safeOpenModal('clan', () => openClanFullModalWithReset(previousTab));
         return;
@@ -13908,9 +13902,10 @@ function addNotification(type, title, message, targetPlayerId = null) {
     if (tab === 'city') {
         currentBottomTab = tab;
 
+        // ТОЛЬКО ТОЧЕЧНЫЕ ОБНОВЛЕНИЯ
         updateTopBarResources();
-        updateBattleCountersOnMap();
         updateWorkCountersOnMap();
+        updateBattleCountersOnMap();
         updateClanNotificationBadge();
         updateQuestsNotificationBadge();
         
@@ -14259,7 +14254,7 @@ function addNotification(type, title, message, targetPlayerId = null) {
         }
 		
 function updateWorkCountersOnMap() {
-    // НЕ ВЫЗЫВАЕМ renderUI() здесь!
+    // НЕ ВЫЗЫВАЕМ renderUI()!
     try {
         const b2Element = document.querySelector('.building.b2');
         if (!b2Element) return;
@@ -14338,7 +14333,7 @@ function updateWorkCountersOnMap() {
 }
 
 function updateBattleCountersOnMap() {
-    // НЕ ВЫЗЫВАЕМ renderUI() здесь!
+    // НЕ ВЫЗЫВАЕМ renderUI()!
     try {
         const b6Element = document.querySelector('.building.b6');
         if (!b6Element) return;
@@ -14368,8 +14363,9 @@ function updateBattleCountersOnMap() {
     }
 }
 
+
 function updateTopBarResources() {
-    // НЕ ВЫЗЫВАЕМ renderUI() здесь!
+    // НЕ ВЫЗЫВАЕМ renderUI()!
     try {
         if (!currentPlayer) return;
         
@@ -15626,9 +15622,9 @@ function startMainInterval() {
         }
         
         try {
-            // Только точечные обновления, без renderUI()
-            updateBattleCountersOnMap();
+            // ТОЛЬКО ТОЧЕЧНЫЕ ОБНОВЛЕНИЯ
             updateWorkCountersOnMap();
+            updateBattleCountersOnMap();
             updateTopBarResources();
             updateClanNotificationBadge();
             updateQuestsNotificationBadge();
@@ -20401,39 +20397,54 @@ function updateBattleCountersSafe() {
         }
 
 function closeClanFullModal() {
-    console.log('closeClanFullModal вызван');
+            console.log('closeClanFullModal вызван');
 
-    const modal = document.getElementById('clanFullscreen');
-    if (modal) {
-        modal.remove();
-        console.log('Модальное окно удалено');
-    }
+            const modal = document.getElementById('clanFullscreen');
+            if (modal) {
+                modal.remove();
+                console.log('Модальное окно удалено');
+            }
 
-    if (window.clanQuestsTimerInterval) {
-        clearInterval(window.clanQuestsTimerInterval);
-        window.clanQuestsTimerInterval = null;
-    }
+            if (window.clanQuestsTimerInterval) {
+                clearInterval(window.clanQuestsTimerInterval);
+                window.clanQuestsTimerInterval = null;
+            }
 
-    if (tg) tg.BackButton.hide();
+            if (tg) tg.BackButton.hide();
 
-    // Восстанавливаем скролл body
-    document.body.style.overflow = '';
-    document.body.style.position = '';
-    document.body.style.width = '';
-    document.body.classList.remove('modal-open');
+            // Восстанавливаем скролл body
+            document.body.style.overflow = '';
+            document.body.style.position = '';
+            document.body.style.width = '';
+            document.body.classList.remove('modal-open');
 
-    currentBottomTab = 'city';
-    window._opening_modal = false;
+            currentBottomTab = 'city';
 
-    // ✅ Точечные обновления
-    updateTopBarResources();
-    updateBattleCountersOnMap();
-    updateWorkCountersOnMap();
-    updateClanNotificationBadge();
-    
-    // ✅ ПРОСТО ПЕРЕРИСОВЫВАЕМ UI (это решит все проблемы с отображением)
-    renderUI();
-}
+            if (typeof renderUI === 'function') {
+                renderUI();
+                console.log('renderUI выполнен');
+            }
+
+            setTimeout(() => {
+                const bottomBar = document.querySelector('.fixed-bottom-bar');
+                if (bottomBar) {
+                    bottomBar.style.display = 'flex';
+                }
+                const app = document.getElementById('app');
+                if (app && !app.querySelector('.fixed-bottom-bar')) {
+                    renderUI();
+                }
+            }, 50);
+
+            document.body.style.overflow = '';
+            document.body.style.position = '';
+
+            if (window._pendingResetTab) {
+                window._pendingResetTab = null;
+            }
+
+            window._opening_modal = false;
+        }
 
         async function createClanFromModal() {
     if (maintenanceMode) { 
@@ -23818,24 +23829,29 @@ async function startGame(id, name) {
         
         // ✅ Обновляем ресурсы в верхней панели
         updateTopBarResources();
-        updateBattleCountersOnMap();
         updateWorkCountersOnMap();
+        updateBattleCountersOnMap();
         
         // ========== ГЛАВНЫЙ ИНТЕРВАЛ ОБНОВЛЕНИЯ UI (ТОЛЬКО ТОЧЕЧНЫЕ ОБНОВЛЕНИЯ) ==========
+        // ✅ НОВЫЙ ИНТЕРВАЛ - БЕЗ renderUI()!
         if (window.mapCountersInterval) clearInterval(window.mapCountersInterval);
         window.mapCountersInterval = setInterval(() => {
             if (!currentPlayer) {
                 if (window.mapCountersInterval) clearInterval(window.mapCountersInterval);
                 return;
             }
-   
+            
             try {
+                // ✅ ТОЛЬКО ТОЧЕЧНЫЕ ОБНОВЛЕНИЯ - БЕЗ renderUI()!
+                updateWorkCountersOnMap();
                 updateBattleCountersOnMap();
-                checkWorkCompletion();        
-                checkAndNotifyWorkAvailable();
                 updateTopBarResources();
                 updateClanNotificationBadge();
                 updateQuestsNotificationBadge();
+                
+                // Проверяем завершение работы
+                checkWorkCompletion();
+                checkAndNotifyWorkAvailable();
                 
                 // Обновляем таймеры в окне войны (если оно открыто)
                 const warModal = document.getElementById('warFullscreen');
@@ -23860,8 +23876,8 @@ async function startGame(id, name) {
                 showToast(`Ты выбрал касту: ${selectedCaste}! +1000🚬 бонус!`, 'success');
               
                 updateTopBarResources();
-                updateBattleCountersOnMap();
                 updateWorkCountersOnMap();
+                updateBattleCountersOnMap();
             });
         }
 
@@ -23993,60 +24009,43 @@ function createMainUIHTML() {
 }
 
     function renderUI() {
-    // Защита от рекурсивных вызовов
-    if (window._renderDepth > 0) {
-        console.warn('⚠️ Рекурсивный вызов renderUI, пропускаем');
+    // Защита от множественных вызовов
+    if (window._isRendering) {
+        console.log('⚠️ Рендеринг уже выполняется, пропускаем');
         return;
     }
-    window._renderDepth = (window._renderDepth || 0) + 1;
-    
-    // Защита от частых вызовов
-    if (window._lastRenderTime && (Date.now() - window._lastRenderTime) < 500) {
-        console.warn('⚠️ Слишком частый вызов renderUI, пропускаем');
-        window._renderDepth--;
-        return;
-    }
-    window._lastRenderTime = Date.now();
+    window._isRendering = true;
     
     try {
-        logRenderUI('renderUI');
-        
         if (!currentPlayer) {
-            window._renderDepth--;
+            window._isRendering = false;
             return;
         }
         
-        // Проверяем, нужно ли вообще обновлять UI
+        // Проверяем, есть ли уже UI
         const app = document.getElementById('app');
         if (!app) {
-            window._renderDepth--;
+            window._isRendering = false;
             return;
         }
         
-        // Проверяем, не открыто ли модальное окно
-        const activeModals = document.querySelectorAll('.mine-fullscreen, .shop-fullscreen, .cardgame-fullscreen, .treasury-fullscreen, .attack-fullscreen, .clan-fullscreen, .profile-fullscreen, .settings-fullscreen, .inventory-fullscreen, .quests-fullscreen, .gang-fullscreen, .hospital-fullscreen, #warFullscreen, .modal');
-        if (activeModals.length > 0) {
-            console.log('📱 Модальное окно открыто, renderUI пропущен');
-            window._renderDepth--;
-            return;
-        }
-        
-        // Если UI уже существует - обновляем только данные, не пересоздавая HTML
+        // Если UI уже существует - НЕ ПЕРЕСОЗДАЕМ!
         if (app.querySelector('.fixed-top-bar')) {
-            // Обновляем только ресурсы, не перерисовывая всё
-            updateTopBarResourcesSafe();
-            updateWorkCountersSafe();
-            updateBattleCountersSafe();
+            console.log('UI уже существует, только точечные обновления');
+            updateTopBarResources();
+            updateWorkCountersOnMap();
+            updateBattleCountersOnMap();
             updateClanNotificationBadge();
             updateQuestsNotificationBadge();
-            window._renderDepth--;
+            window._isRendering = false;
             return;
         }
         
-        // Если UI не существует - создаем заново
+        // Только если UI отсутствует - создаем заново
+        console.log('Создание UI с нуля');
         app.innerHTML = createMainUIHTML();
         
-        // Навешиваем обработчики на здания
+        // Навешиваем обработчики
         document.querySelectorAll('.building').forEach(building => {
             building.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -24064,7 +24063,7 @@ function createMainUIHTML() {
     } catch (e) {
         console.error('❌ Ошибка в renderUI:', e);
     } finally {
-        window._renderDepth--;
+        window._isRendering = false;
     }
 }
 
