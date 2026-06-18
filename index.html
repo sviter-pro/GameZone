@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Зона 1.0.0.306 - Карта зоны</title>
+    <title>Зона 1.0.0.307 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -7902,7 +7902,7 @@ function closeHospitalModal() {
                 
                 <div class="settings-card">
                     <div style="font-size: 13px; color: #aaa; text-align: center;">
-                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.306</div>
+                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.307</div>
                         <div style="font-size: 11px;">⚡ Клановые войны | Бесконечная прокачка</div>
                     </div>
                 </div>
@@ -13480,7 +13480,7 @@ function addNotification(type, title, message, targetPlayerId = null) {
                 <img class="loading-logo" src="https://sviter-pro.github.io/GameZone/src/test/logo124.png" alt="Тюряга 2.0" onerror="this.src='https://via.placeholder.com/180x180?text=Тюряга+2.0'">
                 <div class="loading-spinner-new"></div>
                 <div class="loading-tip-new" id="loadingTipNew">⚡ Загрузка игрового мира...</div>
-                <div class="loading-version">Зона 1.0.0.306 | Зона ждет</div>
+                <div class="loading-version">Зона 1.0.0.307 | Зона ждет</div>
             </div>
         `;
             const tipEl = document.getElementById('loadingTipNew');
@@ -14494,11 +14494,17 @@ function addNotification(type, title, message, targetPlayerId = null) {
 		
 function updateWorkCountersOnMap() {
     try {
-        // Проверяем, существует ли карта
-        const mapWrapper = document.querySelector('.map-wrapper');
+        // Проверяем, существует ли карта, если нет - восстанавливаем
+        let mapWrapper = document.querySelector('.map-wrapper');
         if (!mapWrapper) {
-            crashLog('⚠️ .map-wrapper не найден, пропускаем обновление');
-            return;
+            crashLog('⚠️ .map-wrapper не найден, пытаемся восстановить');
+            const restored = restoreMap();
+            if (!restored) {
+                crashLog('❌ Не удалось восстановить карту, пропускаем обновление');
+                return;
+            }
+            mapWrapper = document.querySelector('.map-wrapper');
+            if (!mapWrapper) return;
         }
         
         // Проверяем, существует ли b2
@@ -14506,32 +14512,28 @@ function updateWorkCountersOnMap() {
         if (!b2Element) {
             crashLog('⚠️ .building.b2 не найден, создаем заново');
             
-            // Пытаемся восстановить элемент b2
-            const mapImage = document.querySelector('.map-image');
-            if (mapImage && mapImage.parentNode) {
-                // Создаем b2 заново
-                b2Element = document.createElement('div');
-                b2Element.className = 'building b2';
-                b2Element.setAttribute('data-building', 'b2');
-                b2Element.onclick = function() { 
-                    if (window.safeOpenModal) {
-                        window.safeOpenModal('mine', () => window.openMineModal ? window.openMineModal() : null);
-                    }
-                };
-                
-                // Добавляем лейбл
-                const label = document.createElement('div');
-                label.className = 'building-label';
-                label.textContent = 'Работа';
-                b2Element.appendChild(label);
-                
-                // Добавляем в карту
-                mapWrapper.appendChild(b2Element);
-                crashLog('✅ .building.b2 восстановлен');
-            } else {
-                crashLog('❌ Не удалось восстановить .building.b2');
-                return;
-            }
+            // Создаем b2 заново
+            b2Element = document.createElement('div');
+            b2Element.className = 'building b2';
+            b2Element.setAttribute('data-building', 'b2');
+            b2Element.style.top = '18%';
+            b2Element.style.left = '3%';
+            b2Element.style.width = '38%';
+            b2Element.style.height = '18%';
+            
+            const label = document.createElement('div');
+            label.className = 'building-label';
+            label.textContent = 'Работа';
+            b2Element.appendChild(label);
+            
+            b2Element.onclick = function() {
+                if (window.openMineModal) {
+                    window.openMineModal();
+                }
+            };
+            
+            mapWrapper.appendChild(b2Element);
+            crashLog('✅ .building.b2 восстановлен');
         }
         
         // Определяем formatMapTimer внутри функции
@@ -14613,11 +14615,17 @@ function updateWorkCountersOnMap() {
 
 function updateBattleCountersOnMap() {
     try {
-        // Проверяем, существует ли карта
-        const mapWrapper = document.querySelector('.map-wrapper');
+        // Проверяем, существует ли карта, если нет - восстанавливаем
+        let mapWrapper = document.querySelector('.map-wrapper');
         if (!mapWrapper) {
-            crashLog('⚠️ .map-wrapper не найден, пропускаем обновление');
-            return;
+            crashLog('⚠️ .map-wrapper не найден, пытаемся восстановить');
+            const restored = restoreMap();
+            if (!restored) {
+                crashLog('❌ Не удалось восстановить карту, пропускаем обновление');
+                return;
+            }
+            mapWrapper = document.querySelector('.map-wrapper');
+            if (!mapWrapper) return;
         }
         
         // Проверяем, существует ли b6
@@ -14625,29 +14633,27 @@ function updateBattleCountersOnMap() {
         if (!b6Element) {
             crashLog('⚠️ .building.b6 не найден, создаем заново');
             
-            // Пытаемся восстановить элемент b6
-            const mapImage = document.querySelector('.map-image');
-            if (mapImage && mapImage.parentNode) {
-                b6Element = document.createElement('div');
-                b6Element.className = 'building b6';
-                b6Element.setAttribute('data-building', 'b6');
-                b6Element.onclick = function() { 
-                    if (window.safeOpenModal) {
-                        window.safeOpenModal('attack', () => window.openAttackModal ? window.openAttackModal() : null);
-                    }
-                };
-                
-                const label = document.createElement('div');
-                label.className = 'building-label';
-                label.textContent = 'Сходка';
-                b6Element.appendChild(label);
-                
-                mapWrapper.appendChild(b6Element);
-                crashLog('✅ .building.b6 восстановлен');
-            } else {
-                crashLog('❌ Не удалось восстановить .building.b6');
-                return;
-            }
+            b6Element = document.createElement('div');
+            b6Element.className = 'building b6';
+            b6Element.setAttribute('data-building', 'b6');
+            b6Element.style.top = '51%';
+            b6Element.style.right = '4%';
+            b6Element.style.width = '34%';
+            b6Element.style.height = '18%';
+            
+            const label = document.createElement('div');
+            label.className = 'building-label';
+            label.textContent = 'Сходка';
+            b6Element.appendChild(label);
+            
+            b6Element.onclick = function() {
+                if (window.openAttackModal) {
+                    window.openAttackModal();
+                }
+            };
+            
+            mapWrapper.appendChild(b6Element);
+            crashLog('✅ .building.b6 восстановлен');
         }
         
         const formatMapTimer = (ms) => {
@@ -14680,6 +14686,42 @@ function updateBattleCountersOnMap() {
         crashLog('❌ Ошибка updateBattleCountersOnMap', { error: e.message });
     }
 }
+
+// ========== ИСПРАВЛЯЕМ ГЛАВНЫЙ ИНТЕРВАЛ ==========
+// В startGame замените интервал на этот:
+if (window.mapCountersInterval) clearInterval(window.mapCountersInterval);
+window.mapCountersInterval = setInterval(() => {
+    if (!currentPlayer) {
+        if (window.mapCountersInterval) clearInterval(window.mapCountersInterval);
+        return;
+    }
+    
+    try {
+        // Проверяем, существует ли app
+        const app = document.getElementById('app');
+        if (!app) {
+            crashLog('⚠️ app не найден, пропускаем обновление');
+            return;
+        }
+        
+        // Только точечные обновления
+        updateWorkCountersOnMap();
+        updateBattleCountersOnMap();
+        updateTopBarResources();
+        updateClanNotificationBadge();
+        updateQuestsNotificationBadge();
+        
+        checkWorkCompletion();
+        checkAndNotifyWorkAvailable();
+        
+        const warModal = document.getElementById('warFullscreen');
+        if (warModal && activeClanWar) {
+            updateWarTimersOnly();
+        }
+    } catch (e) {
+        crashLog('❌ Ошибка в интервале', { error: e.message });
+    }
+}, 1000);
 
 function updateTopBarResources() {
     try {
@@ -24436,7 +24478,87 @@ window.renderUI = function() {
         function showOldLoginForm() {
             showLoginForm();
         }
-		
+	
+        function restoreMap() {
+    try {
+        const app = document.getElementById('app');
+        if (!app) return false;
+        
+        // Проверяем, есть ли карта
+        let mapWrapper = document.querySelector('.map-wrapper');
+        if (mapWrapper) return true;
+        
+        crashLog('🔄 Восстанавливаем карту');
+        
+        // Создаем game-container если нет
+        let gameContainer = document.querySelector('.game-container');
+        if (!gameContainer) {
+            gameContainer = document.createElement('div');
+            gameContainer.className = 'game-container';
+            app.appendChild(gameContainer);
+        }
+        
+        // Создаем map-wrapper
+        mapWrapper = document.createElement('div');
+        mapWrapper.className = 'map-wrapper';
+        gameContainer.appendChild(mapWrapper);
+        
+        // Создаем картинку карты
+        const mapImage = document.createElement('img');
+        mapImage.className = 'map-image';
+        mapImage.src = 'https://sviter-pro.github.io/GameZone/src/test/123.png';
+        mapImage.draggable = false;
+        mapImage.setAttribute('ontouchstart', 'return true;');
+        mapWrapper.appendChild(mapImage);
+        
+        // Создаем все здания
+        const buildings = [
+            { id: 'b1', label: 'Камера', top: '3%', left: '31%', width: '38%', height: '15%', onclick: 'openInventoryModal' },
+            { id: 'b2', label: 'Работа', top: '18%', left: '3%', width: '38%', height: '18%', onclick: 'openMineModal' },
+            { id: 'b3', label: 'Игровая', top: '19%', right: '3%', width: '38%', height: '18%', onclick: 'openCardGameFullModal' },
+            { id: 'b4', label: 'Магазин', top: '37%', left: '28%', width: '42%', height: '13%', onclick: 'openShopModal' },
+            { id: 'b5', label: 'Больница', top: '51%', left: '4%', width: '34%', height: '18%', onclick: 'openHospitalModal' },
+            { id: 'b6', label: 'Сходка', top: '51%', right: '4%', width: '34%', height: '18%', onclick: 'openAttackModal' },
+            { id: 'b7', label: 'СИЗО', top: '72%', left: '28%', width: '43%', height: '16%', onclick: 'openGangModal' }
+        ];
+        
+        for (const b of buildings) {
+            const el = document.createElement('div');
+            el.className = `building ${b.id}`;
+            el.setAttribute('data-building', b.id);
+            
+            if (b.top) el.style.top = b.top;
+            if (b.left) el.style.left = b.left;
+            if (b.right) el.style.right = b.right;
+            if (b.width) el.style.width = b.width;
+            if (b.height) el.style.height = b.height;
+            
+            // Добавляем лейбл
+            const label = document.createElement('div');
+            label.className = 'building-label';
+            label.textContent = b.label;
+            el.appendChild(label);
+            
+            // Добавляем обработчик клика
+            el.onclick = function() {
+                const fn = window[b.onclick];
+                if (typeof fn === 'function') {
+                    fn();
+                }
+            };
+            
+            mapWrapper.appendChild(el);
+        }
+        
+        crashLog('✅ Карта восстановлена');
+        return true;
+        
+    } catch (e) {
+        crashLog('❌ Ошибка восстановления карты', { error: e.message });
+        return false;
+    }
+}
+
 	function updateTopBarResources() {
     if (!currentPlayer) return;
     
