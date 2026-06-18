@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Зона 1.0.0.299 - Карта зоны</title>
+    <title>Зона 1.0.0.300 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -6396,7 +6396,8 @@ async function changeEquipment(slot, itemName, stat, bonus) {
 const originalUpdateWorkCounters = window.updateWorkCountersOnMap;
 const originalUpdateBattleCounters = window.updateBattleCountersOnMap;
 const originalUpdateTopBarResources = window.updateTopBarResources;
-
+let renderUICallStack = [];
+let lastRenderUITime = 0;
 let isUIUpdating = false;
 let pendingUIUpdate = false;
 
@@ -6413,6 +6414,26 @@ let workPendingCompletion = {
     lumber: false,
     quarry: false
 };
+
+function logRenderUI(caller) {
+    const now = Date.now();
+    const stack = new Error().stack || '';
+    renderUICallStack.push({ time: now, caller: caller, stack: stack.substring(0, 500) });
+    
+    if (renderUICallStack.length > 10) renderUICallStack.shift();
+    
+    // Если renderUI вызывается чаще 1 раза в секунду - это проблема
+    if (now - lastRenderUITime < 1000) {
+        console.warn('⚠️ ЧАСТЫЙ ВЫЗОВ RENDERUI!', {
+            lastCall: new Date(lastRenderUITime).toISOString(),
+            currentCall: new Date(now).toISOString(),
+            diff: now - lastRenderUITime,
+            caller: caller,
+            stack: stack
+        });
+    }
+    lastRenderUITime = now;
+}
 
 function updateMineModalSafe() {
     try {
@@ -7369,12 +7390,10 @@ async function completeWork(type) {
             successMessage = `⛏️ Работа в каменоломне завершена! +${stoneGain}🪨 камня, +${workExp}⭐ опыта`;
         }
         
-        // Обновляем Firebase
         if (Object.keys(updateObj).length > 0) {
             await playerDocRef.update(updateObj);
         }
         
-        // Обновляем опыт и уровень
         let newAuthority = currentPlayer.authority + workExp;
         let newLevel = currentPlayer.level;
         let leveledUp = false;
@@ -7418,22 +7437,29 @@ async function completeWork(type) {
         
         showToast(successMessage, 'success');
         
-        if (settingsNotifications) {
-            sendTelegramNotification(successMessage);
-        }
-        
     } catch (e) {
         console.error(`❌ Ошибка завершения работы ${type}:`, e);
-        try {
-            showToast(`Ошибка при завершении работы: ${e.message}`, 'error');
-        } catch (e2) {
-            console.warn('Ошибка показа TOAST ошибки:', e2);
-        }
+        showToast(`Ошибка при завершении работы: ${e.message}`, 'error');
     } finally {
         workPendingCompletion[type] = false;
         
-        // ✅ БЕЗОПАСНОЕ ОБНОВЛЕНИЕ UI через новую систему
-        safeUpdateUI('all', 1);
+        // ✅ ТОЛЬКО ТОЧЕЧНЫЕ ОБНОВЛЕНИЯ - НЕ ВЫЗЫВАЕМ renderUI()!
+        setTimeout(() => {
+            try {
+                // Обновляем только существующие элементы
+                updateTopBarResources();
+                updateWorkCountersOnMap();
+                updateBattleCountersOnMap();
+                
+                // Обновляем окно шахты только если оно открыто
+                const mineModal = document.getElementById('mineFullscreen');
+                if (mineModal && mineModal.style.display === 'flex') {
+                    updateMineModalUI();
+                }
+            } catch (e) {
+                console.warn('Ошибка обновления UI:', e);
+            }
+        }, 100);
     }
 }
 
@@ -7886,7 +7912,7 @@ function closeHospitalModal() {
                 
                 <div class="settings-card">
                     <div style="font-size: 13px; color: #aaa; text-align: center;">
-                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.299</div>
+                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.300</div>
                         <div style="font-size: 11px;">⚡ Клановые войны | Бесконечная прокачка</div>
                     </div>
                 </div>
@@ -13224,7 +13250,7 @@ function addNotification(type, title, message, targetPlayerId = null) {
                 <img class="loading-logo" src="https://sviter-pro.github.io/GameZone/src/test/logo124.png" alt="Тюряга 2.0" onerror="this.src='https://via.placeholder.com/180x180?text=Тюряга+2.0'">
                 <div class="loading-spinner-new"></div>
                 <div class="loading-tip-new" id="loadingTipNew">⚡ Загрузка игрового мира...</div>
-                <div class="loading-version">Зона 1.0.0.299 | Зона ждет</div>
+                <div class="loading-version">Зона 1.0.0.300 | Зона ждет</div>
             </div>
         `;
             const tipEl = document.getElementById('loadingTipNew');
@@ -14232,16 +14258,141 @@ function addNotification(type, title, message, targetPlayerId = null) {
             });
         }
 		
-	function updateWorkCountersOnMap() {
-    safeUpdateUI('workCounters', 0);
+function updateWorkCountersOnMap() {
+    // НЕ ВЫЗЫВАЕМ renderUI() здесь!
+    try {
+        const b2Element = document.querySelector('.building.b2');
+        if (!b2Element) return;
+        
+        let countersDiv = b2Element.querySelector('.counters-container-work');
+        const activeCounters = [];
+        
+        const mineWorkRemaining = getWorkRemaining('mine');
+        if (mineWorkRemaining > 0) {
+            activeCounters.push({ type: 'work', icon: '⛏️', remaining: mineWorkRemaining });
+        }
+        
+        const minePaperUpgradeRemaining = getMineUpgradeRemaining('paper');
+        if (minePaperUpgradeRemaining > 0) {
+            activeCounters.push({ type: 'upgrade', icon: '📄⬆️', remaining: minePaperUpgradeRemaining });
+        }
+        
+        const mineMakhorkaUpgradeRemaining = getMineUpgradeRemaining('makhorka');
+        if (mineMakhorkaUpgradeRemaining > 0) {
+            activeCounters.push({ type: 'upgrade', icon: '🌿⬆️', remaining: mineMakhorkaUpgradeRemaining });
+        }
+        
+        const lumberWorkRemaining = getWorkRemaining('lumber');
+        if (lumberWorkRemaining > 0) {
+            activeCounters.push({ type: 'work', icon: '🪓', remaining: lumberWorkRemaining });
+        }
+        
+        const lumberUpgradeRemaining = getLumberUpgradeRemaining();
+        if (lumberUpgradeRemaining > 0) {
+            activeCounters.push({ type: 'upgrade', icon: '🪵⬆️', remaining: lumberUpgradeRemaining });
+        }
+        
+        const quarryWorkRemaining = getWorkRemaining('quarry');
+        if (quarryWorkRemaining > 0) {
+            activeCounters.push({ type: 'work', icon: '⛏️', remaining: quarryWorkRemaining });
+        }
+        
+        const quarryUpgradeRemaining = getQuarryUpgradeRemaining();
+        if (quarryUpgradeRemaining > 0) {
+            activeCounters.push({ type: 'upgrade', icon: '🪨⬆️', remaining: quarryUpgradeRemaining });
+        }
+        
+        const formatMapTimer = (ms) => {
+            if (ms <= 0) return '';
+            const totalSeconds = Math.floor(ms / 1000);
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            if (minutes > 0) return `${minutes}м ${seconds}с`;
+            return `${seconds}с`;
+        };
+        
+        if (activeCounters.length > 0) {
+            if (!countersDiv) {
+                countersDiv = document.createElement('div');
+                countersDiv.className = 'counters-container-work';
+                b2Element.appendChild(countersDiv);
+            }
+            
+            let html = '';
+            for (const counter of activeCounters) {
+                const timerText = formatMapTimer(counter.remaining);
+                if (counter.type === 'work') {
+                    html += `<div class="work-counter">${counter.icon} ${timerText}</div>`;
+                } else {
+                    html += `<div class="upgrade-work-counter">⬆️ ${timerText}</div>`;
+                }
+            }
+            countersDiv.innerHTML = html;
+            countersDiv.style.display = 'flex';
+        } else if (countersDiv) {
+            countersDiv.style.display = 'none';
+        }
+    } catch (e) {
+        console.warn('⚠️ Ошибка обновления счетчиков работы:', e);
+    }
 }
 
 function updateBattleCountersOnMap() {
-    safeUpdateUI('battleCounters', 0);
+    // НЕ ВЫЗЫВАЕМ renderUI() здесь!
+    try {
+        const b6Element = document.querySelector('.building.b6');
+        if (!b6Element) return;
+        
+        let countersDiv = b6Element.querySelector('.battle-counters');
+        const hasActive = activeBattleData && activeBattleEndTime > Date.now();
+        
+        if (hasActive) {
+            const remaining = activeBattleEndTime - Date.now();
+            const totalSeconds = Math.floor(remaining / 1000);
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            const timerText = minutes > 0 ? `${minutes}м ${seconds}с` : `${seconds}с`;
+            
+            if (!countersDiv) {
+                countersDiv = document.createElement('div');
+                countersDiv.className = 'battle-counters';
+                b6Element.appendChild(countersDiv);
+            }
+            countersDiv.innerHTML = `<div class="battle-active-counter">⚔️ ${timerText}</div>`;
+            countersDiv.style.display = 'flex';
+        } else if (countersDiv) {
+            countersDiv.style.display = 'none';
+        }
+    } catch (e) {
+        console.warn('⚠️ Ошибка обновления счетчиков боя:', e);
+    }
 }
 
 function updateTopBarResources() {
-    safeUpdateUI('resources', 0);
+    // НЕ ВЫЗЫВАЕМ renderUI() здесь!
+    try {
+        if (!currentPlayer) return;
+        
+        const cigSpan = document.getElementById('resourceCigarettes');
+        const rublesSpan = document.getElementById('resourceRubles');
+        const authoritySpan = document.getElementById('resourceAuthority');
+        const energySpan = document.getElementById('resourceEnergy');
+        const paperSpan = document.getElementById('resourcePaper');
+        const makhorkaSpan = document.getElementById('resourceMakhorka');
+        const woodSpan = document.getElementById('resourceWood');
+        const stoneSpan = document.getElementById('resourceStone');
+        
+        if (cigSpan) cigSpan.textContent = formatNumberShort(currentPlayer.cigarettes || 0);
+        if (rublesSpan) rublesSpan.textContent = formatNumberShort(currentPlayer.rubles || 0);
+        if (authoritySpan) authoritySpan.textContent = formatNumberShort(currentPlayer.authority || 0);
+        if (energySpan) energySpan.textContent = `${currentPlayer.energy || 0}/${currentPlayer.maxEnergy || 0}`;
+        if (paperSpan) paperSpan.textContent = formatNumberShort(currentPlayer.mine?.paper || 0);
+        if (makhorkaSpan) makhorkaSpan.textContent = formatNumberShort(currentPlayer.mine?.makhorka || 0);
+        if (woodSpan) woodSpan.textContent = formatNumberShort(currentPlayer.lumber?.wood || 0);
+        if (stoneSpan) stoneSpan.textContent = formatNumberShort(currentPlayer.quarry?.stone || 0);
+    } catch (e) {
+        console.warn('⚠️ Ошибка обновления ресурсов:', e);
+    }
 }
 
 function checkStuckWork() {
@@ -15418,50 +15569,78 @@ function startMineTimers() {
     if (mineTimerInterval) clearInterval(mineTimerInterval);
     
     mineTimerInterval = setInterval(() => {
-        let upgraded = false;
         try {
-            if (checkAndCompleteMineUpgrade('paper')) upgraded = true;
-            if (checkAndCompleteMineUpgrade('makhorka')) upgraded = true;
-            if (checkAndCompleteLumberUpgrade()) upgraded = true;
-            if (checkAndCompleteQuarryUpgrade()) upgraded = true;
-            
-            checkWorkCompletion();
-            
-        } catch (e) {
-            console.error('Ошибка проверки прокачек/работы:', e);
-        }
-        
-        // Обновляем счетчики на карте с защитой
-        try {
-            safeUpdateUI('workCounters', 0);
-            safeUpdateUI('battleCounters', 0);
-            safeUpdateUI('resources', 0);
-        } catch (e) {
-            console.error('Ошибка обновления счетчиков:', e);
-        }
-        
-        // Если окно шахты открыто - обновляем
-        try {
-            const mineModal = document.getElementById('mineFullscreen');
-            if (mineModal && mineModal.style.display === 'flex') {
-                safeUpdateUI('mineModal', 0);
-            }
-        } catch (e) {
-            console.error('Ошибка обновления UI окна работы:', e);
-        }
-        
-        // Если была прокачка - показываем уведомление
-        if (upgraded) {
-            try {
+            // Проверяем завершение прокачек
+            if (checkAndCompleteMineUpgrade('paper')) {
+                // Прокачка завершена - показываем уведомление только если нет модальных окон
                 const anyModal = document.querySelector('.modal, .mine-fullscreen, .shop-fullscreen, .cardgame-fullscreen, .treasury-fullscreen, .attack-fullscreen, .clan-fullscreen, .profile-fullscreen, .settings-fullscreen, .inventory-fullscreen, .quests-fullscreen, .gang-fullscreen, .hospital-fullscreen, #warFullscreen');
                 if (!anyModal) {
-                    showToast(`✅ Прокачка завершена!`, 'success');
+                    showToast(`✅ Прокачка бумаги завершена!`, 'success');
                 }
-            } catch (e) {
-                console.error('Ошибка обновления после прокачки:', e);
             }
+            if (checkAndCompleteMineUpgrade('makhorka')) {
+                const anyModal = document.querySelector('.modal, .mine-fullscreen, .shop-fullscreen, .cardgame-fullscreen, .treasury-fullscreen, .attack-fullscreen, .clan-fullscreen, .profile-fullscreen, .settings-fullscreen, .inventory-fullscreen, .quests-fullscreen, .gang-fullscreen, .hospital-fullscreen, #warFullscreen');
+                if (!anyModal) {
+                    showToast(`✅ Прокачка махорки завершена!`, 'success');
+                }
+            }
+            if (checkAndCompleteLumberUpgrade()) {
+                const anyModal = document.querySelector('.modal, .mine-fullscreen, .shop-fullscreen, .cardgame-fullscreen, .treasury-fullscreen, .attack-fullscreen, .clan-fullscreen, .profile-fullscreen, .settings-fullscreen, .inventory-fullscreen, .quests-fullscreen, .gang-fullscreen, .hospital-fullscreen, #warFullscreen');
+                if (!anyModal) {
+                    showToast(`✅ Прокачка лесоповала завершена!`, 'success');
+                }
+            }
+            if (checkAndCompleteQuarryUpgrade()) {
+                const anyModal = document.querySelector('.modal, .mine-fullscreen, .shop-fullscreen, .cardgame-fullscreen, .treasury-fullscreen, .attack-fullscreen, .clan-fullscreen, .profile-fullscreen, .settings-fullscreen, .inventory-fullscreen, .quests-fullscreen, .gang-fullscreen, .hospital-fullscreen, #warFullscreen');
+                if (!anyModal) {
+                    showToast(`✅ Прокачка каменоломни завершена!`, 'success');
+                }
+            }
+            
+            // Проверяем завершение работы
+            checkWorkCompletion();
+            
+            // Обновляем счетчики
+            updateWorkCountersOnMap();
+            updateBattleCountersOnMap();
+            
+            // Обновляем окно шахты если открыто
+            const mineModal = document.getElementById('mineFullscreen');
+            if (mineModal && mineModal.style.display === 'flex') {
+                updateMineModalUI();
+            }
+            
+        } catch (e) {
+            console.error('Ошибка в таймере шахты:', e);
+        }
+    }, 1000);
+}
+
+function startMainInterval() {
+    if (window.mapCountersInterval) clearInterval(window.mapCountersInterval);
+    
+    window.mapCountersInterval = setInterval(() => {
+        if (!currentPlayer) {
+            if (window.mapCountersInterval) clearInterval(window.mapCountersInterval);
+            return;
         }
         
+        try {
+            // Только точечные обновления, без renderUI()
+            updateBattleCountersOnMap();
+            updateWorkCountersOnMap();
+            updateTopBarResources();
+            updateClanNotificationBadge();
+            updateQuestsNotificationBadge();
+            
+            // Обновляем таймеры в окне войны (если оно открыто)
+            const warModal = document.getElementById('warFullscreen');
+            if (warModal && activeClanWar) {
+                updateWarTimersOnly();
+            }
+        } catch (e) {
+            console.error('Ошибка в интервале обновления:', e);
+        }
     }, 1000);
 }
 
@@ -23814,341 +23993,59 @@ function createMainUIHTML() {
 }
 
     function renderUI() {
-         console.trace('⚠️ renderUI вызван!');
-    if (isRendering) {
-        console.log('⚠️ renderUI уже выполняется, пропускаем');
+    // Защита от рекурсивных вызовов
+    if (window._renderDepth > 0) {
+        console.warn('⚠️ Рекурсивный вызов renderUI, пропускаем');
         return;
     }
-    isRendering = true;        
-    if (!currentPlayer) return;
+    window._renderDepth = (window._renderDepth || 0) + 1;
     
-    // Защита от множественных вызовов
-    if (window._isRendering) {
-        console.log('⚠️ Рендеринг уже выполняется, пропускаем');
+    // Защита от частых вызовов
+    if (window._lastRenderTime && (Date.now() - window._lastRenderTime) < 500) {
+        console.warn('⚠️ Слишком частый вызов renderUI, пропускаем');
+        window._renderDepth--;
         return;
     }
-    window._isRendering = true;
+    window._lastRenderTime = Date.now();
     
     try {
-        let casteIcon = currentPlayer.caste === 'Блатные' ? '👑' : (currentPlayer.caste === 'Мужики' ? '🔨' : '🐑');
-        const paper = currentPlayer.mine?.paper || 0;
-        const makhorka = currentPlayer.mine?.makhorka || 0;
-        const wood = currentPlayer.lumber?.wood || 0;
-        const stone = currentPlayer.quarry?.stone || 0;
-
-        const mineData = currentPlayer.mine || { paperLevel: 1, makhorkaLevel: 1, lastMineTime: 0, paper: 0, makhorka: 0, paperUpgradeStartTime: 0, paperUpgradeDuration: 0, makhorkaUpgradeStartTime: 0, makhorkaUpgradeDuration: 0 };
-        const lumber = currentPlayer.lumber || { level: 1, lastGatherTime: 0, wood: 0, upgradeStartTime: 0, upgradeDuration: 0 };
-        const quarry = currentPlayer.quarry || { level: 1, lastGatherTime: 0, stone: 0, upgradeStartTime: 0, upgradeDuration: 0 };
-
-        const isWorkActive = (type) => {
-            let lastTime, cooldownMs;
-            if (type === 'mine') {
-                lastTime = mineData.lastMineTime || 0;
-                cooldownMs = 2 * 60 * 1000;
-                cooldownMs = Math.floor(cooldownMs * (1 + (mineData.paperLevel - 1) * 0.05));
-            } else if (type === 'lumber') {
-                lastTime = lumber.lastGatherTime || 0;
-                cooldownMs = 2 * 60 * 1000;
-                cooldownMs = Math.floor(cooldownMs * (1 + (lumber.level - 1) * 0.05));
-            } else {
-                lastTime = quarry.lastGatherTime || 0;
-                cooldownMs = 2 * 60 * 1000;
-                cooldownMs = Math.floor(cooldownMs * (1 + (quarry.level - 1) * 0.05));
-            }
-            return (Date.now() - lastTime) < cooldownMs;
-        };
-
-        const getWorkRemainingSec = (type) => {
-            let lastTime, cooldownMs;
-            if (type === 'mine') {
-                lastTime = mineData.lastMineTime || 0;
-                cooldownMs = 2 * 60 * 1000;
-                cooldownMs = Math.floor(cooldownMs * (1 + (mineData.paperLevel - 1) * 0.05));
-            } else if (type === 'lumber') {
-                lastTime = lumber.lastGatherTime || 0;
-                cooldownMs = 2 * 60 * 1000;
-                cooldownMs = Math.floor(cooldownMs * (1 + (lumber.level - 1) * 0.05));
-            } else {
-                lastTime = quarry.lastGatherTime || 0;
-                cooldownMs = 2 * 60 * 1000;
-                cooldownMs = Math.floor(cooldownMs * (1 + (quarry.level - 1) * 0.05));
-            }
-            return Math.max(0, cooldownMs - (Date.now() - lastTime));
-        };
-
-        const isUpgradeWorkActive = (type) => {
-            if (type === 'mine_paper') return isMineUpgradeActive('paper');
-            if (type === 'mine_makhorka') return isMineUpgradeActive('makhorka');
-            if (type === 'lumber') return isLumberUpgradeActive();
-            if (type === 'quarry') return isQuarryUpgradeActive();
-            return false;
-        };
-
-        const getUpgradeWorkRemainingSec = (type) => {
-            if (type === 'mine_paper') return getMineUpgradeRemaining('paper');
-            if (type === 'mine_makhorka') return getMineUpgradeRemaining('makhorka');
-            if (type === 'lumber') return getLumberUpgradeRemaining();
-            if (type === 'quarry') return getQuarryUpgradeRemaining();
-            return 0;
-        };
-
-        const formatMapTimer = (ms) => {
-            if (ms <= 0) return '';
-            const totalSeconds = Math.floor(ms / 1000);
-            const minutes = Math.floor(totalSeconds / 60);
-            const seconds = totalSeconds % 60;
-            if (minutes > 0) return `${minutes}м ${seconds}с`;
-            return `${seconds}с`;
-        };
-
-        let workTimers = [];
-        let upgradeWorkTimers = [];
-
-        if (isWorkActive('mine')) {
-            const remaining = getWorkRemainingSec('mine');
-            if (remaining > 0) workTimers.push(`⛏️ ${formatMapTimer(remaining)}`);
+        logRenderUI('renderUI');
+        
+        if (!currentPlayer) {
+            window._renderDepth--;
+            return;
         }
-        if (isUpgradeWorkActive('mine_paper')) {
-            const remaining = getUpgradeWorkRemainingSec('mine_paper');
-            if (remaining > 0) upgradeWorkTimers.push(`📄 ${formatMapTimer(remaining)}`);
-        }
-        if (isUpgradeWorkActive('mine_makhorka')) {
-            const remaining = getUpgradeWorkRemainingSec('mine_makhorka');
-            if (remaining > 0) upgradeWorkTimers.push(`🌿 ${formatMapTimer(remaining)}`);
-        }
-        if (isWorkActive('lumber')) {
-            const remaining = getWorkRemainingSec('lumber');
-            if (remaining > 0) workTimers.push(`🪓 ${formatMapTimer(remaining)}`);
-        }
-        if (isUpgradeWorkActive('lumber')) {
-            const remaining = getUpgradeWorkRemainingSec('lumber');
-            if (remaining > 0) upgradeWorkTimers.push(`🪵 ${formatMapTimer(remaining)}`);
-        }
-        if (isWorkActive('quarry')) {
-            const remaining = getWorkRemainingSec('quarry');
-            if (remaining > 0) workTimers.push(`⛏️ ${formatMapTimer(remaining)}`);
-        }
-        if (isUpgradeWorkActive('quarry')) {
-            const remaining = getUpgradeWorkRemainingSec('quarry');
-            if (remaining > 0) upgradeWorkTimers.push(`🪨 ${formatMapTimer(remaining)}`);
-        }
-
-        let countersHtmlWork = '';
-        if (workTimers.length > 0 || upgradeWorkTimers.length > 0) {
-            countersHtmlWork = `<div class="counters-container-work">`;
-            if (workTimers.length > 0) {
-                for (let timer of workTimers) {
-                    countersHtmlWork += `<div class="work-counter">${timer}</div>`;
-                }
-            }
-            if (upgradeWorkTimers.length > 0) {
-                for (let timer of upgradeWorkTimers) {
-                    countersHtmlWork += `<div class="upgrade-work-counter">⬆️ ${timer}</div>`;
-                }
-            }
-            countersHtmlWork += `</div>`;
-        }
-
-        const gang = currentPlayer.gang || { blats: { level: 1, lastGatherTime: 0, fighters: 0, upgradeStartTime: 0, upgradeDuration: 0 }, muzhiks: { level: 1, lastGatherTime: 0, fighters: 0, upgradeStartTime: 0, upgradeDuration: 0 }, fraers: { level: 1, lastGatherTime: 0, fighters: 0, upgradeStartTime: 0, upgradeDuration: 0 } };
-
-        const isRecruitingActive = (type) => {
-            const lastGather = gang[type].lastGatherTime || 0;
-            let cooldownMs = 2 * 60 * 1000;
-            cooldownMs = Math.floor(cooldownMs * (1 + (gang[type].level - 1) * 0.05));
-            return (Date.now() - lastGather) < cooldownMs;
-        };
-        const getRecruitRemainingSec = (type) => {
-            const lastGather = gang[type].lastGatherTime || 0;
-            let cooldownMs = 2 * 60 * 1000;
-            cooldownMs = Math.floor(cooldownMs * (1 + (gang[type].level - 1) * 0.05));
-            const remaining = Math.max(0, cooldownMs - (Date.now() - lastGather));
-            return remaining;
-        };
-        const isUpgradeActiveForRender = (type) => {
-            const upgradeStart = gang[type].upgradeStartTime || 0;
-            const upgradeDuration = gang[type].upgradeDuration || 0;
-            return upgradeStart > 0 && (Date.now() - upgradeStart) < upgradeDuration;
-        };
-        const getUpgradeRemainingSec = (type) => {
-            const upgradeStart = gang[type].upgradeStartTime || 0;
-            const upgradeDuration = gang[type].upgradeDuration || 0;
-            if (upgradeStart === 0 || upgradeDuration === 0) return 0;
-            return Math.max(0, upgradeDuration - (Date.now() - upgradeStart));
-        };
-
-        let recruitTimers = [];
-        let upgradeTimers = [];
-
-        ['blats', 'muzhiks', 'fraers'].forEach(type => {
-            if (isRecruitingActive(type)) {
-                const remaining = getRecruitRemainingSec(type);
-                if (remaining > 0) {
-                    recruitTimers.push(formatMapTimer(remaining));
-                }
-            }
-            if (isUpgradeActiveForRender(type)) {
-                const remaining = getUpgradeRemainingSec(type);
-                if (remaining > 0) {
-                    upgradeTimers.push(formatMapTimer(remaining));
-                }
-            }
-        });
-
-        let countersHtml = '';
-        if (recruitTimers.length > 0 || upgradeTimers.length > 0) {
-            countersHtml = `<div class="counters-container">`;
-            if (recruitTimers.length > 0) {
-                for (let timer of recruitTimers) {
-                    countersHtml += `<div class="recruit-counter">👥 ${timer}</div>`;
-                }
-            }
-            if (upgradeTimers.length > 0) {
-                for (let timer of upgradeTimers) {
-                    countersHtml += `<div class="upgrade-counter">⬆️ ${timer}</div>`;
-                }
-            }
-            countersHtml += `</div>`;
-        }
-
-        // ========== СЧЕТЧИКИ ДЛЯ ИГРОВОЙ (b3) ==========
-        let gameActiveTimers = [];
-        let gameUpgradeTimers = [];
-
-        if (cardGameActive) {
-            const remaining = Math.max(0, cardGameDuration - (Date.now() - cardGameStartTime));
-            if (remaining > 0) {
-                gameActiveTimers.push(`🎴 ${formatMapTimer(remaining)}`);
-            }
-        }
-        if (gymActive) {
-            const remaining = Math.max(0, getGymDuration() - (Date.now() - gymStartTime));
-            if (remaining > 0) {
-                gameActiveTimers.push(`💪 ${formatMapTimer(remaining)}`);
-            }
-        }
-        if (isCardGameUpgradeActive()) {
-            const remaining = getCardGameUpgradeRemaining();
-            if (remaining > 0) {
-                gameUpgradeTimers.push(`🎴 ${formatMapTimer(remaining)}`);
-            }
-        }
-        if (isGymUpgradeActive()) {
-            const remaining = getGymUpgradeRemaining();
-            if (remaining > 0) {
-                gameUpgradeTimers.push(`💪 ${formatMapTimer(remaining)}`);
-            }
-        }
-
-        let countersHtmlGame = '';
-        if (gameActiveTimers.length > 0 || gameUpgradeTimers.length > 0) {
-            countersHtmlGame = `<div class="counters-container-game">`;
-            if (gameActiveTimers.length > 0) {
-                for (let timer of gameActiveTimers) {
-                    countersHtmlGame += `<div class="game-active-counter">${timer}</div>`;
-                }
-            }
-            if (gameUpgradeTimers.length > 0) {
-                for (let timer of gameUpgradeTimers) {
-                    countersHtmlGame += `<div class="game-upgrade-counter">⬆️ ${timer}</div>`;
-                }
-            }
-            countersHtmlGame += `</div>`;
-        }
-
-        // Обновляем счетчики уведомлений
-        const newQuestCount = checkQuestsCompletion();
-        if (newQuestCount !== questNotificationCount) {
-            questNotificationCount = newQuestCount;
-            updateQuestsNotificationBadge();
-        }
-        updateBattleCountersOnMap();
-
-        if (currentPlayer.clanId) {
-            const newReadyCount = checkClanQuestsReady();
-            if (newReadyCount !== clanQuestReadyCount) {
-                clanQuestReadyCount = newReadyCount;
-                updateClanNotificationBadge();
-            }
-        }
-
-        // ========== СОЗДАЁМ HTML ==========
-        const appHtml = `
-    <div class="fixed-top-bar">
-        <div class="top-bar-content">
-            <div class="left-profile">
-    <div class="caste-info" onclick="safeOpenModal('profile', () => openProfileModal())">
-        <img class="caste-avatar" src="${getCurrentAvatarUrl()}" alt="Аватар" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3135/3135715.png'">
-        <div class="caste-level">Ур. ${currentPlayer.level}</div>
-    </div>
-</div>
-            <div class="resources-column">
-    <div class="resources-row">
-        <div class="resource-item"><span>🚬</span><span id="resourceCigarettes">${formatNumberShort(currentPlayer.cigarettes || 0)}</span></div>
-        <div class="resource-item"><span>💰</span><span id="resourceRubles">${formatNumberShort(currentPlayer.rubles || 0)}</span></div>
-        <div class="resource-item"><span>⭐</span><span id="resourceAuthority">${formatNumberShort(currentPlayer.authority || 0)}</span></div>
-        <div class="resource-item"><span>⚡</span><span id="resourceEnergy">${currentPlayer.energy || 0}/${currentPlayer.maxEnergy || 0}</span></div>
-    </div>
-    <div class="resources-row">
-        <div class="resource-item"><span>📄</span><span id="resourcePaper">${formatNumberShort(currentPlayer.mine?.paper || 0)}</span></div>
-        <div class="resource-item"><span>🌿</span><span id="resourceMakhorka">${formatNumberShort(currentPlayer.mine?.makhorka || 0)}</span></div>
-        <div class="resource-item"><span>🪵</span><span id="resourceWood">${formatNumberShort(currentPlayer.lumber?.wood || 0)}</span></div>
-        <div class="resource-item"><span>🪨</span><span id="resourceStone">${formatNumberShort(currentPlayer.quarry?.stone || 0)}</span></div>
-    </div>
-</div>
-            <button class="settings-btn" onclick="safeOpenModal('settings', () => openSettingsModal())">⚙️</button>
-        </div>
-    </div>
-    <div class="game-container">
-        <div class="map-wrapper">
-            <img class="map-image" src="https://sviter-pro.github.io/GameZone/src/test/123.png" alt="Карта зоны" draggable="false" ontouchstart="return true;">
-            <div class="building b1" data-building="b1" onclick="safeOpenModal('inventory', () => openInventoryModal())"><div class="building-label">Камера</div></div>
-<div class="building b2" data-building="b2" onclick="safeOpenModal('mine', () => openMineModal())">
-    <div class="building-label">Работа</div>
-    ${countersHtmlWork}
-</div>
-<div class="building b3" data-building="b3" onclick="safeOpenModal('cardgame', () => openCardGameFullModal())">
-    <div class="building-label">Игровая</div>
-    ${countersHtmlGame}
-</div>
-<div class="building b4" data-building="b4" onclick="safeOpenModal('shop', () => openShopModal())"><div class="building-label">Магазин</div></div>
-<div class="building b5" data-building="b5" onclick="safeOpenModal('hospital', () => openHospitalModal())"><div class="building-label">Больница</div></div>
-<div class="building b6" data-building="b6" onclick="safeOpenModal('attack', () => openAttackModal())"><div class="building-label">Сходка</div></div>
-<div class="building b7" data-building="b7" onclick="safeOpenModal('gang', () => openGangModal())">
-    <div class="building-label">СИЗО</div>
-    ${countersHtml}
-</div>
-        </div>
-    </div>
-    <div class="fixed-bottom-bar">
-    <div class="bottom-nav">
-        <button class="nav-btn ${currentBottomTab === 'city' ? 'active' : ''}" onclick="switchBottomTab('city')">
-            <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_1.png" alt="Город" draggable="false">
-        </button>
-        <button class="nav-btn ${currentBottomTab === 'treasury' ? 'active' : ''}" onclick="openTreasuryModal()">
-            <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_3.png" alt="Общак" draggable="false">
-        </button>
-        <button class="nav-btn notification-badge ${currentBottomTab === 'clan' ? 'active' : ''}" onclick="openClanFullModal()">
-            <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_2.png" alt="Клан" draggable="false">
-            ${clanQuestReadyCount > 0 ? `<span class="badge-count">${clanQuestReadyCount}</span>` : ''}
-        </button>
-        <button class="nav-btn ${currentBottomTab === 'war' ? 'active' : ''}" onclick="openWarModal()">
-            <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_4.png" alt="Война" draggable="false">
-        </button>
-        <button class="nav-btn notification-badge ${currentBottomTab === 'quests' ? 'active' : ''}" onclick="openQuestsModal()">
-            <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_5.png" alt="Задания" draggable="false">
-            ${questNotificationCount > 0 ? `<span class="badge-count">${questNotificationCount}</span>` : ''}
-        </button>
-    </div>
-</div>
-    ${toast.show ? `<div class="toast ${toast.type === 'error' ? 'error' : (toast.type === 'success' ? 'success' : 'warning')}">${toast.message}</div>` : ''}
-`;
-
-        // Обновляем DOM
+        
+        // Проверяем, нужно ли вообще обновлять UI
         const app = document.getElementById('app');
-        if (app) {
-            app.innerHTML = appHtml;
+        if (!app) {
+            window._renderDepth--;
+            return;
         }
-
+        
+        // Проверяем, не открыто ли модальное окно
+        const activeModals = document.querySelectorAll('.mine-fullscreen, .shop-fullscreen, .cardgame-fullscreen, .treasury-fullscreen, .attack-fullscreen, .clan-fullscreen, .profile-fullscreen, .settings-fullscreen, .inventory-fullscreen, .quests-fullscreen, .gang-fullscreen, .hospital-fullscreen, #warFullscreen, .modal');
+        if (activeModals.length > 0) {
+            console.log('📱 Модальное окно открыто, renderUI пропущен');
+            window._renderDepth--;
+            return;
+        }
+        
+        // Если UI уже существует - обновляем только данные, не пересоздавая HTML
+        if (app.querySelector('.fixed-top-bar')) {
+            // Обновляем только ресурсы, не перерисовывая всё
+            updateTopBarResourcesSafe();
+            updateWorkCountersSafe();
+            updateBattleCountersSafe();
+            updateClanNotificationBadge();
+            updateQuestsNotificationBadge();
+            window._renderDepth--;
+            return;
+        }
+        
+        // Если UI не существует - создаем заново
+        app.innerHTML = createMainUIHTML();
+        
         // Навешиваем обработчики на здания
         document.querySelectorAll('.building').forEach(building => {
             building.addEventListener('click', (e) => {
@@ -24159,19 +24056,18 @@ function createMainUIHTML() {
             });
         });
 
-        // Защита изображений
         document.querySelectorAll('img').forEach(img => {
             img.setAttribute('draggable', 'false');
             img.setAttribute('ontouchstart', 'return true;');
         });
-
+        
     } catch (e) {
-        console.error('Ошибка в renderUI:', e);
+        console.error('❌ Ошибка в renderUI:', e);
     } finally {
-        window._isRendering = false;
-        isRendering = false;
+        window._renderDepth--;
     }
 }
+
         function showOldLoginForm() {
             showLoginForm();
         }
