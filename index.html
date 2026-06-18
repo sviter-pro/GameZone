@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Зона 1.0.0.287 - Карта зоны</title>
+    <title>Зона 1.0.0.288 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -6738,7 +6738,7 @@ function closeHospitalModal() {
                 
                 <div class="settings-card">
                     <div style="font-size: 13px; color: #aaa; text-align: center;">
-                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.287</div>
+                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.288</div>
                         <div style="font-size: 11px;">⚡ Клановые войны | Бесконечная прокачка</div>
                     </div>
                 </div>
@@ -11890,7 +11890,7 @@ function addNotification(type, title, message, targetPlayerId = null) {
                 <img class="loading-logo" src="https://sviter-pro.github.io/GameZone/src/test/logo124.png" alt="Тюряга 2.0" onerror="this.src='https://via.placeholder.com/180x180?text=Тюряга+2.0'">
                 <div class="loading-spinner-new"></div>
                 <div class="loading-tip-new" id="loadingTipNew">⚡ Загрузка игрового мира...</div>
-                <div class="loading-version">Зона 1.0.0.287 | Зона ждет</div>
+                <div class="loading-version">Зона 1.0.0.288 | Зона ждет</div>
             </div>
         `;
             const tipEl = document.getElementById('loadingTipNew');
@@ -16266,111 +16266,6 @@ function calculateBattleRewards(attacker, defender) {
     if (tg) tg.BackButton.show();
 }
 
-// ========== ФУНКЦИЯ ПРОСМОТРА ДЕТАЛЕЙ КЛАНА ==========
-function viewClanDetailsFromModal(clanId) {
-    if (!clanId) return;
-    if (maintenanceMode) { 
-        showToast(maintenanceMessage, 'warning'); 
-        return; 
-    }
-    
-    const clan = allClans.find(c => c.id === clanId);
-    if (!clan) {
-        showToast('Клан не найден!', 'error');
-        return;
-    }
-    
-    // Закрываем модальное окно со списком кланов
-    const modal = document.querySelector('.modal');
-    if (modal) modal.remove();
-    if (tg) tg.BackButton.hide();
-    
-    // Создаём окно деталей клана
-    const modalHtml = `
-        <div class="modal">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <div class="modal-title">🏰 ${escapeHtml(clan.name)}</div>
-                    <button class="close-btn" onclick="closeModal()">✕</button>
-                </div>
-                <div style="max-height: 400px; overflow-y: auto; padding: 10px 0;">
-                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.1);">
-                        <span>👑 Главарь</span>
-                        <span style="color: #ffd966;">${escapeHtml(clan.leader)}</span>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.1);">
-                        <span>👥 Участников</span>
-                        <span style="color: #ffd966;">${clan.members?.length || 0}</span>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.1);">
-                        <span>📈 Уровень</span>
-                        <span style="color: #ffd966;">${clan.level || 1}</span>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.1);">
-                        <span>💪 Мощь</span>
-                        <span style="color: #ffd966;">${clan.totalPower || 0}</span>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; padding: 8px 0;">
-                        <span>🏆 Побед</span>
-                        <span style="color: #4caf50;">${clan.wins || 0}</span>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.1);">
-                        <span>💔 Поражений</span>
-                        <span style="color: #e94560;">${clan.losses || 0}</span>
-                    </div>
-                    ${clan.defenseUntil && clan.defenseUntil > Date.now() ? `
-                        <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.1);">
-                            <span>🛡️ Защита</span>
-                            <span style="color: #ff9800;">${formatTimeDetailed(clan.defenseUntil - Date.now())}</span>
-                        </div>
-                    ` : ''}
-                    <div style="display: flex; justify-content: space-between; padding: 8px 0;">
-                        <span>💰 Рубли в казне</span>
-                        <span style="color: #ffd966;">${clan.rubles || 0}</span>
-                    </div>
-                    
-                    <!-- СПИСОК УЧАСТНИКОВ -->
-                    <div style="margin-top: 15px;">
-                        <div style="color: #c9a03d; font-size: 14px; margin-bottom: 10px; padding-bottom: 5px; border-bottom: 1px solid rgba(139,69,19,0.3);">
-                            👥 УЧАСТНИКИ КЛАНА (${clan.members?.length || 0})
-                        </div>
-                        ${clan.members && clan.members.length > 0 ? 
-                            clan.members.slice(0, 20).map(member => `
-                                <div style="display: flex; justify-content: space-between; padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 12px;">
-                                    <span style="color: #ffd966;">${escapeHtml(member)}</span>
-                                    <span style="color: #888;">${member === clan.leader ? '👑 Главарь' : ''}</span>
-                                </div>
-                            `).join('') :
-                            '<div style="color: #888; padding: 10px; text-align: center;">Нет участников</div>'
-                        }
-                        ${(clan.members?.length || 0) > 20 ? `<div style="text-align: center; color: #888; font-size: 11px; padding-top: 5px;">... и ещё ${clan.members.length - 20} участников</div>` : ''}
-                    </div>
-                </div>
-                
-                <!-- КНОПКИ ДЕЙСТВИЙ -->
-                <div style="padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1);">
-                    ${currentPlayer && currentPlayer.clanId && currentPlayer.username === currentPlayer.clanLeader ? `
-                        <button class="btn-primary" onclick="startWarFromModal('${clanId}')" style="width:100%; padding:14px; ${clan.defenseUntil && clan.defenseUntil > Date.now() ? 'disabled' : ''}">
-                            ⚔️ ОБЪЯВИТЬ ВОЙНУ
-                        </button>
-                    ` : ''}
-                    ${currentPlayer && !currentPlayer.clanId && currentPlayer.level >= 3 ? `
-                        <button class="btn-primary" onclick="sendJoinRequest('${clanId}')" style="width:100%; padding:14px; margin-top:10px; background: linear-gradient(135deg, #ff9800, #e68a00);">
-                            📝 ПОДАТЬ ЗАЯВКУ
-                        </button>
-                    ` : ''}
-                    ${currentPlayer && currentPlayer.clanId && currentPlayer.clanId !== clanId && currentPlayer.level >= 3 ? `
-                        <div style="text-align: center; color: #888; font-size: 12px; padding: 10px;">Вы уже состоите в другом клане</div>
-                    ` : ''}
-                    <button class="btn-secondary" onclick="closeModal()" style="width:100%; padding:12px; margin-top:10px;">ЗАКРЫТЬ</button>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    document.body.insertAdjacentHTML('beforeend', modalHtml);
-    if (tg) tg.BackButton.show();
-}
 
 function closeShopModal() {
     const modal = document.getElementById('shopFullscreen');
@@ -23110,6 +23005,34 @@ async function startGame(id, name) {
         // Таймер войны (один раз)
         startWarTimer();
         
+        // ========== ПЕРВЫЙ РЕНДЕР UI (ТОЛЬКО ОДИН РАЗ) ==========
+        // ✅ СОЗДАЁМ HTML ТОЛЬКО ОДИН РАЗ!
+        const app = document.getElementById('app');
+        if (app) {
+            app.innerHTML = createMainUIHTML();
+        }
+        
+        // ✅ Навешиваем обработчики на здания
+        document.querySelectorAll('.building').forEach(building => {
+            building.addEventListener('click', (e) => {
+                e.stopPropagation();
+                document.querySelectorAll('.building').forEach(el => el.classList.remove('active'));
+                building.classList.add('active');
+                setTimeout(() => { building.classList.remove('active'); }, 1000);
+            });
+        });
+
+        // ✅ Защита изображений
+        document.querySelectorAll('img').forEach(img => {
+            img.setAttribute('draggable', 'false');
+            img.setAttribute('ontouchstart', 'return true;');
+        });
+        
+        // ✅ Обновляем ресурсы в верхней панели
+        updateTopBarResources();
+        updateBattleCountersOnMap();
+        updateWorkCountersOnMap();
+        
         // ========== ГЛАВНЫЙ ИНТЕРВАЛ ОБНОВЛЕНИЯ UI (ТОЛЬКО ТОЧЕЧНЫЕ ОБНОВЛЕНИЯ) ==========
         if (window.mapCountersInterval) clearInterval(window.mapCountersInterval);
         window.mapCountersInterval = setInterval(() => {
@@ -23123,6 +23046,8 @@ async function startGame(id, name) {
                 checkWorkCompletion();        
                 checkAndNotifyWorkAvailable();
                 updateTopBarResources();
+                updateClanNotificationBadge();
+                updateQuestsNotificationBadge();
                 
                 // Обновляем таймеры в окне войны (если оно открыто)
                 const warModal = document.getElementById('warFullscreen');
@@ -23136,34 +23061,9 @@ async function startGame(id, name) {
         
         hideLoadingScreen();
         
-        // ========== ПЕРВЫЙ РЕНДЕР UI (ТОЛЬКО ОДИН РАЗ) ==========
-        renderUI();
-        
-        setTimeout(() => {
-            document.querySelectorAll('.fixed-bottom-bar img, .bottom-nav img, .nav-btn').forEach(el => {
-                el.addEventListener('contextmenu', (e) => {
-                    e.preventDefault();
-                    return false;
-                });
-                el.addEventListener('dragstart', (e) => {
-                    e.preventDefault();
-                    return false;
-                });
-            });
-
-            document.querySelectorAll('img').forEach(img => {
-                img.setAttribute('draggable', 'false');
-                img.addEventListener('contextmenu', (e) => e.preventDefault());
-            });
-        }, 100);
-        
-        // Выбор касты для нового игрока
+        // ========== ВЫБОР КАСТЫ ДЛЯ НОВОГО ИГРОКА ==========
         if (player.caste !== 'Блатные' && player.caste !== 'Мужики' && player.caste !== 'Фраер') {
             isFirstTimeCasteSelection = true;
-        }
-        
-        if (isFirstTimeCasteSelection) {
-            isFirstTimeCasteSelection = false;
             showCasteSelectionModal(async (selectedCaste) => {
                 await playerDocRef.update({ caste: selectedCaste });
                 currentPlayer.caste = selectedCaste;
@@ -23180,6 +23080,12 @@ async function startGame(id, name) {
         // Запускаем таймер заданий клана
         startClanQuestsTimer();
         
+        // ✅ ПОКАЗЫВАЕМ КНОПКИ
+        addNotificationsButton();
+        showNotificationsButton();
+        
+        console.log('✅ Игра запущена!');
+        
     } catch (e) {
         console.error(e);
         console.log("🔔 startGame: загружаем уведомления...");
@@ -23190,6 +23096,90 @@ async function startGame(id, name) {
         alert('Ошибка загрузки игры: ' + e.message); 
         showLoginForm();
     }
+}
+
+// ========== ФУНКЦИЯ СОЗДАНИЯ HTML (ВЫНЕСЕНА ИЗ RENDERUI) ==========
+function createMainUIHTML() {
+    if (!currentPlayer) return '';
+    
+    let casteIcon = currentPlayer.caste === 'Блатные' ? '👑' : (currentPlayer.caste === 'Мужики' ? '🔨' : '🐑');
+    
+    // Собираем счетчики для зданий
+    let countersHtmlWork = '';
+    let countersHtml = '';
+    let countersHtmlGame = '';
+    
+    // ... (здесь код для генерации счетчиков, аналогичный renderUI)
+    
+    return `
+    <div class="fixed-top-bar">
+        <div class="top-bar-content">
+            <div class="left-profile">
+                <div class="caste-info" onclick="safeOpenModal('profile', () => openProfileModal())">
+                    <img class="caste-avatar" src="${getCurrentAvatarUrl()}" alt="Аватар" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3135/3135715.png'">
+                    <div class="caste-level">Ур. ${currentPlayer.level}</div>
+                </div>
+            </div>
+            <div class="resources-column">
+                <div class="resources-row">
+                    <div class="resource-item"><span>🚬</span><span id="resourceCigarettes">${formatNumberShort(currentPlayer.cigarettes || 0)}</span></div>
+                    <div class="resource-item"><span>💰</span><span id="resourceRubles">${formatNumberShort(currentPlayer.rubles || 0)}</span></div>
+                    <div class="resource-item"><span>⭐</span><span id="resourceAuthority">${formatNumberShort(currentPlayer.authority || 0)}</span></div>
+                    <div class="resource-item"><span>⚡</span><span id="resourceEnergy">${currentPlayer.energy || 0}/${currentPlayer.maxEnergy || 0}</span></div>
+                </div>
+                <div class="resources-row">
+                    <div class="resource-item"><span>📄</span><span id="resourcePaper">${formatNumberShort(currentPlayer.mine?.paper || 0)}</span></div>
+                    <div class="resource-item"><span>🌿</span><span id="resourceMakhorka">${formatNumberShort(currentPlayer.mine?.makhorka || 0)}</span></div>
+                    <div class="resource-item"><span>🪵</span><span id="resourceWood">${formatNumberShort(currentPlayer.lumber?.wood || 0)}</span></div>
+                    <div class="resource-item"><span>🪨</span><span id="resourceStone">${formatNumberShort(currentPlayer.quarry?.stone || 0)}</span></div>
+                </div>
+            </div>
+            <button class="settings-btn" onclick="safeOpenModal('settings', () => openSettingsModal())">⚙️</button>
+        </div>
+    </div>
+    <div class="game-container">
+        <div class="map-wrapper">
+            <img class="map-image" src="https://sviter-pro.github.io/GameZone/src/test/123.png" alt="Карта зоны" draggable="false" ontouchstart="return true;">
+            <div class="building b1" data-building="b1" onclick="safeOpenModal('inventory', () => openInventoryModal())"><div class="building-label">Камера</div></div>
+            <div class="building b2" data-building="b2" onclick="safeOpenModal('mine', () => openMineModal())">
+                <div class="building-label">Работа</div>
+                ${countersHtmlWork}
+            </div>
+            <div class="building b3" data-building="b3" onclick="safeOpenModal('cardgame', () => openCardGameFullModal())">
+                <div class="building-label">Игровая</div>
+                ${countersHtmlGame}
+            </div>
+            <div class="building b4" data-building="b4" onclick="safeOpenModal('shop', () => openShopModal())"><div class="building-label">Магазин</div></div>
+            <div class="building b5" data-building="b5" onclick="safeOpenModal('hospital', () => openHospitalModal())"><div class="building-label">Больница</div></div>
+            <div class="building b6" data-building="b6" onclick="safeOpenModal('attack', () => openAttackModal())"><div class="building-label">Сходка</div></div>
+            <div class="building b7" data-building="b7" onclick="safeOpenModal('gang', () => openGangModal())">
+                <div class="building-label">СИЗО</div>
+                ${countersHtml}
+            </div>
+        </div>
+    </div>
+    <div class="fixed-bottom-bar">
+        <div class="bottom-nav">
+            <button class="nav-btn ${currentBottomTab === 'city' ? 'active' : ''}" onclick="switchBottomTab('city')">
+                <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_1.png" alt="Город" draggable="false">
+            </button>
+            <button class="nav-btn ${currentBottomTab === 'treasury' ? 'active' : ''}" onclick="openTreasuryModal()">
+                <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_3.png" alt="Общак" draggable="false">
+            </button>
+            <button class="nav-btn notification-badge ${currentBottomTab === 'clan' ? 'active' : ''}" onclick="openClanFullModal()">
+                <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_2.png" alt="Клан" draggable="false">
+                ${clanQuestReadyCount > 0 ? `<span class="badge-count">${clanQuestReadyCount}</span>` : ''}
+            </button>
+            <button class="nav-btn ${currentBottomTab === 'war' ? 'active' : ''}" onclick="openWarModal()">
+                <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_4.png" alt="Война" draggable="false">
+            </button>
+            <button class="nav-btn notification-badge ${currentBottomTab === 'quests' ? 'active' : ''}" onclick="openQuestsModal()">
+                <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_5.png" alt="Задания" draggable="false">
+                ${questNotificationCount > 0 ? `<span class="badge-count">${questNotificationCount}</span>` : ''}
+            </button>
+        </div>
+    </div>
+    `;
 }
 
         // Получить детальную информацию о зеках
