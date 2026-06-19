@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Зона 1.0.0.313 - Карта зоны</title>
+    <title>Зона 1.0.0.314 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -7378,20 +7378,23 @@ function safeUpdateUIAfterWork() {
 }
 
 async function completeWork(type) {
-    if (!currentPlayer) return;
-    if (workPendingCompletion[type]) return;
+    console.log('🔵 completeWork начат:', type);
+    
+    if (!currentPlayer) {
+        console.log('❌ Нет игрока');
+        return;
+    }
+    
+    if (workPendingCompletion[type]) {
+        console.log('⚠️ Уже выполняется');
+        return;
+    }
     
     workPendingCompletion[type] = true;
     
     try {
-        let updateObj = {};
-        
+        // 1. ТОЛЬКО ОБНОВЛЯЕМ ДАННЫЕ В ПАМЯТИ
         if (type === 'mine') {
-            if (isMineUpgradeActive('paper') || isMineUpgradeActive('makhorka')) {
-                workPendingCompletion[type] = false;
-                return;
-            }
-            
             const paperLevel = currentPlayer.mine?.paperLevel || 1;
             const makhorkaLevel = currentPlayer.mine?.makhorkaLevel || 1;
             
@@ -7402,55 +7405,71 @@ async function completeWork(type) {
             currentPlayer.mine.paper = (currentPlayer.mine.paper || 0) + paperGain;
             currentPlayer.mine.makhorka = (currentPlayer.mine.makhorka || 0) + makhorkaGain;
             
-            updateObj = {
-                'mine.paper': currentPlayer.mine.paper,
-                'mine.makhorka': currentPlayer.mine.makhorka
-            };
+            console.log('📊 Шахта:', { paper: currentPlayer.mine.paper, makhorka: currentPlayer.mine.makhorka });
             
         } else if (type === 'lumber') {
-            if (isLumberUpgradeActive()) {
-                workPendingCompletion[type] = false;
-                return;
-            }
-            
             const woodGain = 5 * (currentPlayer.lumber?.level || 1);
             
             if (!currentPlayer.lumber) currentPlayer.lumber = { wood: 0 };
             currentPlayer.lumber.wood = (currentPlayer.lumber.wood || 0) + woodGain;
             
-            updateObj = { 'lumber.wood': currentPlayer.lumber.wood };
+            console.log('📊 Лесоповал:', { wood: currentPlayer.lumber.wood });
             
         } else if (type === 'quarry') {
-            if (isQuarryUpgradeActive()) {
-                workPendingCompletion[type] = false;
-                return;
-            }
-            
             const stoneGain = 4 * (currentPlayer.quarry?.level || 1);
             
             if (!currentPlayer.quarry) currentPlayer.quarry = { stone: 0 };
             currentPlayer.quarry.stone = (currentPlayer.quarry.stone || 0) + stoneGain;
             
-            updateObj = { 'quarry.stone': currentPlayer.quarry.stone };
+            console.log('📊 Каменоломня:', { stone: currentPlayer.quarry.stone });
         }
         
-        if (Object.keys(updateObj).length > 0) {
-            await playerDocRef.update(updateObj);
+        // 2. СОХРАНЯЕМ В FIREBASE
+        console.log('💾 Сохраняем в Firebase...');
+        await playerDocRef.update({
+            'mine.paper': currentPlayer.mine?.paper || 0,
+            'mine.makhorka': currentPlayer.mine?.makhorka || 0,
+            'lumber.wood': currentPlayer.lumber?.wood || 0,
+            'quarry.stone': currentPlayer.quarry?.stone || 0
+        });
+        console.log('✅ Сохранено в Firebase');
+        
+        // 3. ПОКАЗЫВАЕМ ТОСТ (упрощенный)
+        try {
+            const toast = document.createElement('div');
+            toast.style.cssText = `
+                position: fixed;
+                bottom: 100px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: #28a745;
+                color: white;
+                padding: 10px 20px;
+                border-radius: 10px;
+                z-index: 999999;
+                font-size: 14px;
+            `;
+            toast.textContent = '✅ Работа завершена!';
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                if (toast.parentNode) toast.remove();
+            }, 2000);
+        } catch(e) {
+            console.log('⚠️ Ошибка показа тоста:', e);
         }
         
-        // Обновляем только ресурсы в верхней панели
-        updateTopBarResources();
-        
-        showToast(`✅ Работа завершена!`, 'success');
+        console.log('✅ completeWork завершен успешно');
         
     } catch (e) {
-        // Игнорируем
+        console.log('❌ Ошибка completeWork:', e);
     } finally {
         workPendingCompletion[type] = false;
+        console.log('🔓 workPendingCompletion сброшен');
     }
 }
 
-// ========== МАКСИМАЛЬНО ПРОСТОЙ ИНТЕРВАЛ ==========
+// ========== УПРОЩЕННЫЙ ИНТЕРВАЛ ==========
 if (window.mapCountersInterval) clearInterval(window.mapCountersInterval);
 window.mapCountersInterval = setInterval(() => {
     if (!currentPlayer) {
@@ -7458,13 +7477,56 @@ window.mapCountersInterval = setInterval(() => {
         return;
     }
     
-    try {
-        // Обновляем только ресурсы
-        updateTopBarResources();
-    } catch (e) {
-        // Игнорируем
+    // Только проверяем завершение работы
+    checkWorkCompletion();
+}, 1000);
+
+// ========== УПРОЩЕННАЯ ПРОВЕРКА РАБОТЫ ==========
+function checkWorkCompletion() {
+    if (!currentPlayer) return;
+    
+    // При первом запуске
+    if (!workCompletionInitialized) {
+        const workTypes = ['mine', 'lumber', 'quarry'];
+        for (const type of workTypes) {
+            lastWorkRemainingState[type] = getWorkRemaining(type);
+        }
+        workCompletionInitialized = true;
+        return;
     }
-}, 5000); // Обновляем раз в 5 секунд
+    
+    const workTypes = [
+        { type: 'mine', name: 'Шахта' },
+        { type: 'lumber', name: 'Лесоповал' },
+        { type: 'quarry', name: 'Каменоломня' }
+    ];
+    
+    for (const work of workTypes) {
+        const remaining = getWorkRemaining(work.type);
+        const lastRemaining = lastWorkRemainingState[work.type] || 0;
+        
+        // Если работа завершилась
+        if (lastRemaining > 0 && remaining <= 0) {
+            console.log(`✅ Работа ${work.type} завершена!`);
+            
+            // Проверяем прокачку
+            let isUpgradeActive = false;
+            if (work.type === 'mine') {
+                isUpgradeActive = isMineUpgradeActive('paper') || isMineUpgradeActive('makhorka');
+            } else if (work.type === 'lumber') {
+                isUpgradeActive = isLumberUpgradeActive();
+            } else if (work.type === 'quarry') {
+                isUpgradeActive = isQuarryUpgradeActive();
+            }
+            
+            if (!isUpgradeActive && !workPendingCompletion[work.type]) {
+                completeWork(work.type);
+            }
+        }
+        
+        lastWorkRemainingState[work.type] = remaining;
+    }
+}
 
 // ========== ПЕРЕХВАТ ВСЕХ ОШИБОК С СИНХРОННЫМ ЛОГИРОВАНИЕМ ==========
 window.addEventListener('error', function(e) {
@@ -7934,7 +7996,7 @@ function closeHospitalModal() {
                 
                 <div class="settings-card">
                     <div style="font-size: 13px; color: #aaa; text-align: center;">
-                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.313</div>
+                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.314</div>
                         <div style="font-size: 11px;">⚡ Клановые войны | Бесконечная прокачка</div>
                     </div>
                 </div>
@@ -13671,7 +13733,7 @@ function addNotification(type, title, message, targetPlayerId = null) {
                 <img class="loading-logo" src="https://sviter-pro.github.io/GameZone/src/test/logo124.png" alt="Тюряга 2.0" onerror="this.src='https://via.placeholder.com/180x180?text=Тюряга+2.0'">
                 <div class="loading-spinner-new"></div>
                 <div class="loading-tip-new" id="loadingTipNew">⚡ Загрузка игрового мира...</div>
-                <div class="loading-version">Зона 1.0.0.313 | Зона ждет</div>
+                <div class="loading-version">Зона 1.0.0.314 | Зона ждет</div>
             </div>
         `;
             const tipEl = document.getElementById('loadingTipNew');
