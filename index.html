@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Зона 1.0.0.318 - Карта зоны</title>
+    <title>Зона 1.0.0.319 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -7381,49 +7381,60 @@ function safeUpdateUIAfterWork() {
 // ========== МАКСИМАЛЬНО ПРОСТАЯ ВЕРСИЯ ==========
 // Никаких асинхронных операций, никакого Firebase, только уведомление
 
-function showTelegramAlert(message) {
-    try {
-        if (window.Telegram && window.Telegram.WebApp) {
-            Telegram.WebApp.showAlert(message);
-        } else {
-            alert(message);
-        }
-    } catch(e) {
-        alert(message);
-    }
-}
-
 let workCompletePending = false;
+let workCompleteTimeout = null;
+let lastWorkCompleteTime = 0;
 
 async function completeWork(type) {
-    console.log('🔵 completeWork начат:', type);
+    console.log('🔵 completeWork вызван:', type);
     
-    // Защита от повторных вызовов
+    // ✅ БЛОКИРУЕМ ПОВТОРНЫЕ ВЫЗОВЫ
     if (workCompletePending) {
-        console.log('⚠️ Уже выполняется');
+        console.log('⚠️ Уже выполняется, пропускаем');
         return;
     }
+    
+    // ✅ ЗАЩИТА ОТ ЧАСТЫХ ВЫЗОВОВ (не чаще 1 раза в 5 секунд)
+    const now = Date.now();
+    if (now - lastWorkCompleteTime < 5000) {
+        console.log('⚠️ Слишком часто, пропускаем');
+        return;
+    }
+    lastWorkCompleteTime = now;
+    
     workCompletePending = true;
+    console.log('🔒 completeWork заблокирован');
     
-    // Сразу показываем уведомление
     try {
-        // Показываем уведомление через alert (самый простой способ)
-        // В Telegram WebApp alert работает
-        showTelegramAlert('✅ Работа завершена!');
-    } catch(e) {
-        console.log('Ошибка alert:', e);
-    }
-    
-    // Ждем 100мс и сбрасываем флаг
-    setTimeout(() => {
+        // ✅ ПОКАЗЫВАЕМ УВЕДОМЛЕНИЕ ТОЛЬКО 1 РАЗ
+        console.log('📢 Показываем уведомление');
+        
+        // Показываем через Telegram WebApp
+        if (window.Telegram && window.Telegram.WebApp) {
+            try {
+                Telegram.WebApp.showAlert('✅ Работа завершена!', function() {
+                    console.log('✅ Alert закрыт');
+                });
+            } catch(e) {
+                alert('✅ Работа завершена!');
+            }
+        } else {
+            alert('✅ Работа завершена!');
+        }
+        
+        // ✅ СБРАСЫВАЕМ ФЛАГ ЧЕРЕЗ 2 СЕКУНДЫ
+        setTimeout(() => {
+            workCompletePending = false;
+            console.log('🔓 completeWork разблокирован');
+        }, 2000);
+        
+    } catch (e) {
+        console.log('❌ Ошибка:', e);
         workCompletePending = false;
-        console.log('🔓 completeWork разблокирован');
-    }, 100);
-    
-    console.log('✅ completeWork завершен');
+    }
 }
 
-// ========== ЕЩЕ БОЛЕЕ ПРОСТАЯ ПРОВЕРКА ==========
+// ========== ИСПРАВЛЕННАЯ ПРОВЕРКА РАБОТЫ ==========
 function checkWorkCompletion() {
     if (!currentPlayer) return;
     
@@ -7434,6 +7445,7 @@ function checkWorkCompletion() {
             lastWorkRemainingState[type] = getWorkRemaining(type);
         }
         workCompletionInitialized = true;
+        console.log('✅ workCompletion инициализирован');
         return;
     }
     
@@ -7461,80 +7473,50 @@ function checkWorkCompletion() {
                 isUpgradeActive = isQuarryUpgradeActive();
             }
             
+            // ✅ ВЫЗЫВАЕМ ТОЛЬКО ЕСЛИ НЕТ АКТИВНОЙ ПРОКАЧКИ И НЕТ ОЖИДАНИЯ
             if (!isUpgradeActive && !workCompletePending) {
-                // Вызываем completeWork, но он ничего не делает, кроме alert
                 completeWork(work.type);
+            } else {
+                console.log(`⏳ Пропускаем ${work.type}: upgradeActive=${isUpgradeActive}, pending=${workCompletePending}`);
             }
         }
         
         lastWorkRemainingState[work.type] = remaining;
     }
 }
-// ========== УПРОЩЕННАЯ ПРОВЕРКА РАБОТЫ ==========
-function checkWorkCompletion() {
-    if (!currentPlayer) return;
-    
-    // При первом запуске
-    if (!workCompletionInitialized) {
-        const workTypes = ['mine', 'lumber', 'quarry'];
-        for (const type of workTypes) {
-            lastWorkRemainingState[type] = getWorkRemaining(type);
-        }
-        workCompletionInitialized = true;
+
+// ========== ИСПРАВЛЕННЫЙ ИНТЕРВАЛ ==========
+if (window.mapCountersInterval) clearInterval(window.mapCountersInterval);
+window.mapCountersInterval = setInterval(() => {
+    if (!currentPlayer) {
+        if (window.mapCountersInterval) clearInterval(window.mapCountersInterval);
         return;
     }
     
-    const workTypes = [
-        { type: 'mine', name: 'Шахта' },
-        { type: 'lumber', name: 'Лесоповал' },
-        { type: 'quarry', name: 'Каменоломня' }
-    ];
-    
-    for (const work of workTypes) {
-        const remaining = getWorkRemaining(work.type);
-        const lastRemaining = lastWorkRemainingState[work.type] || 0;
+    try {
+        // Проверяем завершение работы
+        checkWorkCompletion();
         
-        // Если работа завершилась
-        if (lastRemaining > 0 && remaining <= 0) {
-            console.log(`✅ Работа ${work.type} завершена!`);
-            
-            // Проверяем прокачку
-            let isUpgradeActive = false;
-            if (work.type === 'mine') {
-                isUpgradeActive = isMineUpgradeActive('paper') || isMineUpgradeActive('makhorka');
-            } else if (work.type === 'lumber') {
-                isUpgradeActive = isLumberUpgradeActive();
-            } else if (work.type === 'quarry') {
-                isUpgradeActive = isQuarryUpgradeActive();
-            }
-            
-            if (!isUpgradeActive && !workPendingCompletion[work.type]) {
-                completeWork(work.type);
-            }
-        }
-        
-        lastWorkRemainingState[work.type] = remaining;
+        // Обновляем только ресурсы
+        updateTopBarResources();
+    } catch (e) {
+        console.log('⚠️ Ошибка интервала:', e);
     }
-}
+}, 2000); // Проверяем раз в 2 секунды
 
-// ========== ПЕРЕХВАТ ВСЕХ ОШИБОК С СИНХРОННЫМ ЛОГИРОВАНИЕМ ==========
-window.addEventListener('error', function(e) {
-    syncCrashLog('❌ ОШИБКА', {
-        message: e.message,
-        filename: e.filename,
-        lineno: e.lineno,
-        colno: e.colno,
-        stack: e.error?.stack
-    });
-    return true;
+// ========== ДОПОЛНИТЕЛЬНАЯ ЗАЩИТА ==========
+// Сбрасываем флаг при перезагрузке страницы
+window.addEventListener('beforeunload', function() {
+    workCompletePending = false;
+    console.log('🔄 Страница перезагружается, сбрасываем флаг');
 });
 
-window.addEventListener('unhandledrejection', function(e) {
-    syncCrashLog('❌ НЕОБРАБОТАННЫЙ PROMISE', {
-        reason: e.reason?.message || String(e.reason)
-    });
-    return true;
+// Сбрасываем флаг при загрузке страницы
+document.addEventListener('DOMContentLoaded', function() {
+    workCompletePending = false;
+    console.log('📄 Страница загружена, флаг сброшен');
 });
+
 
 function restoreWorkTimers() {
     if (!currentPlayer) return;
@@ -7985,7 +7967,7 @@ function closeHospitalModal() {
                 
                 <div class="settings-card">
                     <div style="font-size: 13px; color: #aaa; text-align: center;">
-                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.318</div>
+                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.319</div>
                         <div style="font-size: 11px;">⚡ Клановые войны | Бесконечная прокачка</div>
                     </div>
                 </div>
@@ -13722,7 +13704,7 @@ function addNotification(type, title, message, targetPlayerId = null) {
                 <img class="loading-logo" src="https://sviter-pro.github.io/GameZone/src/test/logo124.png" alt="Тюряга 2.0" onerror="this.src='https://via.placeholder.com/180x180?text=Тюряга+2.0'">
                 <div class="loading-spinner-new"></div>
                 <div class="loading-tip-new" id="loadingTipNew">⚡ Загрузка игрового мира...</div>
-                <div class="loading-version">Зона 1.0.0.318 | Зона ждет</div>
+                <div class="loading-version">Зона 1.0.0.319 | Зона ждет</div>
             </div>
         `;
             const tipEl = document.getElementById('loadingTipNew');
