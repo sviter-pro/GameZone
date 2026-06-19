@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Зона 1.0.0.312 - Карта зоны</title>
+    <title>Зона 1.0.0.313 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -7378,36 +7378,25 @@ function safeUpdateUIAfterWork() {
 }
 
 async function completeWork(type) {
-    // Если работа уже выполняется - пропускаем
-    if (isWorkRunning) return;
+    if (!currentPlayer) return;
     if (workPendingCompletion[type]) return;
     
-    isWorkRunning = true;
     workPendingCompletion[type] = true;
     
     try {
-        let paperGain = 0, makhorkaGain = 0, woodGain = 0, stoneGain = 0;
-        let workExp = 0;
         let updateObj = {};
         
         if (type === 'mine') {
             if (isMineUpgradeActive('paper') || isMineUpgradeActive('makhorka')) {
                 workPendingCompletion[type] = false;
-                isWorkRunning = false;
                 return;
             }
             
             const paperLevel = currentPlayer.mine?.paperLevel || 1;
             const makhorkaLevel = currentPlayer.mine?.makhorkaLevel || 1;
             
-            paperGain = 5 * paperLevel;
-            makhorkaGain = 3 * makhorkaLevel;
-            if (currentPlayer.caste === 'Мужики') { 
-                paperGain = Math.floor(paperGain * 1.05); 
-                makhorkaGain = Math.floor(makhorkaGain * 1.05); 
-            }
-            
-            workExp = 25 + (paperLevel * 3) + (makhorkaLevel * 2);
+            const paperGain = 5 * paperLevel;
+            const makhorkaGain = 3 * makhorkaLevel;
             
             if (!currentPlayer.mine) currentPlayer.mine = { paper: 0, makhorka: 0 };
             currentPlayer.mine.paper = (currentPlayer.mine.paper || 0) + paperGain;
@@ -7421,14 +7410,10 @@ async function completeWork(type) {
         } else if (type === 'lumber') {
             if (isLumberUpgradeActive()) {
                 workPendingCompletion[type] = false;
-                isWorkRunning = false;
                 return;
             }
             
-            woodGain = 5 * (currentPlayer.lumber?.level || 1);
-            if (currentPlayer.caste === 'Мужики') woodGain = Math.floor(woodGain * 1.05);
-            
-            workExp = 30 + ((currentPlayer.lumber?.level || 1) * 4);
+            const woodGain = 5 * (currentPlayer.lumber?.level || 1);
             
             if (!currentPlayer.lumber) currentPlayer.lumber = { wood: 0 };
             currentPlayer.lumber.wood = (currentPlayer.lumber.wood || 0) + woodGain;
@@ -7438,14 +7423,10 @@ async function completeWork(type) {
         } else if (type === 'quarry') {
             if (isQuarryUpgradeActive()) {
                 workPendingCompletion[type] = false;
-                isWorkRunning = false;
                 return;
             }
             
-            stoneGain = 4 * (currentPlayer.quarry?.level || 1);
-            if (currentPlayer.caste === 'Мужики') stoneGain = Math.floor(stoneGain * 1.05);
-            
-            workExp = 28 + ((currentPlayer.quarry?.level || 1) * 3);
+            const stoneGain = 4 * (currentPlayer.quarry?.level || 1);
             
             if (!currentPlayer.quarry) currentPlayer.quarry = { stone: 0 };
             currentPlayer.quarry.stone = (currentPlayer.quarry.stone || 0) + stoneGain;
@@ -7453,70 +7434,23 @@ async function completeWork(type) {
             updateObj = { 'quarry.stone': currentPlayer.quarry.stone };
         }
         
-        // Обновляем Firebase
         if (Object.keys(updateObj).length > 0) {
             await playerDocRef.update(updateObj);
         }
         
-        // Обновляем опыт
-        let newAuthority = currentPlayer.authority + workExp;
-        let newLevel = currentPlayer.level;
-        let leveledUp = false;
-        let newAuthorityToNext = currentPlayer.authorityToNext;
-        let newMaxEnergy = currentPlayer.maxEnergy;
-        let newStrength = currentPlayer.stats.strength;
-        let newDefense = currentPlayer.stats.defense;
-
-        if (newAuthority >= currentPlayer.authorityToNext) {
-            newLevel++;
-            newAuthority = 0;
-            newAuthorityToNext = Math.floor(currentPlayer.authorityToNext * 1.5);
-            newMaxEnergy = currentPlayer.maxEnergy + 5;
-            newStrength = currentPlayer.stats.strength + 3;
-            newDefense = currentPlayer.stats.defense + 2;
-            leveledUp = true;
-        }
-
-        await playerDocRef.update({
-            authority: newAuthority,
-            level: newLevel,
-            authorityToNext: newAuthorityToNext,
-            maxEnergy: newMaxEnergy,
-            'stats.strength': newStrength,
-            'stats.defense': newDefense
-        });
-
-        currentPlayer.authority = newAuthority;
-        currentPlayer.level = newLevel;
-        currentPlayer.authorityToNext = newAuthorityToNext;
-        currentPlayer.maxEnergy = newMaxEnergy;
-        currentPlayer.stats.strength = newStrength;
-        currentPlayer.stats.defense = newDefense;
-
-        if (leveledUp) {
-            showToast(`🎉 УРОВЕНЬ ${newLevel}! +5 энергии, +3 силы, +2 защиты!`, 'success');
-        }
-        
-        showToast(`✅ Работа в ${type} завершена!`, 'success');
-        
-        // Обновляем ресурсы в верхней панели
+        // Обновляем только ресурсы в верхней панели
         updateTopBarResources();
         
+        showToast(`✅ Работа завершена!`, 'success');
+        
     } catch (e) {
-        // Игнорируем ошибки
+        // Игнорируем
     } finally {
         workPendingCompletion[type] = false;
-        isWorkRunning = false;
-        
-        // Обновляем счетчики через 2 секунды
-        setTimeout(() => {
-            updateWorkCountersOnMap();
-            updateBattleCountersOnMap();
-        }, 2000);
     }
 }
 
-// ========== ИСПРАВЛЕННЫЙ ИНТЕРВАЛ ==========
+// ========== МАКСИМАЛЬНО ПРОСТОЙ ИНТЕРВАЛ ==========
 if (window.mapCountersInterval) clearInterval(window.mapCountersInterval);
 window.mapCountersInterval = setInterval(() => {
     if (!currentPlayer) {
@@ -7524,22 +7458,13 @@ window.mapCountersInterval = setInterval(() => {
         return;
     }
     
-    // Если работа выполняется - пропускаем обновление
-    if (isWorkRunning) return;
-    
     try {
-        const app = document.getElementById('app');
-        if (!app) return;
-        
-        // Обновляем только ресурсы и счетчики
+        // Обновляем только ресурсы
         updateTopBarResources();
-        updateWorkCountersOnMap();
-        updateBattleCountersOnMap();
-        
     } catch (e) {
-        // Игнорируем ошибки
+        // Игнорируем
     }
-}, 2000); // Увеличиваем интервал до 2 секунд
+}, 5000); // Обновляем раз в 5 секунд
 
 // ========== ПЕРЕХВАТ ВСЕХ ОШИБОК С СИНХРОННЫМ ЛОГИРОВАНИЕМ ==========
 window.addEventListener('error', function(e) {
@@ -8009,7 +7934,7 @@ function closeHospitalModal() {
                 
                 <div class="settings-card">
                     <div style="font-size: 13px; color: #aaa; text-align: center;">
-                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.312</div>
+                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.313</div>
                         <div style="font-size: 11px;">⚡ Клановые войны | Бесконечная прокачка</div>
                     </div>
                 </div>
@@ -13746,7 +13671,7 @@ function addNotification(type, title, message, targetPlayerId = null) {
                 <img class="loading-logo" src="https://sviter-pro.github.io/GameZone/src/test/logo124.png" alt="Тюряга 2.0" onerror="this.src='https://via.placeholder.com/180x180?text=Тюряга+2.0'">
                 <div class="loading-spinner-new"></div>
                 <div class="loading-tip-new" id="loadingTipNew">⚡ Загрузка игрового мира...</div>
-                <div class="loading-version">Зона 1.0.0.312 | Зона ждет</div>
+                <div class="loading-version">Зона 1.0.0.313 | Зона ждет</div>
             </div>
         `;
             const tipEl = document.getElementById('loadingTipNew');
@@ -14759,91 +14684,7 @@ function addNotification(type, title, message, targetPlayerId = null) {
         }
 		
 function updateWorkCountersOnMap() {
-    try {
-        // Если работа выполняется - не обновляем
-        if (isWorkRunning) return;
-        
-        const b2Element = document.querySelector('.building.b2');
-        if (!b2Element) return;
-        
-        // Проверяем, виден ли элемент
-        const rect = b2Element.getBoundingClientRect();
-        if (rect.width === 0 || rect.height === 0) return;
-        
-        const formatMapTimer = (ms) => {
-            if (ms <= 0) return '';
-            const totalSeconds = Math.floor(ms / 1000);
-            const minutes = Math.floor(totalSeconds / 60);
-            const seconds = totalSeconds % 60;
-            if (minutes > 0) return `${minutes}м ${seconds}с`;
-            return `${seconds}с`;
-        };
-        
-        let countersDiv = b2Element.querySelector('.counters-container-work');
-        const activeCounters = [];
-        
-        // Собираем активные счетчики
-        const mineWorkRemaining = getWorkRemaining('mine');
-        if (mineWorkRemaining > 0) {
-            activeCounters.push({ type: 'work', icon: '⛏️', remaining: mineWorkRemaining });
-        }
-        
-        const minePaperUpgradeRemaining = getMineUpgradeRemaining('paper');
-        if (minePaperUpgradeRemaining > 0) {
-            activeCounters.push({ type: 'upgrade', icon: '📄⬆️', remaining: minePaperUpgradeRemaining });
-        }
-        
-        const mineMakhorkaUpgradeRemaining = getMineUpgradeRemaining('makhorka');
-        if (mineMakhorkaUpgradeRemaining > 0) {
-            activeCounters.push({ type: 'upgrade', icon: '🌿⬆️', remaining: mineMakhorkaUpgradeRemaining });
-        }
-        
-        const lumberWorkRemaining = getWorkRemaining('lumber');
-        if (lumberWorkRemaining > 0) {
-            activeCounters.push({ type: 'work', icon: '🪓', remaining: lumberWorkRemaining });
-        }
-        
-        const lumberUpgradeRemaining = getLumberUpgradeRemaining();
-        if (lumberUpgradeRemaining > 0) {
-            activeCounters.push({ type: 'upgrade', icon: '🪵⬆️', remaining: lumberUpgradeRemaining });
-        }
-        
-        const quarryWorkRemaining = getWorkRemaining('quarry');
-        if (quarryWorkRemaining > 0) {
-            activeCounters.push({ type: 'work', icon: '⛏️', remaining: quarryWorkRemaining });
-        }
-        
-        const quarryUpgradeRemaining = getQuarryUpgradeRemaining();
-        if (quarryUpgradeRemaining > 0) {
-            activeCounters.push({ type: 'upgrade', icon: '🪨⬆️', remaining: quarryUpgradeRemaining });
-        }
-        
-        // Обновляем или создаем контейнер счетчиков
-        if (activeCounters.length > 0) {
-            if (!countersDiv) {
-                countersDiv = document.createElement('div');
-                countersDiv.className = 'counters-container-work';
-                b2Element.appendChild(countersDiv);
-            }
-            
-            let html = '';
-            for (const counter of activeCounters) {
-                const timerText = formatMapTimer(counter.remaining);
-                if (counter.type === 'work') {
-                    html += `<div class="work-counter">${counter.icon} ${timerText}</div>`;
-                } else {
-                    html += `<div class="upgrade-work-counter">⬆️ ${timerText}</div>`;
-                }
-            }
-            countersDiv.innerHTML = html;
-            countersDiv.style.display = 'flex';
-        } else if (countersDiv) {
-            countersDiv.style.display = 'none';
-        }
-        
-    } catch (e) {
-        // Игнорируем ошибки
-    }
+    
 }
 
 function updateBattleCountersOnMap() {
