@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>GameZona</title>
+    <title>GameZona - 1.0.1.011</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -2049,40 +2049,9 @@
         }
 
         // ============================================================
-        // 13. ПРОФИЛЬ
+        // 13. 
         // ============================================================
-        function getAvatarUrl(avatarId) {
-            const id = avatarId || window.currentPlayer?.currentAvatar || 1;
-            const avatar = window.AVAATARS.find(a => a.id === id);
-            return avatar ? avatar.url : window.AVAATARS[0].url;
-        }
-
-        function getAvatarName(id) {
-            const avatar = window.AVAATARS.find(a => a.id === id);
-            return avatar ? avatar.name : 'Блатной';
-        }
-
-        function getAvatarPrice(id) {
-            const avatar = window.AVAATARS.find(a => a.id === id);
-            return avatar ? avatar.price : 0;
-        }
-
-        function isAvatarPurchased(avatarId) {
-            if (!window.currentPlayer) return false;
-            const purchased = window.currentPlayer.purchasedAvatars || [];
-            return purchased.includes(avatarId);
-        }
-
-        function updateAvatarEverywhere() {
-            if (!window.currentPlayer) return;
-            const avatarUrl = getAvatarUrl(window.currentPlayer.currentAvatar);
-            
-            const topAvatar = document.querySelector('.caste-avatar');
-            if (topAvatar) topAvatar.src = avatarUrl;
-            
-            const profileAvatar = document.querySelector('.profile-avatar');
-            if (profileAvatar) profileAvatar.src = avatarUrl;
-        }
+        
 
         // ============================================================
         // 14. ИНВЕНТАРЬ (КАМЕРА) - ИСПРАВЛЕН
@@ -2126,40 +2095,499 @@
             if (window.tg) window.tg.BackButton.show();
         };
 
-        // ============================================================
-        // 15. НАСТРОЙКИ - ИСПРАВЛЕН
-        // ============================================================
-        window.openSettingsModal = function() {
-            if (!window.currentPlayer) {
-                showToast('❌ Игрок не найден!', 'error');
-                return;
+// ============================================================
+// 15. НАСТРОЙКИ (С ПРИГЛАШЕНИЕМ И РЕЙТИНГОМ - ОКНО В ОКНЕ)
+// ============================================================
+
+// ============================================================
+// 15.1. ОТКРЫТИЕ НАСТРОЕК
+// ============================================================
+window.openSettingsModal = function() {
+    if (!window.currentPlayer) {
+        showToast('❌ Игрок не найден!', 'error');
+        return;
+    }
+    
+    // Получаем количество приглашённых
+    const invitedCount = window.currentPlayer.invitedPlayers?.length || 0;
+    const maxInvites = 10;
+    
+    const html = `
+        <div class="modal-overlay" id="settingsModal" onclick="if(event.target === this) closeModal('settingsModal')">
+            <div class="modal-window">
+                <div class="modal-window-header">
+                    <div class="modal-window-title">⚙️ НАСТРОЙКИ</div>
+                    <button class="modal-window-close" onclick="closeModal('settingsModal')">✕</button>
+                </div>
+               
+                <!-- КНОПКИ ДЕЙСТВИЙ -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 10px 0;">
+                    <button class="settings-rank-btn" onclick="openRankingOverlay()" style="
+                        background: linear-gradient(135deg, #8B4513, #5a2d0a);
+                        border: 1px solid #c9a03d;
+                        border-radius: 40px;
+                        padding: 14px;
+                        font-weight: 700;
+                        font-size: 14px;
+                        color: #ffd966;
+                        cursor: pointer;
+                        transition: all 0.2s;
+                        text-align: center;
+                        width: 100%;
+                    ">
+                        🏆 РЕЙТИНГ
+                    </button>
+                    <button class="settings-invite-btn" onclick="openInviteOverlay()" style="
+                        background: linear-gradient(135deg, #1a3a5c, #0d2a4a);
+                        border: 1px solid #4a8caf;
+                        border-radius: 40px;
+                        padding: 14px;
+                        font-weight: 700;
+                        font-size: 14px;
+                        color: #7ec8e0;
+                        cursor: pointer;
+                        transition: all 0.2s;
+                        text-align: center;
+                        width: 100%;
+                    ">
+                        👥 ПРИГЛАСИТЬ
+                    </button>
+                </div>
+                
+                <div style="text-align: center; color: #aaa; padding: 10px 0 20px 0;">
+                    <div style="font-size: 11px; margin-top: 5px; color: #666;">Версия 1.0.1.011</div>
+                    <div style="margin-top: 10px; font-size: 12px; color: #555;">
+                        👤 ${escapeHtml(window.currentPlayer.username)}<br>
+                        🆔 ${window.playerId}
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', html);
+    if (window.tg) window.tg.BackButton.show();
+};
+
+// ============================================================
+// 15.2. ОТКРЫТИЕ РЕЙТИНГА ПОВЕРХ НАСТРОЕК (ОКНО В ОКНЕ)
+// ============================================================
+window.openRankingOverlay = function() {
+    if (!window.currentPlayer) {
+        showToast('❌ Игрок не найден!', 'error');
+        return;
+    }
+    
+    showLoading(true, 'Загрузка рейтинга...');
+    
+    // Загружаем всех игроков из базы
+    db.ref('players').once('value').then(function(snapshot) {
+        showLoading(false);
+        
+        if (!snapshot.exists()) {
+            showToast('❌ Нет данных для рейтинга', 'error');
+            return;
+        }
+        
+        var players = [];
+        snapshot.forEach(function(child) {
+            var data = child.val();
+            if (!data.isBanned) {
+                var power = calculatePlayerPower(data);
+                players.push({
+                    id: child.key,
+                    username: data.username || 'Неизвестный',
+                    level: data.level || 1,
+                    power: power,
+                    strength: data.strength || 10,
+                    defense: data.defense || 5,
+                    authority: data.authority || 0,
+                    cigarettes: data.cigarettes || 0,
+                    rubles: data.rubles || 0
+                });
             }
-            
-            const html = `
-                <div class="modal-overlay" id="settingsModal" onclick="if(event.target === this) closeModal('settingsModal')">
-                    <div class="modal-window">
-                        <div class="modal-window-header">
-                            <div class="modal-window-title">⚙️ НАСТРОЙКИ</div>
-                            <button class="modal-window-close" onclick="closeModal('settingsModal')">✕</button>
-                        </div>
-                        <div style="text-align: center; color: #aaa; padding: 20px;">
-                            <div style="font-size: 48px; margin-bottom: 10px;">⚙️</div>
-                            <div style="font-size: 14px;">Настройки игры</div>
-                            <div style="font-size: 12px; margin-top: 10px; color: #666;">Версия 1.0.1.010</div>
-                            <div style="margin-top: 16px; font-size: 12px; color: #555;">
-                                👤 ${escapeHtml(window.currentPlayer.username)}<br>
-                                🆔 ${window.playerId}
+        });
+        
+        // Сортируем по мощи (по убыванию)
+        players.sort(function(a, b) { return b.power - a.power; });
+        
+        // Берём топ-100
+        var topPlayers = players.slice(0, 100);
+        
+        let sortType = 'power';
+        
+        const modalHtml = `
+            <div class="modal-overlay" id="rankingModalOverlay" onclick="if(event.target === this) closeRankingOverlay()" style="z-index: 30000;">
+                <div class="modal-window" style="max-width: 450px;">
+                    <div class="modal-window-header">
+                        <div class="modal-window-title">🏆 РЕЙТИНГ ИГРОКОВ</div>
+                        <button class="modal-window-close" onclick="closeRankingOverlay()">✕</button>
+                    </div>
+                    <div class="modal-window-content">
+                        <!-- ГОРИЗОНТАЛЬНЫЙ СКРОЛЛ КНОПОК -->
+                        <div style="overflow-x: auto; overflow-y: hidden; white-space: nowrap; -webkit-overflow-scrolling: touch; margin-bottom: 15px; padding: 4px 0; scrollbar-width: none; -ms-overflow-style: none;">
+                            <div style="display: inline-flex; gap: 6px; padding: 0 4px;">
+                                <button class="sort-btn-overlay" data-sort="power" style="
+                                    background: #1e2440;
+                                    padding: 8px 16px;
+                                    border-radius: 20px;
+                                    cursor: pointer;
+                                    font-size: 12px;
+                                    border: none;
+                                    color: white;
+                                    transition: all 0.2s;
+                                    display: inline-block;
+                                    flex-shrink: 0;
+                                ">💪 Мощь</button>
+                                <button class="sort-btn-overlay" data-sort="level" style="
+                                    background: #1e2440;
+                                    padding: 8px 16px;
+                                    border-radius: 20px;
+                                    cursor: pointer;
+                                    font-size: 12px;
+                                    border: none;
+                                    color: white;
+                                    transition: all 0.2s;
+                                    display: inline-block;
+                                    flex-shrink: 0;
+                                ">📈 Уровень</button>
+                                <button class="sort-btn-overlay" data-sort="strength" style="
+                                    background: #1e2440;
+                                    padding: 8px 16px;
+                                    border-radius: 20px;
+                                    cursor: pointer;
+                                    font-size: 12px;
+                                    border: none;
+                                    color: white;
+                                    transition: all 0.2s;
+                                    display: inline-block;
+                                    flex-shrink: 0;
+                                ">💪 Сила</button>
+                                <button class="sort-btn-overlay" data-sort="defense" style="
+                                    background: #1e2440;
+                                    padding: 8px 16px;
+                                    border-radius: 20px;
+                                    cursor: pointer;
+                                    font-size: 12px;
+                                    border: none;
+                                    color: white;
+                                    transition: all 0.2s;
+                                    display: inline-block;
+                                    flex-shrink: 0;
+                                ">🛡️ Защита</button>
+                                <button class="sort-btn-overlay" data-sort="authority" style="
+                                    background: #1e2440;
+                                    padding: 8px 16px;
+                                    border-radius: 20px;
+                                    cursor: pointer;
+                                    font-size: 12px;
+                                    border: none;
+                                    color: white;
+                                    transition: all 0.2s;
+                                    display: inline-block;
+                                    flex-shrink: 0;
+                                ">⭐ Авторитет</button>
+                                <button class="sort-btn-overlay" data-sort="cigarettes" style="
+                                    background: #1e2440;
+                                    padding: 8px 16px;
+                                    border-radius: 20px;
+                                    cursor: pointer;
+                                    font-size: 12px;
+                                    border: none;
+                                    color: white;
+                                    transition: all 0.2s;
+                                    display: inline-block;
+                                    flex-shrink: 0;
+                                ">🚬 Сигареты</button>
+                                <button class="sort-btn-overlay" data-sort="rubles" style="
+                                    background: #1e2440;
+                                    padding: 8px 16px;
+                                    border-radius: 20px;
+                                    cursor: pointer;
+                                    font-size: 12px;
+                                    border: none;
+                                    color: white;
+                                    transition: all 0.2s;
+                                    display: inline-block;
+                                    flex-shrink: 0;
+                                ">💰 Рубли</button>
                             </div>
+                        </div>
+                        
+                        <style>
+                            .sort-btn-overlay::-webkit-scrollbar { display: none; }
+                            .sort-btn-overlay { -ms-overflow-style: none; scrollbar-width: none; }
+                            .sort-btn-overlay:active { transform: scale(0.95); }
+                            .sort-btn-overlay.active { background: linear-gradient(135deg, #e94560, #c73e54) !important; color: white !important; }
+                        </style>
+                        
+                        <div id="rankListContainerOverlay" style="max-height: 50vh; overflow-y: auto; padding-right: 5px;">
+                            ${renderRankListOverlay(topPlayers, 'power')}
                         </div>
                     </div>
                 </div>
-            `;
-            document.body.insertAdjacentHTML('beforeend', html);
-            if (window.tg) window.tg.BackButton.show();
-        };
+            </div>
+        `;
+        
+        // Удаляем старую модалку если есть
+        const existing = document.getElementById('rankingModalOverlay');
+        if (existing) existing.remove();
+        
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        if (window.tg) window.tg.BackButton.show();
+        
+        // Функция рендера списка
+        function renderRankListOverlay(list, sortType) {
+            var sorted = [...list];
+            
+            if (sortType === 'power') sorted.sort((a, b) => b.power - a.power);
+            else if (sortType === 'level') sorted.sort((a, b) => b.level - a.level);
+            else if (sortType === 'strength') sorted.sort((a, b) => b.strength - a.strength);
+            else if (sortType === 'defense') sorted.sort((a, b) => b.defense - a.defense);
+            else if (sortType === 'authority') sorted.sort((a, b) => b.authority - a.authority);
+            else if (sortType === 'cigarettes') sorted.sort((a, b) => b.cigarettes - a.cigarettes);
+            else if (sortType === 'rubles') sorted.sort((a, b) => b.rubles - a.rubles);
+            
+            return sorted.map(function(p, idx) {
+                var isYou = p.id === window.playerId;
+                var medal = '';
+                if (idx === 0) medal = '🥇';
+                else if (idx === 1) medal = '🥈';
+                else if (idx === 2) medal = '🥉';
+                else medal = `#${idx + 1}`;
+                
+                return `
+                    <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; border-bottom:1px solid rgba(255,255,255,0.06); background: ${isYou ? 'rgba(201,160,61,0.15)' : 'rgba(0,0,0,0.2)'}; border-radius: 12px; margin-bottom: 4px; border-left: ${isYou ? '3px solid #c9a03d' : '3px solid transparent'};">
+                        <div style="width:40px; font-weight:bold; color: ${idx < 3 ? '#ffd700' : '#e94560'}; font-size: 14px;">${medal}</div>
+                        <div style="flex:1;">
+                            <strong style="color: ${isYou ? '#ffd966' : '#fff'};">${escapeHtml(p.username)}</strong>
+                            ${isYou ? ' <span style="color:#c9a03d; font-size:10px;">(ВЫ)</span>' : ''}
+                        </div>
+                        <div style="display: flex; gap: 10px; font-size: 12px; color: #aaa;">
+                            <span>⭐ ${p.level}</span>
+                            <span>💪 ${p.power}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        // Обработчики кнопок сортировки
+        document.querySelectorAll('#rankingModalOverlay .sort-btn-overlay').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                sortType = this.getAttribute('data-sort');
+                document.querySelectorAll('#rankingModalOverlay .sort-btn-overlay').forEach(function(b) {
+                    b.classList.remove('active');
+                });
+                this.classList.add('active');
+                
+                const container = document.getElementById('rankListContainerOverlay');
+                if (container) {
+                    container.innerHTML = renderRankListOverlay(topPlayers, sortType);
+                }
+            });
+        });
+        
+        // Активируем первую кнопку
+        const firstBtn = document.querySelector('#rankingModalOverlay .sort-btn-overlay');
+        if (firstBtn) {
+            firstBtn.classList.add('active');
+        }
+        
+    }).catch(function(error) {
+        showLoading(false);
+        console.error('Ошибка загрузки рейтинга:', error);
+        showToast('❌ Ошибка загрузки рейтинга', 'error');
+    });
+};
+
+// ============================================================
+// 15.3. ЗАКРЫТИЕ РЕЙТИНГА (ВОЗВРАТ В НАСТРОЙКИ)
+// ============================================================
+window.closeRankingOverlay = function() {
+    const modal = document.getElementById('rankingModalOverlay');
+    if (modal) modal.remove();
+    if (window.tg) window.tg.BackButton.hide();
+    
+    // ✅ Настройки остаются открытыми
+    // Проверяем, открыты ли настройки
+    const settingsModal = document.getElementById('settingsModal');
+    if (!settingsModal) {
+        // Если настройки закрыты по ошибке - открываем заново
+        setTimeout(function() {
+            openSettingsModal();
+        }, 100);
+    }
+};
+
+// ============================================================
+// 15.4. ОТКРЫТИЕ ПРИГЛАШЕНИЯ ПОВЕРХ НАСТРОЕК (ОКНО В ОКНЕ)
+// ============================================================
+window.openInviteOverlay = function() {
+    if (!window.currentPlayer) {
+        showToast('❌ Игрок не найден!', 'error');
+        return;
+    }
+    
+    const gameUrl = window.location.href.split('?')[0];
+    const refLink = `${gameUrl}?ref=${window.currentPlayer.inviteCode}`;
+    const invitedCount = window.currentPlayer.invitedPlayers?.length || 0;
+    const maxInvites = 10;
+
+    const modalHtml = `
+        <div class="modal-overlay" id="inviteModalOverlay" onclick="if(event.target === this) closeInviteOverlay()" style="z-index: 30000;">
+            <div class="modal-window" style="max-width: 400px;">
+                <div class="modal-window-header">
+                    <div class="modal-window-title">👥 ПРИГЛАСИТЬ ДРУЗЕЙ</div>
+                    <button class="modal-window-close" onclick="closeInviteOverlay()">✕</button>
+                </div>
+                <div class="modal-window-content">
+                    <div style="background: rgba(139,69,19,0.2); border: 1px solid #8B4513; border-radius: 16px; padding: 20px; margin-bottom: 20px; text-align: center;">
+                        <div style="font-size: 48px; margin-bottom: 10px;">📨</div>
+                        <div style="font-size: 14px; color: #c9a03d; margin-bottom: 8px; font-weight: 700;">✨ ТВОЯ РЕФЕРАЛЬНАЯ ССЫЛКА ✨</div>
+                        <div style="font-family: monospace; font-size: 12px; word-break: break-all; background: rgba(0,0,0,0.5); padding: 12px; border-radius: 12px; margin: 10px 0; color: #ffd966; border: 1px solid rgba(139,69,19,0.3);">
+                            ${refLink}
+                        </div>
+                        <button class="btn-primary" onclick="copyToClipboard('${refLink}'); showToast('Ссылка скопирована!', 'success');" style="
+                            width: 100%;
+                            padding: 14px;
+                            background: linear-gradient(135deg, #e94560, #c73e54);
+                            border: none;
+                            border-radius: 40px;
+                            font-size: 16px;
+                            font-weight: 700;
+                            color: white;
+                            cursor: pointer;
+                            transition: all 0.2s;
+                            margin-top: 5px;
+                        ">
+                            📋 КОПИРОВАТЬ ССЫЛКУ
+                        </button>
+                    </div>
+                    
+                    <div style="margin-top: 15px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 1px solid rgba(139,69,19,0.2);">
+                            <div style="font-size: 16px; font-weight: 700; color: #c9a03d;">👥 ПРИГЛАШЕННЫЕ ДРУЗЬЯ</div>
+                            <div style="background: #8B4513; padding: 4px 14px; border-radius: 20px; font-size: 13px; font-weight: 700; color: #ffd966;">${invitedCount}/${maxInvites}</div>
+                        </div>
+                        <div style="max-height: 250px; overflow-y: auto; padding-right: 5px;">
+                            ${window.currentPlayer.invitedPlayers?.length > 0 ?
+                                window.currentPlayer.invitedPlayers.map(function(name) {
+                                    return `
+                                        <div style="background: rgba(30,36,64,0.6); border-radius: 12px; padding: 10px 14px; margin-bottom: 8px; border-left: 3px solid #c9a03d; display: flex; align-items: center; gap: 10px;">
+                                            <span style="font-size: 18px;">👤</span>
+                                            <span style="color: #ffd966;">${escapeHtml(name)}</span>
+                                        </div>
+                                    `;
+                                }).join('') :
+                                '<div style="text-align: center; padding: 30px; color: #888;">🤝 Пока нет приглашенных друзей</div>'
+                            }
+                        </div>
+                        ${invitedCount >= maxInvites ? 
+                            `<div style="margin-top: 15px; padding: 12px; background: rgba(233,69,96,0.2); border-radius: 12px; text-align: center; font-size: 13px; color: #e94560; border: 1px solid rgba(233,69,96,0.3);">⚠️ Вы достигли лимита приглашений (${maxInvites})!</div>` : 
+                            `<div style="margin-top: 12px; padding: 10px; background: rgba(76,175,80,0.1); border-radius: 12px; text-align: center; font-size: 12px; color: #4caf50; border: 1px solid rgba(76,175,80,0.2);">
+                                📊 Осталось приглашений: ${maxInvites - invitedCount}
+                            </div>`
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    const existing = document.getElementById('inviteModalOverlay');
+    if (existing) existing.remove();
+
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    if (window.tg) window.tg.BackButton.show();
+};
+
+// ============================================================
+// 15.5. ЗАКРЫТИЕ ПРИГЛАШЕНИЯ (ВОЗВРАТ В НАСТРОЙКИ)
+// ============================================================
+window.closeInviteOverlay = function() {
+    const modal = document.getElementById('inviteModalOverlay');
+    if (modal) modal.remove();
+    if (window.tg) window.tg.BackButton.hide();
+    
+    // ✅ Настройки остаются открытыми
+    const settingsModal = document.getElementById('settingsModal');
+    if (!settingsModal) {
+        setTimeout(function() {
+            openSettingsModal();
+        }, 100);
+    }
+};
+
+// ============================================================
+// 15.6. КОПИРОВАНИЕ В БУФЕР ОБМЕНА
+// ============================================================
+window.copyToClipboard = function(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function() {
+            showToast('✅ Ссылка скопирована!', 'success');
+        }).catch(function() {
+            fallbackCopy(text);
+        });
+    } else {
+        fallbackCopy(text);
+    }
+};
+
+function fallbackCopy(text) {
+    var textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    textarea.style.left = '-9999px';
+    textarea.style.top = '-9999px';
+    document.body.appendChild(textarea);
+    textarea.select();
+    try {
+        document.execCommand('copy');
+        showToast('✅ Ссылка скопирована!', 'success');
+    } catch (e) {
+        showToast('❌ Не удалось скопировать', 'error');
+    }
+    document.body.removeChild(textarea);
+}
+
+// ============================================================
+// 15.7. РАСЧЁТ МОЩИ ИГРОКА
+// ============================================================
+function calculatePlayerPower(player) {
+    if (!player) return 0;
+    
+    var gangPower = 0;
+    if (player.gang) {
+        gangPower += (player.gang.blats?.fighters || 0) * 2;
+        gangPower += (player.gang.muzhiks?.fighters || 0) * 1;
+        gangPower += (player.gang.fraers?.fighters || 0) * 1;
+    }
+    
+    return Math.floor(
+        (player.level * 15) + 
+        (player.authority / 100) + 
+        ((player.strength || 10) * 2) + 
+        ((player.defense || 5) * 1.5) + 
+        (player.critical || 5) + 
+        (player.energy / 20) + 
+        gangPower
+    );
+}
+
+// ============================================================
+// 15.8. ЗАКРЫТИЕ НАСТРОЕК
+// ============================================================
+window.closeSettingsModal = function() {
+    // Закрываем все вложенные окна
+    closeRankingOverlay();
+    closeInviteOverlay();
+    closeModal('settingsModal');
+};
 
         // ============================================================
-        // 16. ПРОФИЛЬ - ИСПРАВЛЕН
+        // 16. ПРОФИЛЬ
         // ============================================================
         window.openProfileModal = function() {
             if (!window.currentPlayer) {
@@ -2219,8 +2647,41 @@
         };
 
         // ============================================================
-        // 17. ВЫБОР АВАТАРА
+        // 16.1 ВЫБОР АВАТАРА
         // ============================================================
+        function getAvatarUrl(avatarId) {
+            const id = avatarId || window.currentPlayer?.currentAvatar || 1;
+            const avatar = window.AVAATARS.find(a => a.id === id);
+            return avatar ? avatar.url : window.AVAATARS[0].url;
+        }
+
+        function getAvatarName(id) {
+            const avatar = window.AVAATARS.find(a => a.id === id);
+            return avatar ? avatar.name : 'Блатной';
+        }
+
+        function getAvatarPrice(id) {
+            const avatar = window.AVAATARS.find(a => a.id === id);
+            return avatar ? avatar.price : 0;
+        }
+
+        function isAvatarPurchased(avatarId) {
+            if (!window.currentPlayer) return false;
+            const purchased = window.currentPlayer.purchasedAvatars || [];
+            return purchased.includes(avatarId);
+        }
+
+        function updateAvatarEverywhere() {
+            if (!window.currentPlayer) return;
+            const avatarUrl = getAvatarUrl(window.currentPlayer.currentAvatar);
+            
+            const topAvatar = document.querySelector('.caste-avatar');
+            if (topAvatar) topAvatar.src = avatarUrl;
+            
+            const profileAvatar = document.querySelector('.profile-avatar');
+            if (profileAvatar) profileAvatar.src = avatarUrl;
+        }
+
         window.selectAvatar = async function(avatarId) {
             if (!window.currentPlayer) {
                 showToast('❌ Игрок не найден!', 'error');
@@ -2260,7 +2721,7 @@
         };
 
         // ============================================================
-        // 18. ПОКУПКА АВАТАРА
+        // 16.2 ПОКУПКА АВАТАРА
         // ============================================================
         window.buyAvatar = async function(avatarId) {
             if (!window.currentPlayer) {
@@ -2317,7 +2778,7 @@
         };
 
         // ============================================================
-        // 19. ОТКРЫТИЕ ОКНА ВЫБОРА АВАТАРОВ
+        // 16.3 ОТКРЫТИЕ ОКНА ВЫБОРА АВАТАРОВ
         // ============================================================
         window.openAvatarSelector = function() {
             if (!window.currentPlayer) return;
@@ -2428,7 +2889,7 @@
         };
 
         // ============================================================
-        // 20. СМЕНА ИМЕНИ
+        // 16.4 СМЕНА ИМЕНИ
         // ============================================================
         window.changeUsername = async function() {
             if (!window.currentPlayer) return;
