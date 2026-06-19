@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Зона 1.0.0.310 - Карта зоны</title>
+    <title>Зона 1.0.0.311 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -7378,19 +7378,10 @@ function safeUpdateUIAfterWork() {
 }
 
 async function completeWork(type) {
-    syncCrashLog('📌 completeWork начат', { type: type });
-    
     // БЛОКИРУЕМ ОПЕРАЦИИ
     lockOperation();
     
-    if (!currentPlayer) {
-        syncCrashLog('❌ Нет игрока в completeWork');
-        unlockOperation();
-        return;
-    }
-    
-    if (workPendingCompletion[type]) {
-        syncCrashLog(`⚠️ Работа ${type} уже завершается`);
+    if (!currentPlayer || workPendingCompletion[type]) {
         unlockOperation();
         return;
     }
@@ -7399,14 +7390,10 @@ async function completeWork(type) {
     try {
         let paperGain = 0, makhorkaGain = 0, woodGain = 0, stoneGain = 0;
         let workExp = 0;
-        let successMessage = '';
         let updateObj = {};
-        
-        syncCrashLog('📊 Расчет ресурсов', { type: type });
         
         if (type === 'mine') {
             if (isMineUpgradeActive('paper') || isMineUpgradeActive('makhorka')) {
-                syncCrashLog('⚠️ Прокачка активна, работа отменена');
                 workPendingCompletion[type] = false;
                 unlockOperation();
                 return;
@@ -7433,11 +7420,8 @@ async function completeWork(type) {
                 'mine.makhorka': currentPlayer.mine.makhorka
             };
             
-            successMessage = `⛏️ Работа в шахте завершена! +${paperGain}📄, +${makhorkaGain}🌿, +${workExp}⭐ опыта`;
-            
         } else if (type === 'lumber') {
             if (isLumberUpgradeActive()) {
-                syncCrashLog('⚠️ Прокачка лесоповала активна, работа отменена');
                 workPendingCompletion[type] = false;
                 unlockOperation();
                 return;
@@ -7453,11 +7437,8 @@ async function completeWork(type) {
             
             updateObj = { 'lumber.wood': currentPlayer.lumber.wood };
             
-            successMessage = `🪓 Работа на лесоповале завершена! +${woodGain}🪵 дерева, +${workExp}⭐ опыта`;
-            
         } else if (type === 'quarry') {
             if (isQuarryUpgradeActive()) {
-                syncCrashLog('⚠️ Прокачка каменоломни активна, работа отменена');
                 workPendingCompletion[type] = false;
                 unlockOperation();
                 return;
@@ -7472,11 +7453,7 @@ async function completeWork(type) {
             currentPlayer.quarry.stone = (currentPlayer.quarry.stone || 0) + stoneGain;
             
             updateObj = { 'quarry.stone': currentPlayer.quarry.stone };
-            
-            successMessage = `⛏️ Работа в каменоломне завершена! +${stoneGain}🪨 камня, +${workExp}⭐ опыта`;
         }
-        
-        syncCrashLog('📤 Обновление Firebase', updateObj);
         
         if (Object.keys(updateObj).length > 0) {
             await playerDocRef.update(updateObj);
@@ -7499,9 +7476,6 @@ async function completeWork(type) {
             newStrength = currentPlayer.stats.strength + 3;
             newDefense = currentPlayer.stats.defense + 2;
             leveledUp = true;
-            if (cardGameActive) {
-                cardGameBonusPercent = getCardGameBonusFromLevel(newLevel);
-            }
         }
 
         await playerDocRef.update({
@@ -7521,33 +7495,55 @@ async function completeWork(type) {
         currentPlayer.stats.defense = newDefense;
 
         if (leveledUp) {
-            syncCrashLog('🎉 УРОВЕНЬ ПОВЫШЕН', { newLevel: newLevel });
             showToast(`🎉 УРОВЕНЬ ${newLevel}! +5 энергии, +3 силы, +2 защиты!`, 'success');
         }
         
-        showToast(successMessage, 'success');
-        syncCrashLog('✅ Работа завершена', { type: type });
+        showToast(`✅ Работа в ${type} завершена!`, 'success');
         
     } catch (e) {
-        syncCrashLog('❌ Ошибка завершения работы', { 
-            type: type, 
-            error: e.message,
-            stack: e.stack 
-        });
-        showToast(`Ошибка при завершении работы: ${e.message}`, 'error');
+        // Игнорируем ошибки
     } finally {
         workPendingCompletion[type] = false;
-        
-        // РАЗБЛОКИРУЕМ ОПЕРАЦИИ
         unlockOperation();
-        syncCrashLog('🔓 Операция разблокирована');
         
-        // ✅ ВМЕСТО setTimeout - просто запрашиваем обновление
-        // Интервал сам обновит UI когда будет готов
-        requestUIUpdate('all');
-        syncCrashLog('📝 Запрошено обновление UI через интервал');
+        // НЕ обновляем UI здесь - интервал сделает это сам
     }
 }
+
+// ========== УПРОЩЕННЫЙ ИНТЕРВАЛ ==========
+if (window.mapCountersInterval) clearInterval(window.mapCountersInterval);
+window.mapCountersInterval = setInterval(() => {
+    if (!currentPlayer) {
+        if (window.mapCountersInterval) clearInterval(window.mapCountersInterval);
+        return;
+    }
+    
+    try {
+        // Если заблокировано - пропускаем все обновления
+        if (isOperationLocked) return;
+        
+        // Обновляем только если есть DOM
+        const app = document.getElementById('app');
+        if (!app) return;
+        
+        // Точечные обновления с защитой
+        updateTopBarResources();
+        updateWorkCountersOnMap();
+        updateBattleCountersOnMap();
+        updateClanNotificationBadge();
+        updateQuestsNotificationBadge();
+        
+        checkWorkCompletion();
+        checkAndNotifyWorkAvailable();
+        
+        const warModal = document.getElementById('warFullscreen');
+        if (warModal && activeClanWar) {
+            updateWarTimersOnly();
+        }
+    } catch (e) {
+        // Полностью игнорируем ошибки в интервале
+    }
+}, 1000);
 
 // ========== ПЕРЕХВАТ ВСЕХ ОШИБОК С СИНХРОННЫМ ЛОГИРОВАНИЕМ ==========
 window.addEventListener('error', function(e) {
@@ -8017,7 +8013,7 @@ function closeHospitalModal() {
                 
                 <div class="settings-card">
                     <div style="font-size: 13px; color: #aaa; text-align: center;">
-                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.310</div>
+                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.311</div>
                         <div style="font-size: 11px;">⚡ Клановые войны | Бесконечная прокачка</div>
                     </div>
                 </div>
@@ -13754,7 +13750,7 @@ function addNotification(type, title, message, targetPlayerId = null) {
                 <img class="loading-logo" src="https://sviter-pro.github.io/GameZone/src/test/logo124.png" alt="Тюряга 2.0" onerror="this.src='https://via.placeholder.com/180x180?text=Тюряга+2.0'">
                 <div class="loading-spinner-new"></div>
                 <div class="loading-tip-new" id="loadingTipNew">⚡ Загрузка игрового мира...</div>
-                <div class="loading-version">Зона 1.0.0.310 | Зона ждет</div>
+                <div class="loading-version">Зона 1.0.0.311 | Зона ждет</div>
             </div>
         `;
             const tipEl = document.getElementById('loadingTipNew');
@@ -14767,19 +14763,12 @@ function addNotification(type, title, message, targetPlayerId = null) {
         }
 		
 function updateWorkCountersOnMap() {
-    // Если операция заблокирована - пропускаем
-    if (isOperationLocked) {
-        return;
-    }
-    
     try {
+        // Если операция заблокирована - пропускаем
+        if (isOperationLocked) return;
+        
         const b2Element = document.querySelector('.building.b2');
-        if (!b2Element) {
-            // Пытаемся восстановить
-            const restored = restoreMap();
-            if (!restored) return;
-            return;
-        }
+        if (!b2Element) return;
         
         const formatMapTimer = (ms) => {
             if (ms <= 0) return '';
@@ -14829,6 +14818,7 @@ function updateWorkCountersOnMap() {
             activeCounters.push({ type: 'upgrade', icon: '🪨⬆️', remaining: quarryUpgradeRemaining });
         }
         
+        // Обновляем или создаем контейнер счетчиков
         if (activeCounters.length > 0) {
             if (!countersDiv) {
                 countersDiv = document.createElement('div');
@@ -14852,52 +14842,14 @@ function updateWorkCountersOnMap() {
         }
         
     } catch (e) {
-        syncCrashLog('❌ Ошибка updateWorkCountersOnMap', { error: e.message });
+        // Полностью игнорируем ошибки в этой функции
     }
 }
 
 function updateBattleCountersOnMap() {
     try {
-        // Проверяем, существует ли карта, если нет - восстанавливаем
-        let mapWrapper = document.querySelector('.map-wrapper');
-        if (!mapWrapper) {
-            crashLog('⚠️ .map-wrapper не найден, пытаемся восстановить');
-            const restored = restoreMap();
-            if (!restored) {
-                crashLog('❌ Не удалось восстановить карту, пропускаем обновление');
-                return;
-            }
-            mapWrapper = document.querySelector('.map-wrapper');
-            if (!mapWrapper) return;
-        }
-        
-        // Проверяем, существует ли b6
-        let b6Element = document.querySelector('.building.b6');
-        if (!b6Element) {
-            crashLog('⚠️ .building.b6 не найден, создаем заново');
-            
-            b6Element = document.createElement('div');
-            b6Element.className = 'building b6';
-            b6Element.setAttribute('data-building', 'b6');
-            b6Element.style.top = '51%';
-            b6Element.style.right = '4%';
-            b6Element.style.width = '34%';
-            b6Element.style.height = '18%';
-            
-            const label = document.createElement('div');
-            label.className = 'building-label';
-            label.textContent = 'Сходка';
-            b6Element.appendChild(label);
-            
-            b6Element.onclick = function() {
-                if (window.openAttackModal) {
-                    window.openAttackModal();
-                }
-            };
-            
-            mapWrapper.appendChild(b6Element);
-            crashLog('✅ .building.b6 восстановлен');
-        }
+        const b6Element = document.querySelector('.building.b6');
+        if (!b6Element) return;
         
         const formatMapTimer = (ms) => {
             if (ms <= 0) return '';
@@ -14926,7 +14878,7 @@ function updateBattleCountersOnMap() {
             countersDiv.style.display = 'none';
         }
     } catch (e) {
-        crashLog('❌ Ошибка updateBattleCountersOnMap', { error: e.message });
+        // Полностью игнорируем ошибки в этой функции
     }
 }
 
@@ -14970,32 +14922,30 @@ function updateTopBarResources() {
     try {
         if (!currentPlayer) return;
         
-        // Проверяем, существует ли верхняя панель
-        const topBar = document.querySelector('.fixed-top-bar');
-        if (!topBar) {
-            crashLog('⚠️ .fixed-top-bar не найден, пропускаем обновление');
-            return;
-        }
+        // Проверяем существование каждого элемента перед обновлением
+        const elements = {
+            cig: document.getElementById('resourceCigarettes'),
+            rubles: document.getElementById('resourceRubles'),
+            authority: document.getElementById('resourceAuthority'),
+            energy: document.getElementById('resourceEnergy'),
+            paper: document.getElementById('resourcePaper'),
+            makhorka: document.getElementById('resourceMakhorka'),
+            wood: document.getElementById('resourceWood'),
+            stone: document.getElementById('resourceStone')
+        };
         
-        const cigSpan = document.getElementById('resourceCigarettes');
-        const rublesSpan = document.getElementById('resourceRubles');
-        const authoritySpan = document.getElementById('resourceAuthority');
-        const energySpan = document.getElementById('resourceEnergy');
-        const paperSpan = document.getElementById('resourcePaper');
-        const makhorkaSpan = document.getElementById('resourceMakhorka');
-        const woodSpan = document.getElementById('resourceWood');
-        const stoneSpan = document.getElementById('resourceStone');
+        // Обновляем только существующие элементы
+        if (elements.cig) elements.cig.textContent = formatNumberShort(currentPlayer.cigarettes || 0);
+        if (elements.rubles) elements.rubles.textContent = formatNumberShort(currentPlayer.rubles || 0);
+        if (elements.authority) elements.authority.textContent = formatNumberShort(currentPlayer.authority || 0);
+        if (elements.energy) elements.energy.textContent = `${currentPlayer.energy || 0}/${currentPlayer.maxEnergy || 0}`;
+        if (elements.paper) elements.paper.textContent = formatNumberShort(currentPlayer.mine?.paper || 0);
+        if (elements.makhorka) elements.makhorka.textContent = formatNumberShort(currentPlayer.mine?.makhorka || 0);
+        if (elements.wood) elements.wood.textContent = formatNumberShort(currentPlayer.lumber?.wood || 0);
+        if (elements.stone) elements.stone.textContent = formatNumberShort(currentPlayer.quarry?.stone || 0);
         
-        if (cigSpan) cigSpan.textContent = formatNumberShort(currentPlayer.cigarettes || 0);
-        if (rublesSpan) rublesSpan.textContent = formatNumberShort(currentPlayer.rubles || 0);
-        if (authoritySpan) authoritySpan.textContent = formatNumberShort(currentPlayer.authority || 0);
-        if (energySpan) energySpan.textContent = `${currentPlayer.energy || 0}/${currentPlayer.maxEnergy || 0}`;
-        if (paperSpan) paperSpan.textContent = formatNumberShort(currentPlayer.mine?.paper || 0);
-        if (makhorkaSpan) makhorkaSpan.textContent = formatNumberShort(currentPlayer.mine?.makhorka || 0);
-        if (woodSpan) woodSpan.textContent = formatNumberShort(currentPlayer.lumber?.wood || 0);
-        if (stoneSpan) stoneSpan.textContent = formatNumberShort(currentPlayer.quarry?.stone || 0);
     } catch (e) {
-        crashLog('❌ Ошибка updateTopBarResources', { error: e.message });
+        // Полностью игнорируем ошибки в этой функции
     }
 }
 
