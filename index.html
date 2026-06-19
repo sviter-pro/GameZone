@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Зона 1.0.0.308 - Карта зоны</title>
+    <title>Зона 1.0.0.309 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -7378,15 +7378,20 @@ function safeUpdateUIAfterWork() {
 }
 
 async function completeWork(type) {
-    crashLog('📌 completeWork начат', { type: type });
+    syncCrashLog('📌 completeWork начат', { type: type });
+    
+    // БЛОКИРУЕМ ОПЕРАЦИИ
+    lockOperation();
     
     if (!currentPlayer) {
-        crashLog('❌ Нет игрока в completeWork');
+        syncCrashLog('❌ Нет игрока в completeWork');
+        unlockOperation();
         return;
     }
     
     if (workPendingCompletion[type]) {
-        crashLog(`⚠️ Работа ${type} уже завершается`);
+        syncCrashLog(`⚠️ Работа ${type} уже завершается`);
+        unlockOperation();
         return;
     }
     workPendingCompletion[type] = true;
@@ -7397,12 +7402,13 @@ async function completeWork(type) {
         let successMessage = '';
         let updateObj = {};
         
-        crashLog('📊 Расчет ресурсов', { type: type });
+        syncCrashLog('📊 Расчет ресурсов', { type: type });
         
         if (type === 'mine') {
             if (isMineUpgradeActive('paper') || isMineUpgradeActive('makhorka')) {
-                crashLog('⚠️ Прокачка активна, работа отменена');
+                syncCrashLog('⚠️ Прокачка активна, работа отменена');
                 workPendingCompletion[type] = false;
+                unlockOperation();
                 return;
             }
             
@@ -7431,8 +7437,9 @@ async function completeWork(type) {
             
         } else if (type === 'lumber') {
             if (isLumberUpgradeActive()) {
-                crashLog('⚠️ Прокачка лесоповала активна, работа отменена');
+                syncCrashLog('⚠️ Прокачка лесоповала активна, работа отменена');
                 workPendingCompletion[type] = false;
+                unlockOperation();
                 return;
             }
             
@@ -7450,8 +7457,9 @@ async function completeWork(type) {
             
         } else if (type === 'quarry') {
             if (isQuarryUpgradeActive()) {
-                crashLog('⚠️ Прокачка каменоломни активна, работа отменена');
+                syncCrashLog('⚠️ Прокачка каменоломни активна, работа отменена');
                 workPendingCompletion[type] = false;
+                unlockOperation();
                 return;
             }
             
@@ -7468,7 +7476,7 @@ async function completeWork(type) {
             successMessage = `⛏️ Работа в каменоломне завершена! +${stoneGain}🪨 камня, +${workExp}⭐ опыта`;
         }
         
-        crashLog('📤 Обновление Firebase', updateObj);
+        syncCrashLog('📤 Обновление Firebase', updateObj);
         
         if (Object.keys(updateObj).length > 0) {
             await playerDocRef.update(updateObj);
@@ -7513,15 +7521,15 @@ async function completeWork(type) {
         currentPlayer.stats.defense = newDefense;
 
         if (leveledUp) {
-            crashLog('🎉 УРОВЕНЬ ПОВЫШЕН', { newLevel: newLevel });
+            syncCrashLog('🎉 УРОВЕНЬ ПОВЫШЕН', { newLevel: newLevel });
             showToast(`🎉 УРОВЕНЬ ${newLevel}! +5 энергии, +3 силы, +2 защиты!`, 'success');
         }
         
         showToast(successMessage, 'success');
-        crashLog('✅ Работа завершена', { type: type });
+        syncCrashLog('✅ Работа завершена', { type: type });
         
     } catch (e) {
-        crashLog('❌ Ошибка завершения работы', { 
+        syncCrashLog('❌ Ошибка завершения работы', { 
             type: type, 
             error: e.message,
             stack: e.stack 
@@ -7530,11 +7538,47 @@ async function completeWork(type) {
     } finally {
         workPendingCompletion[type] = false;
         
-        // ✅ ВАЖНО: Используем безопасное обновление с задержкой
-        crashLog('⏳ Запускаем безопасное обновление UI');
-        safeUpdateAfterWork();
+        // РАЗБЛОКИРУЕМ ОПЕРАЦИИ ПОСЛЕ ЗАВЕРШЕНИЯ
+        unlockOperation();
+        
+        // Обновляем UI с задержкой
+        setTimeout(() => {
+            syncCrashLog('🔄 Обновляем UI после работы');
+            try {
+                updateTopBarResources();
+                updateWorkCountersOnMap();
+                updateBattleCountersOnMap();
+                
+                const mineModal = document.getElementById('mineFullscreen');
+                if (mineModal && mineModal.style.display === 'flex') {
+                    updateMineModalUI();
+                }
+                syncCrashLog('✅ UI обновлен');
+            } catch (e) {
+                syncCrashLog('❌ Ошибка обновления UI', { error: e.message });
+            }
+        }, 3000); // Увеличенная задержка до 3 секунд
     }
 }
+
+// ========== ПЕРЕХВАТ ВСЕХ ОШИБОК С СИНХРОННЫМ ЛОГИРОВАНИЕМ ==========
+window.addEventListener('error', function(e) {
+    syncCrashLog('❌ ОШИБКА', {
+        message: e.message,
+        filename: e.filename,
+        lineno: e.lineno,
+        colno: e.colno,
+        stack: e.error?.stack
+    });
+    return true;
+});
+
+window.addEventListener('unhandledrejection', function(e) {
+    syncCrashLog('❌ НЕОБРАБОТАННЫЙ PROMISE', {
+        reason: e.reason?.message || String(e.reason)
+    });
+    return true;
+});
 
 function restoreWorkTimers() {
     if (!currentPlayer) return;
@@ -7985,7 +8029,7 @@ function closeHospitalModal() {
                 
                 <div class="settings-card">
                     <div style="font-size: 13px; color: #aaa; text-align: center;">
-                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.308</div>
+                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.309</div>
                         <div style="font-size: 11px;">⚡ Клановые войны | Бесконечная прокачка</div>
                     </div>
                 </div>
@@ -11432,6 +11476,120 @@ async function forceCompleteUpgrade(type) {
 	</script>
     <script>
         // ========== TELEGRAM WEBAPP INIT ==========
+        function syncCrashLog(message, data = null) {
+    try {
+        // Синхронно получаем логи
+        let logs = [];
+        try {
+            const saved = localStorage.getItem('crash_logs_sync');
+            if (saved) logs = JSON.parse(saved);
+        } catch(e) {}
+        
+        // Добавляем запись
+        logs.push({
+            time: Date.now(),
+            timeStr: new Date().toISOString(),
+            message: message,
+            data: data,
+            stack: new Error().stack
+        });
+        
+        // Ограничиваем
+        if (logs.length > 100) logs = logs.slice(-100);
+        
+        // Синхронно сохраняем
+        localStorage.setItem('crash_logs_sync', JSON.stringify(logs));
+        
+        // Также пробуем отправить в консоль
+        console.log(`[CRASH] ${message}`, data || '');
+        
+    } catch(e) {
+        // Игнорируем ошибки логирования
+    }
+}
+
+// ========== ПОКАЗЫВАЕМ ЛОГИ ПРИ ЗАГРУЗКЕ ==========
+function showSyncCrashLogs() {
+    try {
+        const saved = localStorage.getItem('crash_logs_sync');
+        if (!saved) return;
+        
+        const logs = JSON.parse(saved);
+        if (logs.length === 0) return;
+        
+        // Создаем окошко с логами
+        const div = document.createElement('div');
+        div.id = 'syncCrashLogsDisplay';
+        div.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.95);
+            color: #0f0;
+            font-family: monospace;
+            font-size: 12px;
+            padding: 20px;
+            overflow-y: auto;
+            z-index: 999999;
+        `;
+        
+        // Находим последние 20 записей
+        const recentLogs = logs.slice(-20);
+        let html = `<h2 style="color:#ff6b6b;">🔍 ПОСЛЕДНИЕ ЛОГИ (${recentLogs.length} из ${logs.length})</h2>`;
+        html += `<div style="color:#888; font-size:10px; margin-bottom:10px;">Последнее обновление: ${new Date().toLocaleString()}</div>`;
+        
+        for (const log of recentLogs) {
+            const color = log.message.includes('❌') ? '#ff6b6b' : 
+                         log.message.includes('⚠️') ? '#ffd93d' : 
+                         log.message.includes('✅') ? '#6bcb6b' : '#ffffff';
+            
+            const time = new Date(log.time).toLocaleTimeString();
+            html += `<div style="color:${color}; margin-bottom:6px; border-bottom:1px solid #333; padding-bottom:6px; font-size:11px;">
+                <span style="color:#888;">[${time}]</span> 
+                ${log.message}
+                ${log.data ? `<br><span style="color:#aaa; font-size:10px; margin-left:20px;">${JSON.stringify(log.data)}</span>` : ''}
+                ${log.stack ? `<br><span style="color:#666; font-size:9px; margin-left:20px;">${log.stack.split('\n')[1] || ''}</span>` : ''}
+            </div>`;
+        }
+        
+        html += `
+            <div style="margin-top:20px; position:sticky; bottom:0; background:rgba(0,0,0,0.9); padding:10px;">
+                <button onclick="document.getElementById('syncCrashLogsDisplay').remove();" 
+                    style="background:#333; color:white; border:none; padding:10px 20px; border-radius:8px; cursor:pointer; margin-right:10px;">
+                    ✕ Закрыть
+                </button>
+                <button onclick="localStorage.removeItem('crash_logs_sync'); document.getElementById('syncCrashLogsDisplay').remove();" 
+                    style="background:#ff6b6b; color:white; border:none; padding:10px 20px; border-radius:8px; cursor:pointer;">
+                    🗑️ Очистить логи
+                </button>
+                <span style="color:#666; margin-left:10px; font-size:10px;">Всего: ${logs.length} записей</span>
+            </div>
+        `;
+        
+        div.innerHTML = html;
+        document.body.appendChild(div);
+        
+    } catch(e) {}
+}
+
+// Показываем логи при загрузке
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(showSyncCrashLogs, 500);
+});
+
+let isOperationLocked = false;
+
+function lockOperation() {
+    isOperationLocked = true;
+    syncCrashLog('🔒 Операция заблокирована');
+}
+
+function unlockOperation() {
+    isOperationLocked = false;
+    syncCrashLog('🔓 Операция разблокирована');
+}
 
         window._opening_modal = false;
         let tg = null;
@@ -13563,7 +13721,7 @@ function addNotification(type, title, message, targetPlayerId = null) {
                 <img class="loading-logo" src="https://sviter-pro.github.io/GameZone/src/test/logo124.png" alt="Тюряга 2.0" onerror="this.src='https://via.placeholder.com/180x180?text=Тюряга+2.0'">
                 <div class="loading-spinner-new"></div>
                 <div class="loading-tip-new" id="loadingTipNew">⚡ Загрузка игрового мира...</div>
-                <div class="loading-version">Зона 1.0.0.308 | Зона ждет</div>
+                <div class="loading-version">Зона 1.0.0.309 | Зона ждет</div>
             </div>
         `;
             const tipEl = document.getElementById('loadingTipNew');
@@ -14576,50 +14734,28 @@ function addNotification(type, title, message, targetPlayerId = null) {
         }
 		
 function updateWorkCountersOnMap() {
+    // Если операция заблокирована - пропускаем
+    if (isOperationLocked) {
+        syncCrashLog('⏳ Пропускаем updateWorkCountersOnMap (заблокировано)');
+        return;
+    }
+    
+    syncCrashLog('🔄 updateWorkCountersOnMap начат');
+    
     try {
-        // Проверяем, существует ли карта, если нет - восстанавливаем
-        let mapWrapper = document.querySelector('.map-wrapper');
-        if (!mapWrapper) {
-            crashLog('⚠️ .map-wrapper не найден, пытаемся восстановить');
+        const b2Element = document.querySelector('.building.b2');
+        if (!b2Element) {
+            syncCrashLog('⚠️ .building.b2 не найден');
+            // Пытаемся восстановить
             const restored = restoreMap();
             if (!restored) {
-                crashLog('❌ Не удалось восстановить карту, пропускаем обновление');
+                syncCrashLog('❌ Не удалось восстановить карту');
                 return;
             }
-            mapWrapper = document.querySelector('.map-wrapper');
-            if (!mapWrapper) return;
+            syncCrashLog('✅ Карта восстановлена');
+            return;
         }
         
-        // Проверяем, существует ли b2
-        let b2Element = document.querySelector('.building.b2');
-        if (!b2Element) {
-            crashLog('⚠️ .building.b2 не найден, создаем заново');
-            
-            // Создаем b2 заново
-            b2Element = document.createElement('div');
-            b2Element.className = 'building b2';
-            b2Element.setAttribute('data-building', 'b2');
-            b2Element.style.top = '18%';
-            b2Element.style.left = '3%';
-            b2Element.style.width = '38%';
-            b2Element.style.height = '18%';
-            
-            const label = document.createElement('div');
-            label.className = 'building-label';
-            label.textContent = 'Работа';
-            b2Element.appendChild(label);
-            
-            b2Element.onclick = function() {
-                if (window.openMineModal) {
-                    window.openMineModal();
-                }
-            };
-            
-            mapWrapper.appendChild(b2Element);
-            crashLog('✅ .building.b2 восстановлен');
-        }
-        
-        // Определяем formatMapTimer внутри функции
         const formatMapTimer = (ms) => {
             if (ms <= 0) return '';
             const totalSeconds = Math.floor(ms / 1000);
@@ -14668,7 +14804,6 @@ function updateWorkCountersOnMap() {
             activeCounters.push({ type: 'upgrade', icon: '🪨⬆️', remaining: quarryUpgradeRemaining });
         }
         
-        // Обновляем или создаем контейнер счетчиков
         if (activeCounters.length > 0) {
             if (!countersDiv) {
                 countersDiv = document.createElement('div');
@@ -14691,8 +14826,10 @@ function updateWorkCountersOnMap() {
             countersDiv.style.display = 'none';
         }
         
+        syncCrashLog('✅ updateWorkCountersOnMap завершен');
+        
     } catch (e) {
-        crashLog('❌ Ошибка updateWorkCountersOnMap', { error: e.message });
+        syncCrashLog('❌ Ошибка updateWorkCountersOnMap', { error: e.message });
     }
 }
 
@@ -24472,6 +24609,7 @@ function createMainUIHTML() {
 }
 
     function renderUI() {
+        
 const originalRenderUI = window.renderUI;
 window.renderUI = function() {
     const stack = new Error().stack || '';
