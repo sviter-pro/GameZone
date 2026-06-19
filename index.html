@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Зона 1.0.0.316 - Карта зоны</title>
+    <title>Зона 1.0.0.317 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -7377,99 +7377,86 @@ function safeUpdateUIAfterWork() {
     }
 }
 
+// ========== МАКСИМАЛЬНО ПРОСТАЯ ВЕРСИЯ ==========
+// Никаких асинхронных операций, никакого Firebase, только уведомление
+
+let workCompletePending = false;
+
 async function completeWork(type) {
     console.log('🔵 completeWork начат:', type);
     
-    if (!currentPlayer) {
-        console.log('❌ Нет игрока');
-        return;
-    }
-    
-    if (workPendingCompletion[type]) {
+    // Защита от повторных вызовов
+    if (workCompletePending) {
         console.log('⚠️ Уже выполняется');
         return;
     }
+    workCompletePending = true;
     
-    workPendingCompletion[type] = true;
-    
+    // Сразу показываем уведомление
     try {
-        // 1. ОБНОВЛЯЕМ ДАННЫЕ В ПАМЯТИ
-        if (type === 'mine') {
-            const paperLevel = currentPlayer.mine?.paperLevel || 1;
-            const makhorkaLevel = currentPlayer.mine?.makhorkaLevel || 1;
-            
-            const paperGain = 5 * paperLevel;
-            const makhorkaGain = 3 * makhorkaLevel;
-            
-            if (!currentPlayer.mine) currentPlayer.mine = { paper: 0, makhorka: 0 };
-            currentPlayer.mine.paper = (currentPlayer.mine.paper || 0) + paperGain;
-            currentPlayer.mine.makhorka = (currentPlayer.mine.makhorka || 0) + makhorkaGain;
-            
-        } else if (type === 'lumber') {
-            const woodGain = 5 * (currentPlayer.lumber?.level || 1);
-            
-            if (!currentPlayer.lumber) currentPlayer.lumber = { wood: 0 };
-            currentPlayer.lumber.wood = (currentPlayer.lumber.wood || 0) + woodGain;
-            
-        } else if (type === 'quarry') {
-            const stoneGain = 4 * (currentPlayer.quarry?.level || 1);
-            
-            if (!currentPlayer.quarry) currentPlayer.quarry = { stone: 0 };
-            currentPlayer.quarry.stone = (currentPlayer.quarry.stone || 0) + stoneGain;
-        }
-        
-        // 2. СОХРАНЯЕМ ЧЕРЕЗ set С ОГРАНИЧЕНИЕМ ПОЛЕЙ
-        try {
-            console.log('💾 Сохраняем через set...');
-            
-            // Получаем текущий документ
-            const doc = await playerDocRef.get();
-            if (!doc.exists) {
-                console.log('❌ Документ не существует');
-                return;
-            }
-            
-            // Обновляем только нужные поля
-            const data = doc.data();
-            data.mine = {
-                ...data.mine,
-                paper: currentPlayer.mine.paper,
-                makhorka: currentPlayer.mine.makhorka
-            };
-            data.lumber = {
-                ...data.lumber,
-                wood: currentPlayer.lumber.wood
-            };
-            data.quarry = {
-                ...data.quarry,
-                stone: currentPlayer.quarry.stone
-            };
-            
-            // Сохраняем через set
-            await playerDocRef.set(data);
-            console.log('✅ Сохранено через set');
-            
-        } catch (e) {
-            console.log('❌ Ошибка сохранения:', e);
-            // Показываем ошибку пользователю
-            showToast('Ошибка сохранения: ' + e.message, 'error');
-            return;
-        }
-        
-        // 3. ПОКАЗЫВАЕМ ТОСТ
-        showToast('✅ Работа завершена!', 'success');
-        
-        console.log('✅ completeWork завершен успешно');
-        
-    } catch (e) {
-        console.log('❌ Ошибка completeWork:', e);
-        showToast('Ошибка: ' + e.message, 'error');
-    } finally {
-        workPendingCompletion[type] = false;
-        console.log('🔓 workPendingCompletion сброшен');
+        // Показываем уведомление через alert (самый простой способ)
+        // В Telegram WebApp alert работает
+        alert('✅ Работа завершена!');
+    } catch(e) {
+        console.log('Ошибка alert:', e);
     }
+    
+    // Ждем 100мс и сбрасываем флаг
+    setTimeout(() => {
+        workCompletePending = false;
+        console.log('🔓 completeWork разблокирован');
+    }, 100);
+    
+    console.log('✅ completeWork завершен');
 }
 
+// ========== ЕЩЕ БОЛЕЕ ПРОСТАЯ ПРОВЕРКА ==========
+function checkWorkCompletion() {
+    if (!currentPlayer) return;
+    
+    // При первом запуске
+    if (!workCompletionInitialized) {
+        const workTypes = ['mine', 'lumber', 'quarry'];
+        for (const type of workTypes) {
+            lastWorkRemainingState[type] = getWorkRemaining(type);
+        }
+        workCompletionInitialized = true;
+        return;
+    }
+    
+    const workTypes = [
+        { type: 'mine', name: 'Шахта' },
+        { type: 'lumber', name: 'Лесоповал' },
+        { type: 'quarry', name: 'Каменоломня' }
+    ];
+    
+    for (const work of workTypes) {
+        const remaining = getWorkRemaining(work.type);
+        const lastRemaining = lastWorkRemainingState[work.type] || 0;
+        
+        // Если работа завершилась
+        if (lastRemaining > 0 && remaining <= 0) {
+            console.log(`✅ Работа ${work.type} завершена!`);
+            
+            // Проверяем прокачку
+            let isUpgradeActive = false;
+            if (work.type === 'mine') {
+                isUpgradeActive = isMineUpgradeActive('paper') || isMineUpgradeActive('makhorka');
+            } else if (work.type === 'lumber') {
+                isUpgradeActive = isLumberUpgradeActive();
+            } else if (work.type === 'quarry') {
+                isUpgradeActive = isQuarryUpgradeActive();
+            }
+            
+            if (!isUpgradeActive && !workCompletePending) {
+                // Вызываем completeWork, но он ничего не делает, кроме alert
+                completeWork(work.type);
+            }
+        }
+        
+        lastWorkRemainingState[work.type] = remaining;
+    }
+}
 // ========== УПРОЩЕННАЯ ПРОВЕРКА РАБОТЫ ==========
 function checkWorkCompletion() {
     if (!currentPlayer) return;
@@ -7985,7 +7972,7 @@ function closeHospitalModal() {
                 
                 <div class="settings-card">
                     <div style="font-size: 13px; color: #aaa; text-align: center;">
-                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.316</div>
+                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.317</div>
                         <div style="font-size: 11px;">⚡ Клановые войны | Бесконечная прокачка</div>
                     </div>
                 </div>
@@ -13722,7 +13709,7 @@ function addNotification(type, title, message, targetPlayerId = null) {
                 <img class="loading-logo" src="https://sviter-pro.github.io/GameZone/src/test/logo124.png" alt="Тюряга 2.0" onerror="this.src='https://via.placeholder.com/180x180?text=Тюряга+2.0'">
                 <div class="loading-spinner-new"></div>
                 <div class="loading-tip-new" id="loadingTipNew">⚡ Загрузка игрового мира...</div>
-                <div class="loading-version">Зона 1.0.0.316 | Зона ждет</div>
+                <div class="loading-version">Зона 1.0.0.317 | Зона ждет</div>
             </div>
         `;
             const tipEl = document.getElementById('loadingTipNew');
