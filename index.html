@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Зона 1.0.0.317 - Карта зоны</title>
+    <title>Зона 1.0.0.318 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -7377,8 +7377,21 @@ function safeUpdateUIAfterWork() {
     }
 }
 
+
 // ========== МАКСИМАЛЬНО ПРОСТАЯ ВЕРСИЯ ==========
 // Никаких асинхронных операций, никакого Firebase, только уведомление
+
+function showTelegramAlert(message) {
+    try {
+        if (window.Telegram && window.Telegram.WebApp) {
+            Telegram.WebApp.showAlert(message);
+        } else {
+            alert(message);
+        }
+    } catch(e) {
+        alert(message);
+    }
+}
 
 let workCompletePending = false;
 
@@ -7396,7 +7409,7 @@ async function completeWork(type) {
     try {
         // Показываем уведомление через alert (самый простой способ)
         // В Telegram WebApp alert работает
-        alert('✅ Работа завершена!');
+        showTelegramAlert('✅ Работа завершена!');
     } catch(e) {
         console.log('Ошибка alert:', e);
     }
@@ -7972,7 +7985,7 @@ function closeHospitalModal() {
                 
                 <div class="settings-card">
                     <div style="font-size: 13px; color: #aaa; text-align: center;">
-                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.317</div>
+                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.318</div>
                         <div style="font-size: 11px;">⚡ Клановые войны | Бесконечная прокачка</div>
                     </div>
                 </div>
@@ -13709,7 +13722,7 @@ function addNotification(type, title, message, targetPlayerId = null) {
                 <img class="loading-logo" src="https://sviter-pro.github.io/GameZone/src/test/logo124.png" alt="Тюряга 2.0" onerror="this.src='https://via.placeholder.com/180x180?text=Тюряга+2.0'">
                 <div class="loading-spinner-new"></div>
                 <div class="loading-tip-new" id="loadingTipNew">⚡ Загрузка игрового мира...</div>
-                <div class="loading-version">Зона 1.0.0.317 | Зона ждет</div>
+                <div class="loading-version">Зона 1.0.0.318 | Зона ждет</div>
             </div>
         `;
             const tipEl = document.getElementById('loadingTipNew');
