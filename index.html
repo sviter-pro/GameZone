@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Зона 1.0.0.309 - Карта зоны</title>
+    <title>Зона 1.0.0.310 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -7538,26 +7538,14 @@ async function completeWork(type) {
     } finally {
         workPendingCompletion[type] = false;
         
-        // РАЗБЛОКИРУЕМ ОПЕРАЦИИ ПОСЛЕ ЗАВЕРШЕНИЯ
+        // РАЗБЛОКИРУЕМ ОПЕРАЦИИ
         unlockOperation();
+        syncCrashLog('🔓 Операция разблокирована');
         
-        // Обновляем UI с задержкой
-        setTimeout(() => {
-            syncCrashLog('🔄 Обновляем UI после работы');
-            try {
-                updateTopBarResources();
-                updateWorkCountersOnMap();
-                updateBattleCountersOnMap();
-                
-                const mineModal = document.getElementById('mineFullscreen');
-                if (mineModal && mineModal.style.display === 'flex') {
-                    updateMineModalUI();
-                }
-                syncCrashLog('✅ UI обновлен');
-            } catch (e) {
-                syncCrashLog('❌ Ошибка обновления UI', { error: e.message });
-            }
-        }, 3000); // Увеличенная задержка до 3 секунд
+        // ✅ ВМЕСТО setTimeout - просто запрашиваем обновление
+        // Интервал сам обновит UI когда будет готов
+        requestUIUpdate('all');
+        syncCrashLog('📝 Запрошено обновление UI через интервал');
     }
 }
 
@@ -8029,7 +8017,7 @@ function closeHospitalModal() {
                 
                 <div class="settings-card">
                     <div style="font-size: 13px; color: #aaa; text-align: center;">
-                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.309</div>
+                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.310</div>
                         <div style="font-size: 11px;">⚡ Клановые войны | Бесконечная прокачка</div>
                     </div>
                 </div>
@@ -11476,6 +11464,51 @@ async function forceCompleteUpgrade(type) {
 	</script>
     <script>
         // ========== TELEGRAM WEBAPP INIT ==========
+        let uiUpdateNeeded = false;
+let uiUpdateType = null;
+
+// Запрос на обновление UI
+function requestUIUpdate(type = 'all') {
+    uiUpdateNeeded = true;
+    uiUpdateType = type;
+    syncCrashLog('📝 Запрос на обновление UI', { type: type });
+}
+
+// Выполнение отложенного обновления
+function processUIUpdate() {
+    if (!uiUpdateNeeded) return;
+    if (isOperationLocked) {
+        syncCrashLog('⏳ UI обновление отложено (заблокировано)');
+        return;
+    }
+    
+    uiUpdateNeeded = false;
+    syncCrashLog('🔄 Выполняем отложенное обновление UI', { type: uiUpdateType });
+    
+    try {
+        // Проверяем существование DOM
+        const app = document.getElementById('app');
+        if (!app) {
+            syncCrashLog('⚠️ app не найден, пропускаем обновление');
+            return;
+        }
+        
+        // Обновляем только то, что нужно
+        if (uiUpdateType === 'all' || uiUpdateType === 'resources') {
+            updateTopBarResources();
+        }
+        if (uiUpdateType === 'all' || uiUpdateType === 'work') {
+            updateWorkCountersOnMap();
+        }
+        if (uiUpdateType === 'all' || uiUpdateType === 'battle') {
+            updateBattleCountersOnMap();
+        }
+        
+        syncCrashLog('✅ Отложенное обновление UI выполнено');
+    } catch (e) {
+        syncCrashLog('❌ Ошибка отложенного обновления UI', { error: e.message });
+    }
+}
         function syncCrashLog(message, data = null) {
     try {
         // Синхронно получаем логи
@@ -13721,7 +13754,7 @@ function addNotification(type, title, message, targetPlayerId = null) {
                 <img class="loading-logo" src="https://sviter-pro.github.io/GameZone/src/test/logo124.png" alt="Тюряга 2.0" onerror="this.src='https://via.placeholder.com/180x180?text=Тюряга+2.0'">
                 <div class="loading-spinner-new"></div>
                 <div class="loading-tip-new" id="loadingTipNew">⚡ Загрузка игрового мира...</div>
-                <div class="loading-version">Зона 1.0.0.309 | Зона ждет</div>
+                <div class="loading-version">Зона 1.0.0.310 | Зона ждет</div>
             </div>
         `;
             const tipEl = document.getElementById('loadingTipNew');
@@ -14736,23 +14769,15 @@ function addNotification(type, title, message, targetPlayerId = null) {
 function updateWorkCountersOnMap() {
     // Если операция заблокирована - пропускаем
     if (isOperationLocked) {
-        syncCrashLog('⏳ Пропускаем updateWorkCountersOnMap (заблокировано)');
         return;
     }
-    
-    syncCrashLog('🔄 updateWorkCountersOnMap начат');
     
     try {
         const b2Element = document.querySelector('.building.b2');
         if (!b2Element) {
-            syncCrashLog('⚠️ .building.b2 не найден');
             // Пытаемся восстановить
             const restored = restoreMap();
-            if (!restored) {
-                syncCrashLog('❌ Не удалось восстановить карту');
-                return;
-            }
-            syncCrashLog('✅ Карта восстановлена');
+            if (!restored) return;
             return;
         }
         
@@ -14825,8 +14850,6 @@ function updateWorkCountersOnMap() {
         } else if (countersDiv) {
             countersDiv.style.display = 'none';
         }
-        
-        syncCrashLog('✅ updateWorkCountersOnMap завершен');
         
     } catch (e) {
         syncCrashLog('❌ Ошибка updateWorkCountersOnMap', { error: e.message });
@@ -24433,14 +24456,19 @@ window.mapCountersInterval = setInterval(() => {
         // Проверяем, существует ли app
         const app = document.getElementById('app');
         if (!app) {
-            crashLog('⚠️ app не найден, пропускаем обновление');
+            syncCrashLog('⚠️ app не найден, пропускаем обновление');
             return;
         }
         
         // Проверяем, не идет ли обновление после работы
-        if (isUpdatingAfterWork) {
-            crashLog('⏳ Идет обновление после работы, пропускаем интервал');
+        if (isOperationLocked) {
+            // Если заблокировано - ничего не делаем
             return;
+        }
+        
+        // Обрабатываем отложенное обновление
+        if (uiUpdateNeeded) {
+            processUIUpdate();
         }
         
         // Только точечные обновления
@@ -24458,7 +24486,7 @@ window.mapCountersInterval = setInterval(() => {
             updateWarTimersOnly();
         }
     } catch (e) {
-        crashLog('❌ Ошибка в интервале', { error: e.message });
+        syncCrashLog('❌ Ошибка в интервале', { error: e.message });
     }
 }, 1000);
         
