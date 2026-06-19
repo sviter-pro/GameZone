@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Зона 1.0.0.320 - Карта зоны</title>
+    <title>Зона 1.0.0.321 - Карта зоны</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -7380,7 +7380,271 @@ function safeUpdateUIAfterWork() {
 
 // ========== МАКСИМАЛЬНО ПРОСТАЯ ВЕРСИЯ ==========
 // Никаких асинхронных операций, никакого Firebase, только уведомление
+// Отключаем проверку завершения работы
+function checkWorkCompletion() {
+    // ⛔ ПОЛНОСТЬЮ ОТКЛЮЧЕНО
+    return;
+}
 
+// Оставляем только ручное завершение через кнопку в окне работы
+function completeWorkManually(type) {
+    console.log('🔵 Ручное завершение работы:', type);
+    
+    if (!currentPlayer) {
+        console.log('❌ Нет игрока');
+        return;
+    }
+    
+    try {
+        // Обновляем данные в памяти
+        if (type === 'mine') {
+            const paperLevel = currentPlayer.mine?.paperLevel || 1;
+            const makhorkaLevel = currentPlayer.mine?.makhorkaLevel || 1;
+            
+            const paperGain = 5 * paperLevel;
+            const makhorkaGain = 3 * makhorkaLevel;
+            
+            if (!currentPlayer.mine) currentPlayer.mine = { paper: 0, makhorka: 0 };
+            currentPlayer.mine.paper = (currentPlayer.mine.paper || 0) + paperGain;
+            currentPlayer.mine.makhorka = (currentPlayer.mine.makhorka || 0) + makhorkaGain;
+            
+            console.log(`📊 Шахта: +${paperGain} бумаги, +${makhorkaGain} махорки`);
+            
+        } else if (type === 'lumber') {
+            const woodGain = 5 * (currentPlayer.lumber?.level || 1);
+            
+            if (!currentPlayer.lumber) currentPlayer.lumber = { wood: 0 };
+            currentPlayer.lumber.wood = (currentPlayer.lumber.wood || 0) + woodGain;
+            
+            console.log(`📊 Лесоповал: +${woodGain} дерева`);
+            
+        } else if (type === 'quarry') {
+            const stoneGain = 4 * (currentPlayer.quarry?.level || 1);
+            
+            if (!currentPlayer.quarry) currentPlayer.quarry = { stone: 0 };
+            currentPlayer.quarry.stone = (currentPlayer.quarry.stone || 0) + stoneGain;
+            
+            console.log(`📊 Каменоломня: +${stoneGain} камня`);
+        }
+        
+        // Сохраняем в Firebase
+        playerDocRef.update({
+            'mine.paper': currentPlayer.mine?.paper || 0,
+            'mine.makhorka': currentPlayer.mine?.makhorka || 0,
+            'lumber.wood': currentPlayer.lumber?.wood || 0,
+            'quarry.stone': currentPlayer.quarry?.stone || 0
+        }).then(() => {
+            console.log('✅ Сохранено в Firebase');
+            showToast('✅ Работа завершена!', 'success');
+            updateTopBarResources();
+        }).catch((e) => {
+            console.log('⚠️ Ошибка сохранения:', e);
+            showToast('Ошибка сохранения!', 'error');
+        });
+        
+    } catch (e) {
+        console.log('❌ Ошибка:', e);
+        showToast('Ошибка!', 'error');
+    }
+}
+function renderMineContent() {
+    const mineData = currentPlayer.mine || { 
+        paperLevel: 1, makhorkaLevel: 1, lastMineTime: 0, 
+        paper: 0, makhorka: 0, 
+        paperUpgradeStartTime: 0, paperUpgradeDuration: 0, 
+        makhorkaUpgradeStartTime: 0, makhorkaUpgradeDuration: 0 
+    };
+    
+    const paperLevel = mineData.paperLevel;
+    const makhorkaLevel = mineData.makhorkaLevel;
+    const paperUpgradeActive = isMineUpgradeActive('paper');
+    const makhorkaUpgradeActive = isMineUpgradeActive('makhorka');
+    const paperUpgradeRemaining = getMineUpgradeRemaining('paper');
+    const makhorkaUpgradeRemaining = getMineUpgradeRemaining('makhorka');
+    const workRemaining = getWorkRemaining('mine');
+    const workAvailable = workRemaining <= 0 && !paperUpgradeActive && !makhorkaUpgradeActive;
+    const upgradeCostPaper = 50 * paperLevel;
+    const upgradeCostMakhorka = 50 * makhorkaLevel;
+    
+    let upgradeDurationMsPaper = 2 * 60 * 1000;
+    upgradeDurationMsPaper = Math.floor(upgradeDurationMsPaper * (1 + (paperLevel - 1) * 0.1));
+    let upgradeDurationMsMakhorka = 2 * 60 * 1000;
+    upgradeDurationMsMakhorka = Math.floor(upgradeDurationMsMakhorka * (1 + (makhorkaLevel - 1) * 0.1));
+    
+    const workExpGain = 25 + (paperLevel * 3) + (makhorkaLevel * 2);
+    
+    const paperProgressPercent = paperUpgradeActive ? Math.min(100, ((Date.now() - (mineData.paperUpgradeStartTime || 0)) / upgradeDurationMsPaper) * 100) : 0;
+    const makhorkaProgressPercent = makhorkaUpgradeActive ? Math.min(100, ((Date.now() - (mineData.makhorkaUpgradeStartTime || 0)) / upgradeDurationMsMakhorka) * 100) : 0;
+    
+    // Верхняя панель ресурсов
+    let resourcesBar = `
+        <div style="background: linear-gradient(135deg, #1a1a2a, #0d0d15); border-radius: 1px; padding: 5px 20px; margin: 9px -15px; border: 1px solid #8B4513; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+            <div style="display: flex; gap: 1px; align-items: center; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                    <span style="font-size: 11px;">🚬</span>
+                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.cigarettes || 0)}</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                    <span style="font-size: 11px;">📄</span>
+                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.mine?.paper || 0)}</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                    <span style="font-size: 11px;">🌿</span>
+                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.mine?.makhorka || 0)}</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                    <span style="font-size: 11px;">🪵</span>
+                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.lumber?.wood || 0)}</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                    <span style="font-size: 11px;">🪨</span>
+                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.quarry?.stone || 0)}</span>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Вкладки
+    let subTabs = `
+        <div class="mine-sub-tab-header">
+            <button class="mine-sub-tab-btn ${currentMineSubTab === 'work' ? 'active' : ''}" id="mineWorkTabBtn">⛏️ РАБОТАТЬ</button>
+            <button class="mine-sub-tab-btn ${currentMineSubTab === 'upgrade' ? 'active' : ''}" id="mineUpgradeTabBtn">⬆️ ПРОКАЧКА</button>
+        </div>
+    `;
+    
+    // Контент РАБОТАТЬ
+    let workContent = `
+        <div id="mineWorkContainer" style="display: ${currentMineSubTab === 'work' ? 'block' : 'none'};">
+            <div class="mine-card">
+                <div style="text-align: center; margin-bottom: 10px;">
+                    <div style="background: linear-gradient(135deg, #8B4513, #5a2d0a); display: inline-block; padding: 5px 20px; border-radius: 30px; font-size: 14px; font-weight: 700;">📦 РЕСУРСЫ</div>
+                </div>
+                <div class="mine-resources">
+                    <div class="mine-resource-item">
+                        <div>📄</div>
+                        <div class="mine-resource-value">${mineData.paper}</div>
+                        <div style="font-size: 10px;">БУМАГИ</div>
+                    </div>
+                    <div class="mine-resource-item">
+                        <div>🌿</div>
+                        <div class="mine-resource-value">${mineData.makhorka}</div>
+                        <div style="font-size: 10px;">МАХОРКИ</div>
+                    </div>
+                </div>
+                
+                ${paperUpgradeActive ? `
+                    <div class="mine-timer">
+                        ⏳ ПРОКАЧКА БУМАГИ: <span id="paperUpgradeTimer" class="timer-text">${formatTimerMinutes(paperUpgradeRemaining)}</span>
+                        <div class="mine-progress-bar" style="margin-top: 5px;"><div class="mine-progress-fill" style="width: ${paperProgressPercent}%"></div></div>
+                    </div>
+                ` : ''}
+                ${makhorkaUpgradeActive ? `
+                    <div class="mine-timer">
+                        ⏳ ПРОКАЧКА МАХОРКИ: <span id="makhorkaUpgradeTimer" class="timer-text">${formatTimerMinutes(makhorkaUpgradeRemaining)}</span>
+                        <div class="mine-progress-bar" style="margin-top: 5px;"><div class="mine-progress-fill" style="width: ${makhorkaProgressPercent}%"></div></div>
+                    </div>
+                ` : ''}
+                
+                <div class="mine-timer" style="background: rgba(76,175,80,0.15);">
+                    ⭐ ОПЫТА ЗА РАБОТУ: +${workExpGain}
+                </div>
+                
+                <div class="mine-action-buttons">
+                    <button id="mineWorkBtn" class="mine-work-btn" ${!workAvailable ? 'disabled' : ''}>
+                        ⛏️ РАБОТАТЬ ${!workAvailable && workRemaining > 0 ? `(${formatTimerMinutes(workRemaining)})` : ''}
+                    </button>
+                    <button id="mineExchangeBtn" class="mine-exchange-btn">
+                        🔄 ОБМЕНЯТЬ
+                    </button>
+                </div>
+                ${(paperUpgradeActive || makhorkaUpgradeActive) ? '<div style="font-size: 11px; color: #ff9800; text-align: center;">⚡ НЕВОЗМОЖНО РАБОТАТЬ ВО ВРЕМЯ ПРОКАЧКИ</div>' : ''}
+                
+                <!-- ✅ ТЕСТОВАЯ КНОПКА ДЛЯ РУЧНОГО ЗАВЕРШЕНИЯ РАБОТЫ -->
+                <button id="testCompleteWorkBtn" class="btn-primary" style="
+                    width: 100%;
+                    padding: 14px;
+                    margin-top: 15px;
+                    background: linear-gradient(135deg, #28a745, #1e7e34);
+                    border: none;
+                    border-radius: 40px;
+                    font-size: 14px;
+                    font-weight: 700;
+                    color: white;
+                    cursor: pointer;
+                ">
+                    ✅ ЗАВЕРШИТЬ РАБОТУ (ТЕСТ)
+                </button>
+            </div>
+        </div>
+    `;
+    
+    // Контент ПРОКАЧКА
+    let upgradeContent = `
+        <div id="mineUpgradeContainer" style="display: ${currentMineSubTab === 'upgrade' ? 'block' : 'none'};">
+            <div class="mine-card">
+                <div style="text-align: center; margin-bottom: 15px;">
+                    <div style="background: linear-gradient(135deg, #8B4513, #5a2d0a); display: inline-block; padding: 5px 20px; border-radius: 30px; font-size: 14px; font-weight: 700;">⬆️ ПРОКАЧКА ШАХТЫ</div>
+                </div>
+                
+                <!-- ПРОКАЧКА БУМАГИ -->
+                <div class="mine-upgrade-info">
+                    <div class="mine-upgrade-cost">
+                        <span>📄 БУМАГА УР. ${paperLevel}</span>
+                        <span>ДОБЫЧА: ${5 * paperLevel} шт</span>
+                    </div>
+                    ${paperUpgradeActive ? `
+                        <div class="mine-upgrade-progress">
+                            <div class="mine-progress-label">⏳ ПРОКАЧКА ДО ${paperLevel + 1} УРОВНЯ</div>
+                            <div class="mine-progress-bar"><div id="paperUpgradeTimerUpgrade" class="mine-progress-fill" style="width: ${paperProgressPercent}%"></div></div>
+                            <div style="font-size: 11px; text-align: center; margin-top: 5px;"><span class="timer-text" id="paperUpgradeTimerUpgradeText">${formatTimerMinutes(paperUpgradeRemaining)}</span></div>
+                        </div>
+                    ` : `
+                        <div class="mine-upgrade-cost">
+                            <span>⬆️ ДО ${paperLevel + 1} УРОВНЯ</span>
+                            <span>💰 ${upgradeCostPaper} 🚬</span>
+                        </div>
+                        <button id="upgradePaperBtn" class="mine-work-btn" style="width: 100%; margin-top: 10px;" ${(currentPlayer.cigarettes < upgradeCostPaper || getWorkRemaining('mine') > 0 || paperUpgradeActive || makhorkaUpgradeActive) ? 'disabled' : ''}>
+                            ⬆️ УЛУЧШИТЬ БУМАГУ
+                        </button>
+                    `}
+                </div>
+                
+                <!-- ПРОКАЧКА МАХОРКИ -->
+                <div class="mine-upgrade-info">
+                    <div class="mine-upgrade-cost">
+                        <span>🌿 МАХОРКА УР. ${makhorkaLevel}</span>
+                        <span>ДОБЫЧА: ${3 * makhorkaLevel} шт</span>
+                    </div>
+                    ${makhorkaUpgradeActive ? `
+                        <div class="mine-upgrade-progress">
+                            <div class="mine-progress-label">⏳ ПРОКАЧКА ДО ${makhorkaLevel + 1} УРОВНЯ</div>
+                            <div class="mine-progress-bar"><div id="makhorkaUpgradeTimerUpgrade" class="mine-progress-fill" style="width: ${makhorkaProgressPercent}%"></div></div>
+                            <div style="font-size: 11px; text-align: center; margin-top: 5px;"><span class="timer-text" id="makhorkaUpgradeTimerUpgradeText">${formatTimerMinutes(makhorkaUpgradeRemaining)}</span></div>
+                        </div>
+                    ` : `
+                        <div class="mine-upgrade-cost">
+                            <span>⬆️ ДО ${makhorkaLevel + 1} УРОВНЯ</span>
+                            <span>💰 ${upgradeCostMakhorka} 🚬</span>
+                        </div>
+                        <button id="upgradeMakhorkaBtn" class="mine-work-btn" style="width: 100%; margin-top: 10px;" ${(currentPlayer.cigarettes < upgradeCostMakhorka || getWorkRemaining('mine') > 0 || paperUpgradeActive || makhorkaUpgradeActive) ? 'disabled' : ''}>
+                            ⬆️ УЛУЧШИТЬ МАХОРКУ
+                        </button>
+                    `}
+                </div>
+                ${getWorkRemaining('mine') > 0 ? '<div style="font-size: 11px; color: #ff9800; text-align: center; margin-top: 10px;">⚡ НЕВОЗМОЖНО УЛУЧШИТЬ ВО ВРЕМЯ РАБОТЫ</div>' : ''}
+            </div>
+        </div>
+    `;
+    
+    return resourcesBar + subTabs + workContent + upgradeContent;
+}
+
+// ========== ВРЕМЕННО ОТКЛЮЧАЕМ ИНТЕРВАЛ ==========
+if (window.mapCountersInterval) {
+    clearInterval(window.mapCountersInterval);
+    window.mapCountersInterval = null;
+    console.log('⏹️ Интервал остановлен');
+}
 let workCompletePending = false;
 let lastWorkCompleteTime = 0;
 let workCompletionProcessed = {};
@@ -7995,7 +8259,7 @@ function closeHospitalModal() {
                 
                 <div class="settings-card">
                     <div style="font-size: 13px; color: #aaa; text-align: center;">
-                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.320</div>
+                        <div style="margin-bottom: 10px;">🔧 Зона 1.0.0.321</div>
                         <div style="font-size: 11px;">⚡ Клановые войны | Бесконечная прокачка</div>
                     </div>
                 </div>
@@ -13732,7 +13996,7 @@ function addNotification(type, title, message, targetPlayerId = null) {
                 <img class="loading-logo" src="https://sviter-pro.github.io/GameZone/src/test/logo124.png" alt="Тюряга 2.0" onerror="this.src='https://via.placeholder.com/180x180?text=Тюряга+2.0'">
                 <div class="loading-spinner-new"></div>
                 <div class="loading-tip-new" id="loadingTipNew">⚡ Загрузка игрового мира...</div>
-                <div class="loading-version">Зона 1.0.0.320 | Зона ждет</div>
+                <div class="loading-version">Зона 1.0.0.321 | Зона ждет</div>
             </div>
         `;
             const tipEl = document.getElementById('loadingTipNew');
@@ -15027,6 +15291,7 @@ function startWorkCountersOnMap() {
         };
     }
     
+
     // Загружаем начальное содержимое
     updateMineModalUI();
     
@@ -15108,6 +15373,22 @@ function attachMineHandlers() {
     if (exchangeBtn) exchangeBtn.onclick = () => exchangeToCigarettesFromModal();
     if (upgradePaperBtn) upgradePaperBtn.onclick = () => upgradeMineFromModal('paper');
     if (upgradeMakhorkaBtn) upgradeMakhorkaBtn.onclick = () => upgradeMineFromModal('makhorka');
+    
+    // ✅ ДОБАВЛЯЕМ ОБРАБОТЧИК ДЛЯ ТЕСТОВОЙ КНОПКИ
+    const testBtn = document.getElementById('testCompleteWorkBtn');
+    if (testBtn) {
+        testBtn.onclick = function() {
+            console.log('🔵 Нажата тестовая кнопка завершения работы');
+            const currentTab = document.querySelector('.mine-sub-tab-btn.active');
+            let type = 'mine';
+            if (currentTab) {
+                const tabText = currentTab.textContent;
+                if (tabText.includes('ЛЕС')) type = 'lumber';
+                else if (tabText.includes('КАМЕНЬ')) type = 'quarry';
+            }
+            completeWorkManually(type);
+        };
+    }
 }
 
 function attachLumberHandlers() {
@@ -15419,180 +15700,47 @@ function renderQuarryContent() {
     return resourcesBar + subTabs + workContent + upgradeContent;
 }
 
-function renderMineContent() {
-    const mineData = currentPlayer.mine || { 
-        paperLevel: 1, makhorkaLevel: 1, lastMineTime: 0, 
-        paper: 0, makhorka: 0, 
-        paperUpgradeStartTime: 0, paperUpgradeDuration: 0, 
-        makhorkaUpgradeStartTime: 0, makhorkaUpgradeDuration: 0 
-    };
+function attachMineHandlers() {
+    const workTabBtn = document.getElementById('mineWorkTabBtn');
+    const upgradeTabBtn = document.getElementById('mineUpgradeTabBtn');
+    const workContainer = document.getElementById('mineWorkContainer');
+    const upgradeContainer = document.getElementById('mineUpgradeContainer');
     
-    const paperLevel = mineData.paperLevel;
-    const makhorkaLevel = mineData.makhorkaLevel;
-    const paperUpgradeActive = isMineUpgradeActive('paper');
-    const makhorkaUpgradeActive = isMineUpgradeActive('makhorka');
-    const paperUpgradeRemaining = getMineUpgradeRemaining('paper');
-    const makhorkaUpgradeRemaining = getMineUpgradeRemaining('makhorka');
-    const workRemaining = getWorkRemaining('mine');
-    const workAvailable = workRemaining <= 0 && !paperUpgradeActive && !makhorkaUpgradeActive;
-    const upgradeCostPaper = 50 * paperLevel;
-    const upgradeCostMakhorka = 50 * makhorkaLevel;
+    if (workTabBtn && upgradeTabBtn && workContainer && upgradeContainer) {
+        workTabBtn.onclick = () => {
+            currentMineSubTab = 'work';
+            workTabBtn.classList.add('active');
+            upgradeTabBtn.classList.remove('active');
+            workContainer.style.display = 'block';
+            upgradeContainer.style.display = 'none';
+        };
+        upgradeTabBtn.onclick = () => {
+            currentMineSubTab = 'upgrade';
+            upgradeTabBtn.classList.add('active');
+            workTabBtn.classList.remove('active');
+            workContainer.style.display = 'none';
+            upgradeContainer.style.display = 'block';
+        };
+    }
     
-    let upgradeDurationMsPaper = 2 * 60 * 1000;
-    upgradeDurationMsPaper = Math.floor(upgradeDurationMsPaper * (1 + (paperLevel - 1) * 0.1));
-    let upgradeDurationMsMakhorka = 2 * 60 * 1000;
-    upgradeDurationMsMakhorka = Math.floor(upgradeDurationMsMakhorka * (1 + (makhorkaLevel - 1) * 0.1));
+    const workBtn = document.getElementById('mineWorkBtn');
+    const exchangeBtn = document.getElementById('mineExchangeBtn');
+    const upgradePaperBtn = document.getElementById('upgradePaperBtn');
+    const upgradeMakhorkaBtn = document.getElementById('upgradeMakhorkaBtn');
     
-    const workExpGain = 25 + (paperLevel * 3) + (makhorkaLevel * 2);
+    if (workBtn) workBtn.onclick = () => mineResourcesFromModal();
+    if (exchangeBtn) exchangeBtn.onclick = () => exchangeToCigarettesFromModal();
+    if (upgradePaperBtn) upgradePaperBtn.onclick = () => upgradeMineFromModal('paper');
+    if (upgradeMakhorkaBtn) upgradeMakhorkaBtn.onclick = () => upgradeMineFromModal('makhorka');
     
-    const paperProgressPercent = paperUpgradeActive ? Math.min(100, ((Date.now() - (mineData.paperUpgradeStartTime || 0)) / upgradeDurationMsPaper) * 100) : 0;
-    const makhorkaProgressPercent = makhorkaUpgradeActive ? Math.min(100, ((Date.now() - (mineData.makhorkaUpgradeStartTime || 0)) / upgradeDurationMsMakhorka) * 100) : 0;
-    
-    // Верхняя панель ресурсов
-    let resourcesBar = `
-        <div style="background: linear-gradient(135deg, #1a1a2a, #0d0d15); border-radius: 1px; padding: 5px 20px; margin: 9px -15px; border: 1px solid #8B4513; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-            <div style="display: flex; gap: 1px; align-items: center; flex-wrap: wrap;">
-                <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
-                    <span style="font-size: 11px;">🚬</span>
-                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.cigarettes || 0)}</span>
-                </div>
-                <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
-                    <span style="font-size: 11px;">📄</span>
-                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.mine?.paper || 0)}</span>
-                </div>
-                <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
-                    <span style="font-size: 11px;">🌿</span>
-                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.mine?.makhorka || 0)}</span>
-                </div>
-                <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
-                    <span style="font-size: 11px;">🪵</span>
-                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.lumber?.wood || 0)}</span>
-                </div>
-                <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
-                    <span style="font-size: 11px;">🪨</span>
-                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.quarry?.stone || 0)}</span>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    // Вкладки
-    let subTabs = `
-        <div class="mine-sub-tab-header">
-            <button class="mine-sub-tab-btn ${currentMineSubTab === 'work' ? 'active' : ''}" id="mineWorkTabBtn">⛏️ РАБОТАТЬ</button>
-            <button class="mine-sub-tab-btn ${currentMineSubTab === 'upgrade' ? 'active' : ''}" id="mineUpgradeTabBtn">⬆️ ПРОКАЧКА</button>
-        </div>
-    `;
-    
-    // Контент РАБОТАТЬ
-    let workContent = `
-        <div id="mineWorkContainer" style="display: ${currentMineSubTab === 'work' ? 'block' : 'none'};">
-            <div class="mine-card">
-                <div style="text-align: center; margin-bottom: 10px;">
-                    <div style="background: linear-gradient(135deg, #8B4513, #5a2d0a); display: inline-block; padding: 5px 20px; border-radius: 30px; font-size: 14px; font-weight: 700;">📦 РЕСУРСЫ</div>
-                </div>
-                <div class="mine-resources">
-                    <div class="mine-resource-item">
-                        <div>📄</div>
-                        <div class="mine-resource-value">${mineData.paper}</div>
-                        <div style="font-size: 10px;">БУМАГИ</div>
-                    </div>
-                    <div class="mine-resource-item">
-                        <div>🌿</div>
-                        <div class="mine-resource-value">${mineData.makhorka}</div>
-                        <div style="font-size: 10px;">МАХОРКИ</div>
-                    </div>
-                </div>
-                
-                ${paperUpgradeActive ? `
-                    <div class="mine-timer">
-                        ⏳ ПРОКАЧКА БУМАГИ: <span id="paperUpgradeTimer" class="timer-text">${formatTimerMinutes(paperUpgradeRemaining)}</span>
-                        <div class="mine-progress-bar" style="margin-top: 5px;"><div class="mine-progress-fill" style="width: ${paperProgressPercent}%"></div></div>
-                    </div>
-                ` : ''}
-                ${makhorkaUpgradeActive ? `
-                    <div class="mine-timer">
-                        ⏳ ПРОКАЧКА МАХОРКИ: <span id="makhorkaUpgradeTimer" class="timer-text">${formatTimerMinutes(makhorkaUpgradeRemaining)}</span>
-                        <div class="mine-progress-bar" style="margin-top: 5px;"><div class="mine-progress-fill" style="width: ${makhorkaProgressPercent}%"></div></div>
-                    </div>
-                ` : ''}
-                
-                <div class="mine-timer" style="background: rgba(76,175,80,0.15);">
-                    ⭐ ОПЫТА ЗА РАБОТУ: +${workExpGain}
-                </div>
-                
-                <div class="mine-action-buttons">
-                    <button id="mineWorkBtn" class="mine-work-btn" ${!workAvailable ? 'disabled' : ''}>
-                        ⛏️ РАБОТАТЬ ${!workAvailable && workRemaining > 0 ? `(${formatTimerMinutes(workRemaining)})` : ''}
-                    </button>
-                    <button id="mineExchangeBtn" class="mine-exchange-btn">
-                        🔄 ОБМЕНЯТЬ
-                    </button>
-                </div>
-                ${(paperUpgradeActive || makhorkaUpgradeActive) ? '<div style="font-size: 11px; color: #ff9800; text-align: center;">⚡ НЕВОЗМОЖНО РАБОТАТЬ ВО ВРЕМЯ ПРОКАЧКИ</div>' : ''}
-            </div>
-        </div>
-    `;
-    
-    // Контент ПРОКАЧКА
-    let upgradeContent = `
-        <div id="mineUpgradeContainer" style="display: ${currentMineSubTab === 'upgrade' ? 'block' : 'none'};">
-            <div class="mine-card">
-                <div style="text-align: center; margin-bottom: 15px;">
-                    <div style="background: linear-gradient(135deg, #8B4513, #5a2d0a); display: inline-block; padding: 5px 20px; border-radius: 30px; font-size: 14px; font-weight: 700;">⬆️ ПРОКАЧКА ШАХТЫ</div>
-                </div>
-                
-                <!-- ПРОКАЧКА БУМАГИ -->
-                <div class="mine-upgrade-info">
-                    <div class="mine-upgrade-cost">
-                        <span>📄 БУМАГА УР. ${paperLevel}</span>
-                        <span>ДОБЫЧА: ${5 * paperLevel} шт</span>
-                    </div>
-                    ${paperUpgradeActive ? `
-                        <div class="mine-upgrade-progress">
-                            <div class="mine-progress-label">⏳ ПРОКАЧКА ДО ${paperLevel + 1} УРОВНЯ</div>
-                            <div class="mine-progress-bar"><div id="paperUpgradeTimerUpgrade" class="mine-progress-fill" style="width: ${paperProgressPercent}%"></div></div>
-                            <div style="font-size: 11px; text-align: center; margin-top: 5px;"><span class="timer-text" id="paperUpgradeTimerUpgradeText">${formatTimerMinutes(paperUpgradeRemaining)}</span></div>
-                        </div>
-                    ` : `
-                        <div class="mine-upgrade-cost">
-                            <span>⬆️ ДО ${paperLevel + 1} УРОВНЯ</span>
-                            <span>💰 ${upgradeCostPaper} 🚬</span>
-                        </div>
-                        <button id="upgradePaperBtn" class="mine-work-btn" style="width: 100%; margin-top: 10px;" ${(currentPlayer.cigarettes < upgradeCostPaper || getWorkRemaining('mine') > 0 || paperUpgradeActive || makhorkaUpgradeActive) ? 'disabled' : ''}>
-                            ⬆️ УЛУЧШИТЬ БУМАГУ
-                        </button>
-                    `}
-                </div>
-                
-                <!-- ПРОКАЧКА МАХОРКИ -->
-                <div class="mine-upgrade-info">
-                    <div class="mine-upgrade-cost">
-                        <span>🌿 МАХОРКА УР. ${makhorkaLevel}</span>
-                        <span>ДОБЫЧА: ${3 * makhorkaLevel} шт</span>
-                    </div>
-                    ${makhorkaUpgradeActive ? `
-                        <div class="mine-upgrade-progress">
-                            <div class="mine-progress-label">⏳ ПРОКАЧКА ДО ${makhorkaLevel + 1} УРОВНЯ</div>
-                            <div class="mine-progress-bar"><div id="makhorkaUpgradeTimerUpgrade" class="mine-progress-fill" style="width: ${makhorkaProgressPercent}%"></div></div>
-                            <div style="font-size: 11px; text-align: center; margin-top: 5px;"><span class="timer-text" id="makhorkaUpgradeTimerUpgradeText">${formatTimerMinutes(makhorkaUpgradeRemaining)}</span></div>
-                        </div>
-                    ` : `
-                        <div class="mine-upgrade-cost">
-                            <span>⬆️ ДО ${makhorkaLevel + 1} УРОВНЯ</span>
-                            <span>💰 ${upgradeCostMakhorka} 🚬</span>
-                        </div>
-                        <button id="upgradeMakhorkaBtn" class="mine-work-btn" style="width: 100%; margin-top: 10px;" ${(currentPlayer.cigarettes < upgradeCostMakhorka || getWorkRemaining('mine') > 0 || paperUpgradeActive || makhorkaUpgradeActive) ? 'disabled' : ''}>
-                            ⬆️ УЛУЧШИТЬ МАХОРКУ
-                        </button>
-                    `}
-                </div>
-                ${getWorkRemaining('mine') > 0 ? '<div style="font-size: 11px; color: #ff9800; text-align: center; margin-top: 10px;">⚡ НЕВОЗМОЖНО УЛУЧШИТЬ ВО ВРЕМЯ РАБОТЫ</div>' : ''}
-            </div>
-        </div>
-    `;
-    
-    return resourcesBar + subTabs + workContent + upgradeContent;
+    // ✅ ДОБАВЛЯЕМ ОБРАБОТЧИК ДЛЯ ТЕСТОВОЙ КНОПКИ
+    const testBtn = document.getElementById('testCompleteWorkBtn');
+    if (testBtn) {
+        testBtn.onclick = function() {
+            console.log('🔵 Нажата тестовая кнопка завершения работы');
+            completeWorkManually('mine');
+        };
+    }
 }
 
 function updateMineContent() {
