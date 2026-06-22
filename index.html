@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>GameZona - 1.0.1.024</title>
+    <title>GameZona - 1.0.1.025</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -6151,7 +6151,7 @@ window.openSettingsModal = function() {
                     <div style="font-size: 36px; margin-bottom: 10px;">⚙️</div>
                     <div style="font-size: 16px; font-weight: 700; color: #ffd966;">${escapeHtml(window.currentPlayer.username)}</div>
                     <div style="font-size: 12px; color: #888; margin-top: 4px;">🆔 ${window.playerId}</div>
-                    <div style="font-size: 11px; color: #666; margin-top: 8px;">Версия - 1.0.1.024</div>
+                    <div style="font-size: 11px; color: #666; margin-top: 8px;">Версия - 1.0.1.025</div>
                 </div>
             
             <!-- НИЖНЯЯ ПАНЕЛЬ НАВИГАЦИИ -->
@@ -11935,15 +11935,22 @@ async function sendJoinRequest(clanId) {
         requests.push(newRequest);
         await ref.set(requests);
         
+        // ✅ СОХРАНЯЕМ СТАТУС В LOCALSTORAGE
         var sentRequests = JSON.parse(localStorage.getItem('sentRequests_' + currentPlayer.id) || '[]');
         if (!sentRequests.includes(clanId)) {
             sentRequests.push(clanId);
             localStorage.setItem('sentRequests_' + currentPlayer.id, JSON.stringify(sentRequests));
         }
         
+        // ✅ СОХРАНЯЕМ СТАТУС ЗАЯВКИ
+        updateRequestStatus(clanId, 'pending');
+        
         showToast('✅ Заявка отправлена в клан "' + clan.name + '"!', 'success');
         updateTopBarResources();
         updateClanNotificationBadge();
+        
+        // ✅ ОБНОВЛЯЕМ КНОПКУ В ПОИСКЕ
+        updateClanSearchResults();
     } catch (e) {
         console.error('❌ КЛАН: ошибка отправки заявки:', e);
         showToast('❌ Ошибка отправки заявки!', 'error');
@@ -12005,6 +12012,19 @@ async function acceptJoinRequest(request, clanId) {
         
         await removeRequestFromClan(request.playerId, clanId);
         
+        // ✅ УДАЛЯЕМ СТАТУС ЗАЯВКИ ДЛЯ ИГРОКА
+        var sentRequests = JSON.parse(localStorage.getItem('sentRequests_' + request.playerId) || '[]');
+        var newSent = sentRequests.filter(function(id) { return id !== clanId; });
+        localStorage.setItem('sentRequests_' + request.playerId, JSON.stringify(newSent));
+        
+        // ✅ УДАЛЯЕМ СТАТУС ИЗ requestsStatus
+        var requestsStatus = JSON.parse(localStorage.getItem('requestsStatus_' + request.playerId) || '{}');
+        if (requestsStatus[clanId]) {
+            delete requestsStatus[clanId];
+            localStorage.setItem('requestsStatus_' + request.playerId, JSON.stringify(requestsStatus));
+        }
+        
+        // ✅ ОТПРАВЛЯЕМ УВЕДОМЛЕНИЕ О ПРИНЯТИИ
         var notificationData = {
             id: Date.now(),
             type: 'clan',
@@ -12020,7 +12040,6 @@ async function acceptJoinRequest(request, clanId) {
         if (currentPlayer.id === request.playerId) {
             currentPlayer.clanId = clanId;
             currentPlayer.clanLeader = clan.leader;
-            localStorage.removeItem('sentRequests_' + currentPlayer.id);
             showToast('🎉 Вас приняли в клан "' + clan.name + '"!', 'success');
         }
         
@@ -12055,8 +12074,23 @@ async function rejectJoinRequest(request, clanId) {
     
     try {
         await removeRequestFromClan(request.playerId, clanId);
+        
+        // ✅ ЗАПОМИНАЕМ, ЧТО ЗАЯВКА ОТКЛОНЕНА
         localStorage.setItem('rejected_' + request.playerId + '_' + clanId, Date.now().toString());
         
+        // ✅ УДАЛЯЕМ СТАТУС ИЗ requestsStatus
+        var requestsStatus = JSON.parse(localStorage.getItem('requestsStatus_' + request.playerId) || '{}');
+        if (requestsStatus[clanId]) {
+            delete requestsStatus[clanId];
+            localStorage.setItem('requestsStatus_' + request.playerId, JSON.stringify(requestsStatus));
+        }
+        
+        // ✅ УДАЛЯЕМ ИЗ sentRequests
+        var sentRequests = JSON.parse(localStorage.getItem('sentRequests_' + request.playerId) || '[]');
+        var newSent = sentRequests.filter(function(id) { return id !== clanId; });
+        localStorage.setItem('sentRequests_' + request.playerId, JSON.stringify(newSent));
+        
+        // ✅ ОТПРАВЛЯЕМ УВЕДОМЛЕНИЕ ОБ ОТКАЗЕ
         var notificationData = {
             id: Date.now(),
             type: 'clan',
@@ -12070,13 +12104,18 @@ async function rejectJoinRequest(request, clanId) {
         showToast('❌ Заявка от ' + request.playerName + ' отклонена', 'warning');
         
         if (currentPlayer.id === request.playerId) {
-            var sentRequests = JSON.parse(localStorage.getItem('sentRequests_' + currentPlayer.id) || '[]');
-            var newSent = sentRequests.filter(function(id) { return id !== clanId; });
-            localStorage.setItem('sentRequests_' + currentPlayer.id, JSON.stringify(newSent));
+            // Обновляем локальные данные
+            var localSentRequests = JSON.parse(localStorage.getItem('sentRequests_' + currentPlayer.id) || '[]');
+            var localNewSent = localSentRequests.filter(function(id) { return id !== clanId; });
+            localStorage.setItem('sentRequests_' + currentPlayer.id, JSON.stringify(localNewSent));
         }
         
         updateTopBarResources();
         updateClanNotificationBadge();
+        
+        if (document.getElementById('clanFullscreen')) {
+            updateClanUI();
+        }
     } catch (e) {
         console.error('❌ КЛАН: ошибка отклонения заявки:', e);
         showToast('❌ Ошибка отклонения заявки!', 'error');
@@ -12147,8 +12186,15 @@ async function saveNotificationToPlayer(playerId, notificationData) {
         
         var snapshot = await ref.once('value');
         var notifications = snapshot.exists() ? snapshot.val() || [] : [];
+        
+        // Проверяем, что это массив
+        if (!Array.isArray(notifications)) {
+            notifications = Object.values(notifications);
+        }
+        
         notifications.push(notificationData);
         await ref.set(notifications);
+        console.log('📨 Уведомление сохранено для игрока:', playerId);
     } catch (e) {
         console.error('❌ КЛАН: ошибка сохранения уведомления:', e);
     }
@@ -12676,7 +12722,11 @@ async function leaveClanFromModal() {
     
     try {
         var clanId = currentPlayer.clanId;
+        var clanName = '';
+        var clanLeaderId = '';
+        var playerName = currentPlayer.username;
         
+        // Получаем информацию о клане
         var clanRef = getDBRef('clans/' + clanId);
         if (!clanRef) {
             showToast('❌ Ошибка доступа к БД!', 'error');
@@ -12686,6 +12736,9 @@ async function leaveClanFromModal() {
         var clanSnapshot = await clanRef.once('value');
         if (clanSnapshot.exists()) {
             var clanData = clanSnapshot.val();
+            clanName = clanData.name || 'неизвестный';
+            clanLeaderId = clanData.leaderId || '';
+            
             var members = clanData.members || [];
             var membersIds = clanData.membersIds || [];
             
@@ -12705,9 +12758,23 @@ async function leaveClanFromModal() {
                 clanLeader: null 
             });
         }
+        
+        // ✅ ОТПРАВЛЯЕМ УВЕДОМЛЕНИЕ ГЛАВАРЮ
+        if (clanLeaderId && clanLeaderId !== currentPlayer.id) {
+            var notificationMessage = '👤 Игрок ' + playerName + ' покинул ваш клан "' + clanName + '"!';
+            await sendNotificationToPlayer(
+                clanLeaderId,
+                'clan',
+                '👋 Выход из клана',
+                notificationMessage
+            );
+            console.log('📨 Уведомление главарю отправлено');
+        }
+        
         currentPlayer.clanId = null;
         currentPlayer.clanLeader = null;
         
+        // Отписываемся от слушателей
         if (window._clanListeners.clan) {
             try { window._clanListeners.clan(); } catch(e) {}
             window._clanListeners.clan = null;
@@ -12735,6 +12802,31 @@ async function leaveClanFromModal() {
         console.error('❌ КЛАН: ошибка выхода:', e);
         showToast('❌ Ошибка: ' + e.message, 'error'); 
     }
+}
+
+// Проверить, отправлял ли игрок заявку
+function hasSentRequestToClan(clanId) {
+    if (!currentPlayer) return false;
+    var sentRequests = JSON.parse(localStorage.getItem('sentRequests_' + currentPlayer.id) || '[]');
+    return sentRequests.includes(clanId);
+}
+
+// ✅ ДОБАВИТЬ ФУНКЦИЮ ДЛЯ ОБНОВЛЕНИЯ СОСТОЯНИЯ ЗАЯВКИ
+function updateRequestStatus(clanId, status) {
+    if (!currentPlayer) return;
+    var requestsStatus = JSON.parse(localStorage.getItem('requestsStatus_' + currentPlayer.id) || '{}');
+    requestsStatus[clanId] = {
+        status: status,
+        timestamp: Date.now()
+    };
+    localStorage.setItem('requestsStatus_' + currentPlayer.id, JSON.stringify(requestsStatus));
+}
+
+// ✅ ФУНКЦИЯ ДЛЯ ПРОВЕРКИ СТАТУСА ЗАЯВКИ
+function getRequestStatus(clanId) {
+    if (!currentPlayer) return null;
+    var requestsStatus = JSON.parse(localStorage.getItem('requestsStatus_' + currentPlayer.id) || '{}');
+    return requestsStatus[clanId] || null;
 }
 
 async function kickFromClan(memberId, memberName) {
@@ -13755,26 +13847,37 @@ function setupClanSearch() {
     var searchInput = document.getElementById('clanSearchInput');
     if (!searchInput) return;
     
+    // ✅ ОПРЕДЕЛЯЕМ ФУНКЦИЮ ОБНОВЛЕНИЯ РЕЗУЛЬТАТОВ ПОИСКА
     window.updateClanSearchResults = function() {
         var input = document.getElementById('clanSearchInput');
         var results = document.getElementById('clanSearchResults');
         if (!input || !results) return;
-        
+
         var query = input.value.toLowerCase() || '';
         var filtered = window.allClans.filter(function(c) { 
             return c.name.toLowerCase().includes(query); 
         });
-        
+
         if (filtered.length === 0) {
             results.innerHTML = '<div style="text-align:center; padding:20px; color:#888;">🔍 Нет кланов</div>';
             return;
         }
-        
+
         results.innerHTML = filtered.map(function(c) {
-            var hasSent = hasSentRequestToClan(c.id);
-            var buttonHtml = hasSent
-                ? '<button class="btn-primary" disabled style="padding:6px 12px; font-size:11px; background:#666; opacity:0.7; color:#000; border-color:#888; cursor:not-allowed;">⏳ ЗАПРОС ПОДАН</button>'
-                : '<button class="btn-primary" style="padding:6px 12px; font-size:11px; background:linear-gradient(135deg,#ff9800,#e68a00); color:white; cursor:pointer;" onclick="sendJoinRequest(\'' + c.id + '\')">📝 ПОДАТЬ ЗАЯВКУ</button>';
+            // ✅ ПРОВЕРЯЕМ СТАТУС ЗАЯВКИ
+            var requestStatus = getRequestStatus(c.id);
+            var sentRequests = JSON.parse(localStorage.getItem('sentRequests_' + currentPlayer.id) || '[]');
+            var hasSent = sentRequests.includes(c.id);
+            var isPending = requestStatus && requestStatus.status === 'pending';
+            
+            // Определяем, что показывать
+            var buttonHtml = '';
+            if (isPending || hasSent) {
+                // ✅ СЕРАЯ КНОПКА С ТЕКСТОМ "ЗАЯВКА ПОДАНА"
+                buttonHtml = '<button class="btn-primary" disabled style="padding:6px 12px; font-size:11px; background:#555; opacity:0.7; color:#aaa; border-color:#888; cursor:not-allowed;">⏳ ЗАЯВКА ПОДАНА</button>';
+            } else {
+                buttonHtml = '<button class="btn-primary" style="padding:6px 12px; font-size:11px; background:linear-gradient(135deg,#ff9800,#e68a00); color:white; cursor:pointer; transition:all 0.2s;" onclick="sendJoinRequest(\'' + c.id + '\')">📝 ПОДАТЬ ЗАЯВКУ</button>';
+            }
             
             return `
                 <div style="background:rgba(30,36,64,0.6); border-radius:16px; padding:12px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
@@ -13788,9 +13891,9 @@ function setupClanSearch() {
         }).join('');
     };
     
+    // ✅ ПРИВЯЗЫВАЕМ ФУНКЦИЮ К СОБЫТИЮ ВВОДА
     searchInput.oninput = window.updateClanSearchResults;
 }
-
 // ============================================================
 // 20.16. ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
 // ============================================================
@@ -13824,6 +13927,9 @@ function initClanSystem() {
         console.warn('⚠️ КЛАН: БД не инициализирована, система клана не может быть запущена');
         return;
     }
+    
+    // ✅ ОЧИЩАЕМ УСТАРЕВШИЕ СТАТУСЫ ЗАЯВОК
+    cleanExpiredRequestStatus();
     
     initClanQuests();
     
@@ -13872,6 +13978,30 @@ function initClanSystem() {
     }, 30000);
     
     console.log('✅ КЛАН: инициализация завершена');
+}
+
+// ✅ ФУНКЦИЯ ДЛЯ ОЧИСТКИ УСТАРЕВШИХ СТАТУСОВ
+function cleanExpiredRequestStatus() {
+    if (!currentPlayer) return;
+    var requestsStatus = JSON.parse(localStorage.getItem('requestsStatus_' + currentPlayer.id) || '{}');
+    var now = Date.now();
+    var oneDay = 24 * 60 * 60 * 1000;
+    var changed = false;
+    
+    for (var clanId in requestsStatus) {
+        if (requestsStatus.hasOwnProperty(clanId)) {
+            // Если статус старше 1 дня - удаляем
+            if (now - requestsStatus[clanId].timestamp > oneDay) {
+                delete requestsStatus[clanId];
+                changed = true;
+            }
+        }
+    }
+    
+    if (changed) {
+        localStorage.setItem('requestsStatus_' + currentPlayer.id, JSON.stringify(requestsStatus));
+        console.log('🧹 Очищены устаревшие статусы заявок');
+    }
 }
 
 // ============================================================
