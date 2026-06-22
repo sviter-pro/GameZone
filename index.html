@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>GameZona - 1.0.1.015</title>
+    <title>GameZona - 1.0.1.017</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -1617,20 +1617,20 @@ window.openShopModal = function() {
                     <div style="position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, #8B4513, #c9a03d, #8B4513);"></div>
                     <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;">
                         <div style="display: flex; align-items: center; gap: 4px; background: rgba(0,0,0,0.3); padding: 4px 12px; border-radius: 30px; border-left: 2px solid #8B4513;">
-                            <span style="font-size: 14px;">🚬</span>
-                            <span id="shopCigarettesValue" style="font-size: 12px; font-weight: 600; color: #ffd966;">${formatNumberShort(window.currentPlayer.cigarettes || 0)}</span>
+                            <span style="font-size: 12px;">🚬</span>
+                            <span id="shopCigarettesValue" style="font-size: 11px; font-weight: 600; color: #ffd966;">${formatNumberShort(window.currentPlayer.cigarettes || 0)}</span>
                         </div>
                         <div style="display: flex; align-items: center; gap: 4px; background: rgba(0,0,0,0.3); padding: 4px 12px; border-radius: 30px; border-left: 2px solid #8B4513;">
-                            <span style="font-size: 14px;">💰</span>
-                            <span id="shopRublesValue" style="font-size: 12px; font-weight: 600; color: #ffd966;">${formatNumberShort(window.currentPlayer.rubles || 0)}</span>
+                            <span style="font-size: 12px;">💰</span>
+                            <span id="shopRublesValue" style="font-size: 11px; font-weight: 600; color: #ffd966;">${formatNumberShort(window.currentPlayer.rubles || 0)}</span>
                         </div>
                         <div style="display: flex; align-items: center; gap: 4px; background: rgba(0,0,0,0.3); padding: 4px 12px; border-radius: 30px; border-left: 2px solid #8B4513;">
-                            <span style="font-size: 14px;">🪵</span>
-                            <span id="shopWoodValue" style="font-size: 12px; font-weight: 600; color: #ffd966;">${formatNumberShort(window.currentPlayer.lumber?.wood || 0)}</span>
+                            <span style="font-size: 12px;">🪵</span>
+                            <span id="shopWoodValue" style="font-size: 11px; font-weight: 600; color: #ffd966;">${formatNumberShort(window.currentPlayer.lumber?.wood || 0)}</span>
                         </div>
                         <div style="display: flex; align-items: center; gap: 4px; background: rgba(0,0,0,0.3); padding: 4px 12px; border-radius: 30px; border-left: 2px solid #8B4513;">
-                            <span style="font-size: 14px;">🪨</span>
-                            <span id="shopStoneValue" style="font-size: 12px; font-weight: 600; color: #ffd966;">${formatNumberShort(window.currentPlayer.quarry?.stone || 0)}</span>
+                            <span style="font-size: 12px;">🪨</span>
+                            <span id="shopStoneValue" style="font-size: 11px; font-weight: 600; color: #ffd966;">${formatNumberShort(window.currentPlayer.quarry?.stone || 0)}</span>
                         </div>
                     </div>
                 </div>
@@ -3870,7 +3870,7 @@ function formatCooldownTime(ms) {
                         <div class="building b4" onclick="openShopModal()"><div class="building-label">Магазин</div></div>
                         <div class="building b5" onclick="showToast('🏥 Больница в разработке', 'warning')"><div class="building-label">Больница</div></div>
                         <div class="building b6" onclick="showToast('⚔️ Сходка в разработке', 'warning')"><div class="building-label">Сходка</div></div>
-                        <div class="building b7" onclick="showToast('⛓️ СИЗО в разработке', 'warning')"><div class="building-label">СИЗО</div></div>
+                        <div class="building b7" onclick="openGangModal()"><div class="building-label">СИЗО</div></div>
                     </div>
                 </div>
 
@@ -6076,7 +6076,7 @@ window.openSettingsModal = function() {
                     <div style="font-size: 36px; margin-bottom: 10px;">⚙️</div>
                     <div style="font-size: 16px; font-weight: 700; color: #ffd966;">${escapeHtml(window.currentPlayer.username)}</div>
                     <div style="font-size: 12px; color: #888; margin-top: 4px;">🆔 ${window.playerId}</div>
-                    <div style="font-size: 11px; color: #666; margin-top: 8px;">Версия 1.0.1.015</div>
+                    <div style="font-size: 11px; color: #666; margin-top: 8px;">Версия 1.0.1.017</div>
                 </div>
             
             <!-- НИЖНЯЯ ПАНЕЛЬ НАВИГАЦИИ -->
@@ -6863,8 +6863,8 @@ function calculatePlayerPower(player) {
         gangPower
     );
 }
- // ============================================================
-// 16. ПРОФИЛЬ (ТЮРЕМНЫЙ СТИЛЬ - ПОЛНОЭКРАННЫЙ)
+// ============================================================
+// 16. ПРОФИЛЬ - ДОБАВЛЯЕМ ОТОБРАЖЕНИЕ БОЙЦОВ В НАЙМЕ
 // ============================================================
 
 // ============================================================
@@ -6900,13 +6900,16 @@ window.openProfileModal = function() {
     
     // Получаем данные банды
     const gang = window.currentPlayer.gang || { 
-        blats: { level: 1, fighters: 0 }, 
-        muzhiks: { level: 1, fighters: 0 }, 
-        fraers: { level: 1, fighters: 0 } 
+        blats: { level: 1, fighters: 0, pendingGain: 0, lastGatherTime: 0 }, 
+        muzhiks: { level: 1, fighters: 0, pendingGain: 0, lastGatherTime: 0 }, 
+        fraers: { level: 1, fighters: 0, pendingGain: 0, lastGatherTime: 0 } 
     };
     
-    // Получаем распределение бойцов
+    // Получаем распределение бойцов (зона)
     const distribution = getGangDistribution();
+    
+    // ✅ ПОЛУЧАЕМ БОЙЦОВ В ПРОЦЕССЕ ВЕРБОВКИ
+    const recruiting = getRecruitingFighters();
 
     const html = `
         <div class="profile-fullscreen" id="profileFullscreen" style="
@@ -6937,7 +6940,6 @@ window.openProfileModal = function() {
                 justify-content: center;
                 align-items: center;
             ">
-                <!-- ЦЕПИ ПО БОКАМ -->
                 <div style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); font-size: 24px; opacity: 0.3; pointer-events: none;">⛓️</div>
                 <div style="position: absolute; right: 16px; top: 50%; transform: translateY(-50%); font-size: 24px; opacity: 0.3; pointer-events: none;">⛓️</div>
                 
@@ -7240,7 +7242,7 @@ window.openProfileModal = function() {
                     </div>
                 </div>
 
-                <!-- БАНДА -->
+                <!-- ✅ БАНДА С ОТОБРАЖЕНИЕМ БОЙЦОВ В НАЙМЕ -->
                 <div class="profile-card" style="
                     background: rgba(20, 20, 30, 0.9);
                     backdrop-filter: blur(10px);
@@ -7269,7 +7271,7 @@ window.openProfileModal = function() {
                         border-bottom: 1px solid rgba(139,69,19,0.3);
                     ">
                         <div style="color: #c9a03d; font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
-                            <span>⛓️</span> МОЯ БАНДА
+                            <span></span> МОЯ БАНДА
                         </div>
                         <div style="
                             background: rgba(139,69,19,0.4);
@@ -7279,87 +7281,15 @@ window.openProfileModal = function() {
                             color: #ffd966;
                             font-weight: 600;
                         ">
-                            всего ${distribution.total}
+                            всего ${distribution.total + recruiting.total}
                         </div>
                     </div>
                     
-                    <!-- ТАБЫ БАНДЫ -->
-                    <div style="
-                        display: flex;
-                        background: rgba(10,14,26,0.9);
-                        border-radius: 40px;
-                        margin-bottom: 12px;
-                        padding: 3px;
-                        border: 1px solid rgba(139,69,19,0.2);
-                    ">
-                        <button class="profile-gang-tab ${window.currentProfileGangTab === 'war' ? 'active' : ''}" 
-                            onclick="switchProfileGangTab('war')" style="
-                                flex: 1;
-                                background: transparent;
-                                border: none;
-                                padding: 6px 0;
-                                border-radius: 30px;
-                                font-size: 9px;
-                                font-weight: 600;
-                                cursor: pointer;
-                                transition: all 0.2s;
-                                color: ${window.currentProfileGangTab === 'war' ? '#c9a03d' : '#8e8ea0'};
-                                ${window.currentProfileGangTab === 'war' ? 'background: rgba(139,69,19,0.3);' : ''}
-                            ">
-                            ⚔️ ВОЙНА
-                        </button>
-                        <button class="profile-gang-tab ${window.currentProfileGangTab === 'robbery' ? 'active' : ''}" 
-                            onclick="switchProfileGangTab('robbery')" style="
-                                flex: 1;
-                                background: transparent;
-                                border: none;
-                                padding: 6px 0;
-                                border-radius: 30px;
-                                font-size: 9px;
-                                font-weight: 600;
-                                cursor: pointer;
-                                transition: all 0.2s;
-                                color: ${window.currentProfileGangTab === 'robbery' ? '#c9a03d' : '#8e8ea0'};
-                                ${window.currentProfileGangTab === 'robbery' ? 'background: rgba(139,69,19,0.3);' : ''}
-                            ">
-                            🦹 КРАЖА
-                        </button>
-                        <button class="profile-gang-tab ${window.currentProfileGangTab === 'recruit' ? 'active' : ''}" 
-                            onclick="switchProfileGangTab('recruit')" style="
-                                flex: 1;
-                                background: transparent;
-                                border: none;
-                                padding: 6px 0;
-                                border-radius: 30px;
-                                font-size: 9px;
-                                font-weight: 600;
-                                cursor: pointer;
-                                transition: all 0.2s;
-                                color: ${window.currentProfileGangTab === 'recruit' ? '#c9a03d' : '#8e8ea0'};
-                                ${window.currentProfileGangTab === 'recruit' ? 'background: rgba(139,69,19,0.3);' : ''}
-                            ">
-                            👥 НАЙМ
-                        </button>
-                        <button class="profile-gang-tab ${window.currentProfileGangTab === 'city' ? 'active' : ''}" 
-                            onclick="switchProfileGangTab('city')" style="
-                                flex: 1;
-                                background: transparent;
-                                border: none;
-                                padding: 6px 0;
-                                border-radius: 30px;
-                                font-size: 9px;
-                                font-weight: 600;
-                                cursor: pointer;
-                                transition: all 0.2s;
-                                color: ${window.currentProfileGangTab === 'city' ? '#c9a03d' : '#8e8ea0'};
-                                ${window.currentProfileGangTab === 'city' ? 'background: rgba(139,69,19,0.3);' : ''}
-                            ">
-                            🏙️ ЗОНА
-                        </button>
-                    </div>
                     
-                    <!-- КАРТОЧКИ БАНДЫ -->
+                    
+                    <!-- КАРТОЧКИ БАНДЫ С УЧЕТОМ НАЙМА -->
                     <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+                        <!-- БЛАТНЫЕ -->
                         <div style="
                             text-align: center;
                             background: rgba(0,0,0,0.3);
@@ -7372,8 +7302,16 @@ window.openProfileModal = function() {
                             </div>
                             <div style="font-size: 9px; color: #c9a03d; margin-top: 4px;">БЛАТНЫЕ</div>
                             <div style="font-size: 20px; font-weight: 700; color: #ffd966;" id="profileGangBlatsCount">${distribution.blats}</div>
-                            <div style="font-size: 8px; color: #888;">ур. ${gang.blats.level || 1}</div>
+                            ${recruiting.blats > 0 ? `
+                                <div style="font-size: 11px; color: #ff9800; font-weight: 600; margin-top: 2px;">
+                                    ⏳ +${recruiting.blats} в найме
+                                    ${recruiting.blatsTime > 0 ? '<br><span style="font-size: 8px; color: #888;">' + formatTimerMinutes(recruiting.blatsTime) + '</span>' : ''}
+                                </div>
+                            ` : ''}
+                            <div style="font-size: 8px; color: #888;">ур. ${gang.blats?.level || 1}</div>
                         </div>
+                        
+                        <!-- МУЖИКИ -->
                         <div style="
                             text-align: center;
                             background: rgba(0,0,0,0.3);
@@ -7386,8 +7324,16 @@ window.openProfileModal = function() {
                             </div>
                             <div style="font-size: 9px; color: #c9a03d; margin-top: 4px;">МУЖИКИ</div>
                             <div style="font-size: 20px; font-weight: 700; color: #ffd966;" id="profileGangMuzhiksCount">${distribution.muzhiks}</div>
-                            <div style="font-size: 8px; color: #888;">ур. ${gang.muzhiks.level || 1}</div>
+                            ${recruiting.muzhiks > 0 ? `
+                                <div style="font-size: 11px; color: #ff9800; font-weight: 600; margin-top: 2px;">
+                                    ⏳ +${recruiting.muzhiks} в найме
+                                    ${recruiting.muzhiksTime > 0 ? '<br><span style="font-size: 8px; color: #888;">' + formatTimerMinutes(recruiting.muzhiksTime) + '</span>' : ''}
+                                </div>
+                            ` : ''}
+                            <div style="font-size: 8px; color: #888;">ур. ${gang.muzhiks?.level || 1}</div>
                         </div>
+                        
+                        <!-- ФРАЕРА -->
                         <div style="
                             text-align: center;
                             background: rgba(0,0,0,0.3);
@@ -7400,9 +7346,17 @@ window.openProfileModal = function() {
                             </div>
                             <div style="font-size: 9px; color: #c9a03d; margin-top: 4px;">ФРАЕРА</div>
                             <div style="font-size: 20px; font-weight: 700; color: #ffd966;" id="profileGangFraersCount">${distribution.fraers}</div>
-                            <div style="font-size: 8px; color: #888;">ур. ${gang.fraers.level || 1}</div>
+                            ${recruiting.fraers > 0 ? `
+                                <div style="font-size: 11px; color: #ff9800; font-weight: 600; margin-top: 2px;">
+                                    ⏳ +${recruiting.fraers} в найме
+                                    ${recruiting.fraersTime > 0 ? '<br><span style="font-size: 8px; color: #888;">' + formatTimerMinutes(recruiting.fraersTime) + '</span>' : ''}
+                                </div>
+                            ` : ''}
+                            <div style="font-size: 8px; color: #888;">ур. ${gang.fraers?.level || 1}</div>
                         </div>
                     </div>
+                    
+                    
                 </div>
                 
                 <button onclick="logoutAccount()" style="
@@ -7440,7 +7394,7 @@ window.openProfileModal = function() {
                 </button>
             </div>
             
-            <!-- НИЖНЯЯ ПАНЕЛЬ НАВИГАЦИИ (КАК В ОРИГИНАЛЕ) -->
+            <!-- НИЖНЯЯ ПАНЕЛЬ -->
             <div class="profile-bottom-nav" style="
                 position: fixed;
                 bottom: 0;
@@ -7496,36 +7450,92 @@ window.openProfileModal = function() {
 };
 
 // ============================================================
-// 16.2. ЗАКРЫТИЕ ПРОФИЛЯ
+// 16.5. ПОЛУЧЕНИЕ БОЙЦОВ В ПРОЦЕССЕ ВЕРБОВКИ
 // ============================================================
-window.closeProfileModal = function() {
-    const modal = document.getElementById('profileFullscreen');
-    if (modal) modal.remove();
-    if (window.tg) window.tg.BackButton.hide();
+function getRecruitingFighters() {
+    if (!window.currentPlayer || !window.currentPlayer.gang) {
+        return { blats: 0, muzhiks: 0, fraers: 0, total: 0, blatsTime: 0, muzhiksTime: 0, fraersTime: 0 };
+    }
     
-    // Восстанавливаем скролл body
-    document.body.style.overflow = '';
-    document.body.style.position = '';
-    document.body.style.width = '';
-    document.body.classList.remove('modal-open');
+    var gang = window.currentPlayer.gang;
+    var result = { blats: 0, muzhiks: 0, fraers: 0, total: 0, blatsTime: 0, muzhiksTime: 0, fraersTime: 0 };
+    var types = ['blats', 'muzhiks', 'fraers'];
     
-    updateResources();
-};
+    for (var i = 0; i < types.length; i++) {
+        var type = types[i];
+        var gangType = gang[type];
+        if (!gangType) continue;
+        
+        // Проверяем, есть ли бойцы в процессе вербовки
+        var pendingGain = gangType.pendingGain || 0;
+        var lastGatherTime = gangType.lastGatherTime || 0;
+        
+        if (pendingGain > 0 && lastGatherTime > 0) {
+            var cooldownMs = 2 * 60 * 1000;
+            var level = gangType.level || 1;
+            cooldownMs = Math.floor(cooldownMs * (1 + (level - 1) * 0.05));
+            var elapsed = Date.now() - lastGatherTime;
+            
+            // Если еще не прошло время - бойцы в процессе
+            if (elapsed < cooldownMs) {
+                result[type] = pendingGain;
+                result[type + 'Time'] = cooldownMs - elapsed;
+                result.total += pendingGain;
+            }
+        }
+    }
+    
+    return result;
+}
 
 // ============================================================
-// 16.3. ПОЛУЧЕНИЕ РАСПРЕДЕЛЕНИЯ БОЙЦОВ
+// 16.6. ОБНОВЛЕНИЕ СЕКЦИИ БАНДЫ В ПРОФИЛЕ
+// ============================================================
+function updateProfileGangSection() {
+    var distribution = getGangDistribution();
+    var recruiting = getRecruitingFighters();
+    
+    // Обновляем числа
+    var blatsSpan = document.getElementById('profileGangBlatsCount');
+    var muzhiksSpan = document.getElementById('profileGangMuzhiksCount');
+    var fraersSpan = document.getElementById('profileGangFraersCount');
+    
+    if (blatsSpan) blatsSpan.textContent = distribution.blats;
+    if (muzhiksSpan) muzhiksSpan.textContent = distribution.muzhiks;
+    if (fraersSpan) fraersSpan.textContent = distribution.fraers;
+    
+    // Обновляем активные кнопки
+    var tabNames = ['profileGangTabWar', 'profileGangTabRobbery', 'profileGangTabRecruit', 'profileGangTabCity'];
+    var tabs = ['war', 'robbery', 'recruit', 'city'];
+    
+    for (var i = 0; i < tabs.length; i++) {
+        var btn = document.getElementById(tabNames[i]);
+        if (btn) {
+            if (tabs[i] === window.currentProfileGangTab) {
+                btn.style.color = '#c9a03d';
+                btn.style.background = 'rgba(139,69,19,0.3)';
+            } else {
+                btn.style.color = '#8e8ea0';
+                btn.style.background = 'transparent';
+            }
+        }
+    }
+}
+
+// ============================================================
+// 16.7. ПОЛУЧЕНИЕ РАСПРЕДЕЛЕНИЯ БОЙЦОВ (ЗОНА)
 // ============================================================
 function getGangDistribution() {
     if (!window.currentPlayer) {
         return { blats: 0, muzhiks: 0, fraers: 0, total: 0 };
     }
     
-    const gang = window.currentPlayer.gang || {};
-    const tab = window.currentProfileGangTab || 'city';
+    var gang = window.currentPlayer.gang || {};
+    var tab = window.currentProfileGangTab || 'city';
     
     // Если есть данные о распределении
     if (gang.distribution && gang.distribution[tab]) {
-        const dist = gang.distribution[tab];
+        var dist = gang.distribution[tab];
         return {
             blats: dist.blats || 0,
             muzhiks: dist.muzhiks || 0,
@@ -7534,10 +7544,10 @@ function getGangDistribution() {
         };
     }
     
-    // Если данных нет - показываем всё в городе
-    const totalBlats = gang.blats?.fighters || 0;
-    const totalMuzhiks = gang.muzhiks?.fighters || 0;
-    const totalFraers = gang.fraers?.fighters || 0;
+    // Если данных нет - показываем всё в городе (зоне)
+    var totalBlats = gang.blats?.fighters || 0;
+    var totalMuzhiks = gang.muzhiks?.fighters || 0;
+    var totalFraers = gang.fraers?.fighters || 0;
     
     if (tab === 'city') {
         return { 
@@ -7552,122 +7562,12 @@ function getGangDistribution() {
 }
 
 // ============================================================
-// 16.4. ПЕРЕКЛЮЧЕНИЕ ТАБОВ БАНДЫ В ПРОФИЛЕ
+// 16.8. ПЕРЕКЛЮЧЕНИЕ ТАБОВ БАНДЫ В ПРОФИЛЕ
 // ============================================================
 window.switchProfileGangTab = function(tab) {
     if (window.currentProfileGangTab === tab) return;
     window.currentProfileGangTab = tab;
     updateProfileGangSection();
-};
-
-// ============================================================
-// 16.5. ОБНОВЛЕНИЕ СЕКЦИИ БАНДЫ В ПРОФИЛЕ
-// ============================================================
-function updateProfileGangSection() {
-    const distribution = getGangDistribution();
-    
-    // Обновляем числа
-    const blatsSpan = document.getElementById('profileGangBlatsCount');
-    const muzhiksSpan = document.getElementById('profileGangMuzhiksCount');
-    const fraersSpan = document.getElementById('profileGangFraersCount');
-    
-    if (blatsSpan) blatsSpan.textContent = distribution.blats;
-    if (muzhiksSpan) muzhiksSpan.textContent = distribution.muzhiks;
-    if (fraersSpan) fraersSpan.textContent = distribution.fraers;
-    
-    // Обновляем активные кнопки
-    const tabNames = ['profileGangTabWar', 'profileGangTabRobbery', 'profileGangTabRecruit', 'profileGangTabCity'];
-    const tabs = ['war', 'robbery', 'recruit', 'city'];
-    
-    for (let i = 0; i < tabs.length; i++) {
-        const btn = document.getElementById(tabNames[i]);
-        if (btn) {
-            if (tabs[i] === window.currentProfileGangTab) {
-                btn.style.color = '#c9a03d';
-                btn.style.background = 'rgba(139,69,19,0.3)';
-            } else {
-                btn.style.color = '#8e8ea0';
-                btn.style.background = 'transparent';
-            }
-        }
-    }
-}
-
-// ============================================================
-// 16.6. ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ДЛЯ АВАТАРОВ
-// ============================================================
-function getAvatarUrl(avatarId) {
-    const id = avatarId || window.currentPlayer?.currentAvatar || 1;
-    const avatar = window.AVAATARS.find(a => a.id === id);
-    return avatar ? avatar.url : window.AVAATARS[0].url;
-}
-
-function getAvatarName(id) {
-    const avatar = window.AVAATARS.find(a => a.id === id);
-    return avatar ? avatar.name : 'Блатной';
-}
-
-function getAvatarPrice(id) {
-    const avatar = window.AVAATARS.find(a => a.id === id);
-    return avatar ? avatar.price : 0;
-}
-
-function isAvatarPurchased(avatarId) {
-    if (!window.currentPlayer) return false;
-    const purchased = window.currentPlayer.purchasedAvatars || [];
-    return purchased.includes(avatarId);
-}
-
-function updateAvatarEverywhere() {
-    if (!window.currentPlayer) return;
-    const avatarUrl = getAvatarUrl(window.currentPlayer.currentAvatar);
-    
-    const topAvatar = document.querySelector('.caste-avatar');
-    if (topAvatar) topAvatar.src = avatarUrl;
-    
-    const profileAvatar = document.querySelector('.profile-avatar');
-    if (profileAvatar) profileAvatar.src = avatarUrl;
-}
-
-// ============================================================
-// 16.7. ВЫБОР АВАТАРА
-// ============================================================
-window.selectAvatar = async function(avatarId) {
-    if (!window.currentPlayer) {
-        showToast('❌ Игрок не найден!', 'error');
-        return;
-    }
-    
-    if (!isAvatarPurchased(avatarId)) {
-        showToast('❌ Этот аватар не куплен!', 'warning');
-        return;
-    }
-    
-    if (window.currentPlayer.currentAvatar === avatarId) {
-        showToast('ℹ️ Этот аватар уже выбран', 'info');
-        return;
-    }
-    
-    const avatarName = getAvatarName(avatarId);
-    if (!confirm(`Выбрать аватар "${avatarName}"?`)) {
-        return;
-    }
-    
-    try {
-        showLoading(true, 'Установка аватара...');
-        await dbUpdate('players/' + window.playerId, { currentAvatar: avatarId });
-        window.currentPlayer.currentAvatar = avatarId;
-        updateAvatarEverywhere();
-        closeModal('avatarModal');
-        closeProfileModal();
-        showToast(`✅ Аватар "${avatarName}" установлен!`, 'success');
-        showLoading(false);
-        updateResources();
-        setTimeout(() => openProfileModal(), 300);
-    } catch (e) {
-        showLoading(false);
-        showToast('❌ Ошибка: ' + e.message, 'error');
-    }
 };
 
 // ============================================================
@@ -7971,6 +7871,36 @@ window.openAvatarSelector = function() {
     `;
     document.body.insertAdjacentHTML('beforeend', html);
     if (window.tg) window.tg.BackButton.show();
+};
+
+function getAvatarUrl(avatarId) {
+    const id = avatarId || window.currentPlayer?.currentAvatar || 1;
+    const avatar = window.AVAATARS.find(a => a.id === id);
+    return avatar ? avatar.url : window.AVAATARS[0].url;
+}
+
+function getAvatarName(id) {
+    const avatar = window.AVAATARS.find(a => a.id === id);
+    return avatar ? avatar.name : 'Блатной';
+}
+
+function getAvatarPrice(id) {
+    const avatar = window.AVAATARS.find(a => a.id === id);
+    return avatar ? avatar.price : 0;
+}
+
+window.closeProfileModal = function() {
+    const modal = document.getElementById('profileFullscreen');
+    if (modal) modal.remove();
+    if (window.tg) window.tg.BackButton.hide();
+    
+    // Восстанавливаем скролл body
+    document.body.style.overflow = '';
+    document.body.style.position = '';
+    document.body.style.width = '';
+    document.body.classList.remove('modal-open');
+    
+    updateResources();
 };
 
 // ============================================================
@@ -9969,6 +9899,1354 @@ window.stopQuests = stopQuests;
 window.initQuestsFull = initQuestsFull;
 
 console.log('✅ Блок ЗАДАНИЯ полностью загружен');
+
+// ============================================================
+// 19. СИЗО (БАНДА) - ИСПРАВЛЕННАЯ ВЕРСИЯ
+// ============================================================
+
+// ============================================================
+// 19.0. ИНИЦИАЛИЗАЦИЯ ПЕРЕМЕННЫХ
+// ============================================================
+if (typeof window.currentGangTab === 'undefined') {
+    window.currentGangTab = 'recruit';
+}
+if (typeof window.gangTimers === 'undefined') {
+    window.gangTimers = { interval: null };
+}
+if (typeof window.gangRecruitTimers === 'undefined') {
+    window.gangRecruitTimers = {};
+}
+if (typeof window.gangUpgradeTimers === 'undefined') {
+    window.gangUpgradeTimers = {};
+}
+// Флаг для предотвращения двойного запуска таймеров
+if (typeof window.gangTimerFlags === 'undefined') {
+    window.gangTimerFlags = {
+        recruit: { blats: false, muzhiks: false, fraers: false },
+        upgrade: { blats: false, muzhiks: false, fraers: false }
+    };
+}
+
+console.log('✅ Переменные СИЗО инициализированы');
+
+// ============================================================
+// 19.1. ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+// ============================================================
+if (typeof updateTopBarResources === 'undefined') {
+    window.updateTopBarResources = function() {
+        if (typeof updateResources === 'function') {
+            updateResources();
+        }
+        updateGangStatusInTopBar();
+    };
+}
+
+if (typeof updateBattleCountersOnMap === 'undefined') {
+    window.updateBattleCountersOnMap = function() {};
+}
+
+if (typeof updateWorkCountersOnMap === 'undefined') {
+    window.updateWorkCountersOnMap = function() {};
+}
+
+// ============================================================
+// 19.2. ПОЛУЧЕНИЕ ДАННЫХ БАНДЫ
+// ============================================================
+function getRecruitGain(type) {
+    if (!window.currentPlayer || !window.currentPlayer.gang) return 1;
+    var level = window.currentPlayer.gang[type]?.level || 1;
+    return level;
+}
+
+function getUpgradeCost(type) {
+    if (!window.currentPlayer || !window.currentPlayer.gang) {
+        return { wood: 50, stone: 30, cigarettes: 0 };
+    }
+    var level = window.currentPlayer.gang[type]?.level || 1;
+    var woodCost = 50 * level;
+    var stoneCost = 30 * level;
+    var cigarettesCost = 0;
+    if (level >= 10) {
+        cigarettesCost = 100 * (level - 9);
+    }
+    return { wood: woodCost, stone: stoneCost, cigarettes: cigarettesCost };
+}
+
+function getRecruitCost(type) {
+    if (!window.currentPlayer || !window.currentPlayer.gang) {
+        return { cigarettes: 25, wood: 10, stone: 8 };
+    }
+    var level = window.currentPlayer.gang[type]?.level || 1;
+    var cigarettesCost = 0, woodCost = 0, stoneCost = 0;
+    if (type === 'blats') {
+        cigarettesCost = 25 + (level - 1) * 5;
+        woodCost = 10 + (level - 1) * 3;
+        stoneCost = 8 + (level - 1) * 2;
+    } else if (type === 'muzhiks') {
+        cigarettesCost = 15 + (level - 1) * 3;
+        woodCost = 20 + (level - 1) * 5;
+        stoneCost = 10 + (level - 1) * 2;
+    } else {
+        cigarettesCost = 12 + (level - 1) * 2;
+        woodCost = 8 + (level - 1) * 2;
+        stoneCost = 18 + (level - 1) * 4;
+    }
+    return { cigarettes: cigarettesCost, wood: woodCost, stone: stoneCost };
+}
+
+function isUpgradeActive(gangType) {
+    if (!window.currentPlayer || !window.currentPlayer.gang) return false;
+    var upgradeStart = window.currentPlayer.gang[gangType]?.upgradeStartTime || 0;
+    var upgradeDuration = window.currentPlayer.gang[gangType]?.upgradeDuration || 0;
+    if (upgradeStart === 0 || upgradeDuration === 0) return false;
+    var elapsed = Date.now() - upgradeStart;
+    return elapsed < upgradeDuration;
+}
+
+function getUpgradeRemaining(gangType) {
+    if (!window.currentPlayer || !window.currentPlayer.gang) return 0;
+    var upgradeStart = window.currentPlayer.gang[gangType]?.upgradeStartTime || 0;
+    var upgradeDuration = window.currentPlayer.gang[gangType]?.upgradeDuration || 0;
+    if (upgradeStart === 0 || upgradeDuration === 0) return 0;
+    var elapsed = Date.now() - upgradeStart;
+    return Math.max(0, upgradeDuration - elapsed);
+}
+
+function getRecruitRemaining(gangType) {
+    if (!window.currentPlayer || !window.currentPlayer.gang) return 0;
+    var lastGather = window.currentPlayer.gang[gangType]?.lastGatherTime || 0;
+    if (lastGather === 0) return 0;
+    var cooldownMs = 2 * 60 * 1000;
+    var level = window.currentPlayer.gang[gangType]?.level || 1;
+    cooldownMs = Math.floor(cooldownMs * (1 + (level - 1) * 0.05));
+    var remaining = cooldownMs - (Date.now() - lastGather);
+    return Math.max(0, remaining);
+}
+
+function canRecruit(type) {
+    if (isUpgradeActive(type)) return false;
+    return getRecruitRemaining(type) <= 0;
+}
+
+function canUpgrade(type) {
+    if (isUpgradeActive(type)) return false;
+    if (getRecruitRemaining(type) > 0) return false;
+    return true;
+}
+
+// ============================================================
+// 19.3. ЗАВЕРШЕНИЕ ПРОКАЧКИ
+// ============================================================
+async function checkAndCompleteUpgrade(gangType) {
+    if (!window.currentPlayer || !window.currentPlayer.gang) return false;
+    
+    var gang = window.currentPlayer.gang;
+    var gangTypeData = gang[gangType];
+    if (!gangTypeData) return false;
+    
+    var upgradeStart = gangTypeData.upgradeStartTime || 0;
+    var upgradeDuration = gangTypeData.upgradeDuration || 0;
+    
+    if (upgradeStart === 0 || upgradeDuration === 0) return false;
+    
+    var elapsed = Date.now() - upgradeStart;
+    var remaining = upgradeDuration - elapsed;
+    
+    if (remaining <= 0) {
+        var oldLevel = gangTypeData.level || 1;
+        var newLevel = oldLevel + 1;
+        
+        console.log('🟢 ЗАВЕРШАЕМ ПРОКАЧКУ ' + gangType + ': ' + oldLevel + ' -> ' + newLevel);
+        
+        try {
+            gangTypeData.level = newLevel;
+            gangTypeData.upgradeStartTime = 0;
+            gangTypeData.upgradeDuration = 0;
+            
+            if (!window.currentPlayer.stats) {
+                window.currentPlayer.stats = { strength: 10, defense: 5, critical: 5 };
+            }
+            window.currentPlayer.stats.strength = (window.currentPlayer.stats.strength || 10) + 3;
+            window.currentPlayer.stats.defense = (window.currentPlayer.stats.defense || 5) + 2;
+            window.currentPlayer.level = (window.currentPlayer.level || 1) + 1;
+            window.currentPlayer.maxEnergy = (window.currentPlayer.maxEnergy || 100) + 5;
+            
+            var updateData = {
+                gang: window.currentPlayer.gang,
+                level: window.currentPlayer.level,
+                maxEnergy: window.currentPlayer.maxEnergy,
+                stats: window.currentPlayer.stats
+            };
+            
+            await dbUpdate('players/' + window.playerId, updateData);
+            
+            var typeName = gangType === 'blats' ? 'Блатные' : (gangType === 'muzhiks' ? 'Мужики' : 'Фраера');
+            showToast('✅ ' + typeName + ' улучшены до ' + newLevel + ' уровня! Ваш уровень повышен до ' + window.currentPlayer.level + '!', 'success');
+            
+            // ОСТАНАВЛИВАЕМ ТАЙМЕР
+            if (window.gangUpgradeTimers[gangType]) {
+                clearInterval(window.gangUpgradeTimers[gangType]);
+                delete window.gangUpgradeTimers[gangType];
+            }
+            window.gangTimerFlags.upgrade[gangType] = false;
+            
+            updateTopBarResources();
+            updateGangButtonBadge();
+            updateGangModalUI();
+            return true;
+        } catch (e) {
+            console.error('Ошибка завершения прокачки:', e);
+        }
+    }
+    return false;
+}
+
+// ============================================================
+// 19.4. ЗАВЕРШЕНИЕ НАЙМА (ПРИХОД ЗЕКОВ)
+// ============================================================
+async function checkAndCompleteRecruit(gangType) {
+    if (!window.currentPlayer || !window.currentPlayer.gang) return false;
+    
+    var gang = window.currentPlayer.gang;
+    var gangTypeData = gang[gangType];
+    if (!gangTypeData) return false;
+    
+    var lastGatherTime = gangTypeData.lastGatherTime || 0;
+    var pendingGain = gangTypeData.pendingGain || 0;
+    
+    if (lastGatherTime === 0 || pendingGain === 0) return false;
+    
+    var cooldownMs = 2 * 60 * 1000;
+    var level = gangTypeData.level || 1;
+    cooldownMs = Math.floor(cooldownMs * (1 + (level - 1) * 0.05));
+    
+    var elapsed = Date.now() - lastGatherTime;
+    
+    if (elapsed >= cooldownMs) {
+        console.log('🟢 ЗАВЕРШАЕМ НАЙМ ДЛЯ ' + gangType + ': +' + pendingGain + ' бойцов');
+        
+        try {
+            // Добавляем бойцов
+            gangTypeData.fighters = (gangTypeData.fighters || 0) + pendingGain;
+            var authorityGain = pendingGain * 50;
+            var cigarettesGain = pendingGain * 10;
+            
+            window.currentPlayer.authority = (window.currentPlayer.authority || 0) + authorityGain;
+            window.currentPlayer.cigarettes = (window.currentPlayer.cigarettes || 0) + cigarettesGain;
+            
+            // ✅ ИСПРАВЛЕНО: НЕ обновляем lastGatherTime, просто сбрасываем pendingGain
+            gangTypeData.pendingGain = 0;
+            // lastGatherTime остается как был, но без pendingGain таймер не запустится снова
+            
+            var typeName = gangType === 'blats' ? 'Блатные' : (gangType === 'muzhiks' ? 'Мужики' : 'Фраера');
+            
+            var updateData = {
+                gang: window.currentPlayer.gang,
+                authority: window.currentPlayer.authority,
+                cigarettes: window.currentPlayer.cigarettes
+            };
+            
+            await dbUpdate('players/' + window.playerId, updateData);
+            
+            showToast('👥 ' + typeName + ' вернулись с вербовки! +' + pendingGain + ' чел., +' + authorityGain + '⭐, +' + cigarettesGain + '🚬', 'success');
+            
+            // ОСТАНАВЛИВАЕМ ТАЙМЕР
+            if (window.gangRecruitTimers[gangType]) {
+                clearInterval(window.gangRecruitTimers[gangType]);
+                delete window.gangRecruitTimers[gangType];
+            }
+            window.gangTimerFlags.recruit[gangType] = false;
+            
+            updateTopBarResources();
+            updateGangButtonBadge();
+            updateGangModalUI();
+            return true;
+        } catch (e) {
+            console.error('Ошибка завершения найма:', e);
+        }
+    }
+    return false;
+}
+
+// ============================================================
+// 19.5. ВЕРБОВКА (НАЙМ)
+// ============================================================
+window.collectGangIncome = async function(type) {
+    if (!window.currentPlayer) {
+        showToast('❌ Игрок не найден!', 'error');
+        return;
+    }
+    
+    // Проверяем, не запущен ли уже таймер
+    if (window.gangTimerFlags.recruit[type]) {
+        showToast('⏳ Найм уже идет!', 'warning');
+        return;
+    }
+    
+    // Инициализация банды
+    if (!window.currentPlayer.gang) {
+        window.currentPlayer.gang = {
+            blats: { level: 1, lastGatherTime: 0, fighters: 0, upgradeStartTime: 0, upgradeDuration: 0, pendingGain: 0 },
+            muzhiks: { level: 1, lastGatherTime: 0, fighters: 0, upgradeStartTime: 0, upgradeDuration: 0, pendingGain: 0 },
+            fraers: { level: 1, lastGatherTime: 0, fighters: 0, upgradeStartTime: 0, upgradeDuration: 0, pendingGain: 0 }
+        };
+        await dbUpdate('players/' + window.playerId, { gang: window.currentPlayer.gang });
+    }
+    
+    var gang = window.currentPlayer.gang;
+    if (!gang[type]) {
+        gang[type] = { level: 1, lastGatherTime: 0, fighters: 0, upgradeStartTime: 0, upgradeDuration: 0, pendingGain: 0 };
+        await dbUpdate('players/' + window.playerId, { gang: gang });
+    }
+    
+    // Проверяем возможность найма
+    if (isUpgradeActive(type)) {
+        showToast('❌ Невозможно нанять во время прокачки!', 'warning');
+        return;
+    }
+    
+    // ✅ ИСПРАВЛЕНО: проверяем только если есть pendingGain
+    if (gang[type].pendingGain > 0) {
+        var remaining = getRecruitRemaining(type);
+        if (remaining > 0) {
+            showToast('⏳ Банда уже набирает новых зеков! Осталось ' + formatTimerMinutes(remaining), 'warning');
+            return;
+        }
+    }
+    
+    var cost = getRecruitCost(type);
+    if (window.currentPlayer.cigarettes < cost.cigarettes) {
+        showToast('❌ Не хватает ' + (cost.cigarettes - window.currentPlayer.cigarettes) + ' 🚬!', 'error');
+        return;
+    }
+    if ((window.currentPlayer.lumber?.wood || 0) < cost.wood) {
+        showToast('❌ Не хватает ' + (cost.wood - (window.currentPlayer.lumber?.wood || 0)) + ' 🪵!', 'error');
+        return;
+    }
+    if ((window.currentPlayer.quarry?.stone || 0) < cost.stone) {
+        showToast('❌ Не хватает ' + (cost.stone - (window.currentPlayer.quarry?.stone || 0)) + ' 🪨!', 'error');
+        return;
+    }
+    
+    try {
+        showLoading(true, 'Найм бойцов...');
+        
+        window.currentPlayer.cigarettes -= cost.cigarettes;
+        window.currentPlayer.lumber.wood -= cost.wood;
+        window.currentPlayer.quarry.stone -= cost.stone;
+        
+        var recruitGain = getRecruitGain(type);
+        var now = Date.now();
+        
+        gang[type].lastGatherTime = now;
+        gang[type].pendingGain = recruitGain;
+        
+        var updateData = {
+            cigarettes: window.currentPlayer.cigarettes,
+            lumber: window.currentPlayer.lumber,
+            quarry: window.currentPlayer.quarry,
+            gang: window.currentPlayer.gang
+        };
+        
+        await dbUpdate('players/' + window.playerId, updateData);
+        
+        var cooldownMs = 2 * 60 * 1000;
+        cooldownMs = Math.floor(cooldownMs * (1 + (gang[type].level - 1) * 0.05));
+        var typeName = type === 'blats' ? 'блатных' : (type === 'muzhiks' ? 'мужиков' : 'фраеров');
+        
+        showToast('👥 Найм ' + typeName + ' начат! Новые зеки придут через ' + Math.ceil(cooldownMs / 60000) + ' мин.', 'success');
+        
+        showLoading(false);
+        
+        // УСТАНАВЛИВАЕМ ФЛАГ, ЧТО ТАЙМЕР ЗАПУЩЕН
+        window.gangTimerFlags.recruit[type] = true;
+        
+        // СРАЗУ ОБНОВЛЯЕМ UI - БЛОКИРУЕМ КНОПКИ
+        updateTopBarResources();
+        updateGangButtonBadge();
+        updateGangModalUI();
+        
+        // ЗАПУСКАЕМ ТАЙМЕР (ТОЛЬКО ОДИН!)
+        startRecruitTimer(type);
+        
+    } catch (e) {
+        showLoading(false);
+        showToast('❌ Ошибка найма: ' + e.message, 'error');
+        console.error('Ошибка найма:', e);
+    }
+};
+// ============================================================
+// 19.6. ПРОКАЧКА БАНДЫ
+// ============================================================
+window.upgradeGangCaste = async function(type) {
+    if (!window.currentPlayer) {
+        showToast('❌ Игрок не найден!', 'error');
+        return;
+    }
+    
+    // Проверяем, не запущен ли уже таймер
+    if (window.gangTimerFlags.upgrade[type]) {
+        showToast('⏳ Прокачка уже идет!', 'warning');
+        return;
+    }
+    
+    // Инициализация банды
+    if (!window.currentPlayer.gang) {
+        window.currentPlayer.gang = {
+            blats: { level: 1, lastGatherTime: 0, fighters: 0, upgradeStartTime: 0, upgradeDuration: 0, pendingGain: 0 },
+            muzhiks: { level: 1, lastGatherTime: 0, fighters: 0, upgradeStartTime: 0, upgradeDuration: 0, pendingGain: 0 },
+            fraers: { level: 1, lastGatherTime: 0, fighters: 0, upgradeStartTime: 0, upgradeDuration: 0, pendingGain: 0 }
+        };
+        await dbUpdate('players/' + window.playerId, { gang: window.currentPlayer.gang });
+    }
+    
+    var gang = window.currentPlayer.gang;
+    if (!gang[type]) {
+        gang[type] = { level: 1, lastGatherTime: 0, fighters: 0, upgradeStartTime: 0, upgradeDuration: 0, pendingGain: 0 };
+        await dbUpdate('players/' + window.playerId, { gang: gang });
+    }
+    
+    // Проверяем возможность прокачки
+    if (isUpgradeActive(type)) {
+        showToast('⏳ Прокачка уже идет! Дождитесь завершения.', 'warning');
+        return;
+    }
+    
+    var recruitRemaining = getRecruitRemaining(type);
+    if (recruitRemaining > 0) {
+        showToast('❌ Невозможно улучшить во время найма!', 'warning');
+        return;
+    }
+    
+    var currentLevel = gang[type].level || 1;
+    var cost = getUpgradeCost(type);
+    
+    if ((window.currentPlayer.lumber?.wood || 0) < cost.wood) {
+        showToast('❌ Не хватает ' + (cost.wood - (window.currentPlayer.lumber?.wood || 0)) + ' 🪵!', 'error');
+        return;
+    }
+    if ((window.currentPlayer.quarry?.stone || 0) < cost.stone) {
+        showToast('❌ Не хватает ' + (cost.stone - (window.currentPlayer.quarry?.stone || 0)) + ' 🪨!', 'error');
+        return;
+    }
+    if (cost.cigarettes > 0 && window.currentPlayer.cigarettes < cost.cigarettes) {
+        showToast('❌ Не хватает ' + (cost.cigarettes - window.currentPlayer.cigarettes) + ' 🚬!', 'error');
+        return;
+    }
+    
+    try {
+        showLoading(true, 'Начало прокачки...');
+        
+        if (cost.cigarettes > 0) {
+            window.currentPlayer.cigarettes -= cost.cigarettes;
+        }
+        window.currentPlayer.lumber.wood -= cost.wood;
+        window.currentPlayer.quarry.stone -= cost.stone;
+        
+        var upgradeDurationMs = 2 * 60 * 1000;
+        upgradeDurationMs = Math.floor(upgradeDurationMs * (1 + (currentLevel - 1) * 0.05));
+        var upgradeStartTime = Date.now();
+        
+        gang[type].upgradeStartTime = upgradeStartTime;
+        gang[type].upgradeDuration = upgradeDurationMs;
+        
+        var updateData = {
+            cigarettes: window.currentPlayer.cigarettes,
+            lumber: window.currentPlayer.lumber,
+            quarry: window.currentPlayer.quarry,
+            gang: window.currentPlayer.gang
+        };
+        
+        await dbUpdate('players/' + window.playerId, updateData);
+        
+        var minutes = Math.floor(upgradeDurationMs / 60000);
+        var seconds = Math.floor((upgradeDurationMs % 60000) / 1000);
+        showToast('⏳ Начата прокачка ' + (type === 'blats' ? 'Блатных' : type === 'muzhiks' ? 'Мужиков' : 'Фраеров') + '! Завершится через ' + minutes + ' мин ' + seconds + ' сек.', 'success');
+        
+        showLoading(false);
+        
+        // УСТАНАВЛИВАЕМ ФЛАГ, ЧТО ТАЙМЕР ЗАПУЩЕН
+        window.gangTimerFlags.upgrade[type] = true;
+        
+        // СРАЗУ ОБНОВЛЯЕМ UI - БЛОКИРУЕМ КНОПКИ
+        updateTopBarResources();
+        updateGangButtonBadge();
+        updateGangModalUI();
+        
+        // ЗАПУСКАЕМ ТАЙМЕР (ТОЛЬКО ОДИН!)
+        startUpgradeTimer(type);
+        
+    } catch (e) {
+        showLoading(false);
+        showToast('❌ Ошибка прокачки: ' + e.message, 'error');
+        console.error('Ошибка прокачки:', e);
+    }
+};
+
+// ============================================================
+// 19.7. ТАЙМЕРЫ ДЛЯ ОНЛАЙН ОБНОВЛЕНИЯ (ТОЛЬКО ОДИН ТАЙМЕР НА ТИП)
+// ============================================================
+function startRecruitTimer(type) {
+    // Если таймер уже существует - не создаем новый
+    if (window.gangRecruitTimers[type]) {
+        console.log('⚠️ Таймер найма для ' + type + ' уже существует');
+        return;
+    }
+    
+    console.log('🔄 Запуск таймера найма для ' + type);
+    
+    window.gangRecruitTimers[type] = setInterval(async function() {
+        // Проверяем завершение найма
+        var completed = await checkAndCompleteRecruit(type);
+        if (completed) {
+            // Если найм завершен - останавливаем таймер
+            if (window.gangRecruitTimers[type]) {
+                clearInterval(window.gangRecruitTimers[type]);
+                delete window.gangRecruitTimers[type];
+            }
+            window.gangTimerFlags.recruit[type] = false;
+            console.log('✅ Таймер найма для ' + type + ' остановлен (завершен)');
+        } else {
+            // Проверяем, не нужно ли остановить таймер если pendingGain = 0
+            var gang = window.currentPlayer.gang;
+            if (gang && gang[type] && gang[type].pendingGain === 0) {
+                // Если pendingGain = 0, значит найм уже завершен или не запущен
+                if (window.gangRecruitTimers[type]) {
+                    clearInterval(window.gangRecruitTimers[type]);
+                    delete window.gangRecruitTimers[type];
+                }
+                window.gangTimerFlags.recruit[type] = false;
+                console.log('✅ Таймер найма для ' + type + ' остановлен (pendingGain = 0)');
+            }
+        }
+        // Обновляем UI
+        updateGangModalUI();
+        updateGangButtonBadge();
+    }, 1000);
+}
+
+function startUpgradeTimer(type) {
+    // Если таймер уже существует - не создаем новый
+    if (window.gangUpgradeTimers[type]) {
+        console.log('⚠️ Таймер прокачки для ' + type + ' уже существует');
+        return;
+    }
+    
+    console.log('🔄 Запуск таймера прокачки для ' + type);
+    
+    window.gangUpgradeTimers[type] = setInterval(async function() {
+        // Проверяем завершение прокачки
+        var completed = await checkAndCompleteUpgrade(type);
+        if (completed) {
+            // Если прокачка завершена - останавливаем таймер
+            if (window.gangUpgradeTimers[type]) {
+                clearInterval(window.gangUpgradeTimers[type]);
+                delete window.gangUpgradeTimers[type];
+            }
+            window.gangTimerFlags.upgrade[type] = false;
+            console.log('✅ Таймер прокачки для ' + type + ' остановлен (завершен)');
+        }
+        // Обновляем UI
+        updateGangModalUI();
+        updateGangButtonBadge();
+    }, 1000);
+}
+
+// ============================================================
+// 19.8. ОБНОВЛЕНИЕ UI СИЗО (С БЛОКИРОВКОЙ КНОПОК)
+// ============================================================
+function updateGangModalUI() {
+    var modal = document.getElementById('gangFullscreen');
+    if (!modal) return;
+    
+    var gang = window.currentPlayer.gang;
+    if (!gang) return;
+    
+    var types = ['blats', 'muzhiks', 'fraers'];
+    var displayNames = ['Блатные', 'Мужики', 'Фраера'];
+    
+    for (var i = 0; i < types.length; i++) {
+        var type = types[i];
+        var gangType = gang[type];
+        if (!gangType) continue;
+        
+        var upgradeActive = isUpgradeActive(type);
+        var remaining = getRecruitRemaining(type);
+        var canRecruitNow = canRecruit(type);
+        var canUpgradeNow = canUpgrade(type);
+        var recruitGain = getRecruitGain(type);
+        var cost = getRecruitCost(type);
+        var upgradeCost = getUpgradeCost(type);
+        var typeLower = type.toLowerCase();
+        
+        // === ОБНОВЛЯЕМ СТАТИСТИКУ ===
+        var levelEl = document.getElementById(typeLower + 'LevelValue');
+        if (levelEl) levelEl.textContent = gangType.level || 1;
+        
+        var fightersEl = document.getElementById(typeLower + 'FightersCount');
+        if (fightersEl) fightersEl.textContent = gangType.fighters || 0;
+        
+        var recruitGainEl = document.getElementById(typeLower + 'RecruitGainValue');
+        if (recruitGainEl) recruitGainEl.textContent = recruitGain;
+        
+        var costCigEl = document.getElementById(typeLower + 'CostCigarettes');
+        var costWoodEl = document.getElementById(typeLower + 'CostWood');
+        var costStoneEl = document.getElementById(typeLower + 'CostStone');
+        if (costCigEl) costCigEl.textContent = cost.cigarettes;
+        if (costWoodEl) costWoodEl.textContent = cost.wood;
+        if (costStoneEl) costStoneEl.textContent = cost.stone;
+        
+        var timerEl = document.getElementById(typeLower + 'Timer');
+        if (timerEl) {
+            timerEl.textContent = formatTimerMinutes(remaining);
+        }
+        
+        var upgradeActiveDiv = document.getElementById(typeLower + 'UpgradeActiveDiv');
+        if (upgradeActiveDiv) {
+            upgradeActiveDiv.style.display = upgradeActive ? 'block' : 'none';
+        }
+        
+        var upgradeTimerEl = document.getElementById(typeLower + 'UpgradeTimer');
+        if (upgradeTimerEl) {
+            upgradeTimerEl.textContent = formatTimerMinutes(getUpgradeRemaining(type));
+        }
+        
+        // ✅ КНОПКА НАЙМА - ПРАВИЛЬНАЯ БЛОКИРОВКА
+        var collectBtn = document.getElementById('collect' + type.charAt(0).toUpperCase() + type.slice(1) + 'Btn');
+        if (collectBtn) {
+            if (upgradeActive) {
+                collectBtn.disabled = true;
+                collectBtn.textContent = '⏳ ПРОКАЧКА ИДЕТ...';
+                collectBtn.style.background = '#444';
+                collectBtn.style.border = '1px solid #666';
+                collectBtn.style.color = '#888';
+                collectBtn.style.opacity = '0.6';
+                collectBtn.style.cursor = 'not-allowed';
+            } else if (remaining > 0) {
+                collectBtn.disabled = true;
+                collectBtn.textContent = '⏳ ' + formatTimerMinutes(remaining);
+                collectBtn.style.background = '#444';
+                collectBtn.style.border = '1px solid #666';
+                collectBtn.style.color = '#888';
+                collectBtn.style.opacity = '0.6';
+                collectBtn.style.cursor = 'not-allowed';
+            } else {
+                collectBtn.disabled = false;
+                collectBtn.textContent = '👥 НАНЯТЬ ЗЕКОВ (+' + recruitGain + ' ЧЕЛ)';
+                collectBtn.style.background = 'linear-gradient(135deg, #8B4513, #5a2d0a)';
+                collectBtn.style.border = '1px solid #c9a03d';
+                collectBtn.style.color = '#ffd966';
+                collectBtn.style.opacity = '1';
+                collectBtn.style.cursor = 'pointer';
+            }
+        }
+        
+        // === ПРОКАЧКА ===
+        var upgradeLevelEl = document.getElementById(typeLower + 'UpgradeLevelValue');
+        if (upgradeLevelEl) upgradeLevelEl.textContent = gangType.level || 1;
+        
+        var upgradeFightersEl = document.getElementById(typeLower + 'UpgradeFightersValue');
+        if (upgradeFightersEl) upgradeFightersEl.textContent = gangType.fighters || 0;
+        
+        var upgradeRecruitGainEl = document.getElementById(typeLower + 'UpgradeRecruitGainValue');
+        if (upgradeRecruitGainEl) upgradeRecruitGainEl.textContent = recruitGain;
+        
+        var upgradeCostWoodEl = document.getElementById(typeLower + 'UpgradeCostWood');
+        var upgradeCostStoneEl = document.getElementById(typeLower + 'UpgradeCostStone');
+        var upgradeCostCigEl = document.getElementById(typeLower + 'UpgradeCostCigarettes');
+        if (upgradeCostWoodEl) upgradeCostWoodEl.textContent = upgradeCost.wood;
+        if (upgradeCostStoneEl) upgradeCostStoneEl.textContent = upgradeCost.stone;
+        if (upgradeCostCigEl) upgradeCostCigEl.textContent = upgradeCost.cigarettes;
+        
+        var upgradeCostCigDiv = document.getElementById(typeLower + 'UpgradeCostCigarettesDiv');
+        if (upgradeCostCigDiv) {
+            upgradeCostCigDiv.style.display = upgradeCost.cigarettes > 0 ? 'flex' : 'none';
+        }
+        
+        var upgradeActiveDiv2 = document.getElementById(typeLower + 'UpgradeActiveDiv2');
+        var upgradeCostDiv = document.getElementById(typeLower + 'UpgradeCostDiv');
+        if (upgradeActiveDiv2) {
+            upgradeActiveDiv2.style.display = upgradeActive ? 'block' : 'none';
+        }
+        if (upgradeCostDiv) {
+            upgradeCostDiv.style.display = upgradeActive ? 'none' : 'flex';
+        }
+        
+        if (upgradeActive) {
+            var progressFill = document.getElementById(typeLower + 'ProgressFill');
+            var upgradeTimerUpgrade = document.getElementById(typeLower + 'UpgradeTimerUpgrade');
+            if (progressFill && gangType.upgradeStartTime > 0 && gangType.upgradeDuration > 0) {
+                var elapsed = Date.now() - gangType.upgradeStartTime;
+                var percent = Math.min(100, (elapsed / gangType.upgradeDuration) * 100);
+                progressFill.style.width = percent + '%';
+            }
+            if (upgradeTimerUpgrade) {
+                upgradeTimerUpgrade.textContent = formatTimerMinutes(getUpgradeRemaining(type));
+            }
+        }
+        
+        // ✅ КНОПКА ПРОКАЧКИ - ПРАВИЛЬНАЯ БЛОКИРОВКА
+        var upgradeBtn = document.getElementById('upgrade' + type.charAt(0).toUpperCase() + type.slice(1) + 'Btn');
+        if (upgradeBtn) {
+            if (upgradeActive) {
+                upgradeBtn.disabled = true;
+                upgradeBtn.textContent = '⏳ ПРОКАЧКА ИДЕТ...';
+                upgradeBtn.style.background = '#444';
+                upgradeBtn.style.border = '1px solid #666';
+                upgradeBtn.style.color = '#888';
+                upgradeBtn.style.opacity = '0.6';
+                upgradeBtn.style.cursor = 'not-allowed';
+            } else if (!canUpgradeNow) {
+                upgradeBtn.disabled = true;
+                upgradeBtn.textContent = '🔒 НЕДОСТУПНО';
+                upgradeBtn.style.background = '#444';
+                upgradeBtn.style.border = '1px solid #666';
+                upgradeBtn.style.color = '#888';
+                upgradeBtn.style.opacity = '0.6';
+                upgradeBtn.style.cursor = 'not-allowed';
+            } else {
+                upgradeBtn.disabled = false;
+                upgradeBtn.textContent = '⬆️ УЛУЧШИТЬ ' + displayNames[i].toUpperCase();
+                upgradeBtn.style.background = 'linear-gradient(135deg, #8B4513, #5a2d0a)';
+                upgradeBtn.style.border = '1px solid #c9a03d';
+                upgradeBtn.style.color = '#ffd966';
+                upgradeBtn.style.opacity = '1';
+                upgradeBtn.style.cursor = 'pointer';
+            }
+        }
+    }
+}
+
+// ============================================================
+// 19.9. ПЕРЕКЛЮЧЕНИЕ ВКЛАДОК
+// ============================================================
+window.switchGangTab = function(tab) {
+    if (window.currentGangTab === tab) return;
+    window.currentGangTab = tab;
+    
+    var modal = document.getElementById('gangFullscreen');
+    if (!modal) return;
+    
+    var recruitContainer = document.getElementById('gangRecruitContainer');
+    var upgradeContainer = document.getElementById('gangUpgradeContainer');
+    var recruitBtn = document.getElementById('gangTabRecruitBtn');
+    var upgradeBtn = document.getElementById('gangTabUpgradeBtn');
+    
+    if (tab === 'recruit') {
+        if (recruitContainer) recruitContainer.style.display = 'block';
+        if (upgradeContainer) upgradeContainer.style.display = 'none';
+        if (recruitBtn) {
+            recruitBtn.style.color = '#c9a03d';
+            recruitBtn.style.background = 'rgba(139,69,19,0.3)';
+        }
+        if (upgradeBtn) {
+            upgradeBtn.style.color = '#8e8ea0';
+            upgradeBtn.style.background = 'transparent';
+        }
+    } else {
+        if (recruitContainer) recruitContainer.style.display = 'none';
+        if (upgradeContainer) upgradeContainer.style.display = 'block';
+        if (upgradeBtn) {
+            upgradeBtn.style.color = '#c9a03d';
+            upgradeBtn.style.background = 'rgba(139,69,19,0.3)';
+        }
+        if (recruitBtn) {
+            recruitBtn.style.color = '#8e8ea0';
+            recruitBtn.style.background = 'transparent';
+        }
+    }
+    
+    updateGangModalUI();
+};
+
+// ============================================================
+// 19.10. ОТКРЫТИЕ ОКНА СИЗО
+// ============================================================
+window.openGangModal = function() {
+    if (window._opening_gang_modal) { 
+        return; 
+    }
+    window._opening_gang_modal = true;
+    
+    if (!window.currentPlayer) { 
+        window._opening_gang_modal = false; 
+        return; 
+    }
+    
+    if (!window.currentPlayer.gang) {
+        window.currentPlayer.gang = {
+            blats: { level: 1, lastGatherTime: 0, fighters: 0, upgradeStartTime: 0, upgradeDuration: 0, pendingGain: 0 },
+            muzhiks: { level: 1, lastGatherTime: 0, fighters: 0, upgradeStartTime: 0, upgradeDuration: 0, pendingGain: 0 },
+            fraers: { level: 1, lastGatherTime: 0, fighters: 0, upgradeStartTime: 0, upgradeDuration: 0, pendingGain: 0 }
+        };
+        dbUpdate('players/' + window.playerId, { gang: window.currentPlayer.gang });
+    }
+    
+    var existingModal = document.getElementById('gangFullscreen');
+    if (existingModal) {
+        existingModal.style.display = 'flex';
+        if (window.tg) window.tg.BackButton.show();
+        updateGangModalUI();
+        window._opening_gang_modal = false;
+        return;
+    }
+    
+    var html = `
+        <div class="gang-fullscreen" id="gangFullscreen" style="
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, #0a0a0f 0%, #14141f 100%);
+            z-index: 20000;
+            display: flex;
+            flex-direction: column;
+            animation: fadeIn 0.25s ease;
+            padding: 20px 16px;
+            padding-bottom: 80px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            height: 100vh;
+            max-height: 100vh;
+        ">
+            <div class="gang-header-bar" style="
+                background: linear-gradient(135deg, #1a1a2a 0%, #0d0d15 100%);
+                border-bottom: 2px solid #8B4513;
+                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+                position: relative;
+                padding: 12px 20px;
+                padding-top: max(12px, env(safe-area-inset-top));
+                margin: -20px -16px 0 -16px;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                flex-shrink: 0;
+            ">
+                <div style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); font-size: 24px; opacity: 0.3; pointer-events: none;">⛓️</div>
+                <div style="position: absolute; right: 16px; top: 50%; transform: translateY(-50%); font-size: 24px; opacity: 0.3; pointer-events: none;">⛓️</div>
+                <div class="gang-header-title" style="
+                    font-size: 20px;
+                    font-weight: 800;
+                    background: linear-gradient(135deg, #c9a03d, #8B6914);
+                    -webkit-background-clip: text;
+                    background-clip: text;
+                    color: transparent;
+                    letter-spacing: 2px;
+                ">
+                     СИЗО
+                </div>
+            </div>
+            <div style="flex: 1; overflow-y: auto; overflow-x: hidden; padding: 4px 2px; margin-bottom: 4px;">
+                <div style="background: rgba(20, 20, 30, 0.9); backdrop-filter: blur(10px); border: 1px solid #8B4513; border-radius: 16px; padding: 9px 10px; margin: 6px 0; position: relative; overflow: hidden;">
+                    <div style="position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, #8B4513, #c9a03d, #8B4513);"></div>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;">
+                        <div style="display: flex; align-items: center; gap: 4px; background: rgba(0,0,0,0.3); padding: 4px 12px; border-radius: 30px; border-left: 2px solid #8B4513;">
+                            <span style="font-size: 12px;">🚬</span>
+                            <span id="shopCigarettesValue" style="font-size: 11px; font-weight: 600; color: #ffd966;">${formatNumberShort(window.currentPlayer.cigarettes || 0)}</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 4px; background: rgba(0,0,0,0.3); padding: 4px 12px; border-radius: 30px; border-left: 2px solid #8B4513;">
+                            <span style="font-size: 12px;">💰</span>
+                            <span id="shopRublesValue" style="font-size: 11px; font-weight: 600; color: #ffd966;">${formatNumberShort(window.currentPlayer.rubles || 0)}</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 4px; background: rgba(0,0,0,0.3); padding: 4px 12px; border-radius: 30px; border-left: 2px solid #8B4513;">
+                            <span style="font-size: 12px;">🪵</span>
+                            <span id="shopWoodValue" style="font-size: 11px; font-weight: 600; color: #ffd966;">${formatNumberShort(window.currentPlayer.lumber?.wood || 0)}</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 4px; background: rgba(0,0,0,0.3); padding: 4px 12px; border-radius: 30px; border-left: 2px solid #8B4513;">
+                            <span style="font-size: 12px;">🪨</span>
+                            <span id="shopStoneValue" style="font-size: 11px; font-weight: 600; color: #ffd966;">${formatNumberShort(window.currentPlayer.quarry?.stone || 0)}</span>
+                        </div>
+                    </div>
+                </div>
+            <div style="flex: 1; overflow-y: auto; overflow-x: hidden; padding: 4px 2px; margin-bottom: 4px;">
+                <div style="display: flex; background: rgba(10,14,26,0.9); border-radius: 40px; margin: 8px 0 12px 0; padding: 3px; border: 1px solid rgba(139,69,19,0.2);">
+                    <button id="gangTabRecruitBtn" onclick="switchGangTab('recruit')" style="
+                        flex: 1;
+                        background: transparent;
+                        border: none;
+                        padding: 8px 0;
+                        border-radius: 30px;
+                        font-size: 12px;
+                        font-weight: 600;
+                        cursor: pointer;
+                        transition: all 0.2s;
+                        color: ${window.currentGangTab === 'recruit' ? '#c9a03d' : '#8e8ea0'};
+                        ${window.currentGangTab === 'recruit' ? 'background: rgba(139,69,19,0.3);' : ''}
+                    ">
+                        👥 ВЕРБОВКА
+                    </button>
+                    <button id="gangTabUpgradeBtn" onclick="switchGangTab('upgrade')" style="
+                        flex: 1;
+                        background: transparent;
+                        border: none;
+                        padding: 8px 0;
+                        border-radius: 30px;
+                        font-size: 12px;
+                        font-weight: 600;
+                        cursor: pointer;
+                        transition: all 0.2s;
+                        color: ${window.currentGangTab === 'upgrade' ? '#c9a03d' : '#8e8ea0'};
+                        ${window.currentGangTab === 'upgrade' ? 'background: rgba(139,69,19,0.3);' : ''}
+                    ">
+                        ⬆️ ПРОКАЧКА
+                    </button>
+                </div>
+                
+                <div id="gangRecruitContainer" style="display: ${window.currentGangTab === 'recruit' ? 'block' : 'none'};">
+                    ${renderGangRecruitCard('blats', '👑', 'БЛАТНЫЕ', '+10% к силе в бою')}
+                    ${renderGangRecruitCard('muzhiks', '🔨', 'МУЖИКИ', '+5% к добыче в шахте')}
+                    ${renderGangRecruitCard('fraers', '🐑', 'ФРАЕРА', '+5% к авторитету')}
+                </div>
+                
+                <div id="gangUpgradeContainer" style="display: ${window.currentGangTab === 'upgrade' ? 'block' : 'none'};">
+                    ${renderGangUpgradeCard('blats', '👑', 'БЛАТНЫЕ', '+10% к силе в бою')}
+                    ${renderGangUpgradeCard('muzhiks', '🔨', 'МУЖИКИ', '+5% к добыче в шахте')}
+                    ${renderGangUpgradeCard('fraers', '🐑', 'ФРАЕРА', '+5% к авторитету')}
+                </div>
+            </div>
+            
+            <div class="gang-bottom-nav" style="
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                background: rgba(10, 14, 26, 0.95);
+                backdrop-filter: blur(20px);
+                border-top: 1px solid #8B4513;
+                padding: 8px 16px;
+                padding-bottom: max(8px, env(safe-area-inset-bottom));
+                z-index: 10001;
+                display: flex;
+                justify-content: center;
+                flex-shrink: 0;
+            ">
+                <div class="bottom-nav" style="max-width: 550px; margin: 0 auto; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    <button onclick="closeGangModal()" style="
+                        background: transparent;
+                        border: none;
+                        border-radius: 8px;
+                        padding: 2px 1px;
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        gap: 2px;
+                        cursor: pointer;
+                        transition: all 0.2s;
+                        color: #8e8ea0;
+                        font-size: 11px;
+                        font-weight: 500;
+                        min-width: auto;
+                    ">
+                        <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_6.png" height="70px" width="55px" draggable="false">
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', html);
+    if (window.tg) window.tg.BackButton.show();
+    
+    // ЗАПУСКАЕМ ОСНОВНОЙ ТАЙМЕР
+    startGangMainTimer();
+    
+    // СРАЗУ ОБНОВЛЯЕМ UI
+    setTimeout(function() {
+        updateGangModalUI();
+        updateGangButtonBadge();
+    }, 100);
+    
+    setTimeout(function() { 
+        window._opening_gang_modal = false; 
+    }, 500);
+};
+
+// ============================================================
+// 19.11. РЕНДЕР КАРТОЧЕК
+// ============================================================
+function renderGangRecruitCard(type, icon, title, desc) {
+    var gang = window.currentPlayer.gang || {};
+    var gangType = gang[type] || { level: 1, fighters: 0, pendingGain: 0 };
+    var cost = getRecruitCost(type);
+    var recruitGain = getRecruitGain(type);
+    var remaining = getRecruitRemaining(type);
+    var upgradeActive = isUpgradeActive(type);
+    var canRecruitNow = canRecruit(type);
+    var typeLower = type.toLowerCase();
+    var btnId = 'collect' + type.charAt(0).toUpperCase() + type.slice(1) + 'Btn';
+    
+    var timerText = '⏳ ДО ВЕРБОВКИ: <span id="' + typeLower + 'Timer">' + formatTimerMinutes(remaining) + '</span>';
+    if (remaining <= 0 && !upgradeActive) {
+        timerText = '✅ ГОТОВ К НАЙМУ!';
+    }
+    
+    var btnText = '👥 НАНЯТЬ ЗЕКОВ (+' + recruitGain + ' ЧЕЛ)';
+    var btnDisabled = !canRecruitNow || upgradeActive;
+    if (upgradeActive) {
+        btnText = '⏳ ПРОКАЧКА ИДЕТ...';
+    } else if (!canRecruitNow && remaining > 0) {
+        btnText = '⏳ ' + formatTimerMinutes(remaining);
+    }
+    
+    return `
+        <div class="gang-card" style="background: rgba(20, 20, 30, 0.9); backdrop-filter: blur(10px); border: 1px solid #8B4513; border-radius: 16px; padding: 16px; margin: 12px 0; position: relative; overflow: hidden;">
+            <div style="position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, #8B4513, #c9a03d, #8B4513);"></div>
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 10px;">
+                <div style="font-size: 40px;">${icon}</div>
+                <div>
+                    <div style="font-size: 16px; font-weight: 700; color: #c9a03d;">${title}</div>
+                    <div style="font-size: 11px; color: #aaa;">${desc}</div>
+                </div>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; background: rgba(0,0,0,0.3); border-radius: 12px; padding: 10px; margin: 10px 0;">
+                <div style="text-align: center;">
+                    <div style="font-size: 10px; color: #c9a03d;">УРОВЕНЬ</div>
+                    <div style="font-size: 18px; font-weight: 700; color: #ffd966;" id="${typeLower}LevelValue">${gangType.level || 1}</div>
+                </div>
+                <div style="text-align: center;">
+                    <div style="font-size: 10px; color: #c9a03d;">В КОМАНДЕ</div>
+                    <div style="font-size: 18px; font-weight: 700; color: #ffd966;" id="${typeLower}FightersCount">${gangType.fighters || 0}</div>
+                </div>
+                <div style="text-align: center;">
+                    <div style="font-size: 10px; color: #c9a03d;">+ПРИ ВЕРБОВКЕ</div>
+                    <div style="font-size: 18px; font-weight: 700; color: #ffd966;" id="${typeLower}RecruitGainValue">${recruitGain}</div>
+                </div>
+            </div>
+            <div style="display: flex; justify-content: space-around; background: rgba(0,0,0,0.2); border-radius: 30px; padding: 6px 12px; margin: 8px 0;">
+                <div style="display: flex; align-items: center; gap: 4px; font-size: 12px;"><span>🚬</span> <span id="${typeLower}CostCigarettes">${cost.cigarettes}</span></div>
+                <div style="display: flex; align-items: center; gap: 4px; font-size: 12px;"><span>🪵</span> <span id="${typeLower}CostWood">${cost.wood}</span></div>
+                <div style="display: flex; align-items: center; gap: 4px; font-size: 12px;"><span>🪨</span> <span id="${typeLower}CostStone">${cost.stone}</span></div>
+            </div>
+            <div id="${typeLower}UpgradeActiveDiv" style="display: ${upgradeActive ? 'block' : 'none'}; background: rgba(255,152,0,0.15); border-radius: 12px; padding: 8px; margin: 6px 0; text-align: center;">
+                ⏳ ПРОКАЧКА ИДЕТ! <span id="${typeLower}UpgradeTimer">${formatTimerMinutes(getUpgradeRemaining(type))}</span>
+            </div>
+            <div style="background: rgba(0,0,0,0.3); border-radius: 30px; padding: 6px 12px; margin: 6px 0; font-size: 12px; color: #ffd966; text-align: center;">
+                ${timerText}
+            </div>
+            <button id="${btnId}" onclick="collectGangIncome('${type}')" style="
+                width: 100%; padding: 12px; 
+                background: ${btnDisabled ? '#444' : 'linear-gradient(135deg, #8B4513, #5a2d0a)'};
+                border: 1px solid ${btnDisabled ? '#666' : '#c9a03d'};
+                border-radius: 40px; 
+                font-size: 14px; font-weight: 700; 
+                color: ${btnDisabled ? '#888' : '#ffd966'};
+                cursor: ${btnDisabled ? 'not-allowed' : 'pointer'}; 
+                transition: all 0.2s;
+                ${btnDisabled ? 'opacity: 0.6;' : ''}
+            " ${btnDisabled ? 'disabled' : ''}>
+                ${btnText}
+            </button>
+        </div>
+    `;
+}
+
+function renderGangUpgradeCard(type, icon, title, desc) {
+    var gang = window.currentPlayer.gang || {};
+    var gangType = gang[type] || { level: 1, fighters: 0 };
+    var cost = getUpgradeCost(type);
+    var recruitGain = getRecruitGain(type);
+    var upgradeActive = isUpgradeActive(type);
+    var canUpgradeNow = canUpgrade(type);
+    var nextLevel = (gangType.level || 1) + 1;
+    var typeLower = type.toLowerCase();
+    
+    var progressHtml = '';
+    if (upgradeActive) {
+        var elapsed = Date.now() - (gangType.upgradeStartTime || 0);
+        var percent = Math.min(100, (elapsed / (gangType.upgradeDuration || 1)) * 100);
+        progressHtml = `
+            <div id="${typeLower}UpgradeActiveDiv2" style="display: block; margin: 10px 0;">
+                <div class="gang-upgrade-progress">
+                    <div style="font-size: 11px; color: #c9a03d; margin-bottom: 4px;">⏳ ПРОКАЧКА ДО ${nextLevel} УРОВНЯ</div>
+                    <div style="background: #1e2440; height: 6px; border-radius: 10px; overflow: hidden;">
+                        <div id="${typeLower}ProgressFill" style="width: ${percent}%; height: 100%; background: linear-gradient(90deg, #8B4513, #c9a03d); border-radius: 10px; transition: width 0.3s;"></div>
+                    </div>
+                    <div style="font-size: 11px; text-align: center; margin-top: 4px;"><span id="${typeLower}UpgradeTimerUpgrade">${formatTimerMinutes(getUpgradeRemaining(type))}</span></div>
+                </div>
+            </div>
+        `;
+    }
+    
+    var costHtml = `
+        <div id="${typeLower}UpgradeCostDiv" style="display: ${upgradeActive ? 'none' : 'flex'}; flex-direction: column; gap: 6px; background: rgba(0,0,0,0.2); border-radius: 12px; padding: 10px; margin: 10px 0;">
+            <div style="display: flex; justify-content: space-around;">
+                <div style="display: flex; align-items: center; gap: 4px; font-size: 12px;"><span>🪵</span> <span id="${typeLower}UpgradeCostWood">${cost.wood}</span></div>
+                <div style="display: flex; align-items: center; gap: 4px; font-size: 12px;"><span>🪨</span> <span id="${typeLower}UpgradeCostStone">${cost.stone}</span></div>
+                <div id="${typeLower}UpgradeCostCigarettesDiv" style="display: ${cost.cigarettes > 0 ? 'flex' : 'none'}; align-items: center; gap: 4px; font-size: 12px;"><span>🚬</span> <span id="${typeLower}UpgradeCostCigarettes">${cost.cigarettes}</span></div>
+            </div>
+            <div style="font-size: 11px; color: #c9a03d; text-align: center; margin-top: 4px;">✨ ПОСЛЕ УЛУЧШЕНИЯ: УРОВЕНЬ ИГРОКА +1, СИЛА +3, ЗАЩИТА +2, ЭНЕРГИЯ +5</div>
+        </div>
+    `;
+    
+    var btnText = '⬆️ УЛУЧШИТЬ ' + title;
+    var btnDisabled = !canUpgradeNow || upgradeActive;
+    if (upgradeActive) {
+        btnText = '⏳ ПРОКАЧКА ИДЕТ...';
+    } else if (!canUpgradeNow) {
+        btnText = '🔒 НЕДОСТУПНО';
+    }
+    
+    return `
+        <div class="gang-card" style="background: rgba(20, 20, 30, 0.9); backdrop-filter: blur(10px); border: 1px solid #8B4513; border-radius: 16px; padding: 16px; margin: 12px 0; position: relative; overflow: hidden;">
+            <div style="position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, #8B4513, #c9a03d, #8B4513);"></div>
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 10px;">
+                <div style="font-size: 40px;">${icon}</div>
+                <div>
+                    <div style="font-size: 16px; font-weight: 700; color: #c9a03d;">${title}</div>
+                    <div style="font-size: 11px; color: #aaa;">${desc}</div>
+                </div>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; background: rgba(0,0,0,0.3); border-radius: 12px; padding: 10px; margin: 10px 0;">
+                <div style="text-align: center;">
+                    <div style="font-size: 10px; color: #c9a03d;">УРОВЕНЬ</div>
+                    <div style="font-size: 18px; font-weight: 700; color: #ffd966;" id="${typeLower}UpgradeLevelValue">${gangType.level || 1}</div>
+                </div>
+                <div style="text-align: center;">
+                    <div style="font-size: 10px; color: #c9a03d;">В КОМАНДЕ</div>
+                    <div style="font-size: 18px; font-weight: 700; color: #ffd966;" id="${typeLower}UpgradeFightersValue">${gangType.fighters || 0}</div>
+                </div>
+                <div style="text-align: center;">
+                    <div style="font-size: 10px; color: #c9a03d;">+ПРИ ВЕРБОВКЕ</div>
+                    <div style="font-size: 18px; font-weight: 700; color: #ffd966;" id="${typeLower}UpgradeRecruitGainValue">${recruitGain}</div>
+                </div>
+            </div>
+            ${progressHtml}
+            ${costHtml}
+            <button id="upgrade${type.charAt(0).toUpperCase() + type.slice(1)}Btn" onclick="upgradeGangCaste('${type}')" style="
+                width: 100%; padding: 12px; 
+                background: ${btnDisabled ? '#444' : 'linear-gradient(135deg, #8B4513, #5a2d0a)'};
+                border: 1px solid ${btnDisabled ? '#666' : '#c9a03d'};
+                border-radius: 40px; 
+                font-size: 14px; font-weight: 700; 
+                color: ${btnDisabled ? '#888' : '#ffd966'};
+                cursor: ${btnDisabled ? 'not-allowed' : 'pointer'}; 
+                transition: all 0.2s;
+                ${btnDisabled ? 'opacity: 0.6;' : ''}
+            " ${btnDisabled ? 'disabled' : ''}>
+                ${btnText}
+            </button>
+        </div>
+    `;
+}
+
+// ============================================================
+// 19.12. ЗАКРЫТИЕ ОКНА СИЗО
+// ============================================================
+window.closeGangModal = function() {
+    var modal = document.getElementById('gangFullscreen');
+    if (modal) modal.remove();
+    
+    if (window.gangTimers.interval) {
+        clearInterval(window.gangTimers.interval);
+        window.gangTimers.interval = null;
+    }
+    
+    // НЕ ОСТАНАВЛИВАЕМ ТАЙМЕРЫ ПРИ ЗАКРЫТИИ ОКНА!
+    // Они должны продолжать работать в фоне
+    
+    if (window.tg) window.tg.BackButton.hide();
+    
+    document.body.style.overflow = '';
+    document.body.style.position = '';
+    document.body.style.width = '';
+    document.body.classList.remove('modal-open');
+    
+    updateTopBarResources();
+    updateGangButtonBadge();
+};
+
+// ============================================================
+// 19.13. ОСНОВНОЙ ТАЙМЕР СИЗО
+// ============================================================
+function startGangMainTimer() {
+    if (window.gangTimers.interval) {
+        clearInterval(window.gangTimers.interval);
+    }
+    
+    window.gangTimers.interval = setInterval(function() {
+        var modal = document.getElementById('gangFullscreen');
+        if (!modal) {
+            // Если окно закрыто - просто обновляем бейдж
+            updateGangButtonBadge();
+            return;
+        }
+        updateGangModalUI();
+        updateGangButtonBadge();
+    }, 1000);
+}
+
+// ============================================================
+// 19.14. ОБНОВЛЕНИЕ СТАТУСА БАНДЫ
+// ============================================================
+function updateGangStatusInTopBar() {
+    if (!window.currentPlayer) return;
+    var gang = window.currentPlayer.gang || {};
+    var totalFighters = (gang.blats?.fighters || 0) + (gang.muzhiks?.fighters || 0) + (gang.fraers?.fighters || 0);
+    var casteInfo = document.querySelector('.caste-info');
+    if (casteInfo) {
+        var levelEl = casteInfo.querySelector('.caste-level');
+        if (levelEl) {
+            levelEl.textContent = '👥 ' + totalFighters;
+        }
+    }
+}
+
+// ============================================================
+// 19.15. ОБНОВЛЕНИЕ БЕЙДЖА
+// ============================================================
+function updateGangButtonBadge() {
+    var gangBtn = document.querySelector('.nav-btn[onclick*="openGangModal"]');
+    if (!gangBtn) return;
+    
+    var hasUpgrade = false;
+    var types = ['blats', 'muzhiks', 'fraers'];
+    for (var i = 0; i < types.length; i++) {
+        if (isUpgradeActive(types[i])) {
+            hasUpgrade = true;
+            break;
+        }
+    }
+    
+    var hasRecruit = false;
+    for (var i = 0; i < types.length; i++) {
+        if (canRecruit(types[i]) && getRecruitRemaining(types[i]) <= 0) {
+            hasRecruit = true;
+            break;
+        }
+    }
+    
+    var existingBadge = gangBtn.querySelector('.badge-count');
+    if (hasUpgrade || hasRecruit) {
+        if (existingBadge) {
+            existingBadge.textContent = hasUpgrade ? '⏳' : '👥';
+            existingBadge.style.display = 'flex';
+        } else {
+            var badge = document.createElement('span');
+            badge.className = 'badge-count';
+            badge.textContent = hasUpgrade ? '⏳' : '👥';
+            badge.style.cssText = `
+                position: absolute;
+                top: -4px;
+                right: -4px;
+                background: ${hasUpgrade ? '#ff9800' : '#4caf50'};
+                color: white;
+                border-radius: 50%;
+                min-width: 18px;
+                height: 18px;
+                font-size: 10px;
+                font-weight: bold;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 0 4px;
+                box-shadow: 0 0 5px rgba(0,0,0,0.3);
+                z-index: 10;
+            `;
+            gangBtn.style.position = 'relative';
+            gangBtn.appendChild(badge);
+        }
+    } else if (existingBadge) {
+        existingBadge.remove();
+    }
+}
+
+// ============================================================
+// 19.16. ИНИЦИАЛИЗАЦИЯ
+// ============================================================
+function initGangSystem() {
+    console.log('🔄 Инициализация системы банды...');
+    if (!window.currentPlayer) {
+        console.log('❌ Нет игрока');
+        return;
+    }
+    
+    if (!window.currentPlayer.gang) {
+        window.currentPlayer.gang = {
+            blats: { level: 1, lastGatherTime: 0, fighters: 0, upgradeStartTime: 0, upgradeDuration: 0, pendingGain: 0 },
+            muzhiks: { level: 1, lastGatherTime: 0, fighters: 0, upgradeStartTime: 0, upgradeDuration: 0, pendingGain: 0 },
+            fraers: { level: 1, lastGatherTime: 0, fighters: 0, upgradeStartTime: 0, upgradeDuration: 0, pendingGain: 0 }
+        };
+        dbUpdate('players/' + window.playerId, { gang: window.currentPlayer.gang });
+    }
+    
+    // Проверяем завершение при старте
+    setTimeout(function() {
+        checkAndCompleteRecruit('blats');
+        checkAndCompleteRecruit('muzhiks');
+        checkAndCompleteRecruit('fraers');
+        checkAndCompleteUpgrade('blats');
+        checkAndCompleteUpgrade('muzhiks');
+        checkAndCompleteUpgrade('fraers');
+    }, 1000);
+    
+    // Запускаем периодическую проверку в фоне
+    if (window._gangCheckInterval) {
+        clearInterval(window._gangCheckInterval);
+    }
+    window._gangCheckInterval = setInterval(function() {
+        if (!window.currentPlayer) {
+            if (window._gangCheckInterval) {
+                clearInterval(window._gangCheckInterval);
+                window._gangCheckInterval = null;
+            }
+            return;
+        }
+        // Проверяем завершение в фоне
+        checkAndCompleteRecruit('blats');
+        checkAndCompleteRecruit('muzhiks');
+        checkAndCompleteRecruit('fraers');
+        checkAndCompleteUpgrade('blats');
+        checkAndCompleteUpgrade('muzhiks');
+        checkAndCompleteUpgrade('fraers');
+        updateGangButtonBadge();
+        updateGangStatusInTopBar();
+    }, 5000);
+    
+    console.log('✅ Система банды инициализирована');
+}
+
+function stopGangSystem() {
+    if (window._gangCheckInterval) {
+        clearInterval(window._gangCheckInterval);
+        window._gangCheckInterval = null;
+    }
+    if (window.gangTimers.interval) {
+        clearInterval(window.gangTimers.interval);
+        window.gangTimers.interval = null;
+    }
+    // Останавливаем все таймеры
+    for (var key in window.gangRecruitTimers) {
+        clearInterval(window.gangRecruitTimers[key]);
+        delete window.gangRecruitTimers[key];
+    }
+    for (var key in window.gangUpgradeTimers) {
+        clearInterval(window.gangUpgradeTimers[key]);
+        delete window.gangUpgradeTimers[key];
+    }
+    console.log('🛑 Система банды остановлена');
+}
+
+// ============================================================
+// 19.17. ЭКСПОРТ
+// ============================================================
+window.getRecruitGain = getRecruitGain;
+window.getUpgradeCost = getUpgradeCost;
+window.getRecruitCost = getRecruitCost;
+window.isUpgradeActive = isUpgradeActive;
+window.getUpgradeRemaining = getUpgradeRemaining;
+window.getRecruitRemaining = getRecruitRemaining;
+window.canRecruit = canRecruit;
+window.canUpgrade = canUpgrade;
+window.checkAndCompleteUpgrade = checkAndCompleteUpgrade;
+window.checkAndCompleteRecruit = checkAndCompleteRecruit;
+window.updateGangModalUI = updateGangModalUI;
+window.updateGangStatusInTopBar = updateGangStatusInTopBar;
+window.updateGangButtonBadge = updateGangButtonBadge;
+window.initGangSystem = initGangSystem;
+window.stopGangSystem = stopGangSystem;
+
+console.log('✅ Блок СИЗО полностью исправлен');
 
         // ============================================================
         // 21. ЗАКРЫТИЕ МОДАЛЬНЫХ ОКОН
