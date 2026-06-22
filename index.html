@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>GameZona - 1.0.1.022</title>
+    <title>GameZona - 1.0.1.024</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -3811,6 +3811,8 @@ function formatCooldownTime(ms) {
             restoreEnergy();
             // Запуск чата
             initChat();
+            // Запуск СисОП
+            showNotificationsButton();
             // Инициализация заданий
             initQuests();
             
@@ -4189,13 +4191,51 @@ function renderChatModal() {
 
     var hasClan = !!window.currentPlayer?.clanId;
 
+    // Добавляем стили для анимации, если их нет
+    if (!document.getElementById('chatModalStyles')) {
+        var style = document.createElement('style');
+        style.id = 'chatModalStyles';
+        style.textContent = `
+            @keyframes chatSlideIn {
+                from {
+                    opacity: 0;
+                    transform: scale(0.85) translate(0, 20px);
+                    transform-origin: bottom right;
+                }
+                to {
+                    opacity: 1;
+                    transform: scale(1) translate(0, 0);
+                    transform-origin: bottom right;
+                }
+            }
+            @keyframes chatSlideOut {
+                from {
+                    opacity: 1;
+                    transform: scale(1) translate(0, 0);
+                    transform-origin: bottom right;
+                }
+                to {
+                    opacity: 0;
+                    transform: scale(0.85) translate(0, 20px);
+                    transform-origin: bottom right;
+                }
+            }
+            .chat-modal-open {
+                animation: chatSlideIn 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards !important;
+            }
+            .chat-modal-close {
+                animation: chatSlideOut 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards !important;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
     var modalHtml = `
-        <div class="chat-modal" id="chatModal" style="
+        <div class="chat-modal chat-modal-open" id="chatModal" style="
             position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 95%;
+            bottom: 65px;
+            right: 20px;
+            width: 89%;
             max-width: 450px;
             height: 80vh;
             max-height: 600px;
@@ -4207,7 +4247,9 @@ function renderChatModal() {
             flex-direction: column;
             overflow: hidden;
             box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
-            animation: fadeIn 0.3s ease;
+            transform-origin: bottom right;
+            opacity: 0;
+            animation: chatSlideIn 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
         ">
             <div class="chat-header" style="
                 background: linear-gradient(135deg, #1a1a2a, #0d0d15);
@@ -6109,7 +6151,7 @@ window.openSettingsModal = function() {
                     <div style="font-size: 36px; margin-bottom: 10px;">⚙️</div>
                     <div style="font-size: 16px; font-weight: 700; color: #ffd966;">${escapeHtml(window.currentPlayer.username)}</div>
                     <div style="font-size: 12px; color: #888; margin-top: 4px;">🆔 ${window.playerId}</div>
-                    <div style="font-size: 11px; color: #666; margin-top: 8px;">Версия 1.0.1.022</div>
+                    <div style="font-size: 11px; color: #666; margin-top: 8px;">Версия - 1.0.1.024</div>
                 </div>
             
             <!-- НИЖНЯЯ ПАНЕЛЬ НАВИГАЦИИ -->
@@ -13873,8 +13915,937 @@ window.isDBReady = isDBReady;
 console.log('✅ КЛАН: блок полностью загружен');
 console.log('🎯 КЛАН: все функции работают онлайн!');
 
+// ============================================================
+// 21. СИСТЕМА ОПОВЕЩЕНИЯ (ПОЛНАЯ ВЕРСИЯ)
+// ============================================================
+
+// ============================================================
+// 21.0. ИНИЦИАЛИЗАЦИЯ ПЕРЕМЕННЫХ
+// ============================================================
+if (typeof window.notifications === 'undefined') {
+    window.notifications = [];
+}
+if (typeof window.notificationsModalOpen === 'undefined') {
+    window.notificationsModalOpen = false;
+}
+if (typeof window.notificationCheckInterval === 'undefined') {
+    window.notificationCheckInterval = null;
+}
+if (typeof window.settingsNotifications === 'undefined') {
+    window.settingsNotifications = true;
+}
+if (typeof window._notificationListeners === 'undefined') {
+    window._notificationListeners = {};
+}
+
+console.log('✅ СИСТЕМА ОПОВЕЩЕНИЯ: переменные инициализированы');
+
+// ============================================================
+// 21.1. ЗАГРУЗКА УВЕДОМЛЕНИЙ ИЗ LOCALSTORAGE
+// ============================================================
+function loadNotifications() {
+    if (!currentPlayer) return;
+    try {
+        var saved = localStorage.getItem('notifications_' + currentPlayer.id);
+        if (saved) {
+            window.notifications = JSON.parse(saved);
+            console.log('📨 Загружено уведомлений из localStorage:', window.notifications.length);
+        } else {
+            window.notifications = [];
+        }
+        updateNotificationBadge();
+    } catch (e) {
+        console.error('❌ Ошибка загрузки уведомлений:', e);
+        window.notifications = [];
+    }
+}
+
+// ============================================================
+// 21.2. СОХРАНЕНИЕ УВЕДОМЛЕНИЙ В LOCALSTORAGE
+// ============================================================
+function saveNotifications() {
+    if (!currentPlayer) return;
+    try {
+        localStorage.setItem('notifications_' + currentPlayer.id, JSON.stringify(window.notifications));
+    } catch (e) {
+        console.error('❌ Ошибка сохранения уведомлений:', e);
+    }
+}
+
+// ============================================================
+// 21.3. ДОБАВЛЕНИЕ УВЕДОМЛЕНИЯ
+// ============================================================
+function addNotification(type, title, message, targetPlayerId = null) {
+    // Если указан конкретный игрок, проверяем, что это текущий
+    if (targetPlayerId && currentPlayer && currentPlayer.id !== targetPlayerId) {
+        return;
+    }
+    
+    // Проверяем, нет ли уже такого уведомления за последние 5 минут
+    var fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+    var similarRecent = window.notifications.some(function(n) { 
+        return n.title === title && 
+               n.message === message && 
+               n.timestamp > fiveMinutesAgo; 
+    });
+    
+    if (similarRecent) {
+        console.log('📨 Уведомление уже существует, пропускаем дубликат');
+        return;
+    }
+    
+    var notification = {
+        id: Date.now() + Math.random(),
+        type: type,
+        title: title,
+        message: message,
+        timestamp: Date.now(),
+        read: false
+    };
+    
+    window.notifications.unshift(notification);
+    
+    // Ограничиваем количество
+    if (window.notifications.length > 50) {
+        window.notifications.pop();
+    }
+    
+    saveNotifications();
+    updateNotificationBadge();
+    
+    // Если окно уведомлений открыто - обновляем его
+    if (window.notificationsModalOpen) {
+        renderNotificationsModal();
+    }
+    
+    // Показываем тост с уведомлением
+    showToast('🔔 ' + title, 'info');
+    
+    console.log('📨 Добавлено уведомление:', title);
+}
+
+// ============================================================
+// 21.4. ОТМЕТИТЬ УВЕДОМЛЕНИЕ КАК ПРОЧИТАННОЕ
+// ============================================================
+function markNotificationAsRead(id) {
+    var notification = window.notifications.find(function(n) { 
+        return n.id == id; 
+    });
+    if (notification && !notification.read) {
+        notification.read = true;
+        saveNotifications();
+        updateNotificationBadge();
+        if (window.notificationsModalOpen) {
+            renderNotificationsModal();
+        }
+    }
+}
+
+// ============================================================
+// 21.5. ОТМЕТИТЬ ВСЕ УВЕДОМЛЕНИЯ КАК ПРОЧИТАННЫЕ
+// ============================================================
+function markAllNotificationsAsRead() {
+    window.notifications.forEach(function(n) { 
+        n.read = true; 
+    });
+    saveNotifications();
+    updateNotificationBadge();
+    if (window.notificationsModalOpen) {
+        renderNotificationsModal();
+    }
+}
+
+// ============================================================
+// 21.6. ПОЛУЧИТЬ КОЛИЧЕСТВО НЕПРОЧИТАННЫХ УВЕДОМЛЕНИЙ
+// ============================================================
+function getUnreadCount() {
+    return window.notifications.filter(function(n) { 
+        return !n.read; 
+    }).length;
+}
+
+// ============================================================
+// 21.7. ОБНОВЛЕНИЕ БЕЙДЖА УВЕДОМЛЕНИЙ
+// ============================================================
+function updateNotificationBadge() {
+    var btn = document.getElementById('notificationsBtn');
+    if (!btn) {
+        console.log('🔔 updateNotificationBadge: кнопка не найдена');
+        return;
+    }
+
+    var count = getUnreadCount();
+    console.log('🔔 updateNotificationBadge: непрочитанных уведомлений:', count);
+
+    var existing = btn.querySelector('.badge-count');
+    if (count > 0) {
+        if (existing) {
+            existing.textContent = count;
+            existing.style.display = 'flex';
+        } else {
+            var badge = document.createElement('span');
+            badge.className = 'badge-count';
+            badge.textContent = count;
+            btn.appendChild(badge);
+        }
+        console.log('🔔 Бейдж ПОКАЗАН с цифрой:', count);
+    } else {
+        if (existing) {
+            existing.remove();
+        }
+        console.log('🔔 Бейдж СКРЫТ');
+    }
+}
+
+// ============================================================
+// 21.8. ЗАГРУЗКА УВЕДОМЛЕНИЙ ИЗ FIREBASE
+// ============================================================
+async function loadNotificationsFromFirebase() {
+    console.log("🔔 loadNotificationsFromFirebase START, currentPlayer:", currentPlayer ? currentPlayer.id : "null");
+
+    if (!currentPlayer) {
+        console.log("🔔 Нет currentPlayer, выходим");
+        return;
+    }
+
+    if (!isDBReady()) {
+        console.log("🔔 БД не инициализирована, выходим");
+        return;
+    }
+
+    console.log("📨 Загружаем уведомления из Firebase для игрока:", currentPlayer.id);
+
+    try {
+        var ref = getDBRef('playerNotifications/' + currentPlayer.id);
+        if (!ref) {
+            console.log("🔔 Не удалось получить ссылку на БД");
+            return;
+        }
+        
+        var snapshot = await ref.once('value');
+        console.log("📨 Документ существует:", snapshot.exists());
+
+        if (snapshot.exists()) {
+            var firebaseNotifs = snapshot.val() || [];
+            console.log("📨 Найдено уведомлений в Firebase:", firebaseNotifs.length);
+
+            var newNotificationsCount = 0;
+
+            // Проверяем, что это массив
+            if (!Array.isArray(firebaseNotifs)) {
+                console.log("📨 Данные не являются массивом, преобразуем");
+                firebaseNotifs = Object.values(firebaseNotifs);
+            }
+
+            for (var i = 0; i < firebaseNotifs.length; i++) {
+                var notif = firebaseNotifs[i];
+                if (!notif || typeof notif !== 'object') continue;
+                
+                console.log("📨 Обработка уведомления:", notif.id, notif.title);
+
+                var exists = window.notifications.some(function(n) { 
+                    return n.id === notif.id; 
+                });
+                
+                if (!exists) {
+                    window.notifications.push(notif);
+                    newNotificationsCount++;
+                    console.log("📨 ДОБАВЛЕНО новое уведомление:", notif.title);
+                } else {
+                    console.log("📨 Уведомление уже есть, пропускаем");
+                }
+            }
+
+            if (newNotificationsCount > 0) {
+                window.notifications.sort(function(a, b) { 
+                    return b.timestamp - a.timestamp; 
+                });
+                saveNotifications();
+                updateNotificationBadge();
+                console.log("📨 Сохранено уведомлений в localStorage:", window.notifications.length);
+                
+                if (newNotificationsCount > 0) {
+                    showToast('🔔 У вас ' + newNotificationsCount + ' новое уведомление!', 'success');
+                }
+            }
+
+            // Очищаем Firebase уведомления после загрузки
+            await ref.set([]);
+            console.log("📨 Firebase уведомления очищены");
+        } else {
+            console.log("📨 Нет новых уведомлений в Firebase");
+        }
+    } catch (e) {
+        console.error("❌ Ошибка загрузки уведомлений из Firebase:", e);
+    }
+
+    console.log("🔔 Итоговое количество уведомлений в notifications:", window.notifications.length);
+    console.log("🔔 Непрочитанных:", getUnreadCount());
+
+    updateNotificationBadge();
+    showNotificationsButton();
+}
+
+// ============================================================
+// 21.9. ПЕРИОДИЧЕСКАЯ ПРОВЕРКА УВЕДОМЛЕНИЙ
+// ============================================================
+function startNotificationCheck() {
+    if (window.notificationCheckInterval) {
+        clearInterval(window.notificationCheckInterval);
+    }
+    
+    window.notificationCheckInterval = setInterval(function() {
+        if (currentPlayer && isDBReady()) {
+            console.log("🔔 Периодическая проверка уведомлений...");
+            loadNotificationsFromFirebase();
+        }
+    }, 5000); // каждые 5 секунд
+}
+
+// ============================================================
+// 21.10. ОТКРЫТИЕ/ЗАКРЫТИЕ МОДАЛЬНОГО ОКНА УВЕДОМЛЕНИЙ
+// ============================================================
+function toggleNotificationsModal() {
+    if (window.notificationsModalOpen) {
+        closeNotificationsModal();
+    } else {
+        openNotificationsModal();
+    }
+}
+
+function openNotificationsModal() {
+    if (window.notificationsModalOpen) return;
+    window.notificationsModalOpen = true;
+    renderNotificationsModal();
+}
+
+function closeNotificationsModal() {
+    var modal = document.getElementById('notificationsModal');
+    if (modal) modal.remove();
+    window.notificationsModalOpen = false;
+
+    document.body.style.overflow = '';
+    document.body.style.position = '';
+    document.body.style.width = '';
+    document.body.classList.remove('modal-open');
+}
+
+// ============================================================
+// 21.11. ОТРИСОВКА МОДАЛЬНОГО ОКНА УВЕДОМЛЕНИЙ
+// ============================================================
+function renderNotificationsModal() {
+    var existing = document.getElementById('notificationsModal');
+    if (existing) existing.remove();
+
+    var unreadCount = getUnreadCount();
+    
+    // Добавляем стили для анимации, если их нет
+    if (!document.getElementById('notificationModalStyles')) {
+        var style = document.createElement('style');
+        style.id = 'notificationModalStyles';
+        style.textContent = `
+            @keyframes notifSlideIn {
+                from {
+                    opacity: 0;
+                    transform: scale(0.85) translate(0, 20px);
+                    transform-origin: bottom right;
+                }
+                to {
+                    opacity: 1;
+                    transform: scale(1) translate(0, 0);
+                    transform-origin: bottom right;
+                }
+            }
+            @keyframes notifSlideOut {
+                from {
+                    opacity: 1;
+                    transform: scale(1) translate(0, 0);
+                    transform-origin: bottom right;
+                }
+                to {
+                    opacity: 0;
+                    transform: scale(0.85) translate(0, 20px);
+                    transform-origin: bottom right;
+                }
+            }
+            .notif-modal-open {
+                animation: notifSlideIn 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards !important;
+            }
+            .notif-modal-close {
+                animation: notifSlideOut 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards !important;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    var html = `
+        <div class="notifications-modal notif-modal-open" id="notificationsModal" style="
+            position: fixed;
+            bottom: 277px;
+            right: 20px;
+            width: 90%;
+            max-width: 400px;
+            max-height: 70vh;
+            background: linear-gradient(135deg, #0a0a0f, #14141f);
+            border: 2px solid #8B4513;
+            border-radius: 24px;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            transform-origin: bottom right;
+            opacity: 0;
+            animation: notifSlideIn 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+        ">
+            <div class="notifications-header" style="
+                background: linear-gradient(135deg, #1a1a2a, #0d0d15);
+                padding: 15px 20px;
+                border-bottom: 2px solid #8B4513;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                flex-shrink: 0;
+            ">
+                <h3 style="font-size: 18px; color: #c9a03d; margin: 0; display: flex; align-items: center; gap: 8px;">
+                    🔔 УВЕДОМЛЕНИЯ ${unreadCount > 0 ? `(${unreadCount})` : ''}
+                </h3>
+                <div style="display: flex; gap: 10px;">
+                    ${unreadCount > 0 ? `
+                        <button class="close-btn" onclick="markAllNotificationsAsRead()" style="
+                            background: rgba(139,69,19,0.3);
+                            border: none;
+                            border-radius: 20px;
+                            padding: 0 12px;
+                            font-size: 12px;
+                            color: #c9a03d;
+                            cursor: pointer;
+                            height: 32px;
+                        ">✓ ВСЕ</button>
+                    ` : ''}
+                    <button class="close-btn" onclick="closeNotificationsModal()" style="
+                        background: rgba(139,69,19,0.3);
+                        border: none;
+                        border-radius: 50%;
+                        width: 32px;
+                        height: 32px;
+                        cursor: pointer;
+                        color: white;
+                        font-size: 20px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        transition: all 0.2s;
+                    ">✕</button>
+                </div>
+            </div>
+            <div class="notifications-list" style="
+                flex: 1;
+                overflow-y: auto;
+                max-height: 50vh;
+                padding: 50px;
+            ">
+                ${window.notifications.length === 0 ?
+                    '<div class="notifications-empty" style="text-align:center; padding:40px; color:#888;">📭 Нет уведомлений</div>' :
+                    window.notifications.map(function(n) {
+                        var time = new Date(n.timestamp).toLocaleString();
+                        return `
+                            <div class="notification-item ${!n.read ? 'unread' : ''}" onclick="markNotificationAsRead(${n.id})" style="
+                                background: ${!n.read ? 'rgba(255,152,0,0.15)' : 'rgba(30,36,64,0.6)'};
+                                border-left: 3px solid ${!n.read ? '#ff9800' : '#e94560'};
+                                border-radius: 12px;
+                                padding: 12px;
+                                margin-bottom: 10px;
+                                cursor: pointer;
+                                transition: all 0.2s;
+                            ">
+                                <div class="notification-title" style="font-size: 14px; font-weight: bold; color: #ffd966; margin-bottom: 5px;">
+                                    ${escapeHtml(n.title)}
+                                </div>
+                                <div class="notification-message" style="font-size: 12px; color: #ccc;">
+                                    ${escapeHtml(n.message)}
+                                </div>
+                                <div class="notification-time" style="font-size: 10px; color: #888; margin-top: 5px;">
+                                    ${time}
+                                </div>
+                            </div>
+                        `;
+                    }).join('')
+                }
+            </div>
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', html);
+    document.body.style.overflow = 'hidden';
+    document.body.style.position = 'fixed';
+    document.body.style.width = '100%';
+    document.body.classList.add('modal-open');
+}
+
+// ============================================================
+// 21.12. ДОБАВЛЕНИЕ КНОПКИ УВЕДОМЛЕНИЙ
+// ============================================================
+function addNotificationsButton() {
+    // Проверяем, существует ли уже кнопка
+    if (document.getElementById('notificationsBtn')) {
+        console.log("🔔 Кнопка уже существует");
+        return;
+    }
+
+    // Создаём кнопку
+    var btn = document.createElement('div');
+    btn.className = 'notifications-btn';
+    btn.id = 'notificationsBtn';
+    btn.innerHTML = '<span class="bell-icon" style="font-size: 22px; color: white;">🔔</span>';
+    btn.onclick = toggleNotificationsModal;
+    
+    // Устанавливаем стили
+    btn.style.cssText = `
+        position: fixed;
+        right: 16px;
+        width: 44px;
+        height: 44px;
+        background: rgba(255, 255, 255, 0.2);
+        backdrop-filter: blur(10px);
+        border-radius: 50%;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        z-index: 1001;
+        cursor: pointer;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
+        color: white;
+        transition: all 0.2s;
+    `;
+    
+    btn.onmouseover = function() {
+        this.style.background = 'rgba(255,255,255,0.3)';
+        this.style.transform = 'scale(1.05)';
+    };
+    btn.onmouseout = function() {
+        this.style.background = 'rgba(255,255,255,0.2)';
+        this.style.transform = 'scale(1)';
+    };
+    
+    document.body.appendChild(btn);
+    console.log("🔔 Кнопка уведомлений СОЗДАНА");
+    
+    // Если есть игрок - показываем
+    if (currentPlayer) {
+        btn.style.display = 'flex';
+    }
+}
+
+// ============================================================
+// 21.13. ПОКАЗАТЬ КНОПКУ УВЕДОМЛЕНИЙ
+// ============================================================
+function showNotificationsButton() {
+    var btn = document.getElementById('notificationsBtn');
+    console.log("🔔 showNotificationsButton: btn найден?", btn ? "да" : "нет", "currentPlayer:", currentPlayer ? currentPlayer.id : "null");
+
+    if (btn && currentPlayer) {
+        btn.style.display = 'flex';
+        btn.style.position = 'fixed';
+        btn.style.right = '16px';
+        btn.style.width = '44px';
+        btn.style.height = '44px';
+        btn.style.background = 'rgba(255, 255, 255, 0.2)';
+        btn.style.backdropFilter = 'blur(10px)';
+        btn.style.borderRadius = '50%';
+        btn.style.border = '1px solid rgba(255, 255, 255, 0.3)';
+        btn.style.zIndex = '1001';
+        btn.style.cursor = 'pointer';
+        btn.style.display = 'flex';
+        btn.style.alignItems = 'center';
+        btn.style.justifyContent = 'center';
+        console.log("🔔 Кнопка уведомлений ПОКАЗАНА");
+    } else if (btn && !currentPlayer) {
+        btn.style.display = 'none';
+        console.log("🔔 Кнопка уведомлений СКРЫТА (нет игрока)");
+    } else {
+        // Если кнопки нет - создаём
+        addNotificationsButton();
+    }
+}
+
+// ============================================================
+// 21.14. СКРЫТЬ КНОПКУ УВЕДОМЛЕНИЙ
+// ============================================================
+function hideNotificationsButton() {
+    var btn = document.getElementById('notificationsBtn');
+    if (btn) {
+        btn.style.display = 'none';
+        console.log("🔔 Кнопка уведомлений СКРЫТА");
+    }
+}
+
+// ============================================================
+// 21.15. ОТПРАВКА УВЕДОМЛЕНИЯ В TELEGRAM
+// ============================================================
+function sendTelegramNotification(message) {
+    if (!window.settingsNotifications) return;
+    if (!window.tg || !window.tgUser) {
+        console.log('📨 Telegram не доступен для отправки уведомлений');
+        return;
+    }
+    
+    try {
+        window.tg.sendData(JSON.stringify({ 
+            type: 'notification', 
+            message: message 
+        }));
+        console.log('📨 Уведомление отправлено в Telegram:', message);
+    } catch (e) {
+        console.error('❌ Ошибка отправки уведомления в Telegram:', e);
+    }
+}
+
+// ============================================================
+// 21.16. СОХРАНЕНИЕ УВЕДОМЛЕНИЯ В FIREBASE
+// ============================================================
+async function saveNotificationToFirebase(playerId, notificationData) {
+    if (!isDBReady()) {
+        console.warn('⚠️ БД не инициализирована');
+        return false;
+    }
+    
+    if (!playerId || !notificationData) {
+        console.warn('⚠️ Нет данных для сохранения уведомления');
+        return false;
+    }
+    
+    try {
+        var ref = getDBRef('playerNotifications/' + playerId);
+        if (!ref) {
+            console.warn('⚠️ Не удалось получить ссылку на БД');
+            return false;
+        }
+        
+        var snapshot = await ref.once('value');
+        var notifications = snapshot.exists() ? snapshot.val() || [] : [];
+        
+        // Проверяем, что это массив
+        if (!Array.isArray(notifications)) {
+            notifications = Object.values(notifications);
+        }
+        
+        notifications.push(notificationData);
+        await ref.set(notifications);
+        console.log('📨 Уведомление сохранено в Firebase для игрока:', playerId);
+        return true;
+    } catch (e) {
+        console.error('❌ Ошибка сохранения уведомления в Firebase:', e);
+        return false;
+    }
+}
+
+// ============================================================
+// 21.17. ОТПРАВКА УВЕДОМЛЕНИЯ ИГРОКУ
+// ============================================================
+async function sendNotificationToPlayer(playerId, type, title, message) {
+    if (!playerId) return false;
+    
+    var notificationData = {
+        id: Date.now() + Math.random(),
+        type: type || 'info',
+        title: title || 'Уведомление',
+        message: message || '',
+        timestamp: Date.now(),
+        read: false
+    };
+    
+    // Сохраняем в Firebase
+    var saved = await saveNotificationToFirebase(playerId, notificationData);
+    
+    // Если текущий игрок - добавляем локально
+    if (currentPlayer && currentPlayer.id === playerId) {
+        addNotification(type, title, message);
+    }
+    
+    return saved;
+}
+
+// ============================================================
+// 21.18. ПОДПИСКА НА УВЕДОМЛЕНИЯ В FIREBASE (ОНЛАЙН)
+// ============================================================
+function subscribeToNotifications() {
+    if (!isDBReady()) {
+        console.warn('⚠️ БД не инициализирована, подписка невозможна');
+        return;
+    }
+    
+    if (!currentPlayer || !currentPlayer.id) {
+        console.log('🔔 Нет игрока, подписка на уведомления невозможна');
+        return;
+    }
+    
+    // Отписываемся от старого слушателя
+    if (window._notificationListeners.global) {
+        try { window._notificationListeners.global(); } catch(e) {}
+        window._notificationListeners.global = null;
+    }
+    
+    console.log('🔔 Подписка на уведомления для игрока:', currentPlayer.id);
+    
+    var ref = getDBRef('playerNotifications/' + currentPlayer.id);
+    if (!ref) {
+        console.warn('⚠️ Не удалось получить ссылку на БД');
+        return;
+    }
+    
+    window._notificationListeners.global = ref.on('value', function(snapshot) {
+        if (!snapshot.exists()) return;
+        
+        try {
+            var firebaseNotifs = snapshot.val() || [];
+            if (!Array.isArray(firebaseNotifs)) {
+                firebaseNotifs = Object.values(firebaseNotifs);
+            }
+            
+            var newCount = 0;
+            for (var i = 0; i < firebaseNotifs.length; i++) {
+                var notif = firebaseNotifs[i];
+                if (!notif || typeof notif !== 'object') continue;
+                
+                var exists = window.notifications.some(function(n) { 
+                    return n.id === notif.id; 
+                });
+                
+                if (!exists) {
+                    window.notifications.push(notif);
+                    newCount++;
+                }
+            }
+            
+            if (newCount > 0) {
+                window.notifications.sort(function(a, b) { 
+                    return b.timestamp - a.timestamp; 
+                });
+                saveNotifications();
+                updateNotificationBadge();
+                
+                // Очищаем Firebase после загрузки
+                ref.set([]);
+                
+                if (newCount > 0) {
+                    showToast('🔔 У вас ' + newCount + ' новое уведомление!', 'success');
+                }
+            }
+        } catch (e) {
+            console.error('❌ Ошибка обработки уведомлений:', e);
+        }
+    }, function(error) {
+        console.warn('⚠️ Ошибка слушателя уведомлений:', error);
+    });
+}
+
+// ============================================================
+// 21.19. ОТПРАВКА УВЕДОМЛЕНИЯ ВСЕМ УЧАСТНИКАМ КЛАНА
+// ============================================================
+async function notifyClanMembers(clanId, message, excludePlayerId = null) {
+    if (!clanId) {
+        console.warn('⚠️ Нет ID клана для уведомления');
+        return;
+    }
+    
+    if (!isDBReady()) {
+        console.warn('⚠️ БД не инициализирована');
+        return;
+    }
+    
+    try {
+        var ref = getDBRef('clans/' + clanId);
+        if (!ref) return;
+        
+        var snapshot = await ref.once('value');
+        if (!snapshot.exists()) return;
+        
+        var clan = snapshot.val();
+        var membersIds = clan.membersIds || [];
+        
+        for (var i = 0; i < membersIds.length; i++) {
+            var memberId = membersIds[i];
+            if (excludePlayerId && memberId === excludePlayerId) continue;
+            
+            await sendNotificationToPlayer(
+                memberId,
+                'clan',
+                '🏰 Уведомление клана',
+                message
+            );
+        }
+        console.log('📨 Уведомление отправлено членам клана:', membersIds.length);
+    } catch (e) {
+        console.error('❌ Ошибка отправки уведомления клану:', e);
+    }
+}
+
+// ============================================================
+// 21.20. ОЧИСТКА СТАРЫХ УВЕДОМЛЕНИЙ
+// ============================================================
+function cleanOldNotifications() {
+    var now = Date.now();
+    var oneWeekAgo = now - 7 * 24 * 60 * 60 * 1000;
+    
+    var oldCount = window.notifications.length;
+    window.notifications = window.notifications.filter(function(n) {
+        return n.timestamp > oneWeekAgo;
+    });
+    
+    if (oldCount !== window.notifications.length) {
+        saveNotifications();
+        updateNotificationBadge();
+        console.log('🧹 Очищено старых уведомлений:', oldCount - window.notifications.length);
+    }
+}
+
+// ============================================================
+// 21.21. ПОЛУЧИТЬ ВСЕ УВЕДОМЛЕНИЯ
+// ============================================================
+function getAllNotifications() {
+    return window.notifications || [];
+}
+
+// ============================================================
+// 21.22. ПОЛУЧИТЬ НЕПРОЧИТАННЫЕ УВЕДОМЛЕНИЯ
+// ============================================================
+function getUnreadNotifications() {
+    return window.notifications.filter(function(n) { 
+        return !n.read; 
+    });
+}
+
+// ============================================================
+// 21.23. УДАЛИТЬ УВЕДОМЛЕНИЕ
+// ============================================================
+function deleteNotification(id) {
+    window.notifications = window.notifications.filter(function(n) { 
+        return n.id != id; 
+    });
+    saveNotifications();
+    updateNotificationBadge();
+    if (window.notificationsModalOpen) {
+        renderNotificationsModal();
+    }
+}
+
+// ============================================================
+// 21.24. УДАЛИТЬ ВСЕ УВЕДОМЛЕНИЯ
+// ============================================================
+function deleteAllNotifications() {
+    if (!confirm('Удалить все уведомления?')) return;
+    window.notifications = [];
+    saveNotifications();
+    updateNotificationBadge();
+    if (window.notificationsModalOpen) {
+        renderNotificationsModal();
+    }
+    showToast('✅ Все уведомления удалены', 'success');
+}
+
+// ============================================================
+// 21.25. ИНИЦИАЛИЗАЦИЯ СИСТЕМЫ ОПОВЕЩЕНИЯ
+// ============================================================
+function initNotificationSystem() {
+    console.log('🔄 Инициализация системы оповещения...');
+    
+    if (!currentPlayer) {
+        console.log('❌ Нет игрока');
+        return;
+    }
+    
+    // Загружаем уведомления
+    loadNotifications();
+    
+    // Добавляем кнопку
+    addNotificationsButton();
+    showNotificationsButton();
+    
+    // Загружаем из Firebase
+    loadNotificationsFromFirebase();
+    
+    // Подписываемся на обновления
+    subscribeToNotifications();
+    
+    // Запускаем периодическую проверку
+    startNotificationCheck();
+    
+    // Очищаем старые уведомления раз в день
+    if (window._cleanNotificationsInterval) {
+        clearInterval(window._cleanNotificationsInterval);
+    }
+    window._cleanNotificationsInterval = setInterval(function() {
+        cleanOldNotifications();
+    }, 24 * 60 * 60 * 1000); // раз в день
+    
+    console.log('✅ Система оповещения инициализирована');
+    console.log('📨 Уведомлений:', window.notifications.length);
+    console.log('🔔 Непрочитанных:', getUnreadCount());
+}
+
+// ============================================================
+// 21.26. ОСТАНОВКА СИСТЕМЫ ОПОВЕЩЕНИЯ
+// ============================================================
+function stopNotificationSystem() {
+    if (window.notificationCheckInterval) {
+        clearInterval(window.notificationCheckInterval);
+        window.notificationCheckInterval = null;
+    }
+    
+    if (window._cleanNotificationsInterval) {
+        clearInterval(window._cleanNotificationsInterval);
+        window._cleanNotificationsInterval = null;
+    }
+    
+    if (window._notificationListeners.global) {
+        try { window._notificationListeners.global(); } catch(e) {}
+        window._notificationListeners.global = null;
+    }
+    
+    hideNotificationsButton();
+    
+    console.log('🛑 Система оповещения остановлена');
+}
+
+// ============================================================
+// 21.27. ЭКСПОРТ ФУНКЦИЙ
+// ============================================================
+window.loadNotifications = loadNotifications;
+window.saveNotifications = saveNotifications;
+window.addNotification = addNotification;
+window.markNotificationAsRead = markNotificationAsRead;
+window.markAllNotificationsAsRead = markAllNotificationsAsRead;
+window.getUnreadCount = getUnreadCount;
+window.updateNotificationBadge = updateNotificationBadge;
+window.loadNotificationsFromFirebase = loadNotificationsFromFirebase;
+window.startNotificationCheck = startNotificationCheck;
+window.toggleNotificationsModal = toggleNotificationsModal;
+window.openNotificationsModal = openNotificationsModal;
+window.closeNotificationsModal = closeNotificationsModal;
+window.renderNotificationsModal = renderNotificationsModal;
+window.addNotificationsButton = addNotificationsButton;
+window.showNotificationsButton = showNotificationsButton;
+window.hideNotificationsButton = hideNotificationsButton;
+window.sendTelegramNotification = sendTelegramNotification;
+window.saveNotificationToFirebase = saveNotificationToFirebase;
+window.sendNotificationToPlayer = sendNotificationToPlayer;
+window.subscribeToNotifications = subscribeToNotifications;
+window.notifyClanMembers = notifyClanMembers;
+window.cleanOldNotifications = cleanOldNotifications;
+window.getAllNotifications = getAllNotifications;
+window.getUnreadNotifications = getUnreadNotifications;
+window.deleteNotification = deleteNotification;
+window.deleteAllNotifications = deleteAllNotifications;
+window.initNotificationSystem = initNotificationSystem;
+window.stopNotificationSystem = stopNotificationSystem;
+
+console.log('✅ СИСТЕМА ОПОВЕЩЕНИЯ: блок полностью загружен');
+console.log('📨 Все функции уведомлений готовы к использованию!');
+
         // ============================================================
-        // 21. ЗАКРЫТИЕ МОДАЛЬНЫХ ОКОН
+        // 22. ЗАКРЫТИЕ МОДАЛЬНЫХ ОКОН
         // ============================================================
         window.closeModal = function(id) {
             const modal = document.getElementById(id);
@@ -13889,7 +14860,7 @@ console.log('🎯 КЛАН: все функции работают онлайн!
         };
 
         // ============================================================
-        // 22. ВЫХОД ИЗ АККАУНТА
+        // 23. ВЫХОД ИЗ АККАУНТА
         // ============================================================
         window.logoutAccount = function() {
             if (confirm('Вы уверены, что хотите выйти?')) {
@@ -13938,7 +14909,7 @@ console.log('🎯 КЛАН: все функции работают онлайн!
         };
 
         // ============================================================
-        // 23. ПЕРЕКЛЮЧЕНИЕ ВКЛАДОК
+        // 24. ПЕРЕКЛЮЧЕНИЕ ВКЛАДОК
         // ============================================================
         window.switchBottomTab = function(tab) {
             window.currentBottomTab = tab;
@@ -13956,7 +14927,7 @@ console.log('🎯 КЛАН: все функции работают онлайн!
         };
 
         // ============================================================
-        // 24. ЗАЩИТА ОТ КОНТЕКСТНОГО МЕНЮ
+        // 25. ЗАЩИТА ОТ КОНТЕКСТНОГО МЕНЮ
         // ============================================================
         document.addEventListener('contextmenu', (e) => {
             e.preventDefault();
