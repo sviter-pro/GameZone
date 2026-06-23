@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>GameZona - 1.0.1.027</title>
+    <title>GameZona - 1.0.1.028</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -1302,7 +1302,153 @@
         .mine-exchange-btn2 {
             font-size: 9px;
         }
-        
+        /* Стили для счетчиков на карте */
+.counters-container-work {
+    position: absolute;
+    left: 50%;
+    align-items: center;
+    transform: translateX(-50%);
+    width: 90%;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    pointer-events: none;
+}
+
+/* Каждый отдельный счетчик */
+.work-counter-item {
+    background: rgba(0, 0, 0, 0.85);
+    border: 1px solid rgba(0, 0, 0, 0.9);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 10px;
+    font-weight: 600;
+    color: #ffffff;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    box-shadow: 
+        0 2px 8px rgba(0, 0, 0, 0.6),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    font-family: 'Courier New', monospace;
+    letter-spacing: 0.3px;
+    pointer-events: auto;
+    min-height: 22px;
+    transition: all 0.3s ease;
+    animation: counterSlideIn 0.3s ease forwards;
+}
+
+/* Иконка в счетчике */
+.work-counter-item .counter-icon {
+    font-size: 12px;
+    line-height: 1;
+}
+
+/* Лейбл (название) */
+.work-counter-item .counter-label {
+    opacity: 0.7;
+    font-size: 8px;
+    font-weight: 400;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-family: Arial, sans-serif;
+}
+
+/* Время в счетчике */
+.work-counter-item .counter-time {
+    font-weight: 700;
+    font-size: 11px;
+    min-width: 45px;
+    text-align: center;
+    font-family: 'Courier New', monospace;
+    letter-spacing: 0.5px;
+}
+
+/* Тип РАБОТА (зеленый) */
+.work-counter-item.work-type {
+    border-left: 3px solid #4CAF50;
+    background: rgba(0, 0, 0, 0.85);
+}
+
+.work-counter-item.work-type .counter-time {
+    color: #66BB6A;
+}
+
+.work-counter-item.work-type .counter-label {
+    color: #81C784;
+}
+
+/* Тип ПРОКАЧКА (оранжевый) */
+.work-counter-item.upgrade-type {
+    border-left: 3px solid #FF9800;
+    background: rgba(0, 0, 0, 0.85);
+}
+
+.work-counter-item.upgrade-type .counter-time {
+    color: #FFA726;
+}
+
+.work-counter-item.upgrade-type .counter-label {
+    color: #FFB74D;
+}
+
+/* Анимация появления */
+@keyframes counterSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-8px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* Анимация пульсации для времени */
+@keyframes counterPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+.work-counter-item .counter-time {
+    animation: counterPulse 2s ease-in-out infinite;
+}
+
+/* Hover эффект */
+.work-counter-item:hover {
+    transform: scale(1.02);
+    background: rgba(0, 0, 0, 0.95);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Для мобильных устройств */
+@media (max-width: 480px) {
+    .work-counter-item {
+        font-size: 8px;
+        padding: 3px 6px;
+        min-height: 18px;
+    }
+    .work-counter-item .counter-icon {
+        font-size: 10px;
+    }
+    .work-counter-item .counter-label {
+        font-size: 7px;
+    }
+    .work-counter-item .counter-time {
+        font-size: 9px;
+        min-width: 35px;
+    }
+    .counters-container-work {
+        gap: 2px;
+        width: 95%;
+        bottom: 4px;
+    }
+}
     </style>
 </head>
 <body oncontextmenu="return false;" ondragstart="return false;" onselectstart="return false;" ontouchstart="return true;">
@@ -6438,7 +6584,7 @@ window.openSettingsModal = function() {
                     <div style="font-size: 36px; margin-bottom: 10px;">⚙️</div>
                     <div style="font-size: 16px; font-weight: 700; color: #ffd966;">${escapeHtml(window.currentPlayer.username)}</div>
                     <div style="font-size: 12px; color: #888; margin-top: 4px;">🆔 ${window.playerId}</div>
-                    <div style="font-size: 11px; color: #666; margin-top: 8px;">Версия - 1.0.1.027</div>
+                    <div style="font-size: 11px; color: #666; margin-top: 8px;">Версия - 1.0.1.028</div>
                 </div>
             
             <!-- НИЖНЯЯ ПАНЕЛЬ НАВИГАЦИИ -->
@@ -15829,6 +15975,7 @@ async function checkAndCompleteQuarryUpgrade() {
 async function completeWorkSafe(type) {
     if (!currentPlayer) {
         console.log('❌ Нет игрока');
+        showToast('❌ Ошибка: игрок не найден', 'error');
         return;
     }
     
@@ -15841,6 +15988,20 @@ async function completeWorkSafe(type) {
     console.log('✅ Завершение работы ' + type);
     
     try {
+        // Инициализируем структуры данных если их нет
+        if (!currentPlayer.mine) {
+            currentPlayer.mine = { paper: 0, makhorka: 0, paperLevel: 1, makhorkaLevel: 1 };
+        }
+        if (!currentPlayer.lumber) {
+            currentPlayer.lumber = { wood: 0, level: 1 };
+        }
+        if (!currentPlayer.quarry) {
+            currentPlayer.quarry = { stone: 0, level: 1 };
+        }
+        if (!currentPlayer.stats) {
+            currentPlayer.stats = { strength: 10, defense: 5 };
+        }
+        
         var paperGain = 0, makhorkaGain = 0, woodGain = 0, stoneGain = 0;
         var workExp = 0;
         var successMessage = '';
@@ -15850,6 +16011,7 @@ async function completeWorkSafe(type) {
             if (isMineUpgradeActive('paper') || isMineUpgradeActive('makhorka')) {
                 console.log('⚠️ Прокачка активна, работа отменена');
                 window.workPendingCompletion[type] = false;
+                showToast('⚠️ Невозможно завершить работу во время прокачки', 'warning');
                 return;
             }
             
@@ -15865,7 +16027,6 @@ async function completeWorkSafe(type) {
             
             workExp = 25 + (paperLevel * 3) + (makhorkaLevel * 2);
             
-            if (!currentPlayer.mine) currentPlayer.mine = { paper: 0, makhorka: 0 };
             currentPlayer.mine.paper = (currentPlayer.mine.paper || 0) + paperGain;
             currentPlayer.mine.makhorka = (currentPlayer.mine.makhorka || 0) + makhorkaGain;
             
@@ -15878,6 +16039,7 @@ async function completeWorkSafe(type) {
             if (isLumberUpgradeActive()) {
                 console.log('⚠️ Прокачка активна, работа отменена');
                 window.workPendingCompletion[type] = false;
+                showToast('⚠️ Невозможно завершить работу во время прокачки', 'warning');
                 return;
             }
             
@@ -15886,7 +16048,6 @@ async function completeWorkSafe(type) {
             
             workExp = 30 + ((currentPlayer.lumber?.level || 1) * 4);
             
-            if (!currentPlayer.lumber) currentPlayer.lumber = { wood: 0 };
             currentPlayer.lumber.wood = (currentPlayer.lumber.wood || 0) + woodGain;
             
             updateData['lumber/wood'] = currentPlayer.lumber.wood;
@@ -15897,6 +16058,7 @@ async function completeWorkSafe(type) {
             if (isQuarryUpgradeActive()) {
                 console.log('⚠️ Прокачка активна, работа отменена');
                 window.workPendingCompletion[type] = false;
+                showToast('⚠️ Невозможно завершить работу во время прокачки', 'warning');
                 return;
             }
             
@@ -15905,7 +16067,6 @@ async function completeWorkSafe(type) {
             
             workExp = 28 + ((currentPlayer.quarry?.level || 1) * 3);
             
-            if (!currentPlayer.quarry) currentPlayer.quarry = { stone: 0 };
             currentPlayer.quarry.stone = (currentPlayer.quarry.stone || 0) + stoneGain;
             
             updateData['quarry/stone'] = currentPlayer.quarry.stone;
@@ -15920,21 +16081,21 @@ async function completeWorkSafe(type) {
         }
         
         // Обновляем опыт
-        var newAuthority = currentPlayer.authority + workExp;
-        var newLevel = currentPlayer.level;
+        var newAuthority = (currentPlayer.authority || 0) + workExp;
+        var newLevel = currentPlayer.level || 1;
         var leveledUp = false;
-        var newAuthorityToNext = currentPlayer.authorityToNext;
-        var newMaxEnergy = currentPlayer.maxEnergy;
-        var newStrength = currentPlayer.stats.strength;
-        var newDefense = currentPlayer.stats.defense;
+        var newAuthorityToNext = currentPlayer.authorityToNext || 100;
+        var newMaxEnergy = currentPlayer.maxEnergy || 100;
+        var newStrength = currentPlayer.stats?.strength || 10;
+        var newDefense = currentPlayer.stats?.defense || 5;
 
-        if (newAuthority >= currentPlayer.authorityToNext) {
+        if (newAuthority >= (currentPlayer.authorityToNext || 100)) {
             newLevel++;
             newAuthority = 0;
-            newAuthorityToNext = Math.floor(currentPlayer.authorityToNext * 1.5);
-            newMaxEnergy = currentPlayer.maxEnergy + 5;
-            newStrength = currentPlayer.stats.strength + 3;
-            newDefense = currentPlayer.stats.defense + 2;
+            newAuthorityToNext = Math.floor((currentPlayer.authorityToNext || 100) * 1.5);
+            newMaxEnergy = (currentPlayer.maxEnergy || 100) + 5;
+            newStrength = (currentPlayer.stats?.strength || 10) + 3;
+            newDefense = (currentPlayer.stats?.defense || 5) + 2;
             leveledUp = true;
         }
 
@@ -15953,8 +16114,10 @@ async function completeWorkSafe(type) {
         currentPlayer.level = newLevel;
         currentPlayer.authorityToNext = newAuthorityToNext;
         currentPlayer.maxEnergy = newMaxEnergy;
-        currentPlayer.stats.strength = newStrength;
-        currentPlayer.stats.defense = newDefense;
+        if (currentPlayer.stats) {
+            currentPlayer.stats.strength = newStrength;
+            currentPlayer.stats.defense = newDefense;
+        }
 
         if (leveledUp) {
             showToast('🎉 УРОВЕНЬ ' + newLevel + '! +5 энергии, +3 силы, +2 защиты!', 'success');
@@ -17177,6 +17340,7 @@ function openMineModal() {
             attachMineNavigationHandlers();
             updateMineModalUI();
             startMineTimers();
+            forceUpdateCounters();
         }, 100);
         
     } catch (e) {
@@ -17267,6 +17431,10 @@ function closeMineModal() {
     updateTopBarResources();
     updateWorkCountersOnMap();
     updateBattleCountersOnMap();
+
+    setTimeout(function() {
+        forceUpdateCounters();
+    }, 200);
     
     window._opening_mine_modal = false;
 }
@@ -17366,6 +17534,13 @@ function initWorkSystem() {
     // Запускаем таймеры
     startMineTimers();
     startWorkCountersOnMap();
+
+    // Проверяем, что интервал запущен
+    if (window.workCountersInterval) {
+        console.log('✅ Счетчики работы активны (интервал: ' + window.workCountersInterval + ')');
+    } else {
+        console.warn('⚠️ Счетчики работы НЕ запущены!');
+    }
     
     console.log('✅ Система РАБОТА инициализирована');
 }
@@ -17387,100 +17562,209 @@ function stopWorkSystem() {
 // ============================================================
 
 function startWorkCountersOnMap() {
+    // Очищаем старый интервал
     if (window.workCountersInterval) {
         clearInterval(window.workCountersInterval);
+        window.workCountersInterval = null;
     }
+    
+    // Запускаем новый интервал
     window.workCountersInterval = setInterval(function() {
         if (currentPlayer) {
             updateWorkCountersOnMap();
         }
     }, 1000);
+    
+    console.log('✅ Счетчики работы запущены (обновление каждую секунду)');
 }
 
 function updateWorkCountersOnMap() {
     try {
         var b2Element = document.querySelector('.building.b2');
-        if (!b2Element) return;
+        if (!b2Element) {
+            // Если элемент не найден, пробуем найти позже
+            return;
+        }
         
+        // Находим или создаем контейнер для счетчиков
+        var countersContainer = b2Element.querySelector('.counters-container-work');
+        if (!countersContainer) {
+            countersContainer = document.createElement('div');
+            countersContainer.className = 'counters-container-work';
+            // Добавляем стили прямо в элемент
+            countersContainer.style.cssText = `
+                position: absolute;
+                bottom: 39px;
+                left: 50%;
+                transform: translateX(-50%);
+                width: 92%;
+                z-index: 10;
+                display: flex;
+                flex-direction: column;
+                gap: 3px;
+                pointer-events: none;
+            `;
+            b2Element.appendChild(countersContainer);
+            console.log('✅ Создан контейнер для счетчиков');
+        }
+        
+        // Собираем все активные счетчики
         var activeCounters = [];
         
+        // 1. Работа в шахте
         var mineWorkRemaining = getWorkRemaining('mine');
         if (mineWorkRemaining > 0) {
-            activeCounters.push({ type: 'work', icon: '⛏️', remaining: mineWorkRemaining });
+            activeCounters.push({ 
+                id: 'mine-work',
+                type: 'work', 
+                icon: '⛏️', 
+                label: 'ШАХТА',
+                remaining: mineWorkRemaining 
+            });
         }
         
+        // 2. Прокачка бумаги
         var minePaperUpgradeRemaining = getMineUpgradeRemaining('paper');
         if (minePaperUpgradeRemaining > 0) {
-            activeCounters.push({ type: 'upgrade', icon: '📄⬆️', remaining: minePaperUpgradeRemaining });
+            activeCounters.push({ 
+                id: 'mine-paper-upgrade',
+                type: 'upgrade', 
+                icon: '📄', 
+                label: 'БУМАГА ⬆',
+                remaining: minePaperUpgradeRemaining 
+            });
         }
         
+        // 3. Прокачка махорки
         var mineMakhorkaUpgradeRemaining = getMineUpgradeRemaining('makhorka');
         if (mineMakhorkaUpgradeRemaining > 0) {
-            activeCounters.push({ type: 'upgrade', icon: '🌿⬆️', remaining: mineMakhorkaUpgradeRemaining });
+            activeCounters.push({ 
+                id: 'mine-makhorka-upgrade',
+                type: 'upgrade', 
+                icon: '🌿', 
+                label: 'МАХОРКА ⬆',
+                remaining: mineMakhorkaUpgradeRemaining 
+            });
         }
         
+        // 4. Работа на лесоповале
         var lumberWorkRemaining = getWorkRemaining('lumber');
         if (lumberWorkRemaining > 0) {
-            activeCounters.push({ type: 'work', icon: '🪓', remaining: lumberWorkRemaining });
+            activeCounters.push({ 
+                id: 'lumber-work',
+                type: 'work', 
+                icon: '🪓', 
+                label: 'ЛЕСОПОВАЛ',
+                remaining: lumberWorkRemaining 
+            });
         }
         
+        // 5. Прокачка лесоповала
         var lumberUpgradeRemaining = getLumberUpgradeRemaining();
         if (lumberUpgradeRemaining > 0) {
-            activeCounters.push({ type: 'upgrade', icon: '🪵⬆️', remaining: lumberUpgradeRemaining });
+            activeCounters.push({ 
+                id: 'lumber-upgrade',
+                type: 'upgrade', 
+                icon: '🪵', 
+                label: 'ЛЕСОПОВАЛ ⬆',
+                remaining: lumberUpgradeRemaining 
+            });
         }
         
+        // 6. Работа в каменоломне
         var quarryWorkRemaining = getWorkRemaining('quarry');
         if (quarryWorkRemaining > 0) {
-            activeCounters.push({ type: 'work', icon: '⛏️', remaining: quarryWorkRemaining });
+            activeCounters.push({ 
+                id: 'quarry-work',
+                type: 'work', 
+                icon: '⛏️', 
+                label: 'КАМЕНОЛОМНЯ',
+                remaining: quarryWorkRemaining 
+            });
         }
         
+        // 7. Прокачка каменоломни
         var quarryUpgradeRemaining = getQuarryUpgradeRemaining();
         if (quarryUpgradeRemaining > 0) {
-            activeCounters.push({ type: 'upgrade', icon: '🪨⬆️', remaining: quarryUpgradeRemaining });
+            activeCounters.push({ 
+                id: 'quarry-upgrade',
+                type: 'upgrade', 
+                icon: '🪨', 
+                label: 'КАМЕНОЛОМНЯ ⬆',
+                remaining: quarryUpgradeRemaining 
+            });
         }
         
+        // Форматирование времени
         var formatMapTimer = function(ms) {
-            if (ms <= 0) return '';
+            if (ms <= 0) return '0с';
             var totalSeconds = Math.floor(ms / 1000);
             var minutes = Math.floor(totalSeconds / 60);
             var seconds = totalSeconds % 60;
-            if (minutes > 0) return minutes + 'м ' + seconds + 'с';
+            if (minutes > 0) {
+                return minutes + 'м ' + String(seconds).padStart(2, '0') + 'с';
+            }
             return seconds + 'с';
         };
         
-        var countersDiv = b2Element.querySelector('.counters-container-work');
+        // Очищаем контейнер
+        countersContainer.innerHTML = '';
         
+        // Показываем/скрываем контейнер
         if (activeCounters.length > 0) {
-            if (!countersDiv) {
-                countersDiv = document.createElement('div');
-                countersDiv.className = 'counters-container-work';
-                b2Element.appendChild(countersDiv);
-            }
+            countersContainer.style.display = 'flex';
             
-            var html = '';
+            // Создаем каждый счетчик
             for (var i = 0; i < activeCounters.length; i++) {
                 var counter = activeCounters[i];
                 var timerText = formatMapTimer(counter.remaining);
-                if (counter.type === 'work') {
-                    html += '<div class="work-counter">' + counter.icon + ' ' + timerText + '</div>';
-                } else {
-                    html += '<div class="upgrade-work-counter">⬆️ ' + timerText + '</div>';
-                }
+                
+                var counterDiv = document.createElement('div');
+                counterDiv.className = 'work-counter-item ' + counter.type + '-type';
+                counterDiv.id = 'counter-' + counter.id;
+                
+                // Иконка
+                var iconSpan = document.createElement('span');
+                iconSpan.className = 'counter-icon';
+                iconSpan.textContent = counter.icon;
+                
+                // Лейбл
+                var labelSpan = document.createElement('span');
+                labelSpan.className = 'counter-label';
+                labelSpan.textContent = counter.label;
+                
+                // Время
+                var timeSpan = document.createElement('span');
+                timeSpan.className = 'counter-time';
+                timeSpan.textContent = timerText;
+                
+                counterDiv.appendChild(iconSpan);
+                counterDiv.appendChild(labelSpan);
+                counterDiv.appendChild(timeSpan);
+                
+                countersContainer.appendChild(counterDiv);
             }
-            countersDiv.innerHTML = html;
-            countersDiv.style.display = 'flex';
-        } else if (countersDiv) {
-            countersDiv.style.display = 'none';
+        } else {
+            countersContainer.style.display = 'none';
         }
+        
     } catch (e) {
-        // Игнорируем ошибки
+        // Тихо игнорируем ошибки, чтобы не засорять консоль
+        // console.warn('⚠️ Ошибка обновления счетчиков:', e);
+    }
+}
+
+// Функция для принудительного обновления счетчиков (вызывать при открытии/закрытии модалки)
+function forceUpdateCounters() {
+    if (currentPlayer) {
+        updateWorkCountersOnMap();
     }
 }
 
 // ============================================================
 // 22.16. ЭКСПОРТ ФУНКЦИЙ
 // ============================================================
-
+window.forceUpdateCounters = forceUpdateCounters;
 window.isMineUpgradeActive = isMineUpgradeActive;
 window.getMineUpgradeRemaining = getMineUpgradeRemaining;
 window.checkAndCompleteMineUpgrade = checkAndCompleteMineUpgrade;
