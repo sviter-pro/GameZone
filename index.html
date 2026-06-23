@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>GameZona - 1.0.1.025</title>
+    <title>GameZona - 1.0.1.026</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -3813,6 +3813,7 @@ function formatCooldownTime(ms) {
             initChat();
             // Запуск СисОП
             showNotificationsButton();
+            forceCheckNotifications();
             // Инициализация заданий
             initQuests();
             
@@ -6151,7 +6152,7 @@ window.openSettingsModal = function() {
                     <div style="font-size: 36px; margin-bottom: 10px;">⚙️</div>
                     <div style="font-size: 16px; font-weight: 700; color: #ffd966;">${escapeHtml(window.currentPlayer.username)}</div>
                     <div style="font-size: 12px; color: #888; margin-top: 4px;">🆔 ${window.playerId}</div>
-                    <div style="font-size: 11px; color: #666; margin-top: 8px;">Версия - 1.0.1.025</div>
+                    <div style="font-size: 11px; color: #666; margin-top: 8px;">Версия - 1.0.1.026</div>
                 </div>
             
             <!-- НИЖНЯЯ ПАНЕЛЬ НАВИГАЦИИ -->
@@ -11663,6 +11664,64 @@ async function loadClanFast() {
 // ============================================================
 // 20.3. ПОДПИСКИ НА ИЗМЕНЕНИЯ (ОНЛАЙН)
 // ============================================================
+// ✅ ФУНКЦИЯ ДЛЯ ПРОВЕРКИ НОВЫХ УВЕДОМЛЕНИЙ
+async function checkNotificationsForPlayer() {
+    if (!currentPlayer || !isDBReady()) return;
+    
+    try {
+        var ref = getDBRef('playerNotifications/' + currentPlayer.id);
+        if (!ref) return;
+        
+        var snapshot = await ref.once('value');
+        if (snapshot.exists()) {
+            var firebaseNotifs = snapshot.val() || [];
+            
+            // Проверяем, что это массив
+            if (!Array.isArray(firebaseNotifs)) {
+                firebaseNotifs = Object.values(firebaseNotifs);
+            }
+            
+            var newCount = 0;
+            for (var i = 0; i < firebaseNotifs.length; i++) {
+                var notif = firebaseNotifs[i];
+                if (!notif || typeof notif !== 'object') continue;
+                
+                var exists = window.notifications.some(function(n) { 
+                    return n.id === notif.id; 
+                });
+                
+                if (!exists) {
+                    window.notifications.push(notif);
+                    newCount++;
+                }
+            }
+            
+            if (newCount > 0) {
+                window.notifications.sort(function(a, b) { 
+                    return b.timestamp - a.timestamp; 
+                });
+                saveNotifications();
+                updateNotificationBadge();
+                
+                // ✅ ОЧИЩАЕМ FIREBASE ПОСЛЕ ЗАГРУЗКИ
+                await ref.set([]);
+                
+                if (newCount > 0 && window.notificationsModalOpen) {
+                    renderNotificationsModal();
+                }
+                
+                // ✅✅✅ ПОКАЗЫВАЕМ ТОСТ О НОВЫХ УВЕДОМЛЕНИЯХ
+                if (newCount > 0) {
+                    showToast('🔔 У вас ' + newCount + ' новое уведомление!', 'success');
+                }
+                
+                console.log('📨 Загружено новых уведомлений:', newCount);
+            }
+        }
+    } catch (e) {
+        console.error('❌ Ошибка проверки уведомлений:', e);
+    }
+}
 
 function subscribeToClan(clanId) {
     if (!isDBReady()) {
@@ -11945,6 +12004,18 @@ async function sendJoinRequest(clanId) {
         // ✅ СОХРАНЯЕМ СТАТУС ЗАЯВКИ
         updateRequestStatus(clanId, 'pending');
         
+        // ✅✅✅ ОТПРАВЛЯЕМ УВЕДОМЛЕНИЕ ГЛАВАРЮ КЛАНА
+        if (clan && clan.leaderId) {
+            var notificationMessage = '👤 Игрок ' + currentPlayer.username + ' (ур.' + currentPlayer.level + ', 💪' + calculatePlayerPower(currentPlayer) + ') хочет вступить в ваш клан "' + clan.name + '"!';
+            await sendNotificationToPlayer(
+                clan.leaderId,
+                'clan',
+                '📝 Новая заявка в клан',
+                notificationMessage
+            );
+            console.log('📨 Уведомление главарю отправлено о заявке');
+        }
+        
         showToast('✅ Заявка отправлена в клан "' + clan.name + '"!', 'success');
         updateTopBarResources();
         updateClanNotificationBadge();
@@ -12024,7 +12095,7 @@ async function acceptJoinRequest(request, clanId) {
             localStorage.setItem('requestsStatus_' + request.playerId, JSON.stringify(requestsStatus));
         }
         
-        // ✅ ОТПРАВЛЯЕМ УВЕДОМЛЕНИЕ О ПРИНЯТИИ
+        // ✅✅✅ ОТПРАВЛЯЕМ УВЕДОМЛЕНИЕ О ПРИНЯТИИ
         var notificationData = {
             id: Date.now(),
             type: 'clan',
@@ -12035,6 +12106,10 @@ async function acceptJoinRequest(request, clanId) {
         };
         await saveNotificationToPlayer(request.playerId, notificationData);
         
+        // ✅ ЕСЛИ ЭТО ТЕКУЩИЙ ИГРОК - ПОКАЗЫВАЕМ ТОСТ
+        if (currentPlayer.id === request.playerId) {
+            showToast('🎉 Вас приняли в клан "' + clan.name + '"!', 'success');
+        }
         showToast('✅ ' + request.playerName + ' принят в клан!', 'success');
         
         if (currentPlayer.id === request.playerId) {
@@ -12090,7 +12165,7 @@ async function rejectJoinRequest(request, clanId) {
         var newSent = sentRequests.filter(function(id) { return id !== clanId; });
         localStorage.setItem('sentRequests_' + request.playerId, JSON.stringify(newSent));
         
-        // ✅ ОТПРАВЛЯЕМ УВЕДОМЛЕНИЕ ОБ ОТКАЗЕ
+        // ✅✅✅ ОТПРАВЛЯЕМ УВЕДОМЛЕНИЕ ОБ ОТКАЗЕ
         var notificationData = {
             id: Date.now(),
             type: 'clan',
@@ -12101,10 +12176,13 @@ async function rejectJoinRequest(request, clanId) {
         };
         await saveNotificationToPlayer(request.playerId, notificationData);
         
+        // ✅ ЕСЛИ ЭТО ТЕКУЩИЙ ИГРОК - ПОКАЗЫВАЕМ ТОСТ
+        if (currentPlayer.id === request.playerId) {
+            showToast('❌ Ваша заявка в клан "' + clan.name + '" была отклонена', 'warning');
+        }
         showToast('❌ Заявка от ' + request.playerName + ' отклонена', 'warning');
         
         if (currentPlayer.id === request.playerId) {
-            // Обновляем локальные данные
             var localSentRequests = JSON.parse(localStorage.getItem('sentRequests_' + currentPlayer.id) || '[]');
             var localNewSent = localSentRequests.filter(function(id) { return id !== clanId; });
             localStorage.setItem('sentRequests_' + currentPlayer.id, JSON.stringify(localNewSent));
@@ -12177,12 +12255,15 @@ async function loadClanJoinRequests(clanId) {
 async function saveNotificationToPlayer(playerId, notificationData) {
     if (!isDBReady()) {
         console.warn('⚠️ КЛАН: БД не инициализирована');
-        return;
+        return false;
     }
     
     try {
         var ref = getDBRef('playerNotifications/' + playerId);
-        if (!ref) return;
+        if (!ref) {
+            console.warn('⚠️ Не удалось получить ссылку на БД');
+            return false;
+        }
         
         var snapshot = await ref.once('value');
         var notifications = snapshot.exists() ? snapshot.val() || [] : [];
@@ -12195,8 +12276,17 @@ async function saveNotificationToPlayer(playerId, notificationData) {
         notifications.push(notificationData);
         await ref.set(notifications);
         console.log('📨 Уведомление сохранено для игрока:', playerId);
+        
+        // ✅ ЕСЛИ ЭТО ТЕКУЩИЙ ИГРОК - ДОБАВЛЯЕМ ЛОКАЛЬНО
+        if (currentPlayer && currentPlayer.id === playerId) {
+            addNotification(notificationData.type, notificationData.title, notificationData.message);
+            console.log('✅ Уведомление добавлено локально для текущего игрока');
+        }
+        
+        return true;
     } catch (e) {
         console.error('❌ КЛАН: ошибка сохранения уведомления:', e);
+        return false;
     }
 }
 
@@ -12759,7 +12849,7 @@ async function leaveClanFromModal() {
             });
         }
         
-        // ✅ ОТПРАВЛЯЕМ УВЕДОМЛЕНИЕ ГЛАВАРЮ
+        // ✅✅✅ ОТПРАВЛЯЕМ УВЕДОМЛЕНИЕ ГЛАВАРЮ
         if (clanLeaderId && clanLeaderId !== currentPlayer.id) {
             var notificationMessage = '👤 Игрок ' + playerName + ' покинул ваш клан "' + clanName + '"!';
             await sendNotificationToPlayer(
@@ -12768,7 +12858,7 @@ async function leaveClanFromModal() {
                 '👋 Выход из клана',
                 notificationMessage
             );
-            console.log('📨 Уведомление главарю отправлено');
+            console.log('📨 Уведомление главарю отправлено о выходе');
         }
         
         currentPlayer.clanId = null;
@@ -13191,6 +13281,7 @@ function updateClanNotificationBadge() {
             badge.className = 'badge-count';
             badge.textContent = window.clanQuestReadyCount;
             clanBtn.style.position = 'relative';
+            
             clanBtn.appendChild(badge);
         }
     } else if (existingBadge) {
@@ -13537,8 +13628,8 @@ function buildClanHTML(hasClan, playerClan, clanLevel) {
             clansListHtml = window.allClans.slice(0, 20).map(function(c) {
                 var hasSent = hasSentRequestToClan(c.id);
                 var buttonHtml = hasSent
-                    ? '<button class="btn-primary" disabled style="padding:6px 12px; font-size:11px; background:#666; opacity:0.7; color:#000; border-color:#888; cursor:not-allowed;">⏳ ЗАПРОС ПОДАН</button>'
-                    : '<button class="btn-primary" style="padding:6px 12px; font-size:11px; background:linear-gradient(135deg,#ff9800,#e68a00); color:white; cursor:pointer;" onclick="sendJoinRequest(\'' + c.id + '\')">📝 ПОДАТЬ ЗАЯВКУ</button>';
+                    ? '<button class="btn-primary" disabled style="width: 70%; border: 1px solid #c9a03d; border-radius: 30px; font-size: 12px; font-weight: 700; padding:6px 12px; background:#666; opacity:0.7; color:#000; border-color:#888; cursor:not-allowed;">⏳ ЗАПРОС ПОДАН</button>'
+                    : '<button class="btn-primary" style="width: 70%; padding: 8px; background: linear-gradient(135deg, #8B4513, #5a2d0a); border: 1px solid #c9a03d; border-radius: 30px; font-size: 12px; font-weight: 700; color: #ffd966; cursor: pointer; transition: all 0.2s;" onclick="sendJoinRequest(\'' + c.id + '\')">📝 ПОДАТЬ ЗАЯВКУ</button>';
                 
                 return `
                     <div style="background:rgba(30,36,64,0.6); border-radius:16px; padding:12px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
@@ -13585,7 +13676,7 @@ function buildClanHTML(hasClan, playerClan, clanLevel) {
                     <span></span> КЛАН
                 </div>
             </div>
-                <div style="flex: 1; overflow-y: auto; padding: 16px; margin-bottom: 75px;">
+                <div style="flex: 1; overflow-y: auto; padding: 16px; margin-bottom: 80px;">
                     <div style="background: rgba(20, 20, 30, 0.9); backdrop-filter: blur(10px); border: 1px solid #8B4513; border-radius: 16px; padding: 20px; text-align: center; position: relative; overflow: hidden;">
                         <div style="position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, #8B4513, #c9a03d, #8B4513);"></div>
                         <div style="font-size: 48px; margin-bottom: 15px;">🏢🔒🏢</div>
@@ -13847,7 +13938,6 @@ function setupClanSearch() {
     var searchInput = document.getElementById('clanSearchInput');
     if (!searchInput) return;
     
-    // ✅ ОПРЕДЕЛЯЕМ ФУНКЦИЮ ОБНОВЛЕНИЯ РЕЗУЛЬТАТОВ ПОИСКА
     window.updateClanSearchResults = function() {
         var input = document.getElementById('clanSearchInput');
         var results = document.getElementById('clanSearchResults');
@@ -13874,9 +13964,9 @@ function setupClanSearch() {
             var buttonHtml = '';
             if (isPending || hasSent) {
                 // ✅ СЕРАЯ КНОПКА С ТЕКСТОМ "ЗАЯВКА ПОДАНА"
-                buttonHtml = '<button class="btn-primary" disabled style="padding:6px 12px; font-size:11px; background:#555; opacity:0.7; color:#aaa; border-color:#888; cursor:not-allowed;">⏳ ЗАЯВКА ПОДАНА</button>';
+                buttonHtml = '<button class="btn-primary" disabled style="width: 70%; padding: 8px; background:#555; opacity:0.7; color:#aaa; border-color:#888; cursor:not-allowed; border-radius:30px; font-size:12px; font-weight:700;">⏳ ЗАЯВКА ПОДАНА</button>';
             } else {
-                buttonHtml = '<button class="btn-primary" style="padding:6px 12px; font-size:11px; background:linear-gradient(135deg,#ff9800,#e68a00); color:white; cursor:pointer; transition:all 0.2s;" onclick="sendJoinRequest(\'' + c.id + '\')">📝 ПОДАТЬ ЗАЯВКУ</button>';
+                buttonHtml = '<button class="btn-primary" style="width: 70%; padding: 8px; background: linear-gradient(135deg, #8B4513, #5a2d0a); border: 1px solid #c9a03d; border-radius:30px; font-size:12px; font-weight:700; color:#ffd966; cursor:pointer; transition:all 0.2s;" onclick="sendJoinRequest(\'' + c.id + '\')">📝 ПОДАТЬ ЗАЯВКУ</button>';
             }
             
             return `
@@ -13891,7 +13981,6 @@ function setupClanSearch() {
         }).join('');
     };
     
-    // ✅ ПРИВЯЗЫВАЕМ ФУНКЦИЮ К СОБЫТИЮ ВВОДА
     searchInput.oninput = window.updateClanSearchResults;
 }
 // ============================================================
@@ -13928,8 +14017,13 @@ function initClanSystem() {
         return;
     }
     
-    // ✅ ОЧИЩАЕМ УСТАРЕВШИЕ СТАТУСЫ ЗАЯВОК
+    // ✅✅✅ ДОБАВИТЬ ЭТУ СТРОКУ
     cleanExpiredRequestStatus();
+    
+    // ✅ ЗАГРУЖАЕМ УВЕДОМЛЕНИЯ ПРИ СТАРТЕ
+    setTimeout(function() {
+        checkNotificationsForPlayer();
+    }, 1000);
     
     initClanQuests();
     
@@ -13952,6 +14046,16 @@ function initClanSystem() {
             });
         }
     });
+    
+    // ✅ ЗАПУСКАЕМ ПЕРИОДИЧЕСКУЮ ПРОВЕРКУ УВЕДОМЛЕНИЙ (КАЖДЫЕ 10 СЕКУНД)
+    if (window._notifCheckInterval) {
+        clearInterval(window._notifCheckInterval);
+    }
+    window._notifCheckInterval = setInterval(function() {
+        if (currentPlayer && isDBReady()) {
+            checkNotificationsForPlayer();
+        }
+    }, 10000);
     
     if (window._clanCheckInterval) {
         clearInterval(window._clanCheckInterval);
@@ -13990,7 +14094,6 @@ function cleanExpiredRequestStatus() {
     
     for (var clanId in requestsStatus) {
         if (requestsStatus.hasOwnProperty(clanId)) {
-            // Если статус старше 1 дня - удаляем
             if (now - requestsStatus[clanId].timestamp > oneDay) {
                 delete requestsStatus[clanId];
                 changed = true;
@@ -14041,6 +14144,13 @@ window.subscribeToClanMembers = subscribeToClanMembers;
 window.subscribeToClanRequests = subscribeToClanRequests;
 window.loadClanJoinRequests = loadClanJoinRequests;
 window.isDBReady = isDBReady;
+
+// ✅✅✅ ДОБАВИТЬ НОВЫЕ ФУНКЦИИ
+window.updateRequestStatus = updateRequestStatus;
+window.getRequestStatus = getRequestStatus;
+window.cleanExpiredRequestStatus = cleanExpiredRequestStatus;
+window.saveNotificationToPlayer = saveNotificationToPlayer;
+window.checkNotificationsForPlayer = checkNotificationsForPlayer;
 
 console.log('✅ КЛАН: блок полностью загружен');
 console.log('🎯 КЛАН: все функции работают онлайн!');
@@ -14216,6 +14326,31 @@ function updateNotificationBadge() {
             var badge = document.createElement('span');
             badge.className = 'badge-count';
             badge.textContent = count;
+            
+            // ✅ КРАСНЫЙ КРУЖОК С ЦИФРОЙ
+            badge.style.cssText = `
+                position: absolute;
+                top: -6px;
+                right: -6px;
+                background: #e94560;
+                color: white;
+                border-radius: 50%;
+                min-width: 20px;
+                height: 20px;
+                font-size: 11px;
+                font-weight: bold;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 0 5px;
+                box-shadow: 0 0 10px rgba(233, 69, 96, 0.6);
+                border: 2px solid #0a0a0f;
+                z-index: 10;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                pointer-events: none;
+            `;
+            
+            btn.style.position = 'relative';
             btn.appendChild(badge);
         }
         console.log('🔔 Бейдж ПОКАЗАН с цифрой:', count);
@@ -14411,7 +14546,7 @@ function renderNotificationsModal() {
     var html = `
         <div class="notifications-modal notif-modal-open" id="notificationsModal" style="
             position: fixed;
-            bottom: 277px;
+            bottom: 193px;
             right: 20px;
             width: 90%;
             max-width: 400px;
@@ -14437,7 +14572,7 @@ function renderNotificationsModal() {
                 align-items: center;
                 flex-shrink: 0;
             ">
-                <h3 style="font-size: 18px; color: #c9a03d; margin: 0; display: flex; align-items: center; gap: 8px;">
+                <h3 style="font-size: 15px; color: #c9a03d; margin: 0; display: flex; align-items: center; gap: 8px;">
                     🔔 УВЕДОМЛЕНИЯ ${unreadCount > 0 ? `(${unreadCount})` : ''}
                 </h3>
                 <div style="display: flex; gap: 10px;">
@@ -14473,7 +14608,8 @@ function renderNotificationsModal() {
                 flex: 1;
                 overflow-y: auto;
                 max-height: 50vh;
-                padding: 50px;
+                padding: 10px;
+                margin-bottom: 0px;
             ">
                 ${window.notifications.length === 0 ?
                     '<div class="notifications-empty" style="text-align:center; padding:40px; color:#888;">📭 Нет уведомлений</div>' :
@@ -14970,9 +15106,98 @@ window.deleteNotification = deleteNotification;
 window.deleteAllNotifications = deleteAllNotifications;
 window.initNotificationSystem = initNotificationSystem;
 window.stopNotificationSystem = stopNotificationSystem;
+window.forceCheckNotifications = forceCheckNotifications;  // ✅ ДОБАВИТЬ ЭТУ СТРОКУ
 
 console.log('✅ СИСТЕМА ОПОВЕЩЕНИЯ: блок полностью загружен');
 console.log('📨 Все функции уведомлений готовы к использованию!');
+
+// ============================================================
+// 21.28. ПРИНУДИТЕЛЬНАЯ ПРОВЕРКА УВЕДОМЛЕНИЙ (ДЛЯ ТЕСТА)
+// ============================================================
+async function forceCheckNotifications() {
+    console.log('🔔 Принудительная проверка уведомлений...');
+    
+    if (!currentPlayer) {
+        console.log('❌ Нет игрока');
+        return;
+    }
+    
+    if (!isDBReady()) {
+        console.log('❌ БД не инициализирована');
+        return;
+    }
+    
+    try {
+        var ref = getDBRef('playerNotifications/' + currentPlayer.id);
+        if (!ref) {
+            console.log('❌ Не удалось получить ссылку на БД');
+            return;
+        }
+        
+        var snapshot = await ref.once('value');
+        console.log('📨 Данные в Firebase:', snapshot.exists() ? snapshot.val() : 'пусто');
+        
+        if (snapshot.exists()) {
+            var firebaseNotifs = snapshot.val() || [];
+            
+            // Проверяем, что это массив
+            if (!Array.isArray(firebaseNotifs)) {
+                firebaseNotifs = Object.values(firebaseNotifs);
+            }
+            
+            console.log('📨 Найдено уведомлений в Firebase:', firebaseNotifs.length);
+            
+            var newCount = 0;
+            for (var i = 0; i < firebaseNotifs.length; i++) {
+                var notif = firebaseNotifs[i];
+                if (!notif || typeof notif !== 'object') continue;
+                
+                var exists = window.notifications.some(function(n) { 
+                    return n.id === notif.id; 
+                });
+                
+                if (!exists) {
+                    window.notifications.push(notif);
+                    newCount++;
+                    console.log('📨 Добавлено новое уведомление:', notif.title);
+                }
+            }
+            
+            if (newCount > 0) {
+                window.notifications.sort(function(a, b) { 
+                    return b.timestamp - a.timestamp; 
+                });
+                saveNotifications();
+                updateNotificationBadge();
+                
+                // Очищаем Firebase после загрузки
+                await ref.set([]);
+                console.log('📨 Firebase очищен после загрузки');
+                
+                showToast('🔔 Загружено ' + newCount + ' новых уведомлений!', 'success');
+                
+                if (window.notificationsModalOpen) {
+                    renderNotificationsModal();
+                }
+            } else {
+                console.log('📨 Нет новых уведомлений');
+                showToast('📨 Нет новых уведомлений', 'info');
+            }
+        } else {
+            console.log('📨 В Firebase нет уведомлений');
+            showToast('📨 Нет уведомлений', 'info');
+        }
+        
+        console.log('📨 Уведомлений в localStorage:', window.notifications.length);
+        console.log('🔔 Непрочитанных:', getUnreadCount());
+        updateNotificationBadge();
+        showNotificationsButton();
+        
+    } catch (e) {
+        console.error('❌ Ошибка проверки уведомлений:', e);
+        showToast('❌ Ошибка проверки уведомлений: ' + e.message, 'error');
+    }
+}
 
         // ============================================================
         // 22. ЗАКРЫТИЕ МОДАЛЬНЫХ ОКОН
