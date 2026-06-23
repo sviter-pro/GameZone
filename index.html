@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>GameZona - 1.0.1.030</title>
+    <title>GameZona - 1.0.1.035</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -1593,7 +1593,7 @@
         const db = firebase.database();
 
 // ============================================================
-// 2. МАГАЗИН (БАРЫГА) - ПОЛНАЯ ВЕРСИЯ
+// 2. МАГАЗИН (БАРЫГА) - ПОЛНАЯ ВЕРСИЯ С АВТОНОМНЫМИ СЧЕТЧИКАМИ
 // ============================================================
 
 // ============================================================
@@ -1628,6 +1628,32 @@ if (typeof purchasedRandomItems === 'undefined') {
 }
 if (typeof window.purchasedItemsCount === 'undefined') {
     window.purchasedItemsCount = {};
+}
+
+// ============================================================
+// 2.0.1. ПЕРЕМЕННЫЕ ДЛЯ СЧЕТЧИКОВ НА КАРТЕ (МАГАЗИН)
+// ============================================================
+if (typeof window.shopCounterElements === 'undefined') {
+    window.shopCounterElements = {};
+}
+if (typeof window.shopCountersContainer === 'undefined') {
+    window.shopCountersContainer = null;
+}
+if (typeof window.shopCountersInterval === 'undefined') {
+    window.shopCountersInterval = null;
+}
+if (typeof window.shopIsCounterUpdating === 'undefined') {
+    window.shopIsCounterUpdating = false;
+}
+if (typeof window.shopLastCounterUpdate === 'undefined') {
+    window.shopLastCounterUpdate = 0;
+}
+
+// Список процессов магазина для отслеживания (только прокачка)
+if (typeof window.SHOP_PROCESS_TYPES === 'undefined') {
+    window.SHOP_PROCESS_TYPES = [
+        { id: 'shop-upgrade', type: 'shop', subtype: 'upgrade', icon: '📈', label: 'МАГАЗИН ⬆', isWork: false }
+    ];
 }
 
 console.log('✅ Переменные магазина инициализированы');
@@ -1893,8 +1919,8 @@ async function loadPlayerShopData() {
             }
             
             if (data.shopLevel) window.shopLevel = data.shopLevel;
-            if (data.shopUpgradeStartTime) window.shopUpgradeStartTime = data.shopUpgradeStartTime;
-            if (data.shopUpgradeDuration) window.shopUpgradeDuration = data.shopUpgradeDuration;
+            if (data.shopUpgradeStartTime) window.shopUpgradeStartTime = data.shopUpgradeStartTime || 0;
+            if (data.shopUpgradeDuration) window.shopUpgradeDuration = data.shopUpgradeDuration || 0;
         }
     } catch (e) {
         console.warn('⚠️ Ошибка загрузки данных магазина из БД:', e);
@@ -1985,10 +2011,14 @@ async function initShop() {
         } catch(e) {}
     }
     
+    // Запускаем счетчики на карте
+    startShopCountersOnMap();
+    
     console.log('✅ Магазин инициализирован');
     console.log('📦 Всего товаров:', window.adminShopItems.length);
     console.log('📦 Купленных предметов:', Object.keys(window.purchasedItemsCount || {}).length);
     console.log('💉 Наколок:', window.currentPlayer?.tattoos?.length || 0);
+    console.log('✅ Счетчики магазина на карте запущены');
 }
 
 // ============================================================
@@ -2012,6 +2042,8 @@ function subscribeShopUpgrade() {
                     renderShopItemsContent();
                     updateResources();
                 }
+                // Обновляем счетчики на карте
+                updateShopCountersOnMap();
             }
         }
     }, function(error) {
@@ -2269,6 +2301,9 @@ function startShopTimers() {
             }
         }
         checkAndCompleteShopUpgrade();
+        
+        // Обновляем счетчики на карте
+        updateShopCountersOnMap();
     }, 1000);
 }
 
@@ -2330,6 +2365,10 @@ async function upgradeShop() {
         updateShopUpgradeUI();
         switchShopTab('upgrade');
         updateResources();
+        
+        // ✅ ОБНОВЛЯЕМ СЧЕТЧИКИ НА КАРТЕ (СРАЗУ ПОЯВЛЯЮТСЯ)
+        updateShopCountersOnMap();
+        
     } catch (e) {
         showLoading(false);
         showToast('❌ Ошибка: ' + e.message, 'error');
@@ -2359,6 +2398,10 @@ async function checkAndCompleteShopUpgrade() {
         if (window.currentShopTab === 'upgrade') {
             switchShopTab('upgrade');
         }
+        
+        // ✅ ОБНОВЛЯЕМ СЧЕТЧИКИ НА КАРТЕ (ИСЧЕЗАЮТ)
+        updateShopCountersOnMap();
+        
         return true;
     }
     return false;
@@ -2417,7 +2460,7 @@ window.switchShopCategory = function(category) {
 };
 
 // ============================================================
-// 2.18. ОТРИСОВКА ТОВАРОВ (ИСПРАВЛЕННАЯ)
+// 2.18. ОТРИСОВКА ТОВАРОВ
 // ============================================================
 function renderShopItemsContent() {
     var container = document.getElementById('shopItemsGrid');
@@ -2699,7 +2742,7 @@ window.buyRandomItemFromModal = async function(item) {
 };
 
 // ============================================================
-// 2.22. ПОКУПКА АДМИНСКОГО ТОВАРА (ИСПРАВЛЕННАЯ)
+// 2.22. ПОКУПКА АДМИНСКОГО ТОВАРА
 // ============================================================
 window.buyAdminItemFromModal = async function(item) {
     console.log('🛒 buyAdminItemFromModal вызвана', item);
@@ -2779,13 +2822,11 @@ window.buyAdminItemFromModal = async function(item) {
         if (item.type === 'tattoo') {
             console.log('💉 СОЗДАЁМ НАКОЛКУ');
             
-            // 1. Инициализируем массив
             if (!window.currentPlayer.tattoos) {
                 window.currentPlayer.tattoos = [];
                 console.log('💉 Массив наколок создан');
             }
             
-            // 2. Создаём объект наколки
             var newTattoo = { 
                 name: item.name, 
                 imageUrl: item.imageUrl || '',
@@ -2794,14 +2835,11 @@ window.buyAdminItemFromModal = async function(item) {
             };
             console.log('💉 Объект наколки:', newTattoo);
             
-            // 3. Добавляем в массив
             window.currentPlayer.tattoos.push(newTattoo);
             console.log('💉 Массив наколок после добавления:', window.currentPlayer.tattoos);
             
-            // 4. Сохраняем в updateData
             updateData.tattoos = window.currentPlayer.tattoos;
             
-            // 5. Сохраняем в localStorage
             try {
                 localStorage.setItem('tattoos_' + window.currentPlayer.id, JSON.stringify(window.currentPlayer.tattoos));
                 console.log('💉 Наколки сохранены в localStorage');
@@ -2809,7 +2847,6 @@ window.buyAdminItemFromModal = async function(item) {
                 console.warn('⚠️ Ошибка сохранения наколок в localStorage:', e);
             }
             
-            // 6. Применяем бонусы
             if (item.bonus && item.stat) {
                 if (!window.currentPlayer.stats) {
                     window.currentPlayer.stats = { strength: 10, defense: 5, critical: 5 };
@@ -3032,6 +3069,9 @@ async function resetShopUpgrade() {
             showToast('✅ Уровень магазина сброшен до 1', 'success');
             updateShopUpgradeUI();
             renderShopItemsContent();
+            
+            // ✅ ОБНОВЛЯЕМ СЧЕТЧИКИ НА КАРТЕ
+            updateShopCountersOnMap();
         } catch (e) {
             showToast('❌ Ошибка сброса: ' + e.message, 'error');
         }
@@ -3076,7 +3116,352 @@ function showShopStats() {
 }
 
 // ============================================================
-// 2.25. ЭКСПОРТ ФУНКЦИЙ
+// 2.25. СЧЕТЧИКИ НА КАРТЕ ДЛЯ МАГАЗИНА (building b4)
+// ============================================================
+
+// Инициализация контейнера для счетчиков магазина
+function initializeShopCounterContainer() {
+    try {
+        var b4Element = document.querySelector('.building.b4');
+        if (!b4Element) {
+            setTimeout(function() {
+                initializeShopCounterContainer();
+            }, 1000);
+            return false;
+        }
+        
+        // Убеждаемся, что b4 имеет position: relative
+        if (getComputedStyle(b4Element).position === 'static') {
+            b4Element.style.position = 'relative';
+        }
+        
+        window.shopCountersContainer = b4Element.querySelector('.shop-counters-container');
+        
+        if (!window.shopCountersContainer) {
+            window.shopCountersContainer = document.createElement('div');
+            window.shopCountersContainer.className = 'shop-counters-container';
+            window.shopCountersContainer.style.cssText = `
+                position: absolute;
+                bottom: 8px;
+                left: 50%;
+                transform: translateX(-50%);
+                width: 92%;
+                z-index: 10;
+                display: none;
+                flex-direction: column;
+                gap: 3px;
+                pointer-events: none;
+            `;
+            b4Element.appendChild(window.shopCountersContainer);
+            console.log('✅ Создан контейнер для счетчиков МАГАЗИНА');
+        }
+        
+        return true;
+    } catch (e) {
+        console.warn('⚠️ Ошибка инициализации контейнера МАГАЗИНА:', e);
+        return false;
+    }
+}
+
+// Получение оставшегося времени для процесса магазина (автономная версия)
+function getShopProcessRemainingAuto(playerData) {
+    if (!playerData) return 0;
+    
+    var shopUpgradeStart = playerData.shopUpgradeStartTime || 0;
+    var shopUpgradeDuration = playerData.shopUpgradeDuration || 0;
+    
+    if (shopUpgradeStart === 0 || shopUpgradeDuration === 0) return 0;
+    
+    var now = Date.now();
+    return Math.max(0, shopUpgradeDuration - (now - shopUpgradeStart));
+}
+
+// Форматирование времени для счетчиков магазина
+function formatShopMapTimer(ms) {
+    if (ms <= 0) return '0с';
+    var totalSeconds = Math.floor(ms / 1000);
+    var minutes = Math.floor(totalSeconds / 60);
+    var seconds = totalSeconds % 60;
+    if (minutes > 0) {
+        return minutes + 'м ' + String(seconds).padStart(2, '0') + 'с';
+    }
+    return seconds + 'с';
+}
+
+// Удаление счетчика магазина
+function removeShopCounterAuto(counterId) {
+    try {
+        var element = window.shopCounterElements[counterId];
+        if (element && element.parentNode) {
+            element.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+            element.style.opacity = '0';
+            element.style.transform = 'scale(0.9)';
+            
+            setTimeout(function() {
+                if (element && element.parentNode) {
+                    element.remove();
+                }
+            }, 350);
+        }
+        delete window.shopCounterElements[counterId];
+    } catch (e) {
+        console.warn('⚠️ Ошибка удаления счетчика МАГАЗИНА:', e);
+    }
+}
+
+// Создание счетчика магазина
+function createShopCounterAuto(process) {
+    if (!window.shopCountersContainer) {
+        initializeShopCounterContainer();
+        if (!window.shopCountersContainer) return;
+    }
+    
+    var counterId = process.id;
+    if (window.shopCounterElements[counterId]) return;
+    
+    var counterDiv = document.createElement('div');
+    counterDiv.className = 'shop-counter-item';
+    counterDiv.id = 'shop-counter-' + counterId;
+    counterDiv.dataset.type = process.type;
+    counterDiv.dataset.subtype = process.subtype;
+    counterDiv.dataset.counterId = counterId;
+    
+    // Только желтый цвет для прокачки магазина
+    var borderColor = '#FF9800';
+    var timeColor = '#FFA726';
+    var labelColor = '#FFB74D';
+    
+    counterDiv.style.cssText = `
+        background: rgba(0, 0, 0, 0.85);
+        border: 1px solid rgba(0, 0, 0, 0.9);
+        border-left: 3px solid ${borderColor};
+        border-radius: 6px;
+        padding: 4px 10px;
+        font-size: 10px;
+        font-weight: 600;
+        color: #ffffff;
+        text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+        font-family: 'Courier New', monospace;
+        pointer-events: auto;
+        min-height: 22px;
+        animation: counterSlideIn 0.3s ease forwards;
+        transition: opacity 0.3s ease, transform 0.3s ease;
+        opacity: 1;
+    `;
+    
+    var iconSpan = document.createElement('span');
+    iconSpan.className = 'counter-icon';
+    iconSpan.textContent = process.icon;
+    iconSpan.style.cssText = 'font-size: 12px; line-height: 1; flex-shrink: 0;';
+    
+    var labelSpan = document.createElement('span');
+    labelSpan.className = 'counter-label';
+    labelSpan.textContent = process.label;
+    labelSpan.style.cssText = `
+        opacity: 0.7;
+        font-size: 8px;
+        font-weight: 400;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-family: Arial, sans-serif;
+        color: ${labelColor};
+        flex-shrink: 0;
+    `;
+    
+    var timeSpan = document.createElement('span');
+    timeSpan.className = 'counter-time';
+    timeSpan.textContent = formatShopMapTimer(process.remaining);
+    timeSpan.style.cssText = `
+        font-weight: 700;
+        font-size: 11px;
+        min-width: 45px;
+        text-align: center;
+        font-family: 'Courier New', monospace;
+        color: ${timeColor};
+        animation: counterPulse 2s ease-in-out infinite;
+    `;
+    
+    counterDiv.appendChild(iconSpan);
+    counterDiv.appendChild(labelSpan);
+    counterDiv.appendChild(timeSpan);
+    
+    window.shopCountersContainer.appendChild(counterDiv);
+    window.shopCounterElements[counterId] = counterDiv;
+    
+    console.log('✅ Создан счетчик МАГАЗИНА:', counterId);
+}
+
+// Обновление времени счетчика магазина
+function updateShopCounterTimeAuto(counterId, remaining) {
+    var element = window.shopCounterElements[counterId];
+    if (!element) return;
+    
+    var timeSpan = element.querySelector('.counter-time');
+    if (timeSpan) {
+        var newTime = formatShopMapTimer(remaining);
+        if (timeSpan.textContent !== newTime) {
+            timeSpan.textContent = newTime;
+        }
+    }
+}
+
+// Главная функция обновления всех счетчиков магазина (полностью автономная)
+function updateAllShopCountersAuto() {
+    // Защита от множественных одновременных обновлений
+    if (window.shopIsCounterUpdating) return;
+    window.shopIsCounterUpdating = true;
+    
+    try {
+        // Получаем данные игрока из кэша или currentPlayer
+        var playerData = window.cachedPlayerData || window.currentPlayer;
+        
+        // Если нет данных, пробуем получить из Firebase
+        if (!playerData) {
+            if (typeof fetchPlayerDataFromFirebase === 'function') {
+                fetchPlayerDataFromFirebase().then(function(data) {
+                    window.shopIsCounterUpdating = false;
+                    if (data) {
+                        window.cachedPlayerData = data;
+                        updateAllShopCountersAuto();
+                    } else {
+                        if (window.shopCountersContainer) {
+                            window.shopCountersContainer.style.display = 'none';
+                        }
+                    }
+                });
+            } else {
+                if (window.shopCountersContainer) {
+                    window.shopCountersContainer.style.display = 'none';
+                }
+                window.shopIsCounterUpdating = false;
+            }
+            return;
+        }
+        
+        // Инициализируем контейнер
+        if (!window.shopCountersContainer || !window.shopCountersContainer.parentNode) {
+            initializeShopCounterContainer();
+            if (!window.shopCountersContainer) {
+                window.shopIsCounterUpdating = false;
+                return;
+            }
+        }
+        
+        // Проверяем процесс прокачки магазина
+        var remaining = getShopProcessRemainingAuto(playerData);
+        var activeProcesses = [];
+        
+        if (remaining > 0) {
+            activeProcesses.push({
+                id: 'shop-upgrade',
+                type: 'shop',
+                subtype: 'upgrade',
+                icon: '📈',
+                label: 'МАГАЗИН ⬆',
+                remaining: remaining,
+                isWork: false
+            });
+        }
+        
+        // Получаем текущие ID счетчиков
+        var currentIds = Object.keys(window.shopCounterElements);
+        var activeIds = {};
+        for (var j = 0; j < activeProcesses.length; j++) {
+            activeIds[activeProcesses[j].id] = true;
+        }
+        
+        // Удаляем счетчики, которых больше нет
+        for (var k = 0; k < currentIds.length; k++) {
+            var id = currentIds[k];
+            if (!activeIds[id]) {
+                removeShopCounterAuto(id);
+            }
+        }
+        
+        // Добавляем новые счетчики и обновляем существующие
+        for (var m = 0; m < activeProcesses.length; m++) {
+            var process = activeProcesses[m];
+            var counterId = process.id;
+            
+            if (window.shopCounterElements[counterId]) {
+                updateShopCounterTimeAuto(counterId, process.remaining);
+            } else {
+                createShopCounterAuto(process);
+            }
+        }
+        
+        // Обновляем видимость контейнера
+        var hasCounters = Object.keys(window.shopCounterElements).length > 0;
+        if (window.shopCountersContainer) {
+            window.shopCountersContainer.style.display = hasCounters ? 'flex' : 'none';
+        }
+        
+        // Обновляем время последнего обновления
+        window.shopLastCounterUpdate = Date.now();
+        
+    } catch (e) {
+        // console.warn('⚠️ Ошибка обновления счетчиков МАГАЗИНА:', e);
+    } finally {
+        window.shopIsCounterUpdating = false;
+    }
+}
+
+// Функция для обновления счетчиков магазина на карте
+function updateShopCountersOnMap() {
+    // Просто вызываем обновление
+    setTimeout(function() {
+        updateAllShopCountersAuto();
+    }, 50);
+}
+
+// Запуск автономных счетчиков магазина
+function startShopCountersOnMap() {
+    // Очищаем старый интервал
+    if (window.shopCountersInterval) {
+        clearInterval(window.shopCountersInterval);
+        window.shopCountersInterval = null;
+    }
+    
+    // Создаем контейнер
+    initializeShopCounterContainer();
+    
+    // ЗАПУСКАЕМ ИНТЕРВАЛ - ОБНОВЛЯЕМ КАЖДУЮ СЕКУНДУ!
+    window.shopCountersInterval = setInterval(function() {
+        updateAllShopCountersAuto();
+    }, 1000);
+    
+    // Первый запуск сразу
+    setTimeout(function() {
+        updateAllShopCountersAuto();
+    }, 100);
+    
+    console.log('✅ Счетчики МАГАЗИНА запущены (полностью автономный режим)');
+}
+
+// Остановка счетчиков магазина
+function stopShopCountersOnMap() {
+    if (window.shopCountersInterval) {
+        clearInterval(window.shopCountersInterval);
+        window.shopCountersInterval = null;
+    }
+    
+    // Очищаем все счетчики
+    for (var id in window.shopCounterElements) {
+        removeShopCounterAuto(id);
+    }
+    
+    console.log('🛑 Счетчики МАГАЗИНА остановлены');
+}
+
+// ============================================================
+// 2.26. ЭКСПОРТ ФУНКЦИЙ
 // ============================================================
 window.getShopStats = getShopStats;
 window.showShopStats = showShopStats;
@@ -3087,351 +3472,22 @@ window.getPurchasedCount = getPurchasedCount;
 window.canBuyItem = canBuyItem;
 window.updateShopResources = updateShopResources;
 
-console.log('✅ Блок МАГАЗИН полностью загружен');
+// Экспорт функций счетчиков
+window.initializeShopCounterContainer = initializeShopCounterContainer;
+window.getShopProcessRemainingAuto = getShopProcessRemainingAuto;
+window.formatShopMapTimer = formatShopMapTimer;
+window.removeShopCounterAuto = removeShopCounterAuto;
+window.createShopCounterAuto = createShopCounterAuto;
+window.updateShopCounterTimeAuto = updateShopCounterTimeAuto;
+window.updateAllShopCountersAuto = updateAllShopCountersAuto;
+window.updateShopCountersOnMap = updateShopCountersOnMap;
+window.startShopCountersOnMap = startShopCountersOnMap;
+window.stopShopCountersOnMap = stopShopCountersOnMap;
+window.SHOP_PROCESS_TYPES = window.SHOP_PROCESS_TYPES;
+window.shopCounterElements = window.shopCounterElements;
 
-// ============================================================
-// 2.26. ПРОВЕРКА СТРУКТУРЫ ДАННЫХ В БАЗЕ
-// ============================================================
-async function checkShopDataStructure() {
-    console.log('🔍 Проверка структуры данных магазина...');
-    
-    if (!db) {
-        console.warn('⚠️ База данных не инициализирована');
-        return;
-    }
-    
-    try {
-        // Проверяем путь config/shop
-        var snapshot = await db.ref('config/shop').once('value');
-        if (snapshot.exists()) {
-            var data = snapshot.val();
-            console.log('📦 Структура config/shop:', Object.keys(data));
-            
-            if (data.items) {
-                console.log('📦 В config/shop/items найдено:', Object.keys(data.items).length, 'товаров');
-                var firstItems = Object.keys(data.items).slice(0, 5);
-                console.log('📦 Первые товары:', firstItems);
-            }
-        } else {
-            console.log('ℹ️ Путь config/shop не существует');
-        }
-        
-        // Проверяем путь shop
-        var shopSnapshot = await db.ref('shop').once('value');
-        if (shopSnapshot.exists()) {
-            var shopData = shopSnapshot.val();
-            console.log('📦 Структура shop:', Object.keys(shopData));
-        }
-        
-        console.log('✅ Проверка структуры данных завершена');
-        
-    } catch (e) {
-        console.error('❌ Ошибка проверки структуры:', e);
-    }
-}
-
-// ============================================================
-// 2.27. ПРИНУДИТЕЛЬНАЯ ПЕРЕЗАГРУЗКА ТОВАРОВ
-// ============================================================
-async function reloadShopItems() {
-    console.log('🔄 Принудительная перезагрузка товаров...');
-    
-    // Очищаем кэш
-    window.adminShopItems = [];
-    
-    // Загружаем заново
-    await loadAdminShopItems();
-    
-    // Проверяем результат
-    if (window.adminShopItems && window.adminShopItems.length > 0) {
-        console.log('✅ Товары загружены:', window.adminShopItems.length);
-        
-        // Обновляем магазин если открыт
-        var modal = document.getElementById('shopFullscreen');
-        if (modal) {
-            renderShopItemsContent();
-            console.log('✅ Отображение магазина обновлено');
-        }
-    } else {
-        console.warn('⚠️ Товары не загружены');
-    }
-}
-
-// ============================================================
-// 2.28. СИНХРОНИЗАЦИЯ НАКОЛОК
-// ============================================================
-async function syncTattoos() {
-    if (!window.currentPlayer || !window.playerId) {
-        showToast('❌ Нет игрока!', 'error');
-        return;
-    }
-    
-    console.log('💉 Синхронизация наколок...');
-    
-    try {
-        // Загружаем из БД
-        var snapshot = await db.ref('players/' + window.playerId + '/tattoos').once('value');
-        
-        if (snapshot.exists()) {
-            var dbTattoos = snapshot.val();
-            if (dbTattoos && Array.isArray(dbTattoos) && dbTattoos.length > 0) {
-                window.currentPlayer.tattoos = dbTattoos;
-                localStorage.setItem('tattoos_' + window.currentPlayer.id, JSON.stringify(dbTattoos));
-                console.log('💉 Наколки синхронизированы из БД:', dbTattoos.length);
-                
-                renderShopItemsContent();
-                showToast('✅ Наколки синхронизированы!', 'success');
-                return true;
-            }
-        }
-        
-        // Если в БД пусто, проверяем localStorage
-        try {
-            var saved = localStorage.getItem('tattoos_' + window.currentPlayer.id);
-            if (saved) {
-                var parsed = JSON.parse(saved);
-                if (parsed && Array.isArray(parsed) && parsed.length > 0) {
-                    window.currentPlayer.tattoos = parsed;
-                    await dbUpdate('players/' + window.playerId, { tattoos: parsed });
-                    console.log('💉 Наколки сохранены в БД из localStorage:', parsed.length);
-                    renderShopItemsContent();
-                    showToast('✅ Наколки синхронизированы!', 'success');
-                    return true;
-                }
-            }
-        } catch(e) {}
-        
-        showToast('ℹ️ Нет сохранённых наколок', 'info');
-        return false;
-        
-    } catch(e) {
-        console.error('❌ Ошибка синхронизации наколок:', e);
-        showToast('❌ Ошибка синхронизации: ' + e.message, 'error');
-        return false;
-    }
-}
-
-// ============================================================
-// 2.29. ПРОВЕРКА НАКОЛОК ИГРОКА
-// ============================================================
-function checkPlayerTattoos() {
-    console.log('💉 ПРОВЕРКА НАКОЛОК ИГРОКА:');
-    console.log('  📦 window.currentPlayer:', window.currentPlayer ? 'есть' : 'нет');
-    
-    if (!window.currentPlayer) {
-        console.log('  ❌ Нет игрока');
-        return;
-    }
-    
-    console.log('  📦 window.currentPlayer.tattoos:', window.currentPlayer.tattoos);
-    console.log('  📦 Тип:', typeof window.currentPlayer.tattoos);
-    console.log('  📦 Длина:', window.currentPlayer.tattoos ? window.currentPlayer.tattoos.length : 0);
-    
-    if (window.currentPlayer.tattoos && window.currentPlayer.tattoos.length > 0) {
-        console.log('  💉 Список наколок:');
-        window.currentPlayer.tattoos.forEach(function(t, i) {
-            console.log('    ' + (i+1) + '.', t.name, '(бонус: +' + t.bonus + ' ' + t.stat + ')');
-        });
-    } else {
-        console.log('  ❌ Нет наколок');
-    }
-    
-    // Проверяем localStorage
-    try {
-        var saved = localStorage.getItem('tattoos_' + window.currentPlayer.id);
-        console.log('  📦 localStorage:', saved ? 'есть' : 'нет');
-        if (saved) {
-            var parsed = JSON.parse(saved);
-            console.log('  📦 В localStorage наколок:', parsed.length);
-        }
-    } catch(e) {
-        console.log('  ❌ Ошибка чтения localStorage:', e);
-    }
-}
-
-// ============================================================
-// 2.30. ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ НАКОЛОК
-// ============================================================
-function forceUpdateTattoos() {
-    if (!window.currentPlayer) {
-        showToast('❌ Нет игрока!', 'error');
-        return;
-    }
-    
-    // Загружаем из localStorage
-    try {
-        var saved = localStorage.getItem('tattoos_' + window.currentPlayer.id);
-        if (saved) {
-            var parsed = JSON.parse(saved);
-            if (parsed && Array.isArray(parsed) && parsed.length > 0) {
-                window.currentPlayer.tattoos = parsed;
-                console.log('✅ Наколки загружены из localStorage:', parsed.length);
-                showToast('✅ Наколки обновлены!', 'success');
-                
-                renderShopItemsContent();
-                
-                var inventoryModal = document.getElementById('inventoryFullscreen');
-                if (inventoryModal) {
-                    closeInventoryModal();
-                    setTimeout(function() { openInventoryModal(); }, 300);
-                }
-                return;
-            }
-        }
-    } catch(e) {
-        console.warn('⚠️ Ошибка загрузки наколок:', e);
-    }
-    
-    showToast('❌ Нет сохранённых наколок', 'warning');
-}
-
-// ============================================================
-// 2.31. ЗАГРУЗКА НАКОЛОК ПРИ СТАРТЕ
-// ============================================================
-function loadTattoosOnStart() {
-    if (!window.currentPlayer) return;
-    
-    console.log('💉 Загрузка наколок при старте...');
-    
-    // 1. Проверяем localStorage
-    try {
-        var saved = localStorage.getItem('tattoos_' + window.currentPlayer.id);
-        if (saved) {
-            var parsed = JSON.parse(saved);
-            if (parsed && Array.isArray(parsed) && parsed.length > 0) {
-                window.currentPlayer.tattoos = parsed;
-                console.log('💉 Загружено наколок из localStorage:', parsed.length);
-                return true;
-            }
-        }
-    } catch(e) {}
-    
-    // 2. Проверяем БД
-    if (db && window.playerId) {
-        db.ref('players/' + window.playerId + '/tattoos').once('value', function(snapshot) {
-            if (snapshot.exists()) {
-                var data = snapshot.val();
-                if (data && Array.isArray(data) && data.length > 0) {
-                    window.currentPlayer.tattoos = data;
-                    localStorage.setItem('tattoos_' + window.currentPlayer.id, JSON.stringify(data));
-                    console.log('💉 Загружено наколок из БД:', data.length);
-                    
-                    var modal = document.getElementById('shopFullscreen');
-                    if (modal) {
-                        renderShopItemsContent();
-                    }
-                }
-            }
-        }).catch(function(e) {
-            console.warn('⚠️ Ошибка загрузки наколок из БД:', e);
-        });
-    }
-    
-    return false;
-}
-
-// ============================================================
-// 2.32. ДОБАВЛЕНИЕ ТЕСТОВОГО ТОВАРА В БД
-// ============================================================
-async function addTestItemToDB() {
-    if (!db) {
-        console.error('❌ БД НЕ ИНИЦИАЛИЗИРОВАНА');
-        return;
-    }
-    
-    console.log('🔄 ДОБАВЛЕНИЕ ТЕСТОВОГО ТОВАРА В БД...');
-    
-    var testItem = {
-        name: 'Тестовый товар',
-        category: 'consumables',
-        type: 'consumable',
-        resourceType: 'cigarettes',
-        amount: 10,
-        price: 50,
-        currency: 'rubles',
-        desc: 'Тестовый товар для проверки загрузки',
-        imageUrl: '',
-        isAvailable: true
-    };
-    
-    try {
-        var paths = [
-            'config/shop/items/test_' + Date.now(),
-            'shop/items/test_' + Date.now()
-        ];
-        
-        for (var i = 0; i < paths.length; i++) {
-            var ref = db.ref(paths[i]);
-            await ref.set(testItem);
-            console.log('✅ Тестовый товар добавлен по пути:', paths[i]);
-        }
-        
-        showToast('✅ Тестовый товар добавлен!', 'success');
-        await reloadShopItems();
-        
-    } catch(e) {
-        console.error('❌ Ошибка добавления тестового товара:', e);
-        showToast('❌ Ошибка: ' + e.message, 'error');
-    }
-}
-
-// ============================================================
-// 2.33. ТЕСТ ПОДКЛЮЧЕНИЯ К БД
-// ============================================================
-async function testDBConnection() {
-    console.log('🧪 ===== ТЕСТ ПОДКЛЮЧЕНИЯ К БД =====');
-    
-    if (!db) {
-        console.error('❌ БД НЕ ИНИЦИАЛИЗИРОВАНА!');
-        return;
-    }
-    
-    console.log('✅ БД инициализирована');
-    
-    try {
-        var rootSnapshot = await db.ref('/').once('value');
-        if (rootSnapshot.exists()) {
-            var rootData = rootSnapshot.val();
-            console.log('📦 Корневые ключи:', Object.keys(rootData));
-        }
-    } catch(e) {
-        console.error('❌ Ошибка чтения корня:', e);
-    }
-    
-    try {
-        var configSnapshot = await db.ref('config').once('value');
-        if (configSnapshot.exists()) {
-            var configData = configSnapshot.val();
-            console.log('📦 config:', Object.keys(configData));
-            
-            if (configData.shop) {
-                console.log('📦 config.shop:', Object.keys(configData.shop));
-                if (configData.shop.items) {
-                    console.log('📦 config.shop.items:', Object.keys(configData.shop.items));
-                    console.log('📦 Количество товаров:', Object.keys(configData.shop.items).length);
-                }
-            }
-        }
-    } catch(e) {
-        console.error('❌ Ошибка чтения config:', e);
-    }
-    
-    console.log('🧪 ===== ТЕСТ ЗАВЕРШЕН =====');
-}
-
-// ============================================================
-// 2.34. ЭКСПОРТ ВСЕХ ФУНКЦИЙ
-// ============================================================
-window.checkShopDataStructure = checkShopDataStructure;
-window.reloadShopItems = reloadShopItems;
-window.syncTattoos = syncTattoos;
-window.checkPlayerTattoos = checkPlayerTattoos;
-window.forceUpdateTattoos = forceUpdateTattoos;
-window.loadTattoosOnStart = loadTattoosOnStart;
-window.addTestItemToDB = addTestItemToDB;
-window.testDBConnection = testDBConnection;
-
-console.log('✅ Все дополнительные функции магазина загружены');
+console.log('✅ Блок МАГАЗИН полностью загружен с автономными счетчиками на карте!');
+console.log('🎯 Счетчики МАГАЗИНА работают полностью автономно на building b4!');
 
         // ============================================================
         // 3. ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ и ФУНКЦИИ ФОРМАТИРОВАНИЯ ВРЕМЕНИ
@@ -4309,7 +4365,9 @@ function formatCooldownTime(ms) {
             // ЗАПУСКАЕМ ИНТЕРВАЛ - ОБНОВЛЯЕМ КАЖДУЮ СЕКУНДУ!
             window.workCountersInterval = setInterval(function() {
             updateAllCountersAuto();
+            updateShopCountersOnMap();
             }, 1000);
+            
             
             showToast('🎮 Добро пожаловать, ' + window.currentPlayer.username + '!', 'success');
             console.log('✅ Игра запущена успешно!');
@@ -4377,9 +4435,9 @@ function formatCooldownTime(ms) {
                         <button class="nav-btn active" onclick="switchBottomTab('city')">
                             <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_1.png" alt="Город" draggable="false">
                         </button>
-                        <button class="nav-btn" onclick="showToast('💰 Общак в разработке', 'warning')">
+                        <!--<button class="nav-btn" onclick="showToast('💰 Общак в разработке', 'warning')">
                             <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_3.png" alt="Общак" draggable="false">
-                        </button>
+                        </button>-->
                         <button class="nav-btn" onclick="openClanFullModal()">
                             <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_2.png" alt="Клан" draggable="false">
                         </button>
@@ -6646,7 +6704,7 @@ window.openSettingsModal = function() {
                     <div style="font-size: 36px; margin-bottom: 10px;">⚙️</div>
                     <div style="font-size: 16px; font-weight: 700; color: #ffd966;">${escapeHtml(window.currentPlayer.username)}</div>
                     <div style="font-size: 12px; color: #888; margin-top: 4px;">🆔 ${window.playerId}</div>
-                    <div style="font-size: 11px; color: #666; margin-top: 8px;">Версия - 1.0.1.030</div>
+                    <div style="font-size: 11px; color: #666; margin-top: 8px;">Версия - 1.0.1.035</div>
                 </div>
             
             <!-- НИЖНЯЯ ПАНЕЛЬ НАВИГАЦИИ -->
@@ -10612,7 +10670,7 @@ window.initQuestsFull = initQuestsFull;
 console.log('✅ Блок ЗАДАНИЯ полностью загружен');
 
 // ============================================================
-// 19. СИЗО (БАНДА) - ИСПРАВЛЕННАЯ ВЕРСИЯ
+// 19. СИЗО (БАНДА) - ПОЛНАЯ ВЕРСИЯ С АВТОНОМНЫМИ СЧЕТЧИКАМИ
 // ============================================================
 
 // ============================================================
@@ -10638,7 +10696,38 @@ if (typeof window.gangTimerFlags === 'undefined') {
     };
 }
 
-console.log('✅ Переменные СИЗО инициализированы');
+// ============================================================
+// 19.0.1. ПЕРЕМЕННЫЕ ДЛЯ СЧЕТЧИКОВ НА КАРТЕ (СИЗО)
+// ============================================================
+if (typeof window.gangCounterElements === 'undefined') {
+    window.gangCounterElements = {};
+}
+if (typeof window.gangCountersContainer === 'undefined') {
+    window.gangCountersContainer = null;
+}
+if (typeof window.gangCountersInterval === 'undefined') {
+    window.gangCountersInterval = null;
+}
+if (typeof window.gangIsCounterUpdating === 'undefined') {
+    window.gangIsCounterUpdating = false;
+}
+if (typeof window.gangLastCounterUpdate === 'undefined') {
+    window.gangLastCounterUpdate = 0;
+}
+
+// Список всех процессов СИЗО для отслеживания
+if (typeof window.GANG_PROCESS_TYPES === 'undefined') {
+    window.GANG_PROCESS_TYPES = [
+        { id: 'gang-blats-recruit', type: 'blats', subtype: 'recruit', icon: '👑', label: 'БЛАТНЫЕ НАЙМ', isWork: true },
+        { id: 'gang-muzhiks-recruit', type: 'muzhiks', subtype: 'recruit', icon: '🔨', label: 'МУЖИКИ НАЙМ', isWork: true },
+        { id: 'gang-fraers-recruit', type: 'fraers', subtype: 'recruit', icon: '🐑', label: 'ФРАЕРА НАЙМ', isWork: true },
+        { id: 'gang-blats-upgrade', type: 'blats', subtype: 'upgrade', icon: '👑', label: 'БЛАТНЫЕ ⬆', isWork: false },
+        { id: 'gang-muzhiks-upgrade', type: 'muzhiks', subtype: 'upgrade', icon: '🔨', label: 'МУЖИКИ ⬆', isWork: false },
+        { id: 'gang-fraers-upgrade', type: 'fraers', subtype: 'upgrade', icon: '🐑', label: 'ФРАЕРА ⬆', isWork: false }
+    ];
+}
+
+console.log('✅ СИЗО: переменные инициализированы');
 
 // ============================================================
 // 19.1. ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
@@ -10654,10 +10743,6 @@ if (typeof updateTopBarResources === 'undefined') {
 
 if (typeof updateBattleCountersOnMap === 'undefined') {
     window.updateBattleCountersOnMap = function() {};
-}
-
-if (typeof updateWorkCountersOnMap === 'undefined') {
-    window.updateWorkCountersOnMap = function() {};
 }
 
 // ============================================================
@@ -10801,6 +10886,9 @@ async function checkAndCompleteUpgrade(gangType) {
             }
             window.gangTimerFlags.upgrade[gangType] = false;
             
+            // ✅ ОБНОВЛЯЕМ СЧЕТЧИКИ НА КАРТЕ
+            updateGangCountersOnMap();
+            
             updateTopBarResources();
             updateGangButtonBadge();
             updateGangModalUI();
@@ -10845,9 +10933,8 @@ async function checkAndCompleteRecruit(gangType) {
             window.currentPlayer.authority = (window.currentPlayer.authority || 0) + authorityGain;
             window.currentPlayer.cigarettes = (window.currentPlayer.cigarettes || 0) + cigarettesGain;
             
-            // ✅ ИСПРАВЛЕНО: НЕ обновляем lastGatherTime, просто сбрасываем pendingGain
+            // Сбрасываем pendingGain
             gangTypeData.pendingGain = 0;
-            // lastGatherTime остается как был, но без pendingGain таймер не запустится снова
             
             var typeName = gangType === 'blats' ? 'Блатные' : (gangType === 'muzhiks' ? 'Мужики' : 'Фраера');
             
@@ -10867,6 +10954,9 @@ async function checkAndCompleteRecruit(gangType) {
                 delete window.gangRecruitTimers[gangType];
             }
             window.gangTimerFlags.recruit[gangType] = false;
+            
+            // ✅ ОБНОВЛЯЕМ СЧЕТЧИКИ НА КАРТЕ
+            updateGangCountersOnMap();
             
             updateTopBarResources();
             updateGangButtonBadge();
@@ -10916,7 +11006,6 @@ window.collectGangIncome = async function(type) {
         return;
     }
     
-    // ✅ ИСПРАВЛЕНО: проверяем только если есть pendingGain
     if (gang[type].pendingGain > 0) {
         var remaining = getRecruitRemaining(type);
         if (remaining > 0) {
@@ -10972,6 +11061,9 @@ window.collectGangIncome = async function(type) {
         // УСТАНАВЛИВАЕМ ФЛАГ, ЧТО ТАЙМЕР ЗАПУЩЕН
         window.gangTimerFlags.recruit[type] = true;
         
+        // ✅ ОБНОВЛЯЕМ СЧЕТЧИКИ НА КАРТЕ (СРАЗУ ПОЯВЛЯЮТСЯ)
+        updateGangCountersOnMap();
+        
         // СРАЗУ ОБНОВЛЯЕМ UI - БЛОКИРУЕМ КНОПКИ
         updateTopBarResources();
         updateGangButtonBadge();
@@ -10986,6 +11078,7 @@ window.collectGangIncome = async function(type) {
         console.error('Ошибка найма:', e);
     }
 };
+
 // ============================================================
 // 19.6. ПРОКАЧКА БАНДЫ
 // ============================================================
@@ -11079,6 +11172,9 @@ window.upgradeGangCaste = async function(type) {
         // УСТАНАВЛИВАЕМ ФЛАГ, ЧТО ТАЙМЕР ЗАПУЩЕН
         window.gangTimerFlags.upgrade[type] = true;
         
+        // ✅ ОБНОВЛЯЕМ СЧЕТЧИКИ НА КАРТЕ (СРАЗУ ПОЯВЛЯЮТСЯ)
+        updateGangCountersOnMap();
+        
         // СРАЗУ ОБНОВЛЯЕМ UI - БЛОКИРУЕМ КНОПКИ
         updateTopBarResources();
         updateGangButtonBadge();
@@ -11095,10 +11191,9 @@ window.upgradeGangCaste = async function(type) {
 };
 
 // ============================================================
-// 19.7. ТАЙМЕРЫ ДЛЯ ОНЛАЙН ОБНОВЛЕНИЯ (ТОЛЬКО ОДИН ТАЙМЕР НА ТИП)
+// 19.7. ТАЙМЕРЫ ДЛЯ ОНЛАЙН ОБНОВЛЕНИЯ
 // ============================================================
 function startRecruitTimer(type) {
-    // Если таймер уже существует - не создаем новый
     if (window.gangRecruitTimers[type]) {
         console.log('⚠️ Таймер найма для ' + type + ' уже существует');
         return;
@@ -11107,10 +11202,8 @@ function startRecruitTimer(type) {
     console.log('🔄 Запуск таймера найма для ' + type);
     
     window.gangRecruitTimers[type] = setInterval(async function() {
-        // Проверяем завершение найма
         var completed = await checkAndCompleteRecruit(type);
         if (completed) {
-            // Если найм завершен - останавливаем таймер
             if (window.gangRecruitTimers[type]) {
                 clearInterval(window.gangRecruitTimers[type]);
                 delete window.gangRecruitTimers[type];
@@ -11118,10 +11211,8 @@ function startRecruitTimer(type) {
             window.gangTimerFlags.recruit[type] = false;
             console.log('✅ Таймер найма для ' + type + ' остановлен (завершен)');
         } else {
-            // Проверяем, не нужно ли остановить таймер если pendingGain = 0
             var gang = window.currentPlayer.gang;
             if (gang && gang[type] && gang[type].pendingGain === 0) {
-                // Если pendingGain = 0, значит найм уже завершен или не запущен
                 if (window.gangRecruitTimers[type]) {
                     clearInterval(window.gangRecruitTimers[type]);
                     delete window.gangRecruitTimers[type];
@@ -11130,14 +11221,13 @@ function startRecruitTimer(type) {
                 console.log('✅ Таймер найма для ' + type + ' остановлен (pendingGain = 0)');
             }
         }
-        // Обновляем UI
         updateGangModalUI();
         updateGangButtonBadge();
+        updateGangCountersOnMap();
     }, 1000);
 }
 
 function startUpgradeTimer(type) {
-    // Если таймер уже существует - не создаем новый
     if (window.gangUpgradeTimers[type]) {
         console.log('⚠️ Таймер прокачки для ' + type + ' уже существует');
         return;
@@ -11146,10 +11236,8 @@ function startUpgradeTimer(type) {
     console.log('🔄 Запуск таймера прокачки для ' + type);
     
     window.gangUpgradeTimers[type] = setInterval(async function() {
-        // Проверяем завершение прокачки
         var completed = await checkAndCompleteUpgrade(type);
         if (completed) {
-            // Если прокачка завершена - останавливаем таймер
             if (window.gangUpgradeTimers[type]) {
                 clearInterval(window.gangUpgradeTimers[type]);
                 delete window.gangUpgradeTimers[type];
@@ -11157,9 +11245,9 @@ function startUpgradeTimer(type) {
             window.gangTimerFlags.upgrade[type] = false;
             console.log('✅ Таймер прокачки для ' + type + ' остановлен (завершен)');
         }
-        // Обновляем UI
         updateGangModalUI();
         updateGangButtonBadge();
+        updateGangCountersOnMap();
     }, 1000);
 }
 
@@ -11222,7 +11310,7 @@ function updateGangModalUI() {
             upgradeTimerEl.textContent = formatTimerMinutes(getUpgradeRemaining(type));
         }
         
-        // ✅ КНОПКА НАЙМА - ПРАВИЛЬНАЯ БЛОКИРОВКА
+        // ✅ КНОПКА НАЙМА
         var collectBtn = document.getElementById('collect' + type.charAt(0).toUpperCase() + type.slice(1) + 'Btn');
         if (collectBtn) {
             if (upgradeActive) {
@@ -11296,7 +11384,7 @@ function updateGangModalUI() {
             }
         }
         
-        // ✅ КНОПКА ПРОКАЧКИ - ПРАВИЛЬНАЯ БЛОКИРОВКА
+        // ✅ КНОПКА ПРОКАЧКИ
         var upgradeBtn = document.getElementById('upgrade' + type.charAt(0).toUpperCase() + type.slice(1) + 'Btn');
         if (upgradeBtn) {
             if (upgradeActive) {
@@ -11566,6 +11654,7 @@ window.openGangModal = function() {
     setTimeout(function() {
         updateGangModalUI();
         updateGangButtonBadge();
+        updateGangCountersOnMap();
     }, 100);
     
     setTimeout(function() { 
@@ -11753,9 +11842,6 @@ window.closeGangModal = function() {
         window.gangTimers.interval = null;
     }
     
-    // НЕ ОСТАНАВЛИВАЕМ ТАЙМЕРЫ ПРИ ЗАКРЫТИИ ОКНА!
-    // Они должны продолжать работать в фоне
-    
     if (window.tg) window.tg.BackButton.hide();
     
     document.body.style.overflow = '';
@@ -11765,6 +11851,7 @@ window.closeGangModal = function() {
     
     updateTopBarResources();
     updateGangButtonBadge();
+    updateGangCountersOnMap();
 };
 
 // ============================================================
@@ -11778,12 +11865,13 @@ function startGangMainTimer() {
     window.gangTimers.interval = setInterval(function() {
         var modal = document.getElementById('gangFullscreen');
         if (!modal) {
-            // Если окно закрыто - просто обновляем бейдж
             updateGangButtonBadge();
+            updateGangCountersOnMap();
             return;
         }
         updateGangModalUI();
         updateGangButtonBadge();
+        updateGangCountersOnMap();
     }, 1000);
 }
 
@@ -11863,10 +11951,368 @@ function updateGangButtonBadge() {
 }
 
 // ============================================================
-// 19.16. ИНИЦИАЛИЗАЦИЯ
+// 19.16. СЧЕТЧИКИ НА КАРТЕ ДЛЯ СИЗО (building b7)
+// ============================================================
+
+// Инициализация контейнера для счетчиков СИЗО
+function initializeGangCounterContainer() {
+    try {
+        var b7Element = document.querySelector('.building.b7');
+        if (!b7Element) {
+            setTimeout(function() {
+                initializeGangCounterContainer();
+            }, 1000);
+            return false;
+        }
+        
+        // Убеждаемся, что b7 имеет position: relative
+        if (getComputedStyle(b7Element).position === 'static') {
+            b7Element.style.position = 'relative';
+        }
+        
+        window.gangCountersContainer = b7Element.querySelector('.gang-counters-container');
+        
+        if (!window.gangCountersContainer) {
+            window.gangCountersContainer = document.createElement('div');
+            window.gangCountersContainer.className = 'gang-counters-container';
+            window.gangCountersContainer.style.cssText = `
+                position: absolute;
+                bottom: 8px;
+                left: 50%;
+                transform: translateX(-50%);
+                width: 92%;
+                z-index: 10;
+                display: none;
+                flex-direction: column;
+                gap: 3px;
+                pointer-events: none;
+            `;
+            b7Element.appendChild(window.gangCountersContainer);
+            console.log('✅ Создан контейнер для счетчиков СИЗО');
+        }
+        
+        return true;
+    } catch (e) {
+        console.warn('⚠️ Ошибка инициализации контейнера СИЗО:', e);
+        return false;
+    }
+}
+
+// Получение оставшегося времени для процесса СИЗО (автономная версия)
+function getGangProcessRemainingAuto(processType, processSubtype, playerData) {
+    if (!playerData) return 0;
+    
+    var gang = playerData.gang || {};
+    var now = Date.now();
+    
+    if (processSubtype === 'recruit') {
+        var gangType = gang[processType] || {};
+        var lastGatherTime = gangType.lastGatherTime || 0;
+        if (lastGatherTime === 0) return 0;
+        var level = gangType.level || 1;
+        var cooldownMs = 2 * 60 * 1000;
+        cooldownMs = Math.floor(cooldownMs * (1 + (level - 1) * 0.05));
+        return Math.max(0, cooldownMs - (now - lastGatherTime));
+    } else if (processSubtype === 'upgrade') {
+        var gangType = gang[processType] || {};
+        var start = gangType.upgradeStartTime || 0;
+        var duration = gangType.upgradeDuration || 0;
+        if (start === 0 || duration === 0) return 0;
+        return Math.max(0, duration - (now - start));
+    }
+    return 0;
+}
+
+// Форматирование времени для счетчиков СИЗО
+function formatGangMapTimer(ms) {
+    if (ms <= 0) return '0с';
+    var totalSeconds = Math.floor(ms / 1000);
+    var minutes = Math.floor(totalSeconds / 60);
+    var seconds = totalSeconds % 60;
+    if (minutes > 0) {
+        return minutes + 'м ' + String(seconds).padStart(2, '0') + 'с';
+    }
+    return seconds + 'с';
+}
+
+// Удаление счетчика СИЗО
+function removeGangCounterAuto(counterId) {
+    try {
+        var element = window.gangCounterElements[counterId];
+        if (element && element.parentNode) {
+            element.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+            element.style.opacity = '0';
+            element.style.transform = 'scale(0.9)';
+            
+            setTimeout(function() {
+                if (element && element.parentNode) {
+                    element.remove();
+                }
+            }, 350);
+        }
+        delete window.gangCounterElements[counterId];
+    } catch (e) {
+        console.warn('⚠️ Ошибка удаления счетчика СИЗО:', e);
+    }
+}
+
+// Создание счетчика СИЗО
+function createGangCounterAuto(process) {
+    if (!window.gangCountersContainer) {
+        initializeGangCounterContainer();
+        if (!window.gangCountersContainer) return;
+    }
+    
+    var counterId = process.id;
+    if (window.gangCounterElements[counterId]) return;
+    
+    var counterDiv = document.createElement('div');
+    counterDiv.className = 'gang-counter-item';
+    counterDiv.id = 'gang-counter-' + counterId;
+    counterDiv.dataset.type = process.type;
+    counterDiv.dataset.subtype = process.subtype;
+    counterDiv.dataset.counterId = counterId;
+    
+    var borderColor = process.isWork ? '#4CAF50' : '#FF9800';
+    var timeColor = process.isWork ? '#66BB6A' : '#FFA726';
+    var labelColor = process.isWork ? '#81C784' : '#FFB74D';
+    
+    counterDiv.style.cssText = `
+        background: rgba(0, 0, 0, 0.85);
+        border: 1px solid rgba(0, 0, 0, 0.9);
+        border-left: 3px solid ${borderColor};
+        border-radius: 6px;
+        padding: 4px 10px;
+        font-size: 10px;
+        font-weight: 600;
+        color: #ffffff;
+        text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+        font-family: 'Courier New', monospace;
+        pointer-events: auto;
+        min-height: 22px;
+        animation: counterSlideIn 0.3s ease forwards;
+        transition: opacity 0.3s ease, transform 0.3s ease;
+        opacity: 1;
+    `;
+    
+    var iconSpan = document.createElement('span');
+    iconSpan.className = 'counter-icon';
+    iconSpan.textContent = process.icon;
+    iconSpan.style.cssText = 'font-size: 12px; line-height: 1; flex-shrink: 0;';
+    
+    var labelSpan = document.createElement('span');
+    labelSpan.className = 'counter-label';
+    labelSpan.textContent = process.label;
+    labelSpan.style.cssText = `
+        opacity: 0.7;
+        font-size: 8px;
+        font-weight: 400;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-family: Arial, sans-serif;
+        color: ${labelColor};
+        flex-shrink: 0;
+    `;
+    
+    var timeSpan = document.createElement('span');
+    timeSpan.className = 'counter-time';
+    timeSpan.textContent = formatGangMapTimer(process.remaining);
+    timeSpan.style.cssText = `
+        font-weight: 700;
+        font-size: 11px;
+        min-width: 45px;
+        text-align: center;
+        font-family: 'Courier New', monospace;
+        color: ${timeColor};
+        animation: counterPulse 2s ease-in-out infinite;
+    `;
+    
+    counterDiv.appendChild(iconSpan);
+    counterDiv.appendChild(labelSpan);
+    counterDiv.appendChild(timeSpan);
+    
+    window.gangCountersContainer.appendChild(counterDiv);
+    window.gangCounterElements[counterId] = counterDiv;
+    
+    console.log('✅ Создан счетчик СИЗО:', counterId);
+}
+
+// Обновление времени счетчика СИЗО
+function updateGangCounterTimeAuto(counterId, remaining) {
+    var element = window.gangCounterElements[counterId];
+    if (!element) return;
+    
+    var timeSpan = element.querySelector('.counter-time');
+    if (timeSpan) {
+        var newTime = formatGangMapTimer(remaining);
+        if (timeSpan.textContent !== newTime) {
+            timeSpan.textContent = newTime;
+        }
+    }
+}
+
+// Главная функция обновления всех счетчиков СИЗО (полностью автономная)
+function updateAllGangCountersAuto() {
+    // Защита от множественных одновременных обновлений
+    if (window.gangIsCounterUpdating) return;
+    window.gangIsCounterUpdating = true;
+    
+    try {
+        // Получаем данные игрока из кэша или currentPlayer
+        var playerData = window.cachedPlayerData || window.currentPlayer;
+        
+        // Если нет данных, пробуем получить из Firebase
+        if (!playerData) {
+            if (typeof fetchPlayerDataFromFirebase === 'function') {
+                fetchPlayerDataFromFirebase().then(function(data) {
+                    window.gangIsCounterUpdating = false;
+                    if (data) {
+                        window.cachedPlayerData = data;
+                        updateAllGangCountersAuto();
+                    } else {
+                        if (window.gangCountersContainer) {
+                            window.gangCountersContainer.style.display = 'none';
+                        }
+                    }
+                });
+            } else {
+                if (window.gangCountersContainer) {
+                    window.gangCountersContainer.style.display = 'none';
+                }
+                window.gangIsCounterUpdating = false;
+            }
+            return;
+        }
+        
+        // Инициализируем контейнер
+        if (!window.gangCountersContainer || !window.gangCountersContainer.parentNode) {
+            initializeGangCounterContainer();
+            if (!window.gangCountersContainer) {
+                window.gangIsCounterUpdating = false;
+                return;
+            }
+        }
+        
+        // Проверяем все возможные процессы
+        var activeProcesses = [];
+        for (var i = 0; i < window.GANG_PROCESS_TYPES.length; i++) {
+            var process = window.GANG_PROCESS_TYPES[i];
+            var remaining = getGangProcessRemainingAuto(process.type, process.subtype, playerData);
+            if (remaining > 0) {
+                activeProcesses.push({
+                    id: process.id,
+                    type: process.type,
+                    subtype: process.subtype,
+                    icon: process.icon,
+                    label: process.label,
+                    remaining: remaining,
+                    isWork: process.isWork
+                });
+            }
+        }
+        
+        // Получаем текущие ID счетчиков
+        var currentIds = Object.keys(window.gangCounterElements);
+        var activeIds = {};
+        for (var j = 0; j < activeProcesses.length; j++) {
+            activeIds[activeProcesses[j].id] = true;
+        }
+        
+        // Удаляем счетчики, которых больше нет
+        for (var k = 0; k < currentIds.length; k++) {
+            var id = currentIds[k];
+            if (!activeIds[id]) {
+                removeGangCounterAuto(id);
+            }
+        }
+        
+        // Добавляем новые счетчики и обновляем существующие
+        for (var m = 0; m < activeProcesses.length; m++) {
+            var process = activeProcesses[m];
+            var counterId = process.id;
+            
+            if (window.gangCounterElements[counterId]) {
+                updateGangCounterTimeAuto(counterId, process.remaining);
+            } else {
+                createGangCounterAuto(process);
+            }
+        }
+        
+        // Обновляем видимость контейнера
+        var hasCounters = Object.keys(window.gangCounterElements).length > 0;
+        if (window.gangCountersContainer) {
+            window.gangCountersContainer.style.display = hasCounters ? 'flex' : 'none';
+        }
+        
+        // Обновляем время последнего обновления
+        window.gangLastCounterUpdate = Date.now();
+        
+    } catch (e) {
+        // console.warn('⚠️ Ошибка обновления счетчиков СИЗО:', e);
+    } finally {
+        window.gangIsCounterUpdating = false;
+    }
+}
+
+// Функция для обновления счетчиков СИЗО на карте
+function updateGangCountersOnMap() {
+    // Просто вызываем обновление
+    setTimeout(function() {
+        updateAllGangCountersAuto();
+    }, 50);
+}
+
+// Запуск автономных счетчиков СИЗО
+function startGangCountersOnMap() {
+    // Очищаем старый интервал
+    if (window.gangCountersInterval) {
+        clearInterval(window.gangCountersInterval);
+        window.gangCountersInterval = null;
+    }
+    
+    // Создаем контейнер
+    initializeGangCounterContainer();
+    
+    // ЗАПУСКАЕМ ИНТЕРВАЛ - ОБНОВЛЯЕМ КАЖДУЮ СЕКУНДУ!
+    window.gangCountersInterval = setInterval(function() {
+        updateAllGangCountersAuto();
+    }, 1000);
+    
+    // Первый запуск сразу
+    setTimeout(function() {
+        updateAllGangCountersAuto();
+    }, 100);
+    
+    console.log('✅ Счетчики СИЗО запущены (полностью автономный режим)');
+}
+
+// Остановка счетчиков СИЗО
+function stopGangCountersOnMap() {
+    if (window.gangCountersInterval) {
+        clearInterval(window.gangCountersInterval);
+        window.gangCountersInterval = null;
+    }
+    
+    // Очищаем все счетчики
+    for (var id in window.gangCounterElements) {
+        removeGangCounterAuto(id);
+    }
+    
+    console.log('🛑 Счетчики СИЗО остановлены');
+}
+
+// ============================================================
+// 19.17. ИНИЦИАЛИЗАЦИЯ
 // ============================================================
 function initGangSystem() {
-    console.log('🔄 Инициализация системы банды...');
+    console.log('🔄 Инициализация системы СИЗО...');
     if (!window.currentPlayer) {
         console.log('❌ Нет игрока');
         return;
@@ -11889,6 +12335,9 @@ function initGangSystem() {
         checkAndCompleteUpgrade('blats');
         checkAndCompleteUpgrade('muzhiks');
         checkAndCompleteUpgrade('fraers');
+        
+        // Запускаем счетчики на карте
+        startGangCountersOnMap();
     }, 1000);
     
     // Запускаем периодическую проверку в фоне
@@ -11912,9 +12361,11 @@ function initGangSystem() {
         checkAndCompleteUpgrade('fraers');
         updateGangButtonBadge();
         updateGangStatusInTopBar();
+        updateGangCountersOnMap();
     }, 5000);
     
-    console.log('✅ Система банды инициализирована');
+    console.log('✅ Система СИЗО инициализирована');
+    console.log('✅ Счетчики на карте запущены');
 }
 
 function stopGangSystem() {
@@ -11935,11 +12386,13 @@ function stopGangSystem() {
         clearInterval(window.gangUpgradeTimers[key]);
         delete window.gangUpgradeTimers[key];
     }
-    console.log('🛑 Система банды остановлена');
+    // Останавливаем счетчики на карте
+    stopGangCountersOnMap();
+    console.log('🛑 Система СИЗО остановлена');
 }
 
 // ============================================================
-// 19.17. ЭКСПОРТ
+// 19.18. ЭКСПОРТ ФУНКЦИЙ
 // ============================================================
 window.getRecruitGain = getRecruitGain;
 window.getUpgradeCost = getUpgradeCost;
@@ -11957,7 +12410,22 @@ window.updateGangButtonBadge = updateGangButtonBadge;
 window.initGangSystem = initGangSystem;
 window.stopGangSystem = stopGangSystem;
 
-console.log('✅ Блок СИЗО полностью исправлен');
+// Экспорт функций счетчиков
+window.initializeGangCounterContainer = initializeGangCounterContainer;
+window.getGangProcessRemainingAuto = getGangProcessRemainingAuto;
+window.formatGangMapTimer = formatGangMapTimer;
+window.removeGangCounterAuto = removeGangCounterAuto;
+window.createGangCounterAuto = createGangCounterAuto;
+window.updateGangCounterTimeAuto = updateGangCounterTimeAuto;
+window.updateAllGangCountersAuto = updateAllGangCountersAuto;
+window.updateGangCountersOnMap = updateGangCountersOnMap;
+window.startGangCountersOnMap = startGangCountersOnMap;
+window.stopGangCountersOnMap = stopGangCountersOnMap;
+window.GANG_PROCESS_TYPES = window.GANG_PROCESS_TYPES;
+window.gangCounterElements = window.gangCounterElements;
+
+console.log('✅ Блок СИЗО полностью загружен с автономными счетчиками на карте!');
+console.log('🎯 Счетчики СИЗО работают полностью автономно на building b7!');
 
 // ============================================================
 // 20. КЛАН - ПОЛНАЯ РАБОЧАЯ ВЕРСИЯ (С ИСПРАВЛЕНИЕМ DB)
