@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>GameZona - 1.0.1.026</title>
+    <title>GameZona - 1.0.1.027</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -440,15 +440,16 @@
         }
 
         .nav-btn img {
-            width: 44px;
+            width: 52px;
             height: auto;
             object-fit: contain;
             display: block;
+            -webkit-touch-callout: none;
             -webkit-user-select: none;
             user-select: none;
-            pointer-events: none;
-            -webkit-user-drag: none;
-            user-drag: none;
+            pointer-events: auto;
+            transition: opacity 0.3s ease;
+            opacity: 1;
         }
 
         .nav-btn.active {
@@ -905,6 +906,17 @@
         /* ============================================================
            АДАПТИВ ДЛЯ TELEGRAM WEBAPP
            ============================================================ */
+        @media (max-width: 768px) {
+            .bottom-nav {
+                gap: 8px;
+        }
+
+            .nav-btn img {
+                width: 52px;  /* ← изменить на 52px */
+        }
+        /* ... остальной код ... */
+        }
+
         @media (max-width: 480px) {
             body {
                 padding-top: 100px;
@@ -1017,6 +1029,280 @@
         .tg-header-hidden {
             margin-top: -env(safe-area-inset-top);
         }
+
+        
+        /* ========== ТЮРЕМНЫЙ СТИЛЬ ДЛЯ РАБОТЫ ========== */
+        .mine-fullscreen {
+            background: linear-gradient(135deg, #0a0a0f 0%, #14141f 100%);
+        }
+
+        .mine-header-bar {
+            background: linear-gradient(135deg, #1a1a2a 0%, #0d0d15 100%);
+            border-bottom: 2px solid #8B4513;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+            position: relative;
+        }
+
+        .mine-header-title {
+            font-size: 20px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #c9a03d, #8B6914);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+            letter-spacing: 2px;
+        }
+
+        /* Вкладки внутри работы */
+        .mine-sub-tab-header {
+            background: rgba(10, 14, 26, 0.95);
+            border-bottom: 1px solid #8B4513;
+            display: flex;
+            margin: 0 0 15px 0;
+            padding: 0;
+        }
+
+        .mine-sub-tab-btn {
+            flex: 1;
+            background: transparent;
+            border: none;
+            padding: 12px 0;
+            color: #8e8ea0;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .mine-sub-tab-btn.active {
+            color: #c9a03d;
+            background: rgba(139, 69, 19, 0.2);
+        }
+
+        .mine-sub-tab-btn.active::after {
+            content: "";
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #8B4513, #c9a03d, #8B4513);
+        }
+
+        /* Карточка работы */
+        .mine-card {
+            background: rgba(20, 20, 30, 0.9);
+            backdrop-filter: blur(10px);
+            border: 1px solid #8B4513;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 16px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .mine-card::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #8B4513, #c9a03d, #8B4513);
+        }
+
+        /* Ресурсы в карточке */
+        .mine-resources {
+            display: flex;
+            justify-content: space-around;
+            margin: 15px 0;
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 16px;
+        }
+
+        .mine-resource-item {
+            text-align: center;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .mine-resource-value {
+            font-size: 18px;
+            font-weight: 800;
+            color: #ffd966;
+        }
+
+        /* Таймеры */
+        .mine-timer {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 8px 12px;
+            border-radius: 40px;
+            margin: 10px 0;
+            font-size: 12px;
+            color: #ffd966;
+            font-family: monospace;
+        }
+
+        /* Кнопки действий */
+        .mine-action-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin: 16px 0;
+        }
+
+        .mine-work-btn {
+            background: linear-gradient(135deg, #8B4513, #5a2d0a);
+            border: 1px solid #c9a03d;
+            border-radius: 40px;
+            padding: 12px;
+            font-weight: 700;
+            color: #ffd966;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .mine-work-btn:active {
+            transform: scale(0.96);
+        }
+
+        .mine-work-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .mine-exchange-btn {
+            background: rgba(30, 36, 64, 0.8);
+            border: 1px solid #8B4513;
+            border-radius: 40px;
+            padding: 12px;
+            font-weight: 700;
+            color: #c9a03d;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .mine-exchange-btn:active {
+            transform: scale(0.96);
+            background: rgba(139, 69, 19, 0.3);
+        }
+
+        /* Информация о прокачке */
+        .mine-upgrade-info {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 16px;
+            padding: 12px;
+            margin: 15px 0;
+        }
+
+        .mine-upgrade-cost {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(139, 69, 19, 0.2);
+        }
+
+        .mine-upgrade-cost:last-child {
+            border-bottom: none;
+        }
+
+        /* Прогресс-бар прокачки */
+        .mine-upgrade-progress {
+            margin: 10px 0;
+        }
+
+        .mine-progress-label {
+            font-size: 11px;
+            color: #c9a03d;
+            margin-bottom: 5px;
+        }
+
+        .mine-progress-bar {
+            background: #1e2440;
+            height: 6px;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .mine-progress-fill {
+            background: linear-gradient(90deg, #8B4513, #c9a03d);
+            height: 100%;
+            border-radius: 10px;
+        }
+
+        /* Нижняя панель навигации */
+        .mine-bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(10, 14, 26, 0.95);
+            backdrop-filter: blur(20px);
+            border-top: 1px solid #8B4513;
+            padding: 8px 2px;
+            padding-bottom: max(8px, env(safe-area-inset-bottom));
+            z-index: 10001;
+        }
+
+        .mine-bottom-nav .bottom-nav {
+            max-width: 550px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            gap: 8px;
+        }
+
+        .mine-tab-btn {
+            background: transparent;
+            border: none;
+            border-radius: 8px;
+            padding: 1px 1px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: #8e8ea0;
+            font-size: 11px;
+            font-weight: 500;
+            min-width: auto;
+        }
+
+        .mine-tab-btn.active {
+            background: linear-gradient(135deg, rgba(233, 69, 96, 0.25), rgba(199, 62, 84, 0.2));
+            color: #fff;
+            border: 1px solid rgba(233, 69, 96, 0.5);
+        }
+
+        .mine-tab-btn.active span:first-child {
+            transform: scale(1.1);
+            text-shadow: 0 0 8px rgba(233, 69, 96, 0.8);
+        }
+
+        /* Скролл */
+        .mine-content-area::-webkit-scrollbar {
+            width: 5px;
+        }
+
+        .mine-content-area::-webkit-scrollbar-track {
+            background: #1a1a2a;
+            border-radius: 10px;
+        }
+
+        .mine-content-area::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #8B4513, #c9a03d);
+            border-radius: 10px;
+        }
+        .mine-exchange-btn2 {
+            font-size: 9px;
+        }
+        
     </style>
 </head>
 <body oncontextmenu="return false;" ondragstart="return false;" onselectstart="return false;" ontouchstart="return true;">
@@ -3869,7 +4155,7 @@ function formatCooldownTime(ms) {
                     <div class="map-wrapper">
                         <img class="map-image" src="https://sviter-pro.github.io/GameZone/src/test/123.png" alt="Карта зоны" draggable="false">
                         <div class="building b1" onclick="openInventoryModal()"><div class="building-label">Камера</div></div>
-                        <div class="building b2" onclick="showToast('⛏️ Работа в разработке', 'warning')"><div class="building-label">Работа</div></div>
+                        <div class="building b2" onclick="openMineModal()"><div class="building-label">Работа</div></div>
                         <div class="building b3" onclick="showToast('🎴 Игровая в разработке', 'warning')"><div class="building-label">Игровая</div></div>
                         <div class="building b4" onclick="openShopModal()"><div class="building-label">Магазин</div></div>
                         <div class="building b5" onclick="showToast('🏥 Больница в разработке', 'warning')"><div class="building-label">Больница</div></div>
@@ -6152,7 +6438,7 @@ window.openSettingsModal = function() {
                     <div style="font-size: 36px; margin-bottom: 10px;">⚙️</div>
                     <div style="font-size: 16px; font-weight: 700; color: #ffd966;">${escapeHtml(window.currentPlayer.username)}</div>
                     <div style="font-size: 12px; color: #888; margin-top: 4px;">🆔 ${window.playerId}</div>
-                    <div style="font-size: 11px; color: #666; margin-top: 8px;">Версия - 1.0.1.026</div>
+                    <div style="font-size: 11px; color: #666; margin-top: 8px;">Версия - 1.0.1.027</div>
                 </div>
             
             <!-- НИЖНЯЯ ПАНЕЛЬ НАВИГАЦИИ -->
@@ -8744,24 +9030,30 @@ function updateQuestsBadge() {
         var badge = document.createElement('span');
         badge.className = 'badge-count';
         badge.textContent = window.questNotificationCount;
+        
+        // ✅✅✅ КРАСНЫЙ КРУЖОК С ЦИФРОЙ (КАК В СИСТЕМЕ ОПОВЕЩЕНИЙ)
         badge.style.cssText = `
             position: absolute;
-            top: -4px;
-            right: -4px;
+            top: -6px;
+            right: -6px;
             background: #e94560;
             color: white;
             border-radius: 50%;
-            min-width: 18px;
-            height: 18px;
-            font-size: 10px;
+            min-width: 20px;
+            height: 20px;
+            font-size: 11px;
             font-weight: bold;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 0 4px;
-            box-shadow: 0 0 5px rgba(233, 69, 96, 0.5);
+            padding: 0 5px;
+            box-shadow: 0 0 10px rgba(233, 69, 96, 0.6);
+            border: 2px solid #0a0a0f;
             z-index: 10;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            pointer-events: none;
         `;
+        
         questsBtn.style.position = 'relative';
         questsBtn.appendChild(badge);
     }
@@ -13280,8 +13572,31 @@ function updateClanNotificationBadge() {
             var badge = document.createElement('span');
             badge.className = 'badge-count';
             badge.textContent = window.clanQuestReadyCount;
-            clanBtn.style.position = 'relative';
             
+            // ✅✅✅ КРАСНЫЙ КРУЖОК С ЦИФРОЙ (КАК В СИСТЕМЕ ОПОВЕЩЕНИЙ)
+            badge.style.cssText = `
+                position: absolute;
+                top: -6px;
+                right: -6px;
+                background: #e94560;
+                color: white;
+                border-radius: 50%;
+                min-width: 20px;
+                height: 20px;
+                font-size: 11px;
+                font-weight: bold;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 0 5px;
+                box-shadow: 0 0 10px rgba(233, 69, 96, 0.6);
+                border: 2px solid #0a0a0f;
+                z-index: 10;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                pointer-events: none;
+            `;
+            
+            clanBtn.style.position = 'relative';
             clanBtn.appendChild(badge);
         }
     } else if (existingBadge) {
@@ -15035,7 +15350,17 @@ function initNotificationSystem() {
     // Подписываемся на обновления
     subscribeToNotifications();
     
-    // Запускаем периодическую проверку
+    // ✅✅✅ ЗАПУСКАЕМ ПЕРИОДИЧЕСКУЮ ПРОВЕРКУ (КАЖДЫЕ 5 СЕКУНД)
+    if (window._forceCheckInterval) {
+        clearInterval(window._forceCheckInterval);
+    }
+    window._forceCheckInterval = setInterval(function() {
+        if (currentPlayer && isDBReady()) {
+            forceCheckNotifications();
+        }
+    }, 5000); // 5000 мс = 5 секунд
+    
+    // Запускаем старую проверку (можно оставить или убрать)
     startNotificationCheck();
     
     // Очищаем старые уведомления раз в день
@@ -15055,6 +15380,12 @@ function initNotificationSystem() {
 // 21.26. ОСТАНОВКА СИСТЕМЫ ОПОВЕЩЕНИЯ
 // ============================================================
 function stopNotificationSystem() {
+    // ✅✅✅ ОСТАНАВЛИВАЕМ ИНТЕРВАЛ ПРИНУДИТЕЛЬНОЙ ПРОВЕРКИ
+    if (window._forceCheckInterval) {
+        clearInterval(window._forceCheckInterval);
+        window._forceCheckInterval = null;
+    }
+    
     if (window.notificationCheckInterval) {
         clearInterval(window.notificationCheckInterval);
         window.notificationCheckInterval = null;
@@ -15106,7 +15437,10 @@ window.deleteNotification = deleteNotification;
 window.deleteAllNotifications = deleteAllNotifications;
 window.initNotificationSystem = initNotificationSystem;
 window.stopNotificationSystem = stopNotificationSystem;
-window.forceCheckNotifications = forceCheckNotifications;  // ✅ ДОБАВИТЬ ЭТУ СТРОКУ
+window.forceCheckNotifications = forceCheckNotifications;
+
+// ✅✅✅ ДОБАВЛЯЕМ ПЕРЕМЕННУЮ ДЛЯ ИНТЕРВАЛА
+window._forceCheckInterval = null;
 
 console.log('✅ СИСТЕМА ОПОВЕЩЕНИЯ: блок полностью загружен');
 console.log('📨 Все функции уведомлений готовы к использованию!');
@@ -15135,7 +15469,7 @@ async function forceCheckNotifications() {
         }
         
         var snapshot = await ref.once('value');
-        console.log('📨 Данные в Firebase:', snapshot.exists() ? snapshot.val() : 'пусто');
+        console.log('📨 Данные в Firebase:', snapshot.exists() ? 'есть данные' : 'пусто');
         
         if (snapshot.exists()) {
             var firebaseNotifs = snapshot.val() || [];
@@ -15174,18 +15508,18 @@ async function forceCheckNotifications() {
                 await ref.set([]);
                 console.log('📨 Firebase очищен после загрузки');
                 
+                // ✅✅✅ ПОКАЗЫВАЕМ ТОСТ ТОЛЬКО ЕСЛИ НОВЫХ УВЕДОМЛЕНИЙ БОЛЬШЕ 0
                 showToast('🔔 Загружено ' + newCount + ' новых уведомлений!', 'success');
                 
                 if (window.notificationsModalOpen) {
                     renderNotificationsModal();
                 }
             } else {
+                // ✅✅✅ НЕ ПОКАЗЫВАЕМ ТОСТ, ЕСЛИ НЕТ НОВЫХ УВЕДОМЛЕНИЙ
                 console.log('📨 Нет новых уведомлений');
-                showToast('📨 Нет новых уведомлений', 'info');
             }
         } else {
             console.log('📨 В Firebase нет уведомлений');
-            showToast('📨 Нет уведомлений', 'info');
         }
         
         console.log('📨 Уведомлений в localStorage:', window.notifications.length);
@@ -15195,12 +15529,1999 @@ async function forceCheckNotifications() {
         
     } catch (e) {
         console.error('❌ Ошибка проверки уведомлений:', e);
-        showToast('❌ Ошибка проверки уведомлений: ' + e.message, 'error');
     }
 }
 
+// ============================================================
+// 22. РАБОТА (ПОЛНАЯ СИСТЕМА)
+// ============================================================
+
+// ============================================================
+// 22.0. ИНИЦИАЛИЗАЦИЯ ПЕРЕМЕННЫХ
+// ============================================================
+if (typeof window.currentMineTab === 'undefined') {
+    window.currentMineTab = 'mine'; // 'mine', 'lumber', 'quarry'
+}
+if (typeof window.currentMineSubTab === 'undefined') {
+    window.currentMineSubTab = 'work'; // 'work' или 'upgrade'
+}
+if (typeof window.mineTimerInterval === 'undefined') {
+    window.mineTimerInterval = null;
+}
+if (typeof window.workTimers === 'undefined') {
+    window.workTimers = {};
+}
+if (typeof window.lastWorkRemainingState === 'undefined') {
+    window.lastWorkRemainingState = { mine: 0, lumber: 0, quarry: 0 };
+}
+if (typeof window.workPendingCompletion === 'undefined') {
+    window.workPendingCompletion = { mine: false, lumber: false, quarry: false };
+}
+if (typeof window.workCompletionInitialized === 'undefined') {
+    window.workCompletionInitialized = false;
+}
+if (typeof window.workCheckIntervals === 'undefined') {
+    window.workCheckIntervals = {
+        mine: null,
+        lumber: null,
+        quarry: null
+    };
+}
+
+console.log('✅ РАБОТА: переменные инициализированы');
+
+// ============================================================
+// 22.1. ПРОВЕРКА БД
+// ============================================================
+function isDBReady() {
+    if (typeof db === 'undefined' || db === null) {
+        console.warn('⚠️ РАБОТА: БД не инициализирована');
+        return false;
+    }
+    if (typeof db.ref !== 'function') {
+        console.warn('⚠️ РАБОТА: БД не инициализирована (db.ref не функция)');
+        return false;
+    }
+    return true;
+}
+
+function getDBRef(path) {
+    if (!isDBReady()) {
+        console.warn('⚠️ РАБОТА: попытка получить ссылку на БД, но БД не инициализирована');
+        return null;
+    }
+    try {
+        return db.ref(path);
+    } catch (e) {
+        console.error('❌ РАБОТА: ошибка получения ссылки на БД:', e);
+        return null;
+    }
+}
+
+// ============================================================
+// 22.2. ФУНКЦИИ ДЛЯ ШАХТЫ (MINE)
+// ============================================================
+
+// Проверка активности прокачки
+function isMineUpgradeActive(type) {
+    if (!currentPlayer || !currentPlayer.mine) return false;
+    
+    if (type === 'paper') {
+        var start = currentPlayer.mine.paperUpgradeStartTime || 0;
+        var duration = currentPlayer.mine.paperUpgradeDuration || 0;
+        if (start === 0 || duration === 0) return false;
+        return (Date.now() - start) < duration;
+    } else if (type === 'makhorka') {
+        var start = currentPlayer.mine.makhorkaUpgradeStartTime || 0;
+        var duration = currentPlayer.mine.makhorkaUpgradeDuration || 0;
+        if (start === 0 || duration === 0) return false;
+        return (Date.now() - start) < duration;
+    }
+    return false;
+}
+
+// Получение оставшегося времени прокачки
+function getMineUpgradeRemaining(type) {
+    if (!currentPlayer || !currentPlayer.mine) return 0;
+    
+    if (type === 'paper') {
+        var start = currentPlayer.mine.paperUpgradeStartTime || 0;
+        var duration = currentPlayer.mine.paperUpgradeDuration || 0;
+        if (start === 0 || duration === 0) return 0;
+        return Math.max(0, duration - (Date.now() - start));
+    } else if (type === 'makhorka') {
+        var start = currentPlayer.mine.makhorkaUpgradeStartTime || 0;
+        var duration = currentPlayer.mine.makhorkaUpgradeDuration || 0;
+        if (start === 0 || duration === 0) return 0;
+        return Math.max(0, duration - (Date.now() - start));
+    }
+    return 0;
+}
+
+// Проверка и завершение прокачки
+async function checkAndCompleteMineUpgrade(type) {
+    if (!currentPlayer || !currentPlayer.mine) return false;
+    
+    var remaining = getMineUpgradeRemaining(type);
+    var startTime = type === 'paper' ? currentPlayer.mine.paperUpgradeStartTime : currentPlayer.mine.makhorkaUpgradeStartTime;
+    
+    if (remaining === 0 && startTime > 0) {
+        var currentLevel = type === 'paper' ? (currentPlayer.mine.paperLevel || 1) : (currentPlayer.mine.makhorkaLevel || 1);
+        var newLevel = currentLevel + 1;
+        
+        console.log('✅ ЗАВЕРШАЕМ прокачку ' + type + ': ' + currentLevel + ' -> ' + newLevel);
+        
+        try {
+            var playerRef = getDBRef('players/' + currentPlayer.id);
+            if (playerRef) {
+                // Обновляем только нужные поля, НЕ перезаписывая весь объект
+                var updateData = {};
+                var minePath = 'mine/';
+                if (type === 'paper') {
+                    updateData[minePath + 'paperLevel'] = newLevel;
+                    updateData[minePath + 'paperUpgradeStartTime'] = 0;
+                    updateData[minePath + 'paperUpgradeDuration'] = 0;
+                } else {
+                    updateData[minePath + 'makhorkaLevel'] = newLevel;
+                    updateData[minePath + 'makhorkaUpgradeStartTime'] = 0;
+                    updateData[minePath + 'makhorkaUpgradeDuration'] = 0;
+                }
+                await playerRef.update(updateData);
+            }
+            
+            if (type === 'paper') {
+                currentPlayer.mine.paperLevel = newLevel;
+                currentPlayer.mine.paperUpgradeStartTime = 0;
+                currentPlayer.mine.paperUpgradeDuration = 0;
+            } else {
+                currentPlayer.mine.makhorkaLevel = newLevel;
+                currentPlayer.mine.makhorkaUpgradeStartTime = 0;
+                currentPlayer.mine.makhorkaUpgradeDuration = 0;
+            }
+
+            updateWorkCountersOnMap();
+            updateTopBarResources();
+            updateBattleCountersOnMap();
+            
+            var mineModal = document.getElementById('mineFullscreen');
+            if (mineModal && mineModal.style.display === 'flex') {
+                updateMineModalUI();
+            }
+            
+            return true;
+        } catch (e) {
+            console.error('Ошибка завершения прокачки:', e);
+        }
+    }
+    return false;
+}
+
+// Получение оставшегося времени работы
+function getWorkRemaining(type) {
+    if (!currentPlayer) return 0;
+    
+    if (type === 'mine') {
+        var lastMine = currentPlayer.mine?.lastMineTime || 0;
+        var paperLevel = currentPlayer.mine?.paperLevel || 1;
+        var cooldownMs = 2 * 60 * 1000;
+        cooldownMs = Math.floor(cooldownMs * (1 + (paperLevel - 1) * 0.05));
+        return Math.max(0, cooldownMs - (Date.now() - lastMine));
+    } else if (type === 'lumber') {
+        var lastGather = currentPlayer.lumber?.lastGatherTime || 0;
+        var level = currentPlayer.lumber?.level || 1;
+        var cooldownMs = 2 * 60 * 1000;
+        cooldownMs = Math.floor(cooldownMs * (1 + (level - 1) * 0.05));
+        return Math.max(0, cooldownMs - (Date.now() - lastGather));
+    } else if (type === 'quarry') {
+        var lastGather = currentPlayer.quarry?.lastGatherTime || 0;
+        var level = currentPlayer.quarry?.level || 1;
+        var cooldownMs = 2 * 60 * 1000;
+        cooldownMs = Math.floor(cooldownMs * (1 + (level - 1) * 0.05));
+        return Math.max(0, cooldownMs - (Date.now() - lastGather));
+    }
+    return 0;
+}
+
+// ============================================================
+// 22.3. ФУНКЦИИ ДЛЯ ЛЕСОПОВАЛА (LUMBER)
+// ============================================================
+
+function isLumberUpgradeActive() {
+    return currentPlayer.lumber?.upgradeStartTime > 0 && 
+           (Date.now() - currentPlayer.lumber.upgradeStartTime) < (currentPlayer.lumber.upgradeDuration || 0);
+}
+
+function getLumberUpgradeRemaining() {
+    var start = currentPlayer.lumber?.upgradeStartTime || 0;
+    var duration = currentPlayer.lumber?.upgradeDuration || 0;
+    if (start === 0 || duration === 0) return 0;
+    return Math.max(0, duration - (Date.now() - start));
+}
+
+async function checkAndCompleteLumberUpgrade() {
+    var remaining = getLumberUpgradeRemaining();
+    if (remaining === 0 && currentPlayer.lumber?.upgradeStartTime > 0) {
+        var currentLevel = currentPlayer.lumber?.level || 1;
+        try {
+            var playerRef = getDBRef('players/' + currentPlayer.id);
+            if (playerRef) {
+                await playerRef.update({
+                    'lumber/level': currentLevel + 1,
+                    'lumber/upgradeStartTime': 0,
+                    'lumber/upgradeDuration': 0
+                });
+            }
+            currentPlayer.lumber.level = currentLevel + 1;
+            currentPlayer.lumber.upgradeStartTime = 0;
+            currentPlayer.lumber.upgradeDuration = 0;
+
+            updateWorkCountersOnMap();
+            updateTopBarResources();
+            updateBattleCountersOnMap();
+            
+            var mineModal = document.getElementById('mineFullscreen');
+            if (mineModal && mineModal.style.display === 'flex') {
+                updateMineModalUI();
+            }
+            
+            return true;
+        } catch (e) {
+            console.error('Ошибка завершения прокачки лесоповала:', e);
+        }
+    }
+    return false;
+}
+
+// ============================================================
+// 22.4. ФУНКЦИИ ДЛЯ КАМЕНОЛОМНИ (QUARRY)
+// ============================================================
+
+function isQuarryUpgradeActive() {
+    return currentPlayer.quarry?.upgradeStartTime > 0 && 
+           (Date.now() - currentPlayer.quarry.upgradeStartTime) < (currentPlayer.quarry.upgradeDuration || 0);
+}
+
+function getQuarryUpgradeRemaining() {
+    var start = currentPlayer.quarry?.upgradeStartTime || 0;
+    var duration = currentPlayer.quarry?.upgradeDuration || 0;
+    if (start === 0 || duration === 0) return 0;
+    return Math.max(0, duration - (Date.now() - start));
+}
+
+async function checkAndCompleteQuarryUpgrade() {
+    var remaining = getQuarryUpgradeRemaining();
+    if (remaining === 0 && currentPlayer.quarry?.upgradeStartTime > 0) {
+        var currentLevel = currentPlayer.quarry?.level || 1;
+        try {
+            var playerRef = getDBRef('players/' + currentPlayer.id);
+            if (playerRef) {
+                await playerRef.update({
+                    'quarry/level': currentLevel + 1,
+                    'quarry/upgradeStartTime': 0,
+                    'quarry/upgradeDuration': 0
+                });
+            }
+            currentPlayer.quarry.level = currentLevel + 1;
+            currentPlayer.quarry.upgradeStartTime = 0;
+            currentPlayer.quarry.upgradeDuration = 0;
+
+            updateWorkCountersOnMap();
+            updateTopBarResources();
+            updateBattleCountersOnMap();
+            
+            var mineModal = document.getElementById('mineFullscreen');
+            if (mineModal && mineModal.style.display === 'flex') {
+                updateMineModalUI();
+            }
+            
+            return true;
+        } catch (e) {
+            console.error('Ошибка завершения прокачки каменоломни:', e);
+        }
+    }
+    return false;
+}
+
+// ============================================================
+// 22.5. ЗАВЕРШЕНИЕ РАБОТЫ
+// ============================================================
+
+async function completeWorkSafe(type) {
+    if (!currentPlayer) {
+        console.log('❌ Нет игрока');
+        return;
+    }
+    
+    if (window.workPendingCompletion[type]) {
+        console.log('⚠️ Работа ' + type + ' уже завершается');
+        return;
+    }
+    window.workPendingCompletion[type] = true;
+    
+    console.log('✅ Завершение работы ' + type);
+    
+    try {
+        var paperGain = 0, makhorkaGain = 0, woodGain = 0, stoneGain = 0;
+        var workExp = 0;
+        var successMessage = '';
+        var updateData = {};
+        
+        if (type === 'mine') {
+            if (isMineUpgradeActive('paper') || isMineUpgradeActive('makhorka')) {
+                console.log('⚠️ Прокачка активна, работа отменена');
+                window.workPendingCompletion[type] = false;
+                return;
+            }
+            
+            var paperLevel = currentPlayer.mine?.paperLevel || 1;
+            var makhorkaLevel = currentPlayer.mine?.makhorkaLevel || 1;
+            
+            paperGain = 5 * paperLevel;
+            makhorkaGain = 3 * makhorkaLevel;
+            if (currentPlayer.caste === 'Мужики') { 
+                paperGain = Math.floor(paperGain * 1.05); 
+                makhorkaGain = Math.floor(makhorkaGain * 1.05); 
+            }
+            
+            workExp = 25 + (paperLevel * 3) + (makhorkaLevel * 2);
+            
+            if (!currentPlayer.mine) currentPlayer.mine = { paper: 0, makhorka: 0 };
+            currentPlayer.mine.paper = (currentPlayer.mine.paper || 0) + paperGain;
+            currentPlayer.mine.makhorka = (currentPlayer.mine.makhorka || 0) + makhorkaGain;
+            
+            updateData['mine/paper'] = currentPlayer.mine.paper;
+            updateData['mine/makhorka'] = currentPlayer.mine.makhorka;
+            
+            successMessage = '⛏️ Работа в шахте завершена! +' + paperGain + '📄, +' + makhorkaGain + '🌿, +' + workExp + '⭐ опыта';
+            
+        } else if (type === 'lumber') {
+            if (isLumberUpgradeActive()) {
+                console.log('⚠️ Прокачка активна, работа отменена');
+                window.workPendingCompletion[type] = false;
+                return;
+            }
+            
+            woodGain = 5 * (currentPlayer.lumber?.level || 1);
+            if (currentPlayer.caste === 'Мужики') woodGain = Math.floor(woodGain * 1.05);
+            
+            workExp = 30 + ((currentPlayer.lumber?.level || 1) * 4);
+            
+            if (!currentPlayer.lumber) currentPlayer.lumber = { wood: 0 };
+            currentPlayer.lumber.wood = (currentPlayer.lumber.wood || 0) + woodGain;
+            
+            updateData['lumber/wood'] = currentPlayer.lumber.wood;
+            
+            successMessage = '🪓 Работа на лесоповале завершена! +' + woodGain + '🪵 дерева, +' + workExp + '⭐ опыта';
+            
+        } else if (type === 'quarry') {
+            if (isQuarryUpgradeActive()) {
+                console.log('⚠️ Прокачка активна, работа отменена');
+                window.workPendingCompletion[type] = false;
+                return;
+            }
+            
+            stoneGain = 4 * (currentPlayer.quarry?.level || 1);
+            if (currentPlayer.caste === 'Мужики') stoneGain = Math.floor(stoneGain * 1.05);
+            
+            workExp = 28 + ((currentPlayer.quarry?.level || 1) * 3);
+            
+            if (!currentPlayer.quarry) currentPlayer.quarry = { stone: 0 };
+            currentPlayer.quarry.stone = (currentPlayer.quarry.stone || 0) + stoneGain;
+            
+            updateData['quarry/stone'] = currentPlayer.quarry.stone;
+            
+            successMessage = '⛏️ Работа в каменоломне завершена! +' + stoneGain + '🪨 камня, +' + workExp + '⭐ опыта';
+        }
+        
+        // Обновляем Firebase
+        var playerRef = getDBRef('players/' + currentPlayer.id);
+        if (playerRef && Object.keys(updateData).length > 0) {
+            await playerRef.update(updateData);
+        }
+        
+        // Обновляем опыт
+        var newAuthority = currentPlayer.authority + workExp;
+        var newLevel = currentPlayer.level;
+        var leveledUp = false;
+        var newAuthorityToNext = currentPlayer.authorityToNext;
+        var newMaxEnergy = currentPlayer.maxEnergy;
+        var newStrength = currentPlayer.stats.strength;
+        var newDefense = currentPlayer.stats.defense;
+
+        if (newAuthority >= currentPlayer.authorityToNext) {
+            newLevel++;
+            newAuthority = 0;
+            newAuthorityToNext = Math.floor(currentPlayer.authorityToNext * 1.5);
+            newMaxEnergy = currentPlayer.maxEnergy + 5;
+            newStrength = currentPlayer.stats.strength + 3;
+            newDefense = currentPlayer.stats.defense + 2;
+            leveledUp = true;
+        }
+
+        if (playerRef) {
+            await playerRef.update({
+                authority: newAuthority,
+                level: newLevel,
+                authorityToNext: newAuthorityToNext,
+                maxEnergy: newMaxEnergy,
+                'stats/strength': newStrength,
+                'stats/defense': newDefense
+            });
+        }
+
+        currentPlayer.authority = newAuthority;
+        currentPlayer.level = newLevel;
+        currentPlayer.authorityToNext = newAuthorityToNext;
+        currentPlayer.maxEnergy = newMaxEnergy;
+        currentPlayer.stats.strength = newStrength;
+        currentPlayer.stats.defense = newDefense;
+
+        if (leveledUp) {
+            showToast('🎉 УРОВЕНЬ ' + newLevel + '! +5 энергии, +3 силы, +2 защиты!', 'success');
+        }
+        
+        showToast(successMessage, 'success');
+        
+        console.log('✅ Работа ' + type + ' успешно завершена!');
+        
+    } catch (e) {
+        console.error('❌ Ошибка завершения работы ' + type + ':', e);
+        showToast('Ошибка при завершении работы: ' + e.message, 'error');
+    } finally {
+        window.workPendingCompletion[type] = false;
+        
+        // Обновляем UI
+        setTimeout(function() {
+            try {
+                updateTopBarResources();
+                updateWorkCountersOnMap();
+                updateBattleCountersOnMap();
+                
+                var mineModal = document.getElementById('mineFullscreen');
+                if (mineModal && mineModal.style.display === 'flex') {
+                    updateMineModalUI();
+                }
+            } catch (e) {
+                console.warn('⚠️ Ошибка обновления UI:', e);
+            }
+        }, 200);
+    }
+}
+
+// ============================================================
+// 22.6. ЗАПУСК РАБОТЫ
+// ============================================================
+
+async function mineResourcesFromModal() {
+    if (maintenanceMode) { 
+        showToast(maintenanceMessage, 'warning'); 
+        return; 
+    }
+
+    if (isMineUpgradeActive('paper') || isMineUpgradeActive('makhorka')) {
+        showToast('Невозможно работать во время прокачки!', 'warning');
+        return;
+    }
+
+    var now = Date.now();
+    var lastMine = currentPlayer.mine?.lastMineTime || 0;
+    var paperLevel = currentPlayer.mine?.paperLevel || 1;
+    var cooldownMs = 2 * 60 * 1000;
+    cooldownMs = Math.floor(cooldownMs * (1 + (paperLevel - 1) * 0.05));
+    
+    if ((now - lastMine) < cooldownMs) { 
+        showToast('Работа еще не доступна!', 'warning'); 
+        return; 
+    }
+
+    if (!currentPlayer.mine) currentPlayer.mine = { lastMineTime: 0 };
+    currentPlayer.mine.lastMineTime = now;
+    
+    var playerRef = getDBRef('players/' + currentPlayer.id);
+    if (playerRef) {
+        await playerRef.update({ 'mine/lastMineTime': now });
+    }
+    
+    showToast('⛏️ Начата работа в шахте! Ресурсы придут через ' + Math.ceil(cooldownMs / 60000) + ' мин.', 'success');
+    
+    updateWorkCountersOnMap();
+    updateTopBarResources();
+    updateBattleCountersOnMap();
+    
+    var mineModal = document.getElementById('mineFullscreen');
+    if (mineModal && mineModal.style.display === 'flex') {
+        updateMineModalUI();
+    }
+    
+    lastWorkRemainingState.mine = cooldownMs;
+}
+
+async function gatherLumberFromModal() {
+    if (maintenanceMode) { 
+        showToast(maintenanceMessage, 'warning'); 
+        return; 
+    }
+
+    if (isLumberUpgradeActive()) {
+        showToast('Невозможно работать во время прокачки!', 'warning');
+        return;
+    }
+
+    var now = Date.now();
+    var lumber = currentPlayer.lumber || { level: 1, lastGatherTime: 0, wood: 0 };
+    var cooldownMs = 2 * 60 * 1000;
+    cooldownMs = Math.floor(cooldownMs * (1 + (lumber.level - 1) * 0.05));
+    
+    if ((now - (lumber.lastGatherTime || 0)) < cooldownMs) { 
+        showToast('Работа еще не доступна!', 'warning'); 
+        return; 
+    }
+
+    if (!currentPlayer.lumber) currentPlayer.lumber = { level: 1, lastGatherTime: 0, wood: 0 };
+    currentPlayer.lumber.lastGatherTime = now;
+    
+    var playerRef = getDBRef('players/' + currentPlayer.id);
+    if (playerRef) {
+        await playerRef.update({ 'lumber/lastGatherTime': now });
+    }
+    
+    showToast('🪓 Начата работа на лесоповале! Ресурсы придут через ' + Math.ceil(cooldownMs / 60000) + ' мин.', 'success');
+    
+    updateWorkCountersOnMap();
+    updateTopBarResources();
+    updateBattleCountersOnMap();
+    
+    var mineModal = document.getElementById('mineFullscreen');
+    if (mineModal && mineModal.style.display === 'flex') {
+        updateMineModalUI();
+    }
+    
+    lastWorkRemainingState.lumber = cooldownMs;
+}
+
+async function gatherStoneFromModal() {
+    if (maintenanceMode) { 
+        showToast(maintenanceMessage, 'warning'); 
+        return; 
+    }
+
+    if (isQuarryUpgradeActive()) {
+        showToast('Невозможно работать во время прокачки!', 'warning');
+        return;
+    }
+
+    var now = Date.now();
+    var quarry = currentPlayer.quarry || { level: 1, lastGatherTime: 0, stone: 0 };
+    var cooldownMs = 2 * 60 * 1000;
+    cooldownMs = Math.floor(cooldownMs * (1 + (quarry.level - 1) * 0.05));
+    
+    if ((now - (quarry.lastGatherTime || 0)) < cooldownMs) { 
+        showToast('Работа еще не доступна!', 'warning'); 
+        return; 
+    }
+
+    if (!currentPlayer.quarry) currentPlayer.quarry = { level: 1, lastGatherTime: 0, stone: 0 };
+    currentPlayer.quarry.lastGatherTime = now;
+    
+    var playerRef = getDBRef('players/' + currentPlayer.id);
+    if (playerRef) {
+        await playerRef.update({ 'quarry/lastGatherTime': now });
+    }
+    
+    showToast('⛏️ Начата работа в каменоломне! Ресурсы придут через ' + Math.ceil(cooldownMs / 60000) + ' мин.', 'success');
+    
+    updateWorkCountersOnMap();
+    updateTopBarResources();
+    updateBattleCountersOnMap();
+    
+    var mineModal = document.getElementById('mineFullscreen');
+    if (mineModal && mineModal.style.display === 'flex') {
+        updateMineModalUI();
+    }
+    
+    lastWorkRemainingState.quarry = cooldownMs;
+}
+
+// ============================================================
+// 22.7. ПРОКАЧКА
+// ============================================================
+
+async function upgradeMineFromModal(type) {
+    if (maintenanceMode) { 
+        showToast(maintenanceMessage, 'warning'); 
+        return; 
+    }
+
+    if (isMineUpgradeActive('paper') || isMineUpgradeActive('makhorka')) {
+        showToast('Прокачка уже идет! Дождитесь завершения.', 'warning');
+        return;
+    }
+
+    if (getWorkRemaining('mine') > 0) {
+        showToast('Невозможно улучшить во время работы!', 'warning');
+        return;
+    }
+
+    var currentLevel = type === 'paper' ? (currentPlayer.mine?.paperLevel || 1) : (currentPlayer.mine?.makhorkaLevel || 1);
+    var cost = 50 * currentLevel;
+    
+    if (currentPlayer.cigarettes < cost) { 
+        showToast('Не хватает ' + (cost - currentPlayer.cigarettes) + ' 🚬!', 'error'); 
+        return; 
+    }
+
+    try {
+        var playerRef = getDBRef('players/' + currentPlayer.id);
+        if (!playerRef) {
+            showToast('❌ Ошибка доступа к БД!', 'error');
+            return;
+        }
+        
+        currentPlayer.cigarettes -= cost;
+        await playerRef.update({ cigarettes: currentPlayer.cigarettes });
+
+        var upgradeDurationMs = 2 * 60 * 1000;
+        upgradeDurationMs = Math.floor(upgradeDurationMs * (1 + (currentLevel - 1) * 0.1));
+        var upgradeStartTime = Date.now();
+
+        var updateData = {};
+        if (type === 'paper') {
+            updateData['mine/paperUpgradeStartTime'] = upgradeStartTime;
+            updateData['mine/paperUpgradeDuration'] = upgradeDurationMs;
+        } else {
+            updateData['mine/makhorkaUpgradeStartTime'] = upgradeStartTime;
+            updateData['mine/makhorkaUpgradeDuration'] = upgradeDurationMs;
+        }
+        
+        await playerRef.update(updateData);
+
+        if (type === 'paper') {
+            currentPlayer.mine.paperUpgradeStartTime = upgradeStartTime;
+            currentPlayer.mine.paperUpgradeDuration = upgradeDurationMs;
+        } else {
+            currentPlayer.mine.makhorkaUpgradeStartTime = upgradeStartTime;
+            currentPlayer.mine.makhorkaUpgradeDuration = upgradeDurationMs;
+        }
+
+        var minutes = Math.floor(upgradeDurationMs / 60000);
+        var seconds = Math.floor((upgradeDurationMs % 60000) / 1000);
+        showToast('⏳ Начата прокачка ' + (type === 'paper' ? 'бумаги' : 'махорки') + '! Завершится через ' + minutes + ' мин ' + seconds + ' сек.', 'success');
+
+        updateWorkCountersOnMap();
+        updateTopBarResources();
+        updateBattleCountersOnMap();
+        
+        var mineModal = document.getElementById('mineFullscreen');
+        if (mineModal && mineModal.style.display === 'flex') {
+            updateMineModalUI();
+        }
+    } catch (e) {
+        console.error('Ошибка прокачки:', e);
+        showToast('Ошибка прокачки: ' + e.message, 'error');
+    }
+}
+
+async function upgradeLumberFromModal() {
+    if (maintenanceMode) { 
+        showToast(maintenanceMessage, 'warning'); 
+        return; 
+    }
+
+    if (isLumberUpgradeActive()) {
+        showToast('Прокачка уже идет! Дождитесь завершения.', 'warning');
+        return;
+    }
+
+    if (getWorkRemaining('lumber') > 0) {
+        showToast('Невозможно улучшить во время работы!', 'warning');
+        return;
+    }
+
+    var level = currentPlayer.lumber?.level || 1;
+    var cost = 50 * level;
+    
+    if (currentPlayer.cigarettes < cost) { 
+        showToast('Не хватает ' + (cost - currentPlayer.cigarettes) + ' 🚬!', 'error'); 
+        return; 
+    }
+
+    try {
+        var playerRef = getDBRef('players/' + currentPlayer.id);
+        if (!playerRef) {
+            showToast('❌ Ошибка доступа к БД!', 'error');
+            return;
+        }
+        
+        currentPlayer.cigarettes -= cost;
+        await playerRef.update({ cigarettes: currentPlayer.cigarettes });
+
+        var upgradeDurationMs = 2 * 60 * 1000;
+        upgradeDurationMs = Math.floor(upgradeDurationMs * (1 + (level - 1) * 0.1));
+        var upgradeStartTime = Date.now();
+
+        await playerRef.update({
+            'lumber/upgradeStartTime': upgradeStartTime,
+            'lumber/upgradeDuration': upgradeDurationMs
+        });
+        
+        if (!currentPlayer.lumber) currentPlayer.lumber = { level: 1, lastGatherTime: 0, wood: 0 };
+        currentPlayer.lumber.upgradeStartTime = upgradeStartTime;
+        currentPlayer.lumber.upgradeDuration = upgradeDurationMs;
+
+        var minutes = Math.floor(upgradeDurationMs / 60000);
+        var seconds = Math.floor((upgradeDurationMs % 60000) / 1000);
+        showToast('⏳ Начата прокачка лесоповала! Уровень повысится через ' + minutes + ' мин ' + seconds + ' сек.', 'success');
+
+        updateWorkCountersOnMap();
+        updateTopBarResources();
+        updateBattleCountersOnMap();
+        
+        var mineModal = document.getElementById('mineFullscreen');
+        if (mineModal && mineModal.style.display === 'flex') {
+            updateMineModalUI();
+        }
+    } catch (e) {
+        console.error('Ошибка прокачки лесоповала:', e);
+        showToast('Ошибка прокачки: ' + e.message, 'error');
+    }
+}
+
+async function upgradeQuarryFromModal() {
+    if (maintenanceMode) { 
+        showToast(maintenanceMessage, 'warning'); 
+        return; 
+    }
+
+    if (isQuarryUpgradeActive()) {
+        showToast('Прокачка уже идет! Дождитесь завершения.', 'warning');
+        return;
+    }
+
+    if (getWorkRemaining('quarry') > 0) {
+        showToast('Невозможно улучшить во время работы!', 'warning');
+        return;
+    }
+
+    var level = currentPlayer.quarry?.level || 1;
+    var cost = 50 * level;
+    
+    if (currentPlayer.cigarettes < cost) { 
+        showToast('Не хватает ' + (cost - currentPlayer.cigarettes) + ' 🚬!', 'error'); 
+        return; 
+    }
+
+    try {
+        var playerRef = getDBRef('players/' + currentPlayer.id);
+        if (!playerRef) {
+            showToast('❌ Ошибка доступа к БД!', 'error');
+            return;
+        }
+        
+        currentPlayer.cigarettes -= cost;
+        await playerRef.update({ cigarettes: currentPlayer.cigarettes });
+
+        var upgradeDurationMs = 2 * 60 * 1000;
+        upgradeDurationMs = Math.floor(upgradeDurationMs * (1 + (level - 1) * 0.1));
+        var upgradeStartTime = Date.now();
+
+        await playerRef.update({
+            'quarry/upgradeStartTime': upgradeStartTime,
+            'quarry/upgradeDuration': upgradeDurationMs
+        });
+        
+        if (!currentPlayer.quarry) currentPlayer.quarry = { level: 1, lastGatherTime: 0, stone: 0 };
+        currentPlayer.quarry.upgradeStartTime = upgradeStartTime;
+        currentPlayer.quarry.upgradeDuration = upgradeDurationMs;
+
+        var minutes = Math.floor(upgradeDurationMs / 60000);
+        var seconds = Math.floor((upgradeDurationMs % 60000) / 1000);
+        showToast('⏳ Начата прокачка каменоломни! Уровень повысится через ' + minutes + ' мин ' + seconds + ' сек.', 'success');
+
+        updateWorkCountersOnMap();
+        updateTopBarResources();
+        updateBattleCountersOnMap();
+        
+        var mineModal = document.getElementById('mineFullscreen');
+        if (mineModal && mineModal.style.display === 'flex') {
+            updateMineModalUI();
+        }
+    } catch (e) {
+        console.error('Ошибка прокачки каменоломни:', e);
+        showToast('Ошибка прокачки: ' + e.message, 'error');
+    }
+}
+
+// ============================================================
+// 22.8. ОБМЕН РЕСУРСОВ
+// ============================================================
+
+function getExchangeRate(level, type) {
+    return type === 'paper' ? 2 + Math.floor(level / 5) : 1 + Math.floor(level / 10);
+}
+
+async function exchangeToCigarettesFromModal() {
+    if (maintenanceMode) { 
+        showToast(maintenanceMessage, 'warning'); 
+        return; 
+    }
+    
+    var paper = currentPlayer.mine?.paper || 0;
+    var makhorka = currentPlayer.mine?.makhorka || 0;
+    
+    if (paper === 0 && makhorka === 0) { 
+        showToast('Нет ресурсов!', 'warning'); 
+        return; 
+    }
+    
+    var paperRate = getExchangeRate(currentPlayer.mine?.paperLevel || 1, 'paper');
+    var makhorkaRate = getExchangeRate(currentPlayer.mine?.makhorkaLevel || 1, 'makhorka');
+    var gain = (paper * paperRate) + (makhorka * makhorkaRate);
+    
+    try {
+        var playerRef = getDBRef('players/' + currentPlayer.id);
+        if (!playerRef) {
+            showToast('❌ Ошибка доступа к БД!', 'error');
+            return;
+        }
+        
+        currentPlayer.cigarettes += gain;
+        currentPlayer.mine.paper = 0;
+        currentPlayer.mine.makhorka = 0;
+        
+        await playerRef.update({ 
+            cigarettes: currentPlayer.cigarettes,
+            'mine/paper': 0,
+            'mine/makhorka': 0
+        });
+        
+        showToast('🔄 Обмен: +' + gain + '🚬', 'success');
+        
+        updateTopBarResources();
+        updateBattleCountersOnMap();
+        updateWorkCountersOnMap();
+        
+        var mineModal = document.getElementById('mineFullscreen');
+        if (mineModal && mineModal.style.display === 'flex') {
+            updateMineModalUI();
+        }
+    } catch (e) {
+        console.error('Ошибка обмена:', e);
+        showToast('Ошибка обмена: ' + e.message, 'error');
+    }
+}
+
+async function exchangeWoodToCigarettesFromModal() {
+    if (maintenanceMode) { 
+        showToast(maintenanceMessage, 'warning'); 
+        return; 
+    }
+    
+    var wood = currentPlayer.lumber?.wood || 0;
+    if (wood === 0) { 
+        showToast('Нет дерева!', 'warning'); 
+        return; 
+    }
+    
+    var gain = wood * 2;
+    
+    try {
+        var playerRef = getDBRef('players/' + currentPlayer.id);
+        if (!playerRef) {
+            showToast('❌ Ошибка доступа к БД!', 'error');
+            return;
+        }
+        
+        currentPlayer.cigarettes += gain;
+        currentPlayer.lumber.wood = 0;
+        
+        await playerRef.update({ 
+            cigarettes: currentPlayer.cigarettes,
+            'lumber/wood': 0
+        });
+        
+        showToast('🔄 Обмен: +' + gain + '🚬', 'success');
+        
+        updateTopBarResources();
+        updateBattleCountersOnMap();
+        updateWorkCountersOnMap();
+        
+        var mineModal = document.getElementById('mineFullscreen');
+        if (mineModal && mineModal.style.display === 'flex') {
+            updateMineModalUI();
+        }
+    } catch (e) {
+        console.error('Ошибка обмена:', e);
+        showToast('Ошибка обмена: ' + e.message, 'error');
+    }
+}
+
+async function exchangeStoneToCigarettesFromModal() {
+    if (maintenanceMode) { 
+        showToast(maintenanceMessage, 'warning'); 
+        return; 
+    }
+    
+    var stone = currentPlayer.quarry?.stone || 0;
+    if (stone === 0) { 
+        showToast('Нет камня!', 'warning'); 
+        return; 
+    }
+    
+    var gain = stone;
+    
+    try {
+        var playerRef = getDBRef('players/' + currentPlayer.id);
+        if (!playerRef) {
+            showToast('❌ Ошибка доступа к БД!', 'error');
+            return;
+        }
+        
+        currentPlayer.cigarettes += gain;
+        currentPlayer.quarry.stone = 0;
+        
+        await playerRef.update({ 
+            cigarettes: currentPlayer.cigarettes,
+            'quarry/stone': 0
+        });
+        
+        showToast('🔄 Обмен: +' + gain + '🚬', 'success');
+        
+        updateTopBarResources();
+        updateBattleCountersOnMap();
+        updateWorkCountersOnMap();
+        
+        var mineModal = document.getElementById('mineFullscreen');
+        if (mineModal && mineModal.style.display === 'flex') {
+            updateMineModalUI();
+        }
+    } catch (e) {
+        console.error('Ошибка обмена:', e);
+        showToast('Ошибка обмена: ' + e.message, 'error');
+    }
+}
+
+// ============================================================
+// 22.9. ОБНОВЛЕНИЕ UI
+// ============================================================
+
+function updateMineModalUI() {
+    var modal = document.getElementById('mineFullscreen');
+    if (!modal) return;
+    
+    var contentArea = document.getElementById('mineContentArea');
+    if (!contentArea) return;
+    
+    // Проверяем завершение прокачек
+    checkAndCompleteMineUpgrade('paper');
+    checkAndCompleteMineUpgrade('makhorka');
+    checkAndCompleteLumberUpgrade();
+    checkAndCompleteQuarryUpgrade();
+    
+    var contentHtml = '';
+    
+    if (currentMineTab === 'mine') {
+        contentHtml = renderMineContent();
+    } else if (currentMineTab === 'lumber') {
+        contentHtml = renderLumberContent();
+    } else if (currentMineTab === 'quarry') {
+        contentHtml = renderQuarryContent();
+    }
+    
+    contentArea.innerHTML = contentHtml;
+    
+    // Навешиваем обработчики
+    if (currentMineTab === 'mine') {
+        attachMineHandlers();
+    } else if (currentMineTab === 'lumber') {
+        attachLumberHandlers();
+    } else if (currentMineTab === 'quarry') {
+        attachQuarryHandlers();
+    }
+}
+
+// ============================================================
+// 22.10. РЕНДЕР КОНТЕНТА
+// ============================================================
+
+function renderMineContent() {
+    var mineData = currentPlayer.mine || { 
+        paperLevel: 1, makhorkaLevel: 1, lastMineTime: 0, 
+        paper: 0, makhorka: 0, 
+        paperUpgradeStartTime: 0, paperUpgradeDuration: 0, 
+        makhorkaUpgradeStartTime: 0, makhorkaUpgradeDuration: 0 
+    };
+    
+    var paperLevel = mineData.paperLevel;
+    var makhorkaLevel = mineData.makhorkaLevel;
+    var paperUpgradeActive = isMineUpgradeActive('paper');
+    var makhorkaUpgradeActive = isMineUpgradeActive('makhorka');
+    var paperUpgradeRemaining = getMineUpgradeRemaining('paper');
+    var makhorkaUpgradeRemaining = getMineUpgradeRemaining('makhorka');
+    var workRemaining = getWorkRemaining('mine');
+    var workAvailable = workRemaining <= 0 && !paperUpgradeActive && !makhorkaUpgradeActive;
+    var upgradeCostPaper = 50 * paperLevel;
+    var upgradeCostMakhorka = 50 * makhorkaLevel;
+    
+    var upgradeDurationMsPaper = 2 * 60 * 1000;
+    upgradeDurationMsPaper = Math.floor(upgradeDurationMsPaper * (1 + (paperLevel - 1) * 0.1));
+    var upgradeDurationMsMakhorka = 2 * 60 * 1000;
+    upgradeDurationMsMakhorka = Math.floor(upgradeDurationMsMakhorka * (1 + (makhorkaLevel - 1) * 0.1));
+    
+    var workExpGain = 25 + (paperLevel * 3) + (makhorkaLevel * 2);
+    
+    var paperProgressPercent = paperUpgradeActive ? Math.min(100, ((Date.now() - (mineData.paperUpgradeStartTime || 0)) / upgradeDurationMsPaper) * 100) : 0;
+    var makhorkaProgressPercent = makhorkaUpgradeActive ? Math.min(100, ((Date.now() - (mineData.makhorkaUpgradeStartTime || 0)) / upgradeDurationMsMakhorka) * 100) : 0;
+    
+    // Верхняя панель ресурсов
+    var resourcesBar = `
+        <div style="background: linear-gradient(135deg, #1a1a2a, #0d0d15); border-radius: 1px; padding: 5px 20px; margin: 9px -15px; border: 1px solid #8B4513; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+            <div style="display: flex; gap: 1px; align-items: center; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                    <span style="font-size: 11px;">🚬</span>
+                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.cigarettes || 0)}</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                    <span style="font-size: 11px;">📄</span>
+                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.mine?.paper || 0)}</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                    <span style="font-size: 11px;">🌿</span>
+                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.mine?.makhorka || 0)}</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                    <span style="font-size: 11px;">🪵</span>
+                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.lumber?.wood || 0)}</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                    <span style="font-size: 11px;">🪨</span>
+                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.quarry?.stone || 0)}</span>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    var subTabs = `
+        <div class="mine-sub-tab-header">
+            <button class="mine-sub-tab-btn ${currentMineSubTab === 'work' ? 'active' : ''}" id="mineWorkTabBtn">⛏️ РАБОТАТЬ</button>
+            <button class="mine-sub-tab-btn ${currentMineSubTab === 'upgrade' ? 'active' : ''}" id="mineUpgradeTabBtn">⬆️ ПРОКАЧКА</button>
+        </div>
+    `;
+    
+    var workContent = `
+        <div id="mineWorkContainer" style="display: ${currentMineSubTab === 'work' ? 'block' : 'none'};">
+            <div class="mine-card">
+                <div style="text-align: center; margin-bottom: 10px;">
+                    <div style="background: linear-gradient(135deg, #8B4513, #5a2d0a); display: inline-block; padding: 5px 20px; border-radius: 30px; font-size: 14px; font-weight: 700;">📦 РЕСУРСЫ</div>
+                </div>
+                <div class="mine-resources">
+                    <div class="mine-resource-item">
+                        <div>📄</div>
+                        <div class="mine-resource-value">${mineData.paper}</div>
+                        <div style="font-size: 10px;">БУМАГИ</div>
+                    </div>
+                    <div class="mine-resource-item">
+                        <div>🌿</div>
+                        <div class="mine-resource-value">${mineData.makhorka}</div>
+                        <div style="font-size: 10px;">МАХОРКИ</div>
+                    </div>
+                </div>
+                
+                ${paperUpgradeActive ? `
+                    <div class="mine-timer">
+                        ⏳ ПРОКАЧКА БУМАГИ: <span id="paperUpgradeTimer" class="timer-text">${formatTimerMinutes(paperUpgradeRemaining)}</span>
+                        <div class="mine-progress-bar" style="margin-top: 5px;"><div class="mine-progress-fill" style="width: ${paperProgressPercent}%"></div></div>
+                    </div>
+                ` : ''}
+                ${makhorkaUpgradeActive ? `
+                    <div class="mine-timer">
+                        ⏳ ПРОКАЧКА МАХОРКИ: <span id="makhorkaUpgradeTimer" class="timer-text">${formatTimerMinutes(makhorkaUpgradeRemaining)}</span>
+                        <div class="mine-progress-bar" style="margin-top: 5px;"><div class="mine-progress-fill" style="width: ${makhorkaProgressPercent}%"></div></div>
+                    </div>
+                ` : ''}
+                
+                <div class="mine-timer" style="background: rgba(76,175,80,0.15);">
+                    ⭐ ОПЫТА ЗА РАБОТУ: +${workExpGain}
+                </div>
+                
+                <div class="mine-action-buttons">
+                    <button id="mineWorkBtn" class="mine-work-btn" ${!workAvailable ? 'disabled' : ''}>
+                        ⛏️ РАБОТАТЬ<br><span class="mine-exchange-btn2">${!workAvailable && workRemaining > 0 ? '(' + formatTimerMinutes(workRemaining) + ')' : ''}</span>
+                    </button>
+                    <button id="mineExchangeBtn" class="mine-exchange-btn">🔄 ОБМЕНЯТЬ<br><span class="mine-exchange-btn2">(📄2🚬/шт | 🌿1🚬/шт)</span></button>
+                </div>
+                ${(paperUpgradeActive || makhorkaUpgradeActive) ? '<div style="font-size: 11px; color: #ff9800; text-align: center;">⚡ НЕВОЗМОЖНО РАБОТАТЬ ВО ВРЕМЯ ПРОКАЧКИ</div>' : ''}
+            </div>
+        </div>
+    `;
+    
+    var upgradeContent = `
+        <div id="mineUpgradeContainer" style="display: ${currentMineSubTab === 'upgrade' ? 'block' : 'none'};">
+            <div class="mine-card">
+                <div style="text-align: center; margin-bottom: 15px;">
+                    <div style="background: linear-gradient(135deg, #8B4513, #5a2d0a); display: inline-block; padding: 5px 20px; border-radius: 30px; font-size: 14px; font-weight: 700;">⬆️ ПРОКАЧКА ШАХТЫ</div>
+                </div>
+                
+                <div class="mine-upgrade-info">
+                    <div class="mine-upgrade-cost">
+                        <span>📄 БУМАГА УР. ${paperLevel}</span>
+                        <span>ДОБЫЧА: ${5 * paperLevel} шт</span>
+                    </div>
+                    ${paperUpgradeActive ? `
+                        <div class="mine-upgrade-progress">
+                            <div class="mine-progress-label">⏳ ПРОКАЧКА ДО ${paperLevel + 1} УРОВНЯ</div>
+                            <div class="mine-progress-bar"><div id="paperUpgradeTimerUpgrade" class="mine-progress-fill" style="width: ${paperProgressPercent}%"></div></div>
+                            <div style="font-size: 11px; text-align: center; margin-top: 5px;"><span class="timer-text" id="paperUpgradeTimerUpgradeText">${formatTimerMinutes(paperUpgradeRemaining)}</span></div>
+                        </div>
+                    ` : `
+                        <div class="mine-upgrade-cost">
+                            <span>⬆️ ДО ${paperLevel + 1} УРОВНЯ</span>
+                            <span>💰 ${upgradeCostPaper} 🚬</span>
+                        </div>
+                        <button id="upgradePaperBtn" class="mine-work-btn" style="width: 100%; margin-top: 10px;" ${(currentPlayer.cigarettes < upgradeCostPaper || getWorkRemaining('mine') > 0 || paperUpgradeActive || makhorkaUpgradeActive) ? 'disabled' : ''}>
+                            ⬆️ УЛУЧШИТЬ БУМАГУ
+                        </button>
+                    `}
+                </div>
+                
+                <div class="mine-upgrade-info">
+                    <div class="mine-upgrade-cost">
+                        <span>🌿 МАХОРКА УР. ${makhorkaLevel}</span>
+                        <span>ДОБЫЧА: ${3 * makhorkaLevel} шт</span>
+                    </div>
+                    ${makhorkaUpgradeActive ? `
+                        <div class="mine-upgrade-progress">
+                            <div class="mine-progress-label">⏳ ПРОКАЧКА ДО ${makhorkaLevel + 1} УРОВНЯ</div>
+                            <div class="mine-progress-bar"><div id="makhorkaUpgradeTimerUpgrade" class="mine-progress-fill" style="width: ${makhorkaProgressPercent}%"></div></div>
+                            <div style="font-size: 11px; text-align: center; margin-top: 5px;"><span class="timer-text" id="makhorkaUpgradeTimerUpgradeText">${formatTimerMinutes(makhorkaUpgradeRemaining)}</span></div>
+                        </div>
+                    ` : `
+                        <div class="mine-upgrade-cost">
+                            <span>⬆️ ДО ${makhorkaLevel + 1} УРОВНЯ</span>
+                            <span>💰 ${upgradeCostMakhorka} 🚬</span>
+                        </div>
+                        <button id="upgradeMakhorkaBtn" class="mine-work-btn" style="width: 100%; margin-top: 10px;" ${(currentPlayer.cigarettes < upgradeCostMakhorka || getWorkRemaining('mine') > 0 || paperUpgradeActive || makhorkaUpgradeActive) ? 'disabled' : ''}>
+                            ⬆️ УЛУЧШИТЬ МАХОРКУ
+                        </button>
+                    `}
+                </div>
+                ${getWorkRemaining('mine') > 0 ? '<div style="font-size: 11px; color: #ff9800; text-align: center; margin-top: 10px;">⚡ НЕВОЗМОЖНО УЛУЧШИТЬ ВО ВРЕМЯ РАБОТЫ</div>' : ''}
+            </div>
+        </div>
+    `;
+    
+    return resourcesBar + subTabs + workContent + upgradeContent;
+}
+
+function renderLumberContent() {
+    checkAndCompleteLumberUpgrade();
+    
+    var lumber = currentPlayer.lumber || { level: 1, lastGatherTime: 0, wood: 0, upgradeStartTime: 0, upgradeDuration: 0 };
+    var level = lumber.level;
+    var upgradeActive = isLumberUpgradeActive();
+    var upgradeRemaining = getLumberUpgradeRemaining();
+    var workRemaining = getWorkRemaining('lumber');
+    var workAvailable = workRemaining <= 0 && !upgradeActive;
+    var upgradeCost = 50 * level;
+    var upgradeDurationMs = 2 * 60 * 1000;
+    upgradeDurationMs = Math.floor(upgradeDurationMs * (1 + (level - 1) * 0.1));
+    var workExpGain = 30 + (level * 4);
+    var progressPercent = upgradeActive ? Math.min(100, ((Date.now() - currentPlayer.lumber.upgradeStartTime) / upgradeDurationMs) * 100) : 0;
+    
+    var resourcesBar = `
+        <div style="background: linear-gradient(135deg, #1a1a2a, #0d0d15); border-radius: 1px; padding: 5px 20px; margin: 9px -15px; border: 1px solid #8B4513; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+            <div style="display: flex; gap: 1px; align-items: center; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                    <span style="font-size: 11px;">🚬</span>
+                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.cigarettes || 0)}</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                    <span style="font-size: 11px;">📄</span>
+                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.mine?.paper || 0)}</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                    <span style="font-size: 11px;">🌿</span>
+                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.mine?.makhorka || 0)}</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                    <span style="font-size: 11px;">🪵</span>
+                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.lumber?.wood || 0)}</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                    <span style="font-size: 11px;">🪨</span>
+                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.quarry?.stone || 0)}</span>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    var subTabs = `
+        <div class="mine-sub-tab-header">
+            <button class="mine-sub-tab-btn ${currentMineSubTab === 'work' ? 'active' : ''}" id="lumberWorkTabBtn">🪓 РАБОТАТЬ</button>
+            <button class="mine-sub-tab-btn ${currentMineSubTab === 'upgrade' ? 'active' : ''}" id="lumberUpgradeTabBtn">⬆️ ПРОКАЧКА</button>
+        </div>
+    `;
+    
+    var workContent = `
+        <div id="lumberWorkContainer" style="display: ${currentMineSubTab === 'work' ? 'block' : 'none'};">
+            <div class="mine-card">
+                <div style="text-align: center; margin-bottom: 10px;">
+                    <div style="background: linear-gradient(135deg, #8B4513, #5a2d0a); display: inline-block; padding: 5px 20px; border-radius: 30px; font-size: 14px; font-weight: 700;">🪵 РЕСУРСЫ</div>
+                </div>
+                <div class="mine-resources">
+                    <div class="mine-resource-item">
+                        <div>🪵</div>
+                        <div class="mine-resource-value">${lumber.wood}</div>
+                        <div style="font-size: 10px;">ДРЕВЕСИНА</div>
+                    </div>
+                </div>
+                
+                ${upgradeActive ? `
+                    <div class="mine-timer">
+                        ⏳ ПРОКАЧКА ЛЕСОПОВАЛА: <span id="lumberUpgradeTimer" class="timer-text">${formatTimerMinutes(upgradeRemaining)}</span>
+                        <div class="mine-progress-bar" style="margin-top: 5px;"><div class="mine-progress-fill" style="width: ${progressPercent}%"></div></div>
+                    </div>
+                ` : ''}
+                
+                <div class="mine-timer" style="background: rgba(76,175,80,0.15);">
+                    ⭐ ОПЫТА ЗА РАБОТУ: +${workExpGain}
+                </div>
+                
+                <div class="mine-action-buttons">
+                    <button id="lumberWorkBtn" class="mine-work-btn" ${!workAvailable ? 'disabled' : ''}>
+                        🪓 РАБОТАТЬ<br><span class="mine-exchange-btn2">${!workAvailable && workRemaining > 0 ? '(' + formatTimerMinutes(workRemaining) + ')' : ''}</span>
+                    </button>
+                    <button id="lumberExchangeBtn" class="mine-exchange-btn">🔄 ОБМЕНЯТЬ<br><span class="mine-exchange-btn2">(2🚬 за 1🪵)</span></button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    var upgradeContent = `
+        <div id="lumberUpgradeContainer" style="display: ${currentMineSubTab === 'upgrade' ? 'block' : 'none'};">
+            <div class="mine-card">
+                <div style="text-align: center; margin-bottom: 15px;">
+                    <div style="background: linear-gradient(135deg, #8B4513, #5a2d0a); display: inline-block; padding: 5px 20px; border-radius: 30px; font-size: 14px; font-weight: 700;">⬆️ ПРОКАЧКА ЛЕСОПОВАЛА</div>
+                </div>
+                <div class="mine-upgrade-info">
+                    <div class="mine-upgrade-cost">
+                        <span>🪵 УРОВЕНЬ ${level}</span>
+                        <span>ДОБЫЧА: ${5 * level} шт</span>
+                    </div>
+                    ${upgradeActive ? `
+                        <div class="mine-upgrade-progress">
+                            <div class="mine-progress-label">⏳ ПРОКАЧКА ДО ${level + 1} УРОВНЯ</div>
+                            <div class="mine-progress-bar"><div id="lumberUpgradeTimerUpgrade" class="mine-progress-fill" style="width: ${progressPercent}%"></div></div>
+                            <div style="font-size: 11px; text-align: center; margin-top: 5px;"><span class="timer-text" id="lumberUpgradeTimerUpgradeText">${formatTimerMinutes(upgradeRemaining)}</span></div>
+                        </div>
+                    ` : `
+                        <div class="mine-upgrade-cost">
+                            <span>⬆️ ДО ${level + 1} УРОВНЯ</span>
+                            <span>💰 ${upgradeCost} 🚬</span>
+                        </div>
+                        <button id="upgradeLumberBtn" class="mine-work-btn" style="width: 100%; margin-top: 10px;" ${(currentPlayer.cigarettes < upgradeCost || getWorkRemaining('lumber') > 0) ? 'disabled' : ''}>
+                            ⬆️ УЛУЧШИТЬ ЛЕСОПОВАЛ
+                        </button>
+                    `}
+                </div>
+                ${getWorkRemaining('lumber') > 0 ? '<div style="font-size: 11px; color: #ff9800; text-align: center; margin-top: 10px;">⚡ НЕВОЗМОЖНО УЛУЧШИТЬ ВО ВРЕМЯ РАБОТЫ</div>' : ''}
+            </div>
+        </div>
+    `;
+    
+    return resourcesBar + subTabs + workContent + upgradeContent;
+}
+
+function renderQuarryContent() {
+    checkAndCompleteQuarryUpgrade();
+    
+    var quarry = currentPlayer.quarry || { level: 1, lastGatherTime: 0, stone: 0, upgradeStartTime: 0, upgradeDuration: 0 };
+    var level = quarry.level;
+    var upgradeActive = isQuarryUpgradeActive();
+    var upgradeRemaining = getQuarryUpgradeRemaining();
+    var workRemaining = getWorkRemaining('quarry');
+    var workAvailable = workRemaining <= 0 && !upgradeActive;
+    var upgradeCost = 50 * level;
+    var upgradeDurationMs = 2 * 60 * 1000;
+    upgradeDurationMs = Math.floor(upgradeDurationMs * (1 + (level - 1) * 0.1));
+    var workExpGain = 28 + (level * 3);
+    var progressPercent = upgradeActive ? Math.min(100, ((Date.now() - currentPlayer.quarry.upgradeStartTime) / upgradeDurationMs) * 100) : 0;
+    
+    var resourcesBar = `
+        <div style="background: linear-gradient(135deg, #1a1a2a, #0d0d15); border-radius: 1px; padding: 5px 20px; margin: 9px -15px; border: 1px solid #8B4513; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+            <div style="display: flex; gap: 1px; align-items: center; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                    <span style="font-size: 11px;">🚬</span>
+                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.cigarettes || 0)}</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                    <span style="font-size: 11px;">📄</span>
+                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.mine?.paper || 0)}</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                    <span style="font-size: 11px;">🌿</span>
+                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.mine?.makhorka || 0)}</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                    <span style="font-size: 11px;">🪵</span>
+                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.lumber?.wood || 0)}</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                    <span style="font-size: 11px;">🪨</span>
+                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.quarry?.stone || 0)}</span>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    var subTabs = `
+        <div class="mine-sub-tab-header">
+            <button class="mine-sub-tab-btn ${currentMineSubTab === 'work' ? 'active' : ''}" id="quarryWorkTabBtn">⛏️ РАБОТАТЬ</button>
+            <button class="mine-sub-tab-btn ${currentMineSubTab === 'upgrade' ? 'active' : ''}" id="quarryUpgradeTabBtn">⬆️ ПРОКАЧКА</button>
+        </div>
+    `;
+    
+    var workContent = `
+        <div id="quarryWorkContainer" style="display: ${currentMineSubTab === 'work' ? 'block' : 'none'};">
+            <div class="mine-card">
+                <div style="text-align: center; margin-bottom: 10px;">
+                    <div style="background: linear-gradient(135deg, #8B4513, #5a2d0a); display: inline-block; padding: 5px 20px; border-radius: 30px; font-size: 14px; font-weight: 700;">🪨 РЕСУРСЫ</div>
+                </div>
+                <div class="mine-resources">
+                    <div class="mine-resource-item">
+                        <div>🪨</div>
+                        <div class="mine-resource-value">${quarry.stone}</div>
+                        <div style="font-size: 10px;">КАМЕНЬ</div>
+                    </div>
+                </div>
+                
+                ${upgradeActive ? `
+                    <div class="mine-timer">
+                        ⏳ ПРОКАЧКА КАМЕНОЛОМНИ: <span id="quarryUpgradeTimer" class="timer-text">${formatTimerMinutes(upgradeRemaining)}</span>
+                        <div class="mine-progress-bar" style="margin-top: 5px;"><div class="mine-progress-fill" style="width: ${progressPercent}%"></div></div>
+                    </div>
+                ` : ''}
+                
+                <div class="mine-timer" style="background: rgba(76,175,80,0.15);">
+                    ⭐ ОПЫТА ЗА РАБОТУ: +${workExpGain}
+                </div>
+                
+                <div class="mine-action-buttons">
+                    <button id="quarryWorkBtn" class="mine-work-btn" ${!workAvailable ? 'disabled' : ''}>
+                        ⛏️ РАБОТАТЬ<br><span class="mine-exchange-btn2">${!workAvailable && workRemaining > 0 ? '(' + formatTimerMinutes(workRemaining) + ')' : ''}</span>
+                    </button>
+                    <button id="quarryExchangeBtn" class="mine-exchange-btn">🔄 ОБМЕНЯТЬ<br><span class="mine-exchange-btn2">(1🚬 за 1🪨)</span></button>
+                    
+                </div>
+            </div>
+        </div>
+    `;
+    
+    var upgradeContent = `
+        <div id="quarryUpgradeContainer" style="display: ${currentMineSubTab === 'upgrade' ? 'block' : 'none'};">
+            <div class="mine-card">
+                <div style="text-align: center; margin-bottom: 15px;">
+                    <div style="background: linear-gradient(135deg, #8B4513, #5a2d0a); display: inline-block; padding: 5px 20px; border-radius: 30px; font-size: 14px; font-weight: 700;">⬆️ ПРОКАЧКА КАМЕНОЛОМНИ</div>
+                </div>
+                <div class="mine-upgrade-info">
+                    <div class="mine-upgrade-cost">
+                        <span>🪨 УРОВЕНЬ ${level}</span>
+                        <span>ДОБЫЧА: ${4 * level} шт</span>
+                    </div>
+                    ${upgradeActive ? `
+                        <div class="mine-upgrade-progress">
+                            <div class="mine-progress-label">⏳ ПРОКАЧКА ДО ${level + 1} УРОВНЯ</div>
+                            <div class="mine-progress-bar"><div id="quarryUpgradeTimerUpgrade" class="mine-progress-fill" style="width: ${progressPercent}%"></div></div>
+                            <div style="font-size: 11px; text-align: center; margin-top: 5px;"><span class="timer-text" id="quarryUpgradeTimerUpgradeText">${formatTimerMinutes(upgradeRemaining)}</span></div>
+                        </div>
+                    ` : `
+                        <div class="mine-upgrade-cost">
+                            <span>⬆️ ДО ${level + 1} УРОВНЯ</span>
+                            <span>💰 ${upgradeCost} 🚬</span>
+                        </div>
+                        <button id="upgradeQuarryBtn" class="mine-work-btn" style="width: 100%; margin-top: 10px;" ${(currentPlayer.cigarettes < upgradeCost || getWorkRemaining('quarry') > 0) ? 'disabled' : ''}>
+                            ⬆️ УЛУЧШИТЬ КАМЕНОЛОМНЮ
+                        </button>
+                    `}
+                </div>
+                ${getWorkRemaining('quarry') > 0 ? '<div style="font-size: 11px; color: #ff9800; text-align: center; margin-top: 10px;">⚡ НЕВОЗМОЖНО УЛУЧШИТЬ ВО ВРЕМЯ РАБОТЫ</div>' : ''}
+            </div>
+        </div>
+    `;
+    
+    return resourcesBar + subTabs + workContent + upgradeContent;
+}
+
+// ============================================================
+// 22.11. НАВЕШИВАНИЕ ОБРАБОТЧИКОВ
+// ============================================================
+
+function attachMineHandlers() {
+    var workTabBtn = document.getElementById('mineWorkTabBtn');
+    var upgradeTabBtn = document.getElementById('mineUpgradeTabBtn');
+    var workContainer = document.getElementById('mineWorkContainer');
+    var upgradeContainer = document.getElementById('mineUpgradeContainer');
+    
+    if (workTabBtn && upgradeTabBtn && workContainer && upgradeContainer) {
+        workTabBtn.onclick = function() {
+            currentMineSubTab = 'work';
+            workTabBtn.classList.add('active');
+            upgradeTabBtn.classList.remove('active');
+            workContainer.style.display = 'block';
+            upgradeContainer.style.display = 'none';
+        };
+        upgradeTabBtn.onclick = function() {
+            currentMineSubTab = 'upgrade';
+            upgradeTabBtn.classList.add('active');
+            workTabBtn.classList.remove('active');
+            workContainer.style.display = 'none';
+            upgradeContainer.style.display = 'block';
+        };
+    }
+    
+    var workBtn = document.getElementById('mineWorkBtn');
+    var exchangeBtn = document.getElementById('mineExchangeBtn');
+    var upgradePaperBtn = document.getElementById('upgradePaperBtn');
+    var upgradeMakhorkaBtn = document.getElementById('upgradeMakhorkaBtn');
+    
+    if (workBtn) workBtn.onclick = function() { mineResourcesFromModal(); };
+    if (exchangeBtn) exchangeBtn.onclick = function() { exchangeToCigarettesFromModal(); };
+    if (upgradePaperBtn) upgradePaperBtn.onclick = function() { upgradeMineFromModal('paper'); };
+    if (upgradeMakhorkaBtn) upgradeMakhorkaBtn.onclick = function() { upgradeMineFromModal('makhorka'); };
+}
+
+function attachLumberHandlers() {
+    var workTabBtn = document.getElementById('lumberWorkTabBtn');
+    var upgradeTabBtn = document.getElementById('lumberUpgradeTabBtn');
+    var workContainer = document.getElementById('lumberWorkContainer');
+    var upgradeContainer = document.getElementById('lumberUpgradeContainer');
+    
+    if (workTabBtn && upgradeTabBtn && workContainer && upgradeContainer) {
+        workTabBtn.onclick = function() {
+            currentMineSubTab = 'work';
+            workTabBtn.classList.add('active');
+            upgradeTabBtn.classList.remove('active');
+            workContainer.style.display = 'block';
+            upgradeContainer.style.display = 'none';
+        };
+        upgradeTabBtn.onclick = function() {
+            currentMineSubTab = 'upgrade';
+            upgradeTabBtn.classList.add('active');
+            workTabBtn.classList.remove('active');
+            workContainer.style.display = 'none';
+            upgradeContainer.style.display = 'block';
+        };
+    }
+    
+    var workBtn = document.getElementById('lumberWorkBtn');
+    var exchangeBtn = document.getElementById('lumberExchangeBtn');
+    var upgradeBtn = document.getElementById('upgradeLumberBtn');
+    
+    if (workBtn) workBtn.onclick = function() { gatherLumberFromModal(); };
+    if (exchangeBtn) exchangeBtn.onclick = function() { exchangeWoodToCigarettesFromModal(); };
+    if (upgradeBtn) upgradeBtn.onclick = function() { upgradeLumberFromModal(); };
+}
+
+function attachQuarryHandlers() {
+    var workTabBtn = document.getElementById('quarryWorkTabBtn');
+    var upgradeTabBtn = document.getElementById('quarryUpgradeTabBtn');
+    var workContainer = document.getElementById('quarryWorkContainer');
+    var upgradeContainer = document.getElementById('quarryUpgradeContainer');
+    
+    if (workTabBtn && upgradeTabBtn && workContainer && upgradeContainer) {
+        workTabBtn.onclick = function() {
+            currentMineSubTab = 'work';
+            workTabBtn.classList.add('active');
+            upgradeTabBtn.classList.remove('active');
+            workContainer.style.display = 'block';
+            upgradeContainer.style.display = 'none';
+        };
+        upgradeTabBtn.onclick = function() {
+            currentMineSubTab = 'upgrade';
+            upgradeTabBtn.classList.add('active');
+            workTabBtn.classList.remove('active');
+            workContainer.style.display = 'none';
+            upgradeContainer.style.display = 'block';
+        };
+    }
+    
+    var workBtn = document.getElementById('quarryWorkBtn');
+    var exchangeBtn = document.getElementById('quarryExchangeBtn');
+    var upgradeBtn = document.getElementById('upgradeQuarryBtn');
+    
+    if (workBtn) workBtn.onclick = function() { gatherStoneFromModal(); };
+    if (exchangeBtn) exchangeBtn.onclick = function() { exchangeStoneToCigarettesFromModal(); };
+    if (upgradeBtn) upgradeBtn.onclick = function() { upgradeQuarryFromModal(); };
+}
+
+// ============================================================
+// 22.12. ОТКРЫТИЕ/ЗАКРЫТИЕ ОКНА
+// ============================================================
+
+function openMineModal() {
+    console.log('🔵 openMineModal ВЫЗВАНА');
+    
+    // Проверяем блокировку
+    if (window._opening_mine_modal) {
+        console.log('⏳ Блокировка: окно уже открывается');
+        return;
+    }
+    window._opening_mine_modal = true;
+
+    if (maintenanceMode) {
+        showToast(maintenanceMessage, 'warning');
+        window._opening_mine_modal = false;
+        return;
+    }
+    
+    if (!currentPlayer) {
+        showToast('❌ Игрок не найден!', 'error');
+        window._opening_mine_modal = false;
+        return;
+    }
+
+    // Проверяем, не открыто ли уже окно
+    var existingModal = document.getElementById('mineFullscreen');
+    if (existingModal) {
+        console.log('✅ Окно уже существует, показываем');
+        existingModal.style.display = 'flex';
+        if (window.tg) window.tg.BackButton.show();
+        updateMineModalUI();
+        window._opening_mine_modal = false;
+        return;
+    }
+
+    // Создаём HTML окна
+    try {
+        var modalHtml = `
+            <div class="mine-fullscreen" id="mineFullscreen" style="
+                position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+                background: linear-gradient(135deg, #0a0a0f 0%, #14141f 100%);
+                z-index: 20000; display: flex; flex-direction: column;
+                animation: fadeIn 0.25s ease;
+                overflow-y: auto;
+            ">
+                <div class="mine-header-bar" style="
+                    background: linear-gradient(135deg, #1a1a2a 0%, #0d0d15 100%);
+                    border-bottom: 2px solid #8B4513;
+                    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+                    position: relative; padding: 12px 20px;
+                    padding-top: max(12px, env(safe-area-inset-top));
+                    display: flex; justify-content: center; align-items: center;
+                    flex-shrink: 0;
+                ">
+                    <div style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); font-size: 24px; opacity: 0.3; pointer-events: none;">⛓️</div>
+                    <div style="position: absolute; right: 16px; top: 50%; transform: translateY(-50%); font-size: 24px; opacity: 0.3; pointer-events: none;">⛓️</div>
+                    
+                    <div class="mine-header-title" style="
+                        font-size: 20px; font-weight: 800;
+                        background: linear-gradient(135deg, #c9a03d, #8B6914);
+                        -webkit-background-clip: text; background-clip: text;
+                        color: transparent;
+                        text-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+                        letter-spacing: 2px;
+                        display: flex; align-items: center; gap: 10px;
+                    ">
+                        <span></span> РАБОТА
+                    </div>
+                </div>
+                
+                <!-- КОНТЕНТ -->
+                <div class="mine-content-area" id="mineContentArea" style="
+                    flex: 1; overflow-y: auto; padding-bottom: 16px; padding-left: 5px; padding-right: 5px; margin-bottom: 80px;
+                ">
+                    <div style="text-align: center; padding: 40px; color: #888;">
+                        ⏳ Загрузка...
+                    </div>
+                </div>
+                
+                <!-- НИЖНЯЯ ПАНЕЛЬ -->
+                <div class="mine-bottom-nav" style="
+                    position: fixed; bottom: 0; left: 0; right: 0;
+                    background: rgba(10, 14, 26, 0.95);
+                    backdrop-filter: blur(20px);
+                    border-top: 1px solid #8B4513;
+                    padding: 8px 16px;
+                    padding-bottom: max(8px, env(safe-area-inset-bottom));
+                    z-index: 10001;
+                    display: flex; justify-content: center;
+                    flex-shrink: 0;
+                ">
+                    <div class="bottom-nav" style="
+                        max-width: 550px; margin: 0 auto;
+                        display: flex; align-items: center; justify-content: center; gap: 8px;
+                    ">
+                        <button class="mine-tab-btn active" id="mineBackBtn" style="
+                            background: transparent; border: none; border-radius: 8px;
+                            padding: 2px 1px; display: flex; flex-direction: column;
+                            align-items: center; gap: 2px; cursor: pointer;
+                            color: #8e8ea0; font-size: 11px; font-weight: 500; min-width: auto;
+                        ">
+                            <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_6.png" height="70px" width="55px" draggable="false">
+                        </button>
+                        <button class="mine-tab-btn ${currentMineTab === 'mine' ? 'active' : ''}" id="mineTabMineBtn" style="
+                            background: transparent; border: none; border-radius: 8px;
+                            padding: 2px 1px; display: flex; flex-direction: column;
+                            align-items: center; gap: 2px; cursor: pointer;
+                            color: #8e8ea0; font-size: 11px; font-weight: 500; min-width: auto;
+                        ">
+                            <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_7.png" height="70px" width="55px" draggable="false">
+                        </button>
+                        <button class="mine-tab-btn ${currentMineTab === 'lumber' ? 'active' : ''}" id="mineTabLumberBtn" style="
+                            background: transparent; border: none; border-radius: 8px;
+                            padding: 2px 1px; display: flex; flex-direction: column;
+                            align-items: center; gap: 2px; cursor: pointer;
+                            color: #8e8ea0; font-size: 11px; font-weight: 500; min-width: auto;
+                        ">
+                            <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_8.png" height="70px" width="55px" draggable="false">
+                        </button>
+                        <button class="mine-tab-btn ${currentMineTab === 'quarry' ? 'active' : ''}" id="mineTabQuarryBtn" style="
+                            background: transparent; border: none; border-radius: 8px;
+                            padding: 2px 1px; display: flex; flex-direction: column;
+                            align-items: center; gap: 2px; cursor: pointer;
+                            color: #8e8ea0; font-size: 11px; font-weight: 500; min-width: auto;
+                        ">
+                            <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_9.png" height="70px" width="55px" draggable="false">
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        console.log('✅ HTML окна работы создан');
+        
+        if (window.tg) window.tg.BackButton.show();
+        
+        // Навешиваем обработчики ПОСЛЕ создания DOM
+        setTimeout(function() {
+            attachMineNavigationHandlers();
+            updateMineModalUI();
+            startMineTimers();
+        }, 100);
+        
+    } catch (e) {
+        console.error('❌ Ошибка создания окна работы:', e);
+        showToast('❌ Ошибка открытия окна: ' + e.message, 'error');
+    }
+    
+    setTimeout(function() { 
+        window._opening_mine_modal = false; 
+    }, 500);
+}
+
+// ============================================================
+// 22.12.1. НАВЕШИВАНИЕ ОБРАБОТЧИКОВ НАВИГАЦИИ
+// ============================================================
+function attachMineNavigationHandlers() {
+    var backBtn = document.getElementById('mineBackBtn');
+    var mineTabBtn = document.getElementById('mineTabMineBtn');
+    var lumberTabBtn = document.getElementById('mineTabLumberBtn');
+    var quarryTabBtn = document.getElementById('mineTabQuarryBtn');
+    
+    if (backBtn) {
+        backBtn.onclick = function() { 
+            console.log('🔵 Нажата кнопка назад');
+            closeMineModal(); 
+        };
+    }
+    
+    if (mineTabBtn) {
+        mineTabBtn.onclick = function() {
+            console.log('🔵 Переключение на ШАХТУ');
+            currentMineTab = 'mine';
+            currentMineSubTab = 'work';
+            // Обновляем активные классы
+            mineTabBtn.classList.add('active');
+            if (lumberTabBtn) lumberTabBtn.classList.remove('active');
+            if (quarryTabBtn) quarryTabBtn.classList.remove('active');
+            updateMineModalUI();
+        };
+    }
+    
+    if (lumberTabBtn) {
+        lumberTabBtn.onclick = function() {
+            console.log('🔵 Переключение на ЛЕСОПОВАЛ');
+            currentMineTab = 'lumber';
+            currentMineSubTab = 'work';
+            lumberTabBtn.classList.add('active');
+            if (mineTabBtn) mineTabBtn.classList.remove('active');
+            if (quarryTabBtn) quarryTabBtn.classList.remove('active');
+            updateMineModalUI();
+        };
+    }
+    
+    if (quarryTabBtn) {
+        quarryTabBtn.onclick = function() {
+            console.log('🔵 Переключение на КАМЕНОЛОМНЮ');
+            currentMineTab = 'quarry';
+            currentMineSubTab = 'work';
+            quarryTabBtn.classList.add('active');
+            if (mineTabBtn) mineTabBtn.classList.remove('active');
+            if (lumberTabBtn) lumberTabBtn.classList.remove('active');
+            updateMineModalUI();
+        };
+    }
+}
+
+function closeMineModal() {
+    console.log('🔵 closeMineModal ВЫЗВАНА');
+    
+    if (window.mineTimerInterval) {
+        clearInterval(window.mineTimerInterval);
+        window.mineTimerInterval = null;
+    }
+    
+    var modal = document.getElementById('mineFullscreen');
+    if (modal) {
+        modal.remove();
+        console.log('✅ Окно работы удалено');
+    }
+    
+    if (window.tg) window.tg.BackButton.hide();
+    
+    document.body.style.overflow = '';
+    document.body.style.position = '';
+    document.body.style.width = '';
+    document.body.classList.remove('modal-open');
+
+    updateTopBarResources();
+    updateWorkCountersOnMap();
+    updateBattleCountersOnMap();
+    
+    window._opening_mine_modal = false;
+}
+
+// ============================================================
+// 22.13. ЗАПУСК ТАЙМЕРОВ
+// ============================================================
+
+function startMineTimers() {
+    if (window.mineTimerInterval) clearInterval(window.mineTimerInterval);
+    
+    window.mineTimerInterval = setInterval(function() {
+        try {
+            checkAndCompleteMineUpgrade('paper');
+            checkAndCompleteMineUpgrade('makhorka');
+            checkAndCompleteLumberUpgrade();
+            checkAndCompleteQuarryUpgrade();
+            
+            checkWorkCompletion();
+            
+            updateWorkCountersOnMap();
+            updateBattleCountersOnMap();
+            
+            var mineModal = document.getElementById('mineFullscreen');
+            if (mineModal && mineModal.style.display === 'flex') {
+                updateMineModalUI();
+            }
+        } catch (e) {
+            console.error('Ошибка в таймере шахты:', e);
+        }
+    }, 1000);
+}
+
+function checkWorkCompletion() {
+    if (!currentPlayer) return;
+    
+    var workTypes = ['mine', 'lumber', 'quarry'];
+    
+    for (var i = 0; i < workTypes.length; i++) {
+        var type = workTypes[i];
+        var remaining = getWorkRemaining(type);
+        var lastRemaining = lastWorkRemainingState[type] || 0;
+        
+        if (lastRemaining > 0 && remaining <= 0) {
+            console.log('✅ Работа ' + type + ' завершена!');
+            
+            if (!window.workPendingCompletion[type]) {
+                completeWorkSafe(type);
+            }
+        }
+        lastWorkRemainingState[type] = remaining;
+    }
+}
+
+// ============================================================
+// 22.14. ИНИЦИАЛИЗАЦИЯ
+// ============================================================
+
+function initWorkSystem() {
+    console.log('🔄 Инициализация системы РАБОТА...');
+    
+    if (!currentPlayer) {
+        console.log('❌ Нет игрока');
+        return;
+    }
+    
+    // Инициализируем структуры данных
+    if (!currentPlayer.mine) {
+        currentPlayer.mine = { 
+            paperLevel: 1, makhorkaLevel: 1, lastMineTime: 0, 
+            paper: 0, makhorka: 0, 
+            paperUpgradeStartTime: 0, paperUpgradeDuration: 0, 
+            makhorkaUpgradeStartTime: 0, makhorkaUpgradeDuration: 0 
+        };
+        var playerRef = getDBRef('players/' + currentPlayer.id);
+        if (playerRef) {
+            playerRef.update({ mine: currentPlayer.mine });
+        }
+    }
+    
+    if (!currentPlayer.lumber) {
+        currentPlayer.lumber = { level: 1, lastGatherTime: 0, wood: 0, upgradeStartTime: 0, upgradeDuration: 0 };
+        var playerRef = getDBRef('players/' + currentPlayer.id);
+        if (playerRef) {
+            playerRef.update({ lumber: currentPlayer.lumber });
+        }
+    }
+    
+    if (!currentPlayer.quarry) {
+        currentPlayer.quarry = { level: 1, lastGatherTime: 0, stone: 0, upgradeStartTime: 0, upgradeDuration: 0 };
+        var playerRef = getDBRef('players/' + currentPlayer.id);
+        if (playerRef) {
+            playerRef.update({ quarry: currentPlayer.quarry });
+        }
+    }
+    
+    // Запускаем таймеры
+    startMineTimers();
+    startWorkCountersOnMap();
+    
+    console.log('✅ Система РАБОТА инициализирована');
+}
+
+function stopWorkSystem() {
+    if (window.mineTimerInterval) {
+        clearInterval(window.mineTimerInterval);
+        window.mineTimerInterval = null;
+    }
+    if (window.workCountersInterval) {
+        clearInterval(window.workCountersInterval);
+        window.workCountersInterval = null;
+    }
+    console.log('🛑 Система РАБОТА остановлена');
+}
+
+// ============================================================
+// 22.15. ОБНОВЛЕНИЕ СЧЕТЧИКОВ НА КАРТЕ
+// ============================================================
+
+function startWorkCountersOnMap() {
+    if (window.workCountersInterval) {
+        clearInterval(window.workCountersInterval);
+    }
+    window.workCountersInterval = setInterval(function() {
+        if (currentPlayer) {
+            updateWorkCountersOnMap();
+        }
+    }, 1000);
+}
+
+function updateWorkCountersOnMap() {
+    try {
+        var b2Element = document.querySelector('.building.b2');
+        if (!b2Element) return;
+        
+        var activeCounters = [];
+        
+        var mineWorkRemaining = getWorkRemaining('mine');
+        if (mineWorkRemaining > 0) {
+            activeCounters.push({ type: 'work', icon: '⛏️', remaining: mineWorkRemaining });
+        }
+        
+        var minePaperUpgradeRemaining = getMineUpgradeRemaining('paper');
+        if (minePaperUpgradeRemaining > 0) {
+            activeCounters.push({ type: 'upgrade', icon: '📄⬆️', remaining: minePaperUpgradeRemaining });
+        }
+        
+        var mineMakhorkaUpgradeRemaining = getMineUpgradeRemaining('makhorka');
+        if (mineMakhorkaUpgradeRemaining > 0) {
+            activeCounters.push({ type: 'upgrade', icon: '🌿⬆️', remaining: mineMakhorkaUpgradeRemaining });
+        }
+        
+        var lumberWorkRemaining = getWorkRemaining('lumber');
+        if (lumberWorkRemaining > 0) {
+            activeCounters.push({ type: 'work', icon: '🪓', remaining: lumberWorkRemaining });
+        }
+        
+        var lumberUpgradeRemaining = getLumberUpgradeRemaining();
+        if (lumberUpgradeRemaining > 0) {
+            activeCounters.push({ type: 'upgrade', icon: '🪵⬆️', remaining: lumberUpgradeRemaining });
+        }
+        
+        var quarryWorkRemaining = getWorkRemaining('quarry');
+        if (quarryWorkRemaining > 0) {
+            activeCounters.push({ type: 'work', icon: '⛏️', remaining: quarryWorkRemaining });
+        }
+        
+        var quarryUpgradeRemaining = getQuarryUpgradeRemaining();
+        if (quarryUpgradeRemaining > 0) {
+            activeCounters.push({ type: 'upgrade', icon: '🪨⬆️', remaining: quarryUpgradeRemaining });
+        }
+        
+        var formatMapTimer = function(ms) {
+            if (ms <= 0) return '';
+            var totalSeconds = Math.floor(ms / 1000);
+            var minutes = Math.floor(totalSeconds / 60);
+            var seconds = totalSeconds % 60;
+            if (minutes > 0) return minutes + 'м ' + seconds + 'с';
+            return seconds + 'с';
+        };
+        
+        var countersDiv = b2Element.querySelector('.counters-container-work');
+        
+        if (activeCounters.length > 0) {
+            if (!countersDiv) {
+                countersDiv = document.createElement('div');
+                countersDiv.className = 'counters-container-work';
+                b2Element.appendChild(countersDiv);
+            }
+            
+            var html = '';
+            for (var i = 0; i < activeCounters.length; i++) {
+                var counter = activeCounters[i];
+                var timerText = formatMapTimer(counter.remaining);
+                if (counter.type === 'work') {
+                    html += '<div class="work-counter">' + counter.icon + ' ' + timerText + '</div>';
+                } else {
+                    html += '<div class="upgrade-work-counter">⬆️ ' + timerText + '</div>';
+                }
+            }
+            countersDiv.innerHTML = html;
+            countersDiv.style.display = 'flex';
+        } else if (countersDiv) {
+            countersDiv.style.display = 'none';
+        }
+    } catch (e) {
+        // Игнорируем ошибки
+    }
+}
+
+// ============================================================
+// 22.16. ЭКСПОРТ ФУНКЦИЙ
+// ============================================================
+
+window.isMineUpgradeActive = isMineUpgradeActive;
+window.getMineUpgradeRemaining = getMineUpgradeRemaining;
+window.checkAndCompleteMineUpgrade = checkAndCompleteMineUpgrade;
+window.isLumberUpgradeActive = isLumberUpgradeActive;
+window.getLumberUpgradeRemaining = getLumberUpgradeRemaining;
+window.checkAndCompleteLumberUpgrade = checkAndCompleteLumberUpgrade;
+window.isQuarryUpgradeActive = isQuarryUpgradeActive;
+window.getQuarryUpgradeRemaining = getQuarryUpgradeRemaining;
+window.checkAndCompleteQuarryUpgrade = checkAndCompleteQuarryUpgrade;
+window.getWorkRemaining = getWorkRemaining;
+window.completeWorkSafe = completeWorkSafe;
+window.mineResourcesFromModal = mineResourcesFromModal;
+window.gatherLumberFromModal = gatherLumberFromModal;
+window.gatherStoneFromModal = gatherStoneFromModal;
+window.upgradeMineFromModal = upgradeMineFromModal;
+window.upgradeLumberFromModal = upgradeLumberFromModal;
+window.upgradeQuarryFromModal = upgradeQuarryFromModal;
+window.exchangeToCigarettesFromModal = exchangeToCigarettesFromModal;
+window.exchangeWoodToCigarettesFromModal = exchangeWoodToCigarettesFromModal;
+window.exchangeStoneToCigarettesFromModal = exchangeStoneToCigarettesFromModal;
+window.updateMineModalUI = updateMineModalUI;
+window.renderMineContent = renderMineContent;
+window.renderLumberContent = renderLumberContent;
+window.renderQuarryContent = renderQuarryContent;
+window.attachMineHandlers = attachMineHandlers;
+window.attachLumberHandlers = attachLumberHandlers;
+window.attachQuarryHandlers = attachQuarryHandlers;
+window.openMineModal = openMineModal;
+window.closeMineModal = closeMineModal;
+window.startMineTimers = startMineTimers;
+window.checkWorkCompletion = checkWorkCompletion;
+window.initWorkSystem = initWorkSystem;
+window.stopWorkSystem = stopWorkSystem;
+window.updateWorkCountersOnMap = updateWorkCountersOnMap;
+window.startWorkCountersOnMap = startWorkCountersOnMap;
+
+console.log('✅ РАБОТА: блок полностью загружен');
+console.log('🎯 РАБОТА: все функции готовы к использованию!');
+
         // ============================================================
-        // 22. ЗАКРЫТИЕ МОДАЛЬНЫХ ОКОН
+        // 23. ЗАКРЫТИЕ МОДАЛЬНЫХ ОКОН
         // ============================================================
         window.closeModal = function(id) {
             const modal = document.getElementById(id);
@@ -15215,7 +17536,7 @@ async function forceCheckNotifications() {
         };
 
         // ============================================================
-        // 23. ВЫХОД ИЗ АККАУНТА
+        // 24. ВЫХОД ИЗ АККАУНТА
         // ============================================================
         window.logoutAccount = function() {
             if (confirm('Вы уверены, что хотите выйти?')) {
@@ -15264,7 +17585,7 @@ async function forceCheckNotifications() {
         };
 
         // ============================================================
-        // 24. ПЕРЕКЛЮЧЕНИЕ ВКЛАДОК
+        // 25. ПЕРЕКЛЮЧЕНИЕ ВКЛАДОК
         // ============================================================
         window.switchBottomTab = function(tab) {
             window.currentBottomTab = tab;
@@ -15282,7 +17603,7 @@ async function forceCheckNotifications() {
         };
 
         // ============================================================
-        // 25. ЗАЩИТА ОТ КОНТЕКСТНОГО МЕНЮ
+        // 26. ЗАЩИТА ОТ КОНТЕКСТНОГО МЕНЮ
         // ============================================================
         document.addEventListener('contextmenu', (e) => {
             e.preventDefault();
