@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>GameZona - 1.0.1.028</title>
+    <title>GameZona - 1.0.1.030</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -1341,6 +1341,12 @@
     min-height: 22px;
     transition: all 0.3s ease;
     animation: counterSlideIn 0.3s ease forwards;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.work-counter-item.removing {
+    opacity: 0;
+    transform: scale(0.9);
 }
 
 /* Иконка в счетчике */
@@ -1427,6 +1433,58 @@
 }
 
 /* Для мобильных устройств */
+@media (max-width: 480px) {
+    .work-counter-item {
+        font-size: 8px;
+        padding: 3px 6px;
+        min-height: 18px;
+    }
+    .work-counter-item .counter-icon {
+        font-size: 10px;
+    }
+    .work-counter-item .counter-label {
+        font-size: 7px;
+    }
+    .work-counter-item .counter-time {
+        font-size: 9px;
+        min-width: 35px;
+    }
+    .counters-container-work {
+        gap: 2px;
+        width: 95%;
+        bottom: 4px;
+    }
+}
+/* Анимация появления счетчиков */
+@keyframes counterSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* Анимация пульсации времени */
+@keyframes counterPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+.work-counter-item .counter-time {
+    animation: counterPulse 2s ease-in-out infinite;
+}
+
+/* Hover эффект */
+.work-counter-item:hover {
+    transform: scale(1.03);
+    background: rgba(0, 0, 0, 0.95);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Для мобильных */
 @media (max-width: 480px) {
     .work-counter-item {
         font-size: 8px;
@@ -4248,6 +4306,10 @@ function formatCooldownTime(ms) {
             forceCheckNotifications();
             // Инициализация заданий
             initQuests();
+            // ЗАПУСКАЕМ ИНТЕРВАЛ - ОБНОВЛЯЕМ КАЖДУЮ СЕКУНДУ!
+            window.workCountersInterval = setInterval(function() {
+            updateAllCountersAuto();
+            }, 1000);
             
             showToast('🎮 Добро пожаловать, ' + window.currentPlayer.username + '!', 'success');
             console.log('✅ Игра запущена успешно!');
@@ -6584,7 +6646,7 @@ window.openSettingsModal = function() {
                     <div style="font-size: 36px; margin-bottom: 10px;">⚙️</div>
                     <div style="font-size: 16px; font-weight: 700; color: #ffd966;">${escapeHtml(window.currentPlayer.username)}</div>
                     <div style="font-size: 12px; color: #888; margin-top: 4px;">🆔 ${window.playerId}</div>
-                    <div style="font-size: 11px; color: #666; margin-top: 8px;">Версия - 1.0.1.028</div>
+                    <div style="font-size: 11px; color: #666; margin-top: 8px;">Версия - 1.0.1.030</div>
                 </div>
             
             <!-- НИЖНЯЯ ПАНЕЛЬ НАВИГАЦИИ -->
@@ -15686,10 +15748,10 @@ async function forceCheckNotifications() {
 // 22.0. ИНИЦИАЛИЗАЦИЯ ПЕРЕМЕННЫХ
 // ============================================================
 if (typeof window.currentMineTab === 'undefined') {
-    window.currentMineTab = 'mine'; // 'mine', 'lumber', 'quarry'
+    window.currentMineTab = 'mine';
 }
 if (typeof window.currentMineSubTab === 'undefined') {
-    window.currentMineSubTab = 'work'; // 'work' или 'upgrade'
+    window.currentMineSubTab = 'work';
 }
 if (typeof window.mineTimerInterval === 'undefined') {
     window.mineTimerInterval = null;
@@ -15707,11 +15769,22 @@ if (typeof window.workCompletionInitialized === 'undefined') {
     window.workCompletionInitialized = false;
 }
 if (typeof window.workCheckIntervals === 'undefined') {
-    window.workCheckIntervals = {
-        mine: null,
-        lumber: null,
-        quarry: null
-    };
+    window.workCheckIntervals = { mine: null, lumber: null, quarry: null };
+}
+if (typeof window.activeCounterElements === 'undefined') {
+    window.activeCounterElements = {};
+}
+if (typeof window.countersContainer === 'undefined') {
+    window.countersContainer = null;
+}
+if (typeof window.workCountersInterval === 'undefined') {
+    window.workCountersInterval = null;
+}
+if (typeof window.cachedPlayerId === 'undefined') {
+    window.cachedPlayerId = null;
+}
+if (typeof window.cachedPlayerData === 'undefined') {
+    window.cachedPlayerData = null;
 }
 
 console.log('✅ РАБОТА: переменные инициализированы');
@@ -15748,7 +15821,6 @@ function getDBRef(path) {
 // 22.2. ФУНКЦИИ ДЛЯ ШАХТЫ (MINE)
 // ============================================================
 
-// Проверка активности прокачки
 function isMineUpgradeActive(type) {
     if (!currentPlayer || !currentPlayer.mine) return false;
     
@@ -15766,7 +15838,6 @@ function isMineUpgradeActive(type) {
     return false;
 }
 
-// Получение оставшегося времени прокачки
 function getMineUpgradeRemaining(type) {
     if (!currentPlayer || !currentPlayer.mine) return 0;
     
@@ -15784,7 +15855,6 @@ function getMineUpgradeRemaining(type) {
     return 0;
 }
 
-// Проверка и завершение прокачки
 async function checkAndCompleteMineUpgrade(type) {
     if (!currentPlayer || !currentPlayer.mine) return false;
     
@@ -15800,7 +15870,6 @@ async function checkAndCompleteMineUpgrade(type) {
         try {
             var playerRef = getDBRef('players/' + currentPlayer.id);
             if (playerRef) {
-                // Обновляем только нужные поля, НЕ перезаписывая весь объект
                 var updateData = {};
                 var minePath = 'mine/';
                 if (type === 'paper') {
@@ -15842,7 +15911,6 @@ async function checkAndCompleteMineUpgrade(type) {
     return false;
 }
 
-// Получение оставшегося времени работы
 function getWorkRemaining(type) {
     if (!currentPlayer) return 0;
     
@@ -15988,7 +16056,6 @@ async function completeWorkSafe(type) {
     console.log('✅ Завершение работы ' + type);
     
     try {
-        // Инициализируем структуры данных если их нет
         if (!currentPlayer.mine) {
             currentPlayer.mine = { paper: 0, makhorka: 0, paperLevel: 1, makhorkaLevel: 1 };
         }
@@ -16074,13 +16141,11 @@ async function completeWorkSafe(type) {
             successMessage = '⛏️ Работа в каменоломне завершена! +' + stoneGain + '🪨 камня, +' + workExp + '⭐ опыта';
         }
         
-        // Обновляем Firebase
         var playerRef = getDBRef('players/' + currentPlayer.id);
         if (playerRef && Object.keys(updateData).length > 0) {
             await playerRef.update(updateData);
         }
         
-        // Обновляем опыт
         var newAuthority = (currentPlayer.authority || 0) + workExp;
         var newLevel = currentPlayer.level || 1;
         var leveledUp = false;
@@ -16133,7 +16198,6 @@ async function completeWorkSafe(type) {
     } finally {
         window.workPendingCompletion[type] = false;
         
-        // Обновляем UI
         setTimeout(function() {
             try {
                 updateTopBarResources();
@@ -16184,18 +16248,22 @@ async function mineResourcesFromModal() {
     if (playerRef) {
         await playerRef.update({ 'mine/lastMineTime': now });
     }
+    showLoading(true, 'Начинаем работать...');
+    //showToast('⛏️ Начата работа в шахте! Ресурсы придут через ' + Math.ceil(cooldownMs / 60000) + ' мин.', 'success');
     
-    showToast('⛏️ Начата работа в шахте! Ресурсы придут через ' + Math.ceil(cooldownMs / 60000) + ' мин.', 'success');
+    setTimeout(function() {
+        refreshCounters();
+    }, 100);
     
     updateWorkCountersOnMap();
     updateTopBarResources();
     updateBattleCountersOnMap();
-    
+
     var mineModal = document.getElementById('mineFullscreen');
     if (mineModal && mineModal.style.display === 'flex') {
         updateMineModalUI();
     }
-    
+    showLoading(false);
     lastWorkRemainingState.mine = cooldownMs;
 }
 
@@ -16228,17 +16296,23 @@ async function gatherLumberFromModal() {
         await playerRef.update({ 'lumber/lastGatherTime': now });
     }
     
-    showToast('🪓 Начата работа на лесоповале! Ресурсы придут через ' + Math.ceil(cooldownMs / 60000) + ' мин.', 'success');
+    var minutes = Math.ceil(cooldownMs / 60000);
+    showLoading(true, 'Начинаем работать...');
+    //showToast('🪓 Начата работа на лесоповале! Ресурсы придут через ' + minutes + ' мин.', 'success');
+    
+    setTimeout(function() {
+        refreshCounters();
+    }, 100);
     
     updateWorkCountersOnMap();
     updateTopBarResources();
     updateBattleCountersOnMap();
-    
+
     var mineModal = document.getElementById('mineFullscreen');
     if (mineModal && mineModal.style.display === 'flex') {
         updateMineModalUI();
     }
-    
+    showLoading(false);
     lastWorkRemainingState.lumber = cooldownMs;
 }
 
@@ -16271,17 +16345,25 @@ async function gatherStoneFromModal() {
         await playerRef.update({ 'quarry/lastGatherTime': now });
     }
     
-    showToast('⛏️ Начата работа в каменоломне! Ресурсы придут через ' + Math.ceil(cooldownMs / 60000) + ' мин.', 'success');
+    var minutes = Math.ceil(cooldownMs / 60000);
+    showLoading(true, 'Начинаем работать...');
+    //showToast('⛏️ Начата работа в каменоломне! Ресурсы придут через ' + minutes + ' мин.', 'success');
+    
+    setTimeout(function() {
+        refreshCounters();
+    }, 100);
     
     updateWorkCountersOnMap();
     updateTopBarResources();
     updateBattleCountersOnMap();
     
+    
+
     var mineModal = document.getElementById('mineFullscreen');
     if (mineModal && mineModal.style.display === 'flex') {
         updateMineModalUI();
     }
-    
+    showLoading(false);
     lastWorkRemainingState.quarry = cooldownMs;
 }
 
@@ -16350,6 +16432,10 @@ async function upgradeMineFromModal(type) {
         var seconds = Math.floor((upgradeDurationMs % 60000) / 1000);
         showToast('⏳ Начата прокачка ' + (type === 'paper' ? 'бумаги' : 'махорки') + '! Завершится через ' + minutes + ' мин ' + seconds + ' сек.', 'success');
 
+        setTimeout(function() {
+            refreshCounters();
+        }, 100);
+
         updateWorkCountersOnMap();
         updateTopBarResources();
         updateBattleCountersOnMap();
@@ -16414,6 +16500,10 @@ async function upgradeLumberFromModal() {
         var minutes = Math.floor(upgradeDurationMs / 60000);
         var seconds = Math.floor((upgradeDurationMs % 60000) / 1000);
         showToast('⏳ Начата прокачка лесоповала! Уровень повысится через ' + minutes + ' мин ' + seconds + ' сек.', 'success');
+
+        setTimeout(function() {
+            refreshCounters();
+        }, 100);
 
         updateWorkCountersOnMap();
         updateTopBarResources();
@@ -16480,6 +16570,10 @@ async function upgradeQuarryFromModal() {
         var seconds = Math.floor((upgradeDurationMs % 60000) / 1000);
         showToast('⏳ Начата прокачка каменоломни! Уровень повысится через ' + minutes + ' мин ' + seconds + ' сек.', 'success');
 
+        setTimeout(function() {
+            refreshCounters();
+        }, 100);
+
         updateWorkCountersOnMap();
         updateTopBarResources();
         updateBattleCountersOnMap();
@@ -16539,6 +16633,10 @@ async function exchangeToCigarettesFromModal() {
         
         showToast('🔄 Обмен: +' + gain + '🚬', 'success');
         
+        setTimeout(function() {
+            refreshCounters();
+        }, 100);
+        
         updateTopBarResources();
         updateBattleCountersOnMap();
         updateWorkCountersOnMap();
@@ -16583,6 +16681,10 @@ async function exchangeWoodToCigarettesFromModal() {
         });
         
         showToast('🔄 Обмен: +' + gain + '🚬', 'success');
+        
+        setTimeout(function() {
+            refreshCounters();
+        }, 100);
         
         updateTopBarResources();
         updateBattleCountersOnMap();
@@ -16629,6 +16731,10 @@ async function exchangeStoneToCigarettesFromModal() {
         
         showToast('🔄 Обмен: +' + gain + '🚬', 'success');
         
+        setTimeout(function() {
+            refreshCounters();
+        }, 100);
+        
         updateTopBarResources();
         updateBattleCountersOnMap();
         updateWorkCountersOnMap();
@@ -16654,7 +16760,6 @@ function updateMineModalUI() {
     var contentArea = document.getElementById('mineContentArea');
     if (!contentArea) return;
     
-    // Проверяем завершение прокачек
     checkAndCompleteMineUpgrade('paper');
     checkAndCompleteMineUpgrade('makhorka');
     checkAndCompleteLumberUpgrade();
@@ -16672,7 +16777,6 @@ function updateMineModalUI() {
     
     contentArea.innerHTML = contentHtml;
     
-    // Навешиваем обработчики
     if (currentMineTab === 'mine') {
         attachMineHandlers();
     } else if (currentMineTab === 'lumber') {
@@ -16715,7 +16819,9 @@ function renderMineContent() {
     var paperProgressPercent = paperUpgradeActive ? Math.min(100, ((Date.now() - (mineData.paperUpgradeStartTime || 0)) / upgradeDurationMsPaper) * 100) : 0;
     var makhorkaProgressPercent = makhorkaUpgradeActive ? Math.min(100, ((Date.now() - (mineData.makhorkaUpgradeStartTime || 0)) / upgradeDurationMsMakhorka) * 100) : 0;
     
-    // Верхняя панель ресурсов
+    var paperRate = getExchangeRate(paperLevel, 'paper');
+    var makhorkaRate = getExchangeRate(makhorkaLevel, 'makhorka');
+    
     var resourcesBar = `
         <div style="background: linear-gradient(135deg, #1a1a2a, #0d0d15); border-radius: 1px; padding: 5px 20px; margin: 9px -15px; border: 1px solid #8B4513; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
             <div style="display: flex; gap: 1px; align-items: center; flex-wrap: wrap;">
@@ -16790,7 +16896,7 @@ function renderMineContent() {
                     <button id="mineWorkBtn" class="mine-work-btn" ${!workAvailable ? 'disabled' : ''}>
                         ⛏️ РАБОТАТЬ<br><span class="mine-exchange-btn2">${!workAvailable && workRemaining > 0 ? '(' + formatTimerMinutes(workRemaining) + ')' : ''}</span>
                     </button>
-                    <button id="mineExchangeBtn" class="mine-exchange-btn">🔄 ОБМЕНЯТЬ<br><span class="mine-exchange-btn2">(📄2🚬/шт | 🌿1🚬/шт)</span></button>
+                    <button id="mineExchangeBtn" class="mine-exchange-btn">🔄 ОБМЕНЯТЬ<br><span class="mine-exchange-btn2">(📄${paperRate}🚬/шт | 🌿${makhorkaRate}🚬/шт)</span></button>
                 </div>
                 ${(paperUpgradeActive || makhorkaUpgradeActive) ? '<div style="font-size: 11px; color: #ff9800; text-align: center;">⚡ НЕВОЗМОЖНО РАБОТАТЬ ВО ВРЕМЯ ПРОКАЧКИ</div>' : ''}
             </div>
@@ -17203,15 +17309,14 @@ function attachQuarryHandlers() {
 function openMineModal() {
     console.log('🔵 openMineModal ВЫЗВАНА');
     
-    // Проверяем блокировку
     if (window._opening_mine_modal) {
         console.log('⏳ Блокировка: окно уже открывается');
         return;
     }
     window._opening_mine_modal = true;
 
-    if (maintenanceMode) {
-        showToast(maintenanceMessage, 'warning');
+    if (typeof maintenanceMode !== 'undefined' && maintenanceMode) {
+        showToast(maintenanceMessage || 'Технические работы', 'warning');
         window._opening_mine_modal = false;
         return;
     }
@@ -17222,7 +17327,6 @@ function openMineModal() {
         return;
     }
 
-    // Проверяем, не открыто ли уже окно
     var existingModal = document.getElementById('mineFullscreen');
     if (existingModal) {
         console.log('✅ Окно уже существует, показываем');
@@ -17230,10 +17334,12 @@ function openMineModal() {
         if (window.tg) window.tg.BackButton.show();
         updateMineModalUI();
         window._opening_mine_modal = false;
+        setTimeout(function() {
+            refreshCounters();
+        }, 100);
         return;
     }
 
-    // Создаём HTML окна
     try {
         var modalHtml = `
             <div class="mine-fullscreen" id="mineFullscreen" style="
@@ -17268,16 +17374,14 @@ function openMineModal() {
                     </div>
                 </div>
                 
-                <!-- КОНТЕНТ -->
                 <div class="mine-content-area" id="mineContentArea" style="
-                    flex: 1; overflow-y: auto; padding-bottom: 16px; padding-left: 5px; padding-right: 5px; margin-bottom: 80px;
+                    flex: 1; overflow-y: auto; padding: 5px; margin-bottom: 80px;
                 ">
                     <div style="text-align: center; padding: 40px; color: #888;">
                         ⏳ Загрузка...
                     </div>
                 </div>
                 
-                <!-- НИЖНЯЯ ПАНЕЛЬ -->
                 <div class="mine-bottom-nav" style="
                     position: fixed; bottom: 0; left: 0; right: 0;
                     background: rgba(10, 14, 26, 0.95);
@@ -17335,17 +17439,17 @@ function openMineModal() {
         
         if (window.tg) window.tg.BackButton.show();
         
-        // Навешиваем обработчики ПОСЛЕ создания DOM
         setTimeout(function() {
             attachMineNavigationHandlers();
             updateMineModalUI();
             startMineTimers();
-            forceUpdateCounters();
+            refreshCounters();
         }, 100);
         
     } catch (e) {
         console.error('❌ Ошибка создания окна работы:', e);
         showToast('❌ Ошибка открытия окна: ' + e.message, 'error');
+        window._opening_mine_modal = false;
     }
     
     setTimeout(function() { 
@@ -17374,7 +17478,6 @@ function attachMineNavigationHandlers() {
             console.log('🔵 Переключение на ШАХТУ');
             currentMineTab = 'mine';
             currentMineSubTab = 'work';
-            // Обновляем активные классы
             mineTabBtn.classList.add('active');
             if (lumberTabBtn) lumberTabBtn.classList.remove('active');
             if (quarryTabBtn) quarryTabBtn.classList.remove('active');
@@ -17431,9 +17534,9 @@ function closeMineModal() {
     updateTopBarResources();
     updateWorkCountersOnMap();
     updateBattleCountersOnMap();
-
+    
     setTimeout(function() {
-        forceUpdateCounters();
+        refreshCounters();
     }, 200);
     
     window._opening_mine_modal = false;
@@ -17498,10 +17601,71 @@ function initWorkSystem() {
     
     if (!currentPlayer) {
         console.log('❌ Нет игрока');
+        // Пробуем восстановить из localStorage
+        try {
+            var saved = localStorage.getItem('currentPlayer');
+            if (saved) {
+                var parsed = JSON.parse(saved);
+                if (parsed && parsed.id) {
+                    currentPlayer = parsed;
+                    console.log('✅ Игрок восстановлен из localStorage');
+                }
+            }
+        } catch (e) {}
+        
+        if (!currentPlayer) {
+            // Пробуем получить ID из Telegram
+            try {
+                if (window.tg && window.tg.initDataUnsafe && window.tg.initDataUnsafe.user) {
+                    var userId = window.tg.initDataUnsafe.user.id;
+                    if (userId) {
+                        window.cachedPlayerId = userId.toString();
+                        console.log('✅ ID игрока получен из Telegram:', window.cachedPlayerId);
+                        // Пробуем загрузить данные из Firebase
+                        fetchPlayerDataFromFirebase().then(function(data) {
+                            if (data) {
+                                currentPlayer = data;
+                                window.cachedPlayerData = data;
+                                console.log('✅ Данные игрока загружены из Firebase');
+                                // Продолжаем инициализацию
+                                continueInitWorkSystem();
+                            }
+                        });
+                        return; // Выходим, ждем загрузки данных
+                    }
+                }
+            } catch (e) {}
+            
+            console.log('❌ Не удалось найти игрока');
+            return;
+        }
+    }
+    
+    // Продолжаем инициализацию
+    continueInitWorkSystem();
+}
+
+// Отдельная функция для продолжения инициализации
+function continueInitWorkSystem() {
+    if (!currentPlayer) {
+        console.log('❌ Нет игрока для продолжения инициализации');
         return;
     }
     
-    // Инициализируем структуры данных
+    console.log('🔄 Продолжение инициализации для игрока:', currentPlayer.id);
+    
+    // Сохраняем ID игрока для автономной работы счетчиков
+    window.cachedPlayerId = currentPlayer.id;
+    
+    // Сохраняем данные игрока в кэш
+    window.cachedPlayerData = currentPlayer;
+    
+    // Сохраняем в localStorage
+    try {
+        localStorage.setItem('currentPlayer', JSON.stringify(currentPlayer));
+    } catch (e) {}
+    
+    // Инициализируем структуры данных если их нет
     if (!currentPlayer.mine) {
         currentPlayer.mine = { 
             paperLevel: 1, makhorkaLevel: 1, lastMineTime: 0, 
@@ -17531,16 +17695,19 @@ function initWorkSystem() {
         }
     }
     
+    // Инициализируем контейнер для счетчиков
+    initializeCounterContainer();
+    
     // Запускаем таймеры
     startMineTimers();
+    
+    // Запускаем счетчики (они работают автономно)
     startWorkCountersOnMap();
-
-    // Проверяем, что интервал запущен
-    if (window.workCountersInterval) {
-        console.log('✅ Счетчики работы активны (интервал: ' + window.workCountersInterval + ')');
-    } else {
-        console.warn('⚠️ Счетчики работы НЕ запущены!');
-    }
+    
+    // Обновляем счетчики сразу
+    setTimeout(function() {
+        updateAllCountersAuto();
+    }, 200);
     
     console.log('✅ Система РАБОТА инициализирована');
 }
@@ -17558,8 +17725,44 @@ function stopWorkSystem() {
 }
 
 // ============================================================
-// 22.15. ОБНОВЛЕНИЕ СЧЕТЧИКОВ НА КАРТЕ
+// 22.15. ОБНОВЛЕНИЕ СЧЕТЧИКОВ НА КАРТЕ (АВТОНОМНАЯ ВЕРСИЯ)
 // ============================================================
+
+// Список всех возможных процессов для отслеживания
+if (typeof window.activeCounterElements === 'undefined') {
+    window.activeCounterElements = {};
+}
+if (typeof window.countersContainer === 'undefined') {
+    window.countersContainer = null;
+}
+if (typeof window.workCountersInterval === 'undefined') {
+    window.workCountersInterval = null;
+}
+if (typeof window.cachedPlayerData === 'undefined') {
+    window.cachedPlayerData = null;
+}
+if (typeof window.cachedPlayerId === 'undefined') {
+    window.cachedPlayerId = null;
+}
+if (typeof window.isCounterUpdating === 'undefined') {
+    window.isCounterUpdating = false;
+}
+if (typeof window.lastCounterUpdate === 'undefined') {
+    window.lastCounterUpdate = 0;
+}
+
+// Список всех возможных процессов для отслеживания
+if (typeof window.ALL_PROCESS_TYPES === 'undefined') {
+    window.ALL_PROCESS_TYPES = [
+        { id: 'mine-work', type: 'mine', subtype: 'work', icon: '⛏️', label: 'ШАХТА', isWork: true },
+        { id: 'mine-paper-upgrade', type: 'mine', subtype: 'paper', icon: '📄', label: 'БУМАГА ⬆', isWork: false },
+        { id: 'mine-makhorka-upgrade', type: 'mine', subtype: 'makhorka', icon: '🌿', label: 'МАХОРКА ⬆', isWork: false },
+        { id: 'lumber-work', type: 'lumber', subtype: 'work', icon: '🪓', label: 'ЛЕСОПОВАЛ', isWork: true },
+        { id: 'lumber-upgrade', type: 'lumber', subtype: 'upgrade', icon: '🪵', label: 'ЛЕСОПОВАЛ ⬆', isWork: false },
+        { id: 'quarry-work', type: 'quarry', subtype: 'work', icon: '⛏️', label: 'КАМЕНОЛОМНЯ', isWork: true },
+        { id: 'quarry-upgrade', type: 'quarry', subtype: 'upgrade', icon: '🪨', label: 'КАМЕНОЛОМНЯ ⬆', isWork: false }
+    ];
+}
 
 function startWorkCountersOnMap() {
     // Очищаем старый интервал
@@ -17568,203 +17771,562 @@ function startWorkCountersOnMap() {
         window.workCountersInterval = null;
     }
     
-    // Запускаем новый интервал
+    // Создаем контейнер
+    initializeCounterContainer();
+    
+    // Получаем ID игрока
+    getPlayerId();
+    
+    // ЗАПУСКАЕМ ИНТЕРВАЛ - ОБНОВЛЯЕМ КАЖДУЮ СЕКУНДУ!
     window.workCountersInterval = setInterval(function() {
-        if (currentPlayer) {
-            updateWorkCountersOnMap();
-        }
+        updateAllCountersAuto();
     }, 1000);
     
-    console.log('✅ Счетчики работы запущены (обновление каждую секунду)');
+    // Первый запуск сразу
+    setTimeout(function() {
+        updateAllCountersAuto();
+    }, 100);
+    
+    console.log('✅ Счетчики работы запущены (полностью автономный режим)');
 }
 
-function updateWorkCountersOnMap() {
+// Получение ID игрока из разных источников
+function getPlayerId() {
+    // Если уже есть ID в кэше
+    if (window.cachedPlayerId) {
+        return window.cachedPlayerId;
+    }
+    
+    // Пробуем из currentPlayer
+    if (currentPlayer && currentPlayer.id) {
+        window.cachedPlayerId = currentPlayer.id;
+        return window.cachedPlayerId;
+    }
+    
+    // Пробуем из localStorage
     try {
-        var b2Element = document.querySelector('.building.b2');
-        if (!b2Element) {
-            // Если элемент не найден, пробуем найти позже
+        var saved = localStorage.getItem('currentPlayer');
+        if (saved) {
+            var parsed = JSON.parse(saved);
+            if (parsed && parsed.id) {
+                window.cachedPlayerId = parsed.id;
+                return window.cachedPlayerId;
+            }
+        }
+    } catch (e) {}
+    
+    // Пробуем из Telegram
+    try {
+        if (window.tg && window.tg.initDataUnsafe && window.tg.initDataUnsafe.user) {
+            var userId = window.tg.initDataUnsafe.user.id;
+            if (userId) {
+                window.cachedPlayerId = userId.toString();
+                return window.cachedPlayerId;
+            }
+        }
+    } catch (e) {}
+    
+    return null;
+}
+
+// Функция для получения данных игрока из Firebase
+function fetchPlayerDataFromFirebase() {
+    return new Promise(function(resolve) {
+        var playerId = getPlayerId();
+        
+        if (!playerId) {
+            resolve(null);
             return;
         }
         
-        // Находим или создаем контейнер для счетчиков
-        var countersContainer = b2Element.querySelector('.counters-container-work');
-        if (!countersContainer) {
-            countersContainer = document.createElement('div');
-            countersContainer.className = 'counters-container-work';
-            // Добавляем стили прямо в элемент
-            countersContainer.style.cssText = `
+        var playerRef = getDBRef('players/' + playerId);
+        if (!playerRef) {
+            resolve(null);
+            return;
+        }
+        
+        playerRef.once('value', function(snapshot) {
+            var data = snapshot.val();
+            if (data) {
+                data.id = playerId;
+                window.cachedPlayerData = data;
+                window.cachedPlayerId = playerId;
+                
+                // Обновляем currentPlayer если его нет
+                if (!currentPlayer) {
+                    currentPlayer = data;
+                    try {
+                        localStorage.setItem('currentPlayer', JSON.stringify(data));
+                    } catch (e) {}
+                }
+                resolve(data);
+            } else {
+                resolve(null);
+            }
+        }).catch(function(error) {
+            console.warn('⚠️ Ошибка получения данных игрока:', error);
+            resolve(null);
+        });
+    });
+}
+
+// Получение оставшегося времени для процесса (автономная версия)
+function getProcessRemainingAuto(processType, processSubtype, playerData) {
+    if (!playerData) return 0;
+    
+    var now = Date.now();
+    
+    if (processType === 'mine') {
+        var mine = playerData.mine || {};
+        if (processSubtype === 'work') {
+            var lastMine = mine.lastMineTime || 0;
+            var paperLevel = mine.paperLevel || 1;
+            var cooldownMs = 2 * 60 * 1000;
+            cooldownMs = Math.floor(cooldownMs * (1 + (paperLevel - 1) * 0.05));
+            return Math.max(0, cooldownMs - (now - lastMine));
+        } else if (processSubtype === 'paper') {
+            var start = mine.paperUpgradeStartTime || 0;
+            var duration = mine.paperUpgradeDuration || 0;
+            if (start === 0 || duration === 0) return 0;
+            return Math.max(0, duration - (now - start));
+        } else if (processSubtype === 'makhorka') {
+            var start = mine.makhorkaUpgradeStartTime || 0;
+            var duration = mine.makhorkaUpgradeDuration || 0;
+            if (start === 0 || duration === 0) return 0;
+            return Math.max(0, duration - (now - start));
+        }
+    } else if (processType === 'lumber') {
+        var lumber = playerData.lumber || {};
+        if (processSubtype === 'work') {
+            var lastGather = lumber.lastGatherTime || 0;
+            var level = lumber.level || 1;
+            var cooldownMs = 2 * 60 * 1000;
+            cooldownMs = Math.floor(cooldownMs * (1 + (level - 1) * 0.05));
+            return Math.max(0, cooldownMs - (now - lastGather));
+        } else if (processSubtype === 'upgrade') {
+            var start = lumber.upgradeStartTime || 0;
+            var duration = lumber.upgradeDuration || 0;
+            if (start === 0 || duration === 0) return 0;
+            return Math.max(0, duration - (now - start));
+        }
+    } else if (processType === 'quarry') {
+        var quarry = playerData.quarry || {};
+        if (processSubtype === 'work') {
+            var lastGather = quarry.lastGatherTime || 0;
+            var level = quarry.level || 1;
+            var cooldownMs = 2 * 60 * 1000;
+            cooldownMs = Math.floor(cooldownMs * (1 + (level - 1) * 0.05));
+            return Math.max(0, cooldownMs - (now - lastGather));
+        } else if (processSubtype === 'upgrade') {
+            var start = quarry.upgradeStartTime || 0;
+            var duration = quarry.upgradeDuration || 0;
+            if (start === 0 || duration === 0) return 0;
+            return Math.max(0, duration - (now - start));
+        }
+    }
+    return 0;
+}
+
+// Функция для получения данных игрока из Firebase
+function fetchPlayerDataFromFirebase() {
+    return new Promise(function(resolve) {
+        var playerId = null;
+        
+        // Пробуем получить ID из currentPlayer
+        if (currentPlayer && currentPlayer.id) {
+            playerId = currentPlayer.id;
+        } else {
+            // Пробуем получить из localStorage
+            try {
+                var savedPlayer = localStorage.getItem('currentPlayer');
+                if (savedPlayer) {
+                    var parsed = JSON.parse(savedPlayer);
+                    if (parsed && parsed.id) {
+                        playerId = parsed.id;
+                    }
+                }
+            } catch (e) {}
+        }
+        
+        if (!playerId) {
+            resolve(null);
+            return;
+        }
+        
+        var playerRef = getDBRef('players/' + playerId);
+        if (!playerRef) {
+            resolve(null);
+            return;
+        }
+        
+        playerRef.once('value', function(snapshot) {
+            var data = snapshot.val();
+            if (data) {
+                data.id = playerId;
+                // Сохраняем в кэш
+                window.cachedPlayerData = data;
+                window.cachedPlayerId = playerId;
+                // Также обновляем currentPlayer если его нет
+                if (!currentPlayer) {
+                    currentPlayer = data;
+                    try {
+                        localStorage.setItem('currentPlayer', JSON.stringify(data));
+                    } catch (e) {}
+                }
+                resolve(data);
+            } else {
+                resolve(null);
+            }
+        }).catch(function(error) {
+            console.warn('⚠️ Ошибка получения данных игрока:', error);
+            resolve(null);
+        });
+    });
+}
+
+// Получение оставшегося времени для процесса (автономная версия)
+function getProcessRemainingAuto(processType, processSubtype, playerData) {
+    if (!playerData) return 0;
+    
+    var now = Date.now();
+    
+    if (processType === 'mine') {
+        var mine = playerData.mine || {};
+        if (processSubtype === 'work') {
+            var lastMine = mine.lastMineTime || 0;
+            var paperLevel = mine.paperLevel || 1;
+            var cooldownMs = 2 * 60 * 1000;
+            cooldownMs = Math.floor(cooldownMs * (1 + (paperLevel - 1) * 0.05));
+            return Math.max(0, cooldownMs - (now - lastMine));
+        } else if (processSubtype === 'paper') {
+            var start = mine.paperUpgradeStartTime || 0;
+            var duration = mine.paperUpgradeDuration || 0;
+            if (start === 0 || duration === 0) return 0;
+            return Math.max(0, duration - (now - start));
+        } else if (processSubtype === 'makhorka') {
+            var start = mine.makhorkaUpgradeStartTime || 0;
+            var duration = mine.makhorkaUpgradeDuration || 0;
+            if (start === 0 || duration === 0) return 0;
+            return Math.max(0, duration - (now - start));
+        }
+    } else if (processType === 'lumber') {
+        var lumber = playerData.lumber || {};
+        if (processSubtype === 'work') {
+            var lastGather = lumber.lastGatherTime || 0;
+            var level = lumber.level || 1;
+            var cooldownMs = 2 * 60 * 1000;
+            cooldownMs = Math.floor(cooldownMs * (1 + (level - 1) * 0.05));
+            return Math.max(0, cooldownMs - (now - lastGather));
+        } else if (processSubtype === 'upgrade') {
+            var start = lumber.upgradeStartTime || 0;
+            var duration = lumber.upgradeDuration || 0;
+            if (start === 0 || duration === 0) return 0;
+            return Math.max(0, duration - (now - start));
+        }
+    } else if (processType === 'quarry') {
+        var quarry = playerData.quarry || {};
+        if (processSubtype === 'work') {
+            var lastGather = quarry.lastGatherTime || 0;
+            var level = quarry.level || 1;
+            var cooldownMs = 2 * 60 * 1000;
+            cooldownMs = Math.floor(cooldownMs * (1 + (level - 1) * 0.05));
+            return Math.max(0, cooldownMs - (now - lastGather));
+        } else if (processSubtype === 'upgrade') {
+            var start = quarry.upgradeStartTime || 0;
+            var duration = quarry.upgradeDuration || 0;
+            if (start === 0 || duration === 0) return 0;
+            return Math.max(0, duration - (now - start));
+        }
+    }
+    return 0;
+}
+
+function formatMapTimer(ms) {
+    if (ms <= 0) return '0с';
+    var totalSeconds = Math.floor(ms / 1000);
+    var minutes = Math.floor(totalSeconds / 60);
+    var seconds = totalSeconds % 60;
+    if (minutes > 0) {
+        return minutes + 'м ' + String(seconds).padStart(2, '0') + 'с';
+    }
+    return seconds + 'с';
+}
+
+function initializeCounterContainer() {
+    try {
+        var b2Element = document.querySelector('.building.b2');
+        if (!b2Element) {
+            setTimeout(function() {
+                initializeCounterContainer();
+            }, 1000);
+            return false;
+        }
+        
+        // Убеждаемся, что b2 имеет position: relative
+        if (getComputedStyle(b2Element).position === 'static') {
+            b2Element.style.position = 'relative';
+        }
+        
+        window.countersContainer = b2Element.querySelector('.counters-container-work');
+        
+        if (!window.countersContainer) {
+            window.countersContainer = document.createElement('div');
+            window.countersContainer.className = 'counters-container-work';
+            window.countersContainer.style.cssText = `
                 position: absolute;
-                bottom: 39px;
+                bottom: 8px;
                 left: 50%;
                 transform: translateX(-50%);
                 width: 92%;
                 z-index: 10;
-                display: flex;
+                display: none;
                 flex-direction: column;
                 gap: 3px;
                 pointer-events: none;
             `;
-            b2Element.appendChild(countersContainer);
+            b2Element.appendChild(window.countersContainer);
             console.log('✅ Создан контейнер для счетчиков');
         }
         
-        // Собираем все активные счетчики
-        var activeCounters = [];
-        
-        // 1. Работа в шахте
-        var mineWorkRemaining = getWorkRemaining('mine');
-        if (mineWorkRemaining > 0) {
-            activeCounters.push({ 
-                id: 'mine-work',
-                type: 'work', 
-                icon: '⛏️', 
-                label: 'ШАХТА',
-                remaining: mineWorkRemaining 
-            });
-        }
-        
-        // 2. Прокачка бумаги
-        var minePaperUpgradeRemaining = getMineUpgradeRemaining('paper');
-        if (minePaperUpgradeRemaining > 0) {
-            activeCounters.push({ 
-                id: 'mine-paper-upgrade',
-                type: 'upgrade', 
-                icon: '📄', 
-                label: 'БУМАГА ⬆',
-                remaining: minePaperUpgradeRemaining 
-            });
-        }
-        
-        // 3. Прокачка махорки
-        var mineMakhorkaUpgradeRemaining = getMineUpgradeRemaining('makhorka');
-        if (mineMakhorkaUpgradeRemaining > 0) {
-            activeCounters.push({ 
-                id: 'mine-makhorka-upgrade',
-                type: 'upgrade', 
-                icon: '🌿', 
-                label: 'МАХОРКА ⬆',
-                remaining: mineMakhorkaUpgradeRemaining 
-            });
-        }
-        
-        // 4. Работа на лесоповале
-        var lumberWorkRemaining = getWorkRemaining('lumber');
-        if (lumberWorkRemaining > 0) {
-            activeCounters.push({ 
-                id: 'lumber-work',
-                type: 'work', 
-                icon: '🪓', 
-                label: 'ЛЕСОПОВАЛ',
-                remaining: lumberWorkRemaining 
-            });
-        }
-        
-        // 5. Прокачка лесоповала
-        var lumberUpgradeRemaining = getLumberUpgradeRemaining();
-        if (lumberUpgradeRemaining > 0) {
-            activeCounters.push({ 
-                id: 'lumber-upgrade',
-                type: 'upgrade', 
-                icon: '🪵', 
-                label: 'ЛЕСОПОВАЛ ⬆',
-                remaining: lumberUpgradeRemaining 
-            });
-        }
-        
-        // 6. Работа в каменоломне
-        var quarryWorkRemaining = getWorkRemaining('quarry');
-        if (quarryWorkRemaining > 0) {
-            activeCounters.push({ 
-                id: 'quarry-work',
-                type: 'work', 
-                icon: '⛏️', 
-                label: 'КАМЕНОЛОМНЯ',
-                remaining: quarryWorkRemaining 
-            });
-        }
-        
-        // 7. Прокачка каменоломни
-        var quarryUpgradeRemaining = getQuarryUpgradeRemaining();
-        if (quarryUpgradeRemaining > 0) {
-            activeCounters.push({ 
-                id: 'quarry-upgrade',
-                type: 'upgrade', 
-                icon: '🪨', 
-                label: 'КАМЕНОЛОМНЯ ⬆',
-                remaining: quarryUpgradeRemaining 
-            });
-        }
-        
-        // Форматирование времени
-        var formatMapTimer = function(ms) {
-            if (ms <= 0) return '0с';
-            var totalSeconds = Math.floor(ms / 1000);
-            var minutes = Math.floor(totalSeconds / 60);
-            var seconds = totalSeconds % 60;
-            if (minutes > 0) {
-                return minutes + 'м ' + String(seconds).padStart(2, '0') + 'с';
-            }
-            return seconds + 'с';
-        };
-        
-        // Очищаем контейнер
-        countersContainer.innerHTML = '';
-        
-        // Показываем/скрываем контейнер
-        if (activeCounters.length > 0) {
-            countersContainer.style.display = 'flex';
-            
-            // Создаем каждый счетчик
-            for (var i = 0; i < activeCounters.length; i++) {
-                var counter = activeCounters[i];
-                var timerText = formatMapTimer(counter.remaining);
-                
-                var counterDiv = document.createElement('div');
-                counterDiv.className = 'work-counter-item ' + counter.type + '-type';
-                counterDiv.id = 'counter-' + counter.id;
-                
-                // Иконка
-                var iconSpan = document.createElement('span');
-                iconSpan.className = 'counter-icon';
-                iconSpan.textContent = counter.icon;
-                
-                // Лейбл
-                var labelSpan = document.createElement('span');
-                labelSpan.className = 'counter-label';
-                labelSpan.textContent = counter.label;
-                
-                // Время
-                var timeSpan = document.createElement('span');
-                timeSpan.className = 'counter-time';
-                timeSpan.textContent = timerText;
-                
-                counterDiv.appendChild(iconSpan);
-                counterDiv.appendChild(labelSpan);
-                counterDiv.appendChild(timeSpan);
-                
-                countersContainer.appendChild(counterDiv);
-            }
-        } else {
-            countersContainer.style.display = 'none';
-        }
-        
+        return true;
     } catch (e) {
-        // Тихо игнорируем ошибки, чтобы не засорять консоль
-        // console.warn('⚠️ Ошибка обновления счетчиков:', e);
+        console.warn('⚠️ Ошибка инициализации контейнера:', e);
+        return false;
     }
 }
 
-// Функция для принудительного обновления счетчиков (вызывать при открытии/закрытии модалки)
-function forceUpdateCounters() {
-    if (currentPlayer) {
-        updateWorkCountersOnMap();
+function removeCounterAuto(counterId) {
+    try {
+        var element = window.activeCounterElements[counterId];
+        if (element && element.parentNode) {
+            element.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+            element.style.opacity = '0';
+            element.style.transform = 'scale(0.9)';
+            
+            setTimeout(function() {
+                if (element && element.parentNode) {
+                    element.remove();
+                }
+            }, 350);
+        }
+        delete window.activeCounterElements[counterId];
+    } catch (e) {
+        console.warn('⚠️ Ошибка удаления счетчика:', e);
     }
+}
+
+function createCounterAuto(process) {
+    if (!window.countersContainer) {
+        initializeCounterContainer();
+        if (!window.countersContainer) return;
+    }
+    
+    var counterId = process.id;
+    if (window.activeCounterElements[counterId]) return;
+    
+    var counterDiv = document.createElement('div');
+    counterDiv.className = 'work-counter-item';
+    counterDiv.id = 'counter-' + counterId;
+    counterDiv.dataset.type = process.type;
+    counterDiv.dataset.subtype = process.subtype;
+    counterDiv.dataset.counterId = counterId;
+    
+    var borderColor = process.isWork ? '#4CAF50' : '#FF9800';
+    var timeColor = process.isWork ? '#66BB6A' : '#FFA726';
+    var labelColor = process.isWork ? '#81C784' : '#FFB74D';
+    
+    counterDiv.style.cssText = `
+        background: rgba(0, 0, 0, 0.85);
+        border: 1px solid rgba(0, 0, 0, 0.9);
+        border-left: 3px solid ${borderColor};
+        border-radius: 6px;
+        padding: 4px 10px;
+        font-size: 10px;
+        font-weight: 600;
+        color: #ffffff;
+        text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+        font-family: 'Courier New', monospace;
+        pointer-events: auto;
+        min-height: 22px;
+        animation: counterSlideIn 0.3s ease forwards;
+        transition: opacity 0.3s ease, transform 0.3s ease;
+        opacity: 1;
+    `;
+    
+    var iconSpan = document.createElement('span');
+    iconSpan.className = 'counter-icon';
+    iconSpan.textContent = process.icon;
+    iconSpan.style.cssText = 'font-size: 12px; line-height: 1; flex-shrink: 0;';
+    
+    var labelSpan = document.createElement('span');
+    labelSpan.className = 'counter-label';
+    labelSpan.textContent = process.label;
+    labelSpan.style.cssText = `
+        opacity: 0.7;
+        font-size: 8px;
+        font-weight: 400;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-family: Arial, sans-serif;
+        color: ${labelColor};
+        flex-shrink: 0;
+    `;
+    
+    var timeSpan = document.createElement('span');
+    timeSpan.className = 'counter-time';
+    timeSpan.textContent = formatMapTimer(process.remaining);
+    timeSpan.style.cssText = `
+        font-weight: 700;
+        font-size: 11px;
+        min-width: 45px;
+        text-align: center;
+        font-family: 'Courier New', monospace;
+        color: ${timeColor};
+        animation: counterPulse 2s ease-in-out infinite;
+    `;
+    
+    counterDiv.appendChild(iconSpan);
+    counterDiv.appendChild(labelSpan);
+    counterDiv.appendChild(timeSpan);
+    
+    window.countersContainer.appendChild(counterDiv);
+    window.activeCounterElements[counterId] = counterDiv;
+    
+    console.log('✅ Создан счетчик:', counterId);
+}
+
+function updateCounterTimeAuto(counterId, remaining) {
+    var element = window.activeCounterElements[counterId];
+    if (!element) return;
+    
+    var timeSpan = element.querySelector('.counter-time');
+    if (timeSpan) {
+        var newTime = formatMapTimer(remaining);
+        if (timeSpan.textContent !== newTime) {
+            timeSpan.textContent = newTime;
+        }
+    }
+}
+
+// Главная функция обновления всех счетчиков (полностью автономная)
+function updateAllCountersAuto() {
+    // Защита от множественных одновременных обновлений
+    if (window.isCounterUpdating) return;
+    window.isCounterUpdating = true;
+    
+    try {
+        // Получаем данные игрока из кэша или currentPlayer
+        var playerData = window.cachedPlayerData || currentPlayer;
+        
+        // Если нет данных, пробуем получить из Firebase
+        if (!playerData) {
+            fetchPlayerDataFromFirebase().then(function(data) {
+                window.isCounterUpdating = false;
+                if (data) {
+                    window.cachedPlayerData = data;
+                    updateAllCountersAuto();
+                } else {
+                    // Если данных нет, скрываем контейнер
+                    if (window.countersContainer) {
+                        window.countersContainer.style.display = 'none';
+                    }
+                }
+            });
+            return;
+        }
+        
+        // Инициализируем контейнер
+        if (!window.countersContainer || !window.countersContainer.parentNode) {
+            initializeCounterContainer();
+            if (!window.countersContainer) {
+                window.isCounterUpdating = false;
+                return;
+            }
+        }
+        
+        // Проверяем все возможные процессы
+        var activeProcesses = [];
+        for (var i = 0; i < window.ALL_PROCESS_TYPES.length; i++) {
+            var process = window.ALL_PROCESS_TYPES[i];
+            var remaining = getProcessRemainingAuto(process.type, process.subtype, playerData);
+            if (remaining > 0) {
+                activeProcesses.push({
+                    id: process.id,
+                    type: process.type,
+                    subtype: process.subtype,
+                    icon: process.icon,
+                    label: process.label,
+                    remaining: remaining,
+                    isWork: process.isWork
+                });
+            }
+        }
+        
+        // Получаем текущие ID счетчиков
+        var currentIds = Object.keys(window.activeCounterElements);
+        var activeIds = {};
+        for (var j = 0; j < activeProcesses.length; j++) {
+            activeIds[activeProcesses[j].id] = true;
+        }
+        
+        // Удаляем счетчики, которых больше нет
+        for (var k = 0; k < currentIds.length; k++) {
+            var id = currentIds[k];
+            if (!activeIds[id]) {
+                removeCounterAuto(id);
+            }
+        }
+        
+        // Добавляем новые счетчики и обновляем существующие
+        for (var m = 0; m < activeProcesses.length; m++) {
+            var process = activeProcesses[m];
+            var counterId = process.id;
+            
+            if (window.activeCounterElements[counterId]) {
+                updateCounterTimeAuto(counterId, process.remaining);
+            } else {
+                createCounterAuto(process);
+            }
+        }
+        
+        // Обновляем видимость контейнера
+        var hasCounters = Object.keys(window.activeCounterElements).length > 0;
+        if (window.countersContainer) {
+            window.countersContainer.style.display = hasCounters ? 'flex' : 'none';
+        }
+        
+        // Обновляем время последнего обновления
+        window.lastCounterUpdate = Date.now();
+        
+    } catch (e) {
+        // console.warn('⚠️ Ошибка обновления счетчиков:', e);
+    } finally {
+        window.isCounterUpdating = false;
+    }
+}
+
+function refreshCounters() {
+    // Просто вызываем обновление, без лишних проверок
+    setTimeout(function() {
+        updateAllCountersAuto();
+    }, 50);
+}
+
+function updateWorkCountersOnMap() {
+    refreshCounters();
 }
 
 // ============================================================
 // 22.16. ЭКСПОРТ ФУНКЦИЙ
 // ============================================================
-window.forceUpdateCounters = forceUpdateCounters;
+
 window.isMineUpgradeActive = isMineUpgradeActive;
 window.getMineUpgradeRemaining = getMineUpgradeRemaining;
 window.checkAndCompleteMineUpgrade = checkAndCompleteMineUpgrade;
@@ -17800,6 +18362,23 @@ window.initWorkSystem = initWorkSystem;
 window.stopWorkSystem = stopWorkSystem;
 window.updateWorkCountersOnMap = updateWorkCountersOnMap;
 window.startWorkCountersOnMap = startWorkCountersOnMap;
+window.updateAllCountersAuto = updateAllCountersAuto;
+window.refreshCounters = refreshCounters;
+window.formatMapTimer = formatMapTimer;
+window.initializeCounterContainer = initializeCounterContainer;
+window.createCounterAuto = createCounterAuto;
+window.removeCounterAuto = removeCounterAuto;
+window.updateCounterTimeAuto = updateCounterTimeAuto;
+window.getProcessRemainingAuto = getProcessRemainingAuto;
+window.fetchPlayerDataFromFirebase = fetchPlayerDataFromFirebase;
+window.ALL_PROCESS_TYPES = window.ALL_PROCESS_TYPES;
+window.activeCounterElements = window.activeCounterElements;
+window.cachedPlayerData = window.cachedPlayerData;
+window.cachedPlayerId = window.cachedPlayerId;
+
+window.continueInitWorkSystem = continueInitWorkSystem;
+window.getPlayerId = getPlayerId;
+
 
 console.log('✅ РАБОТА: блок полностью загружен');
 console.log('🎯 РАБОТА: все функции готовы к использованию!');
