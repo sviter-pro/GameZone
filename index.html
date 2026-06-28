@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>GameZona - 1.0.1.043</title>
+    <title>GameZona - 1.0.1.044</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -1550,6 +1550,47 @@
             cursor: not-allowed;
             transform: none;
         }
+
+        .profile-tab-btn.active {
+			background: linear-gradient(135deg, #8B4513, #5a2d0a) !important;
+			border-color: #c9a03d !important;
+		}
+        .settings-tab-btn.active {
+			background: linear-gradient(135deg, #8B4513, #5a2d0a) !important;
+			border-color: #c9a03d !important;
+		}
+		.clan-tab-btn.active {
+			background: linear-gradient(135deg, #8B4513, #5a2d0a) !important;
+			border-color: #c9a03d !important;
+		}
+		.attack-tab-btn.active {
+			background: linear-gradient(135deg, #8B4513, #5a2d0a) !important;
+			border-color: #c9a03d !important;
+		}
+		.mine-tab-btn.active {
+			background: linear-gradient(135deg, #8B4513, #5a2d0a) !important;
+			border-color: #c9a03d !important;
+		}
+		.quests-tab-btn.active {
+			background: linear-gradient(135deg, #8B4513, #5a2d0a) !important;
+			border-color: #c9a03d !important;
+		}
+		.cardgame-tab-btn.active {
+			background: linear-gradient(135deg, #8B4513, #5a2d0a) !important;
+			border-color: #c9a03d !important;
+		}
+		.gang-tab-btn.active {
+			background: linear-gradient(135deg, #8B4513, #5a2d0a) !important;
+			border-color: #c9a03d !important;
+		}
+        .inventory-tab-btn.active {
+			background: linear-gradient(135deg, #8B4513, #5a2d0a) !important;
+			border-color: #c9a03d !important;
+		} 
+        .shop-tab-btn.active {
+			background: linear-gradient(135deg, #8B4513, #5a2d0a) !important;
+			border-color: #c9a03d !important;
+		}
     </style>
 </head>
 <body oncontextmenu="return false;" ondragstart="return false;" onselectstart="return false;" ontouchstart="return true;">
@@ -4605,8 +4646,96 @@ if (typeof window._isProcessingChatMessage === 'undefined') {
 if (typeof window._sentMessageIds === 'undefined') {
     window._sentMessageIds = new Set();
 }
+// Флаг для предотвращения повторной инициализации чата
+if (typeof window._chatInitialized === 'undefined') {
+    window._chatInitialized = false;
+}
+// Очередь сообщений для отправки при восстановлении интернета
+if (typeof window._pendingMessages === 'undefined') {
+    window._pendingMessages = [];
+}
+// Флаг наличия интернета
+if (typeof window._hasInternet === 'undefined') {
+    window._hasInternet = true;
+}
 
 console.log('✅ Переменные чата инициализированы');
+
+// ============================================================
+// 13.0.1. ПРОВЕРКА ИНТЕРНЕТА
+// ============================================================
+function checkInternetConnection() {
+    return navigator.onLine;
+}
+
+// Слушаем изменения статуса интернета
+window.addEventListener('online', function() {
+    console.log('🌐 Интернет восстановлен!');
+    window._hasInternet = true;
+    
+    // Отправляем все ожидающие сообщения
+    sendPendingMessages();
+    
+    // Обновляем чаты
+    if (window.chatModalOpen) {
+        refreshChatData();
+    }
+    
+    showToast('🌐 Интернет восстановлен!', 'success');
+});
+
+window.addEventListener('offline', function() {
+    console.log('📡 Интернет потерян!');
+    window._hasInternet = false;
+    showToast('📡 Нет подключения к интернету! Сообщения будут отправлены при восстановлении.', 'error');
+});
+
+// ============================================================
+// 13.0.2. ОЧЕРЕДЬ СООБЩЕНИЙ
+// ============================================================
+function addToPendingMessages(messageData, tab) {
+    window._pendingMessages.push({
+        data: messageData,
+        tab: tab,
+        timestamp: Date.now()
+    });
+    console.log('📨 Сообщение добавлено в очередь ожидания (интернет отсутствует)');
+}
+
+async function sendPendingMessages() {
+    if (!window._hasInternet) {
+        console.log('📡 Интернет все еще отсутствует, отправка отложена');
+        return;
+    }
+    
+    if (window._pendingMessages.length === 0) {
+        console.log('📨 Нет ожидающих сообщений');
+        return;
+    }
+    
+    console.log('📨 Отправка ' + window._pendingMessages.length + ' ожидающих сообщений...');
+    
+    var messagesToSend = window._pendingMessages.slice();
+    window._pendingMessages = [];
+    
+    for (var i = 0; i < messagesToSend.length; i++) {
+        var pending = messagesToSend[i];
+        try {
+            await sendChatMessageDirect(pending.data, pending.tab);
+            console.log('✅ Отправлено ожидающее сообщение #' + (i + 1));
+        } catch (e) {
+            console.error('❌ Ошибка отправки ожидающего сообщения:', e);
+            // Возвращаем в очередь
+            window._pendingMessages.push(pending);
+        }
+    }
+    
+    if (window._pendingMessages.length > 0) {
+        console.log('📨 ' + window._pendingMessages.length + ' сообщений осталось в очереди');
+    } else {
+        console.log('✅ Все ожидающие сообщения отправлены');
+    }
+}
 
 // ============================================================
 // 13.1. ФУНКЦИЯ ПОЛУЧЕНИЯ URL АВАТАРА (ДЛЯ ЧАТА)
@@ -4736,7 +4865,21 @@ window.openChatModal = function() {
     }
 
     window.chatModalOpen = true;
-    renderChatModal();
+    
+    // Создаем окно чата только один раз
+    if (!document.getElementById('chatModal')) {
+        renderChatModal();
+    } else {
+        // Если окно уже существует, просто показываем его
+        var modal = document.getElementById('chatModal');
+        modal.style.display = 'flex';
+        modal.style.animation = 'chatSlideIn 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards';
+        
+        // Обновляем активную вкладку
+        updateChatTabsUI();
+        // Обновляем содержимое
+        renderChatMessages();
+    }
 
     console.log('🔵 Подписываемся на чаты...');
     subscribeToSearchChat();
@@ -4753,22 +4896,18 @@ window.openChatModal = function() {
 // ============================================================
 window.closeChatModal = function() {
     var modal = document.getElementById('chatModal');
-    if (modal) modal.remove();
+    if (modal) {
+        modal.style.animation = 'chatSlideOut 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards';
+        setTimeout(function() {
+            if (modal) {
+                modal.style.display = 'none';
+            }
+        }, 250);
+    }
     window.chatModalOpen = false;
     
-    if (window.chatListeners.global) {
-        try { window.chatListeners.global(); } catch(e) {}
-        window.chatListeners.global = null;
-    }
-    if (window.chatListeners.clan) {
-        try { window.chatListeners.clan(); } catch(e) {}
-        window.chatListeners.clan = null;
-    }
-    if (window.chatListeners.search) {
-        try { window.chatListeners.search(); } catch(e) {}
-        window.chatListeners.search = null;
-    }
-
+    // Не отписываемся от слушателей, чтобы сообщения продолжали приходить в фоне
+    
     document.body.style.overflow = '';
     document.body.style.position = '';
     document.body.style.width = '';
@@ -4781,13 +4920,19 @@ window.closeChatModal = function() {
 };
 
 // ============================================================
-// 13.7. ОТРИСОВКА ОКНА ЧАТА
+// 13.7. ОТРИСОВКА ОКНА ЧАТА (ТОЛЬКО ПРИ ПЕРВОМ ОТКРЫТИИ)
 // ============================================================
 function renderChatModal() {
     console.log('🔵 renderChatModal ВЫЗВАНА, currentChatTab:', window.currentChatTab);
 
+    // Проверяем, не существует ли уже окно
     var existing = document.getElementById('chatModal');
-    if (existing) existing.remove();
+    if (existing) {
+        console.log('🔵 Окно чата уже существует, обновляем только содержимое');
+        updateChatTabsUI();
+        renderChatMessages();
+        return;
+    }
 
     var hasClan = !!window.currentPlayer?.clanId;
 
@@ -4826,6 +4971,50 @@ function renderChatModal() {
             .chat-modal-close {
                 animation: chatSlideOut 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards !important;
             }
+            .chat-tab.active {
+                color: #c9a03d !important;
+                background: rgba(139,69,19,0.2) !important;
+                border-bottom: 2px solid #c9a03d !important;
+            }
+            .chat-tab:active {
+                transform: scale(0.95);
+            }
+            .chat-message:hover {
+                background: rgba(30,36,64,0.8) !important;
+            }
+            
+            /* Стили для индикатора загрузки */
+            .chat-loading-overlay {
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(10,14,26,0.8);
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                z-index: 20;
+                border-radius: 24px;
+            }
+            .chat-loading-spinner {
+                width: 40px;
+                height: 40px;
+                border: 3px solid rgba(139,69,19,0.3);
+                border-top-color: #c9a03d;
+                border-radius: 50%;
+                animation: spin 1s linear infinite;
+            }
+            .chat-loading-text {
+                color: #c9a03d;
+                font-size: 13px;
+                margin-top: 12px;
+                font-weight: 600;
+            }
+            @keyframes spin {
+                to { transform: rotate(360deg); }
+            }
         `;
         document.head.appendChild(style);
     }
@@ -4851,6 +5040,12 @@ function renderChatModal() {
             opacity: 0;
             animation: chatSlideIn 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
         ">
+            <!-- ИНДИКАТОР ЗАГРУЗКИ -->
+            <div class="chat-loading-overlay" id="chatLoadingOverlay" style="display: none;">
+                <div class="chat-loading-spinner"></div>
+                <div class="chat-loading-text" id="chatLoadingText">⏳ Загрузка...</div>
+            </div>
+            
             <div class="chat-header" style="
                 background: linear-gradient(135deg, #1a1a2a, #0d0d15);
                 padding: 12px 16px;
@@ -4862,6 +5057,9 @@ function renderChatModal() {
             ">
                 <h3 style="font-size: 18px; color: #c9a03d; margin: 0; display: flex; align-items: center; gap: 8px;">
                     <span></span> ЧАТЫ
+                    <span id="chatConnectionStatus" style="font-size: 12px; color: ${window._hasInternet ? '#4caf50' : '#e94560'};">
+                        ${window._hasInternet ? '🟢' : '🔴'}
+                    </span>
                 </h3>
                 <button class="close-btn" onclick="closeChatModal()" style="
                     background: rgba(139,69,19,0.3);
@@ -4879,7 +5077,7 @@ function renderChatModal() {
                 ">✕</button>
             </div>
             
-            <div class="chat-tabs" style="
+            <div class="chat-tabs" id="chatTabsContainer" style="
                 display: flex;
                 background: rgba(10,14,26,0.95);
                 border-bottom: 1px solid #8B4513;
@@ -4887,7 +5085,7 @@ function renderChatModal() {
                 overflow-x: auto;
                 overflow-y: hidden;
             ">
-                <button class="chat-tab ${window.currentChatTab === 'search' ? 'active' : ''}" onclick="switchChatTab('search')" style="
+                <button class="chat-tab ${window.currentChatTab === 'search' ? 'active' : ''}" data-tab="search" onclick="switchChatTab('search')" style="
                     flex: 1;
                     min-width: 80px;
                     background: transparent;
@@ -4903,7 +5101,7 @@ function renderChatModal() {
                 ">
                     🔍 ПОИСК
                 </button>
-                <button class="chat-tab ${window.currentChatTab === 'global' ? 'active' : ''}" onclick="switchChatTab('global')" style="
+                <button class="chat-tab ${window.currentChatTab === 'global' ? 'active' : ''}" data-tab="global" onclick="switchChatTab('global')" style="
                     flex: 1;
                     min-width: 80px;
                     background: transparent;
@@ -4920,7 +5118,7 @@ function renderChatModal() {
                     🌍 ОБЩИЙ
                 </button>
                 ${hasClan ? `
-                    <button class="chat-tab ${window.currentChatTab === 'clan' ? 'active' : ''}" onclick="switchChatTab('clan')" style="
+                    <button class="chat-tab ${window.currentChatTab === 'clan' ? 'active' : ''}" data-tab="clan" onclick="switchChatTab('clan')" style="
                         flex: 1;
                         min-width: 80px;
                         background: transparent;
@@ -5009,7 +5207,7 @@ function renderChatModal() {
                     outline: none;
                     transition: border-color 0.3s;
                 " onkeydown="if(event.key === 'Enter') sendChatMessage()">
-                <button class="chat-send-btn" onclick="sendChatMessage()" style="
+                <button class="chat-send-btn" id="chatSendBtn" onclick="sendChatMessage()" style="
                     background: linear-gradient(135deg, #8B4513, #5a2d0a);
                     border: 1px solid #c9a03d;
                     border-radius: 30px;
@@ -5018,7 +5216,14 @@ function renderChatModal() {
                     font-weight: bold;
                     cursor: pointer;
                     transition: all 0.2s;
-                ">➤</button>
+                ">
+                    ➤
+                </button>
+            </div>
+            
+            <!-- Индикатор отправки -->
+            <div id="chatSendingIndicator" style="display: none; padding: 4px 16px; background: rgba(10,14,26,0.9); border-top: 1px solid #8B4513; font-size: 11px; color: #c9a03d; text-align: center; flex-shrink: 0;">
+                <span id="chatSendingText">⏳ Отправка...</span>
             </div>
         </div>
     `;
@@ -5029,6 +5234,68 @@ function renderChatModal() {
         console.log('🔵 renderChatModal: принудительный вызов renderChatMessages');
         renderChatMessages();
     }, 100);
+}
+
+// ============================================================
+// 13.7.1. ОБНОВЛЕНИЕ UI ВКЛАДОК ЧАТА (БЕЗ ПЕРЕСОЗДАНИЯ ОКНА)
+// ============================================================
+function updateChatTabsUI() {
+    var tabs = document.querySelectorAll('#chatTabsContainer .chat-tab');
+    if (!tabs || tabs.length === 0) return;
+    
+    tabs.forEach(function(tab) {
+        var tabName = tab.getAttribute('data-tab');
+        tab.classList.remove('active');
+        
+        if (tabName === window.currentChatTab) {
+            tab.classList.add('active');
+            tab.style.color = '#c9a03d';
+            tab.style.background = 'rgba(139,69,19,0.2)';
+            tab.style.borderBottom = '2px solid #c9a03d';
+        } else {
+            tab.style.color = '#8e8ea0';
+            tab.style.background = 'transparent';
+            tab.style.borderBottom = 'none';
+        }
+    });
+    
+    // Обновляем статус соединения
+    var statusEl = document.getElementById('chatConnectionStatus');
+    if (statusEl) {
+        statusEl.textContent = window._hasInternet ? '🟢' : '🔴';
+        statusEl.style.color = window._hasInternet ? '#4caf50' : '#e94560';
+    }
+    
+    console.log('🔵 UI вкладок обновлен, активная:', window.currentChatTab);
+}
+
+// ============================================================
+// 13.7.2. ПОКАЗАТЬ/СКРЫТЬ ИНДИКАТОР ЗАГРУЗКИ
+// ============================================================
+function showChatLoading(show, text) {
+    var overlay = document.getElementById('chatLoadingOverlay');
+    var textEl = document.getElementById('chatLoadingText');
+    if (!overlay) return;
+    
+    if (show) {
+        overlay.style.display = 'flex';
+        if (textEl && text) textEl.textContent = text;
+    } else {
+        overlay.style.display = 'none';
+    }
+}
+
+function showSendingIndicator(show, text) {
+    var indicator = document.getElementById('chatSendingIndicator');
+    var textEl = document.getElementById('chatSendingText');
+    if (!indicator) return;
+    
+    if (show) {
+        indicator.style.display = 'block';
+        if (textEl && text) textEl.textContent = text;
+    } else {
+        indicator.style.display = 'none';
+    }
 }
 
 // ============================================================
@@ -5068,7 +5335,7 @@ function renderChatMessages() {
         }
     }
 
-    // Сортируем по времени
+    // Сортируем по времени (новые снизу)
     var sortedMessages = uniqueMessages.sort(function(a, b) { 
         return (a.timestamp || 0) - (b.timestamp || 0); 
     });
@@ -5124,9 +5391,9 @@ function renderChatMessages() {
         }
 
         var casteIcon = '';
-        if (playerCaste === 'Блатные') casteIcon = '👑';
-        else if (playerCaste === 'Мужики') casteIcon = '🔨';
-        else casteIcon = '🐑';
+        if (playerCaste === 'Блатные') casteIcon = '';
+        else if (playerCaste === 'Мужики') casteIcon = '';
+        else casteIcon = '';
 
         return `
             <div class="chat-message" style="
@@ -5216,28 +5483,128 @@ function renderChatMessages() {
 }
 
 // ============================================================
-// 13.9. ПЕРЕКЛЮЧЕНИЕ ВКЛАДОК ЧАТА
+// 13.8.1. ОБНОВЛЕНИЕ ДАННЫХ ЧАТА
+// ============================================================
+async function refreshChatData() {
+    showChatLoading(true, '⏳ Обновление чатов...');
+    
+    try {
+        // Перезагружаем сообщения для текущей вкладки
+        if (window.currentChatTab === 'search') {
+            await loadSearchMessages();
+        } else if (window.currentChatTab === 'global') {
+            await loadGlobalMessages();
+        } else if (window.currentChatTab === 'clan' && window.currentPlayer?.clanId) {
+            await loadClanMessages();
+        }
+        
+        renderChatMessages();
+        showToast('✅ Чаты обновлены', 'success');
+    } catch (e) {
+        console.error('❌ Ошибка обновления чатов:', e);
+        showToast('❌ Ошибка обновления чатов', 'error');
+    } finally {
+        showChatLoading(false);
+    }
+}
+
+// ============================================================
+// 13.9. ПЕРЕКЛЮЧЕНИЕ ВКЛАДОК ЧАТА (БЕЗ ПЕРЕСОЗДАНИЯ ОКНА)
 // ============================================================
 window.switchChatTab = function(tab) {
     console.log('🔵 switchChatTab ВЫЗВАНА, tab:', tab);
+    
+    if (window.currentChatTab === tab) {
+        console.log('🔵 Вкладка уже активна');
+        return;
+    }
+    
     window.currentChatTab = tab;
 
-    renderChatModal();
+    // Обновляем UI вкладок без пересоздания окна
+    updateChatTabsUI();
+    
+    // Показываем индикатор загрузки
+    showChatLoading(true, '⏳ Загрузка сообщений...');
+    
+    // Обновляем содержимое
+    setTimeout(function() {
+        renderChatMessages();
+        showChatLoading(false);
+    }, 300);
 
+    // Подписываемся на нужный чат если еще не подписаны
     if (tab === 'search') {
         console.log('🔵 Обновляем searchChat');
         subscribeToSearchChat();
-        renderChatMessages();
     } else if (tab === 'global') {
         console.log('🔵 Обновляем globalChat');
         subscribeToGlobalChat();
-        renderChatMessages();
     } else if (tab === 'clan' && window.currentPlayer?.clanId) {
         console.log('🔵 Обновляем clanChat');
         subscribeToClanChat();
-        renderChatMessages();
     }
 };
+
+// ============================================================
+// 13.9.1. ЗАГРУЗКА СООБЩЕНИЙ ДЛЯ ВКЛАДОК
+// ============================================================
+async function loadSearchMessages() {
+    if (!db) return;
+    try {
+        var snapshot = await db.ref('chat/search').orderByChild('timestamp').limitToLast(100).once('value');
+        window.searchMessages = [];
+        snapshot.forEach(function(child) {
+            var data = child.val();
+            if (data && data.playerId) {
+                data.id = child.key;
+                window.searchMessages.push(data);
+            }
+        });
+        window.searchMessages.sort(function(a, b) { return (b.timestamp || 0) - (a.timestamp || 0); });
+        console.log('🔵 Загружено searchChat:', window.searchMessages.length);
+    } catch (e) {
+        console.warn('⚠️ Ошибка загрузки searchChat:', e);
+    }
+}
+
+async function loadGlobalMessages() {
+    if (!db) return;
+    try {
+        var snapshot = await db.ref('chat/global').orderByChild('timestamp').limitToLast(100).once('value');
+        window.globalMessages = [];
+        snapshot.forEach(function(child) {
+            var data = child.val();
+            if (data && data.playerId) {
+                data.id = child.key;
+                window.globalMessages.push(data);
+            }
+        });
+        window.globalMessages.sort(function(a, b) { return (b.timestamp || 0) - (a.timestamp || 0); });
+        console.log('🔵 Загружено globalChat:', window.globalMessages.length);
+    } catch (e) {
+        console.warn('⚠️ Ошибка загрузки globalChat:', e);
+    }
+}
+
+async function loadClanMessages() {
+    if (!db || !window.currentPlayer?.clanId) return;
+    try {
+        var snapshot = await db.ref('chat/clans/' + window.currentPlayer.clanId).orderByChild('timestamp').limitToLast(100).once('value');
+        window.clanMessages = [];
+        snapshot.forEach(function(child) {
+            var data = child.val();
+            if (data && data.playerId) {
+                data.id = child.key;
+                window.clanMessages.push(data);
+            }
+        });
+        window.clanMessages.sort(function(a, b) { return (b.timestamp || 0) - (a.timestamp || 0); });
+        console.log('🔵 Загружено clanChat:', window.clanMessages.length);
+    } catch (e) {
+        console.warn('⚠️ Ошибка загрузки clanChat:', e);
+    }
+}
 
 // ============================================================
 // 13.10. ПОДПИСКА НА ЧАТ ПОИСКА КЛАНА (С ЗАЩИТОЙ ОТ ДУБЛЕЙ)
@@ -5257,6 +5624,19 @@ function subscribeToSearchChat() {
 
     var ref = db.ref('chat/search');
     
+    // Проверяем интернет при подписке
+    if (!window._hasInternet) {
+        console.log('📡 Нет интернета, подписка отложена');
+        // Подпишемся позже при восстановлении
+        var checkInterval = setInterval(function() {
+            if (window._hasInternet) {
+                clearInterval(checkInterval);
+                subscribeToSearchChat();
+            }
+        }, 5000);
+        return;
+    }
+    
     ref.once('value', function(snapshot) {
         if (!snapshot.exists()) {
             console.log('ℹ️ Путь chat/search пуст, создаём...');
@@ -5268,6 +5648,12 @@ function subscribeToSearchChat() {
 
     // Используем child_added для получения новых сообщений
     window.chatListeners.search = ref.on('child_added', function(snapshot) {
+        // Проверяем интернет при получении
+        if (!window._hasInternet) {
+            console.log('📡 Нет интернета, сообщение будет загружено позже');
+            return;
+        }
+        
         var data = snapshot.val();
         var key = snapshot.key;
         
@@ -5290,23 +5676,10 @@ function subscribeToSearchChat() {
     });
 
     // Загружаем последние 100 сообщений
-    ref.orderByChild('timestamp').limitToLast(100).once('value', function(snapshot) {
-        window.searchMessages = [];
-        snapshot.forEach(function(child) {
-            var data = child.val();
-            if (data && data.playerId) {
-                data.id = child.key;
-                window.searchMessages.push(data);
-            }
-        });
-        window.searchMessages.sort(function(a, b) { return (b.timestamp || 0) - (a.timestamp || 0); });
-        console.log('🔵 Загружено сообщений searchChat:', window.searchMessages.length);
-        
+    loadSearchMessages().then(function() {
         if (window.chatModalOpen && window.currentChatTab === 'search') {
             renderChatMessages();
         }
-    }).catch(function(e) {
-        console.warn('⚠️ Ошибка загрузки searchChat:', e);
     });
 }
 
@@ -5328,6 +5701,18 @@ function subscribeToGlobalChat() {
 
     var ref = db.ref('chat/global');
     
+    // Проверяем интернет при подписке
+    if (!window._hasInternet) {
+        console.log('📡 Нет интернета, подписка отложена');
+        var checkInterval = setInterval(function() {
+            if (window._hasInternet) {
+                clearInterval(checkInterval);
+                subscribeToGlobalChat();
+            }
+        }, 5000);
+        return;
+    }
+    
     ref.once('value', function(snapshot) {
         if (!snapshot.exists()) {
             console.log('ℹ️ Путь chat/global пуст, создаём...');
@@ -5338,6 +5723,11 @@ function subscribeToGlobalChat() {
     });
 
     window.chatListeners.global = ref.on('child_added', function(snapshot) {
+        if (!window._hasInternet) {
+            console.log('📡 Нет интернета, сообщение будет загружено позже');
+            return;
+        }
+        
         var data = snapshot.val();
         var key = snapshot.key;
         
@@ -5358,23 +5748,11 @@ function subscribeToGlobalChat() {
         console.error('❌ Ошибка подписки на globalChat:', error);
     });
 
-    ref.orderByChild('timestamp').limitToLast(100).once('value', function(snapshot) {
-        window.globalMessages = [];
-        snapshot.forEach(function(child) {
-            var data = child.val();
-            if (data && data.playerId) {
-                data.id = child.key;
-                window.globalMessages.push(data);
-            }
-        });
-        window.globalMessages.sort(function(a, b) { return (b.timestamp || 0) - (a.timestamp || 0); });
-        console.log('🔵 Загружено сообщений globalChat:', window.globalMessages.length);
-        
+    // Загружаем последние 100 сообщений
+    loadGlobalMessages().then(function() {
         if (window.chatModalOpen && window.currentChatTab === 'global') {
             renderChatMessages();
         }
-    }).catch(function(e) {
-        console.warn('⚠️ Ошибка загрузки globalChat:', e);
     });
 }
 
@@ -5401,6 +5779,18 @@ function subscribeToClanChat() {
 
     var ref = db.ref('chat/clans/' + window.currentPlayer.clanId);
     
+    // Проверяем интернет при подписке
+    if (!window._hasInternet) {
+        console.log('📡 Нет интернета, подписка отложена');
+        var checkInterval = setInterval(function() {
+            if (window._hasInternet) {
+                clearInterval(checkInterval);
+                subscribeToClanChat();
+            }
+        }, 5000);
+        return;
+    }
+    
     ref.once('value', function(snapshot) {
         if (!snapshot.exists()) {
             console.log('ℹ️ Путь chat/clans/' + window.currentPlayer.clanId + ' пуст, создаём...');
@@ -5411,6 +5801,11 @@ function subscribeToClanChat() {
     });
 
     window.chatListeners.clan = ref.on('child_added', function(snapshot) {
+        if (!window._hasInternet) {
+            console.log('📡 Нет интернета, сообщение будет загружено позже');
+            return;
+        }
+        
         var data = snapshot.val();
         var key = snapshot.key;
         
@@ -5431,28 +5826,16 @@ function subscribeToClanChat() {
         console.error('❌ Ошибка подписки на clanChat:', error);
     });
 
-    ref.orderByChild('timestamp').limitToLast(100).once('value', function(snapshot) {
-        window.clanMessages = [];
-        snapshot.forEach(function(child) {
-            var data = child.val();
-            if (data && data.playerId) {
-                data.id = child.key;
-                window.clanMessages.push(data);
-            }
-        });
-        window.clanMessages.sort(function(a, b) { return (b.timestamp || 0) - (a.timestamp || 0); });
-        console.log('🔵 Загружено сообщений clanChat:', window.clanMessages.length);
-        
+    // Загружаем последние 100 сообщений
+    loadClanMessages().then(function() {
         if (window.chatModalOpen && window.currentChatTab === 'clan') {
             renderChatMessages();
         }
-    }).catch(function(e) {
-        console.warn('⚠️ Ошибка загрузки clanChat:', e);
     });
 }
 
 // ============================================================
-// 13.13. ОТПРАВКА СООБЩЕНИЯ В ЧАТ (ИСПРАВЛЕННАЯ)
+// 13.13. ОТПРАВКА СООБЩЕНИЯ В ЧАТ (С ПРОВЕРКОЙ ИНТЕРНЕТА)
 // ============================================================
 window.sendChatMessage = async function() {
     // Защита от множественных отправок
@@ -5474,6 +5857,53 @@ window.sendChatMessage = async function() {
         return;
     }
 
+    // Проверяем интернет
+    if (!window._hasInternet) {
+        console.log('📡 Нет интернета, сообщение добавлено в очередь');
+        // Сохраняем сообщение в локальное хранилище для отправки позже
+        var tempMsg = {
+            playerId: window.currentPlayer.id,
+            playerName: window.currentPlayer.username,
+            playerAvatar: getChatAvatarUrl(),
+            message: message,
+            timestamp: Date.now(),
+            playerLevel: window.currentPlayer.level || 1,
+            playerPower: typeof calculatePlayerPower === 'function' ? calculatePlayerPower(window.currentPlayer) : 0,
+            playerStrength: window.currentPlayer.stats?.strength || 10,
+            playerDefense: window.currentPlayer.stats?.defense || 5,
+            playerAuthority: window.currentPlayer.authority || 0,
+            playerClan: window.currentPlayer.clanName || 'Без клана',
+            playerClanId: window.currentPlayer.clanId || null,
+            playerCaste: window.currentPlayer.caste || 'Фраер',
+            replyTo: window.replyToMessage ? {
+                replyToId: window.replyToMessage.id,
+                replyToName: window.replyToMessage.playerName,
+                replyToMessage: window.replyToMessage.message
+            } : null
+        };
+        
+        // Добавляем в очередь
+        addToPendingMessages(tempMsg, window.currentChatTab);
+        
+        // Показываем локальное сообщение в чате
+        var tempId = 'pending_' + Date.now();
+        var pendingMsg = { id: tempId, ...tempMsg, isPending: true };
+        
+        if (window.currentChatTab === 'search') {
+            window.searchMessages.unshift(pendingMsg);
+        } else if (window.currentChatTab === 'global') {
+            window.globalMessages.unshift(pendingMsg);
+        } else if (window.currentChatTab === 'clan') {
+            window.clanMessages.unshift(pendingMsg);
+        }
+        
+        renderChatMessages();
+        input.value = '';
+        cancelReply();
+        showToast('📡 Сообщение будет отправлено при восстановлении интернета', 'warning');
+        return;
+    }
+
     // Блокируем повторную отправку
     window._isProcessingChatMessage = true;
 
@@ -5481,31 +5911,32 @@ window.sendChatMessage = async function() {
 
     // Очищаем поле ввода сразу
     input.value = '';
+    
+    // Показываем индикатор отправки
+    showSendingIndicator(true, '⏳ Отправка...');
 
     var playerClan = 'Без клана';
-var playerClanId = null;
-if (window.currentPlayer.clanId) {
-    // Сначала пробуем найти в allClans
-    if (window.allClans && window.allClans.length > 0) {
-        var clan = window.allClans.find(function(c) { return c.id === window.currentPlayer.clanId; });
-        if (clan) {
-            playerClan = clan.name;
-            playerClanId = window.currentPlayer.clanId;
-        }
-    } else {
-        // Если allClans нет, загружаем клан напрямую
-        try {
-            var clanSnapshot = await db.ref('clans/' + window.currentPlayer.clanId).once('value');
-            if (clanSnapshot.exists()) {
-                var clanData = clanSnapshot.val();
-                playerClan = clanData.name || 'Без клана';
+    var playerClanId = null;
+    if (window.currentPlayer.clanId) {
+        if (window.allClans && window.allClans.length > 0) {
+            var clan = window.allClans.find(function(c) { return c.id === window.currentPlayer.clanId; });
+            if (clan) {
+                playerClan = clan.name;
                 playerClanId = window.currentPlayer.clanId;
             }
-        } catch(e) {
-            console.warn('⚠️ Не удалось загрузить клан для чата:', e);
+        } else {
+            try {
+                var clanSnapshot = await db.ref('clans/' + window.currentPlayer.clanId).once('value');
+                if (clanSnapshot.exists()) {
+                    var clanData = clanSnapshot.val();
+                    playerClan = clanData.name || 'Без клана';
+                    playerClanId = window.currentPlayer.clanId;
+                }
+            } catch(e) {
+                console.warn('⚠️ Не удалось загрузить клан для чата:', e);
+            }
         }
     }
-}
 
     var gangDetails = getGangDetails(window.currentPlayer);
 
@@ -5518,7 +5949,6 @@ if (window.currentPlayer.clanId) {
         };
     }
 
-    // ✅ АВАТАР - получаем актуальный из профиля
     var avatarUrl = getChatAvatarUrl();
 
     var messageData = {
@@ -5543,61 +5973,9 @@ if (window.currentPlayer.clanId) {
     };
 
     try {
-        var ref;
-        var tempId = 'temp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
-        var tempMsg = { id: tempId, ...messageData };
+        // Прямая отправка
+        await sendChatMessageDirect(messageData, window.currentChatTab);
         
-        if (window.currentChatTab === 'search') {
-            console.log('📨 Отправка в searchChat');
-            ref = db.ref('chat/search').push();
-            await ref.set(messageData);
-            
-            // Добавляем локальное сообщение с реальным ID
-            var realId = ref.key;
-            tempMsg.id = realId;
-            
-            // Проверяем, нет ли уже такого сообщения
-            var exists = window.searchMessages.some(function(msg) { return msg.id === realId; });
-            if (!exists) {
-                window.searchMessages.unshift(tempMsg);
-                if (window.chatModalOpen && window.currentChatTab === 'search') {
-                    renderChatMessages();
-                }
-            }
-
-        } else if (window.currentChatTab === 'global') {
-            console.log('📨 Отправка в globalChat');
-            ref = db.ref('chat/global').push();
-            await ref.set(messageData);
-
-            var realId = ref.key;
-            tempMsg.id = realId;
-            
-            var exists = window.globalMessages.some(function(msg) { return msg.id === realId; });
-            if (!exists) {
-                window.globalMessages.unshift(tempMsg);
-                if (window.chatModalOpen && window.currentChatTab === 'global') {
-                    renderChatMessages();
-                }
-            }
-
-        } else if (window.currentChatTab === 'clan' && window.currentPlayer.clanId) {
-            console.log('📨 Отправка в clanChat');
-            ref = db.ref('chat/clans/' + window.currentPlayer.clanId).push();
-            await ref.set(messageData);
-
-            var realId = ref.key;
-            tempMsg.id = realId;
-            
-            var exists = window.clanMessages.some(function(msg) { return msg.id === realId; });
-            if (!exists) {
-                window.clanMessages.unshift(tempMsg);
-                if (window.chatModalOpen && window.currentChatTab === 'clan') {
-                    renderChatMessages();
-                }
-            }
-        }
-
         cancelReply();
         console.log('✅ Сообщение отправлено!');
         showToast('✅ Сообщение отправлено', 'success');
@@ -5605,13 +5983,78 @@ if (window.currentPlayer.clanId) {
     } catch (e) {
         console.error('❌ Ошибка отправки сообщения:', e);
         showToast('❌ Ошибка отправки: ' + e.message, 'error');
+        
+        // Если ошибка связана с интернетом, добавляем в очередь
+        if (e.message && (e.message.includes('network') || e.message.includes('internet'))) {
+            addToPendingMessages(messageData, window.currentChatTab);
+            showToast('📡 Сообщение добавлено в очередь', 'warning');
+        }
     } finally {
-        // Снимаем блокировку через небольшую задержку
+        showSendingIndicator(false);
         setTimeout(function() {
             window._isProcessingChatMessage = false;
         }, 500);
     }
 };
+
+// ============================================================
+// 13.13.1. ПРЯМАЯ ОТПРАВКА СООБЩЕНИЯ
+// ============================================================
+async function sendChatMessageDirect(messageData, tab) {
+    if (!window._hasInternet) {
+        throw new Error('Нет подключения к интернету');
+    }
+    
+    var ref;
+    
+    if (tab === 'search') {
+        console.log('📨 Отправка в searchChat');
+        ref = db.ref('chat/search').push();
+        await ref.set(messageData);
+        
+        var realId = ref.key;
+        var exists = window.searchMessages.some(function(msg) { return msg.id === realId; });
+        if (!exists) {
+            messageData.id = realId;
+            window.searchMessages.unshift(messageData);
+            if (window.chatModalOpen && window.currentChatTab === 'search') {
+                renderChatMessages();
+            }
+        }
+
+    } else if (tab === 'global') {
+        console.log('📨 Отправка в globalChat');
+        ref = db.ref('chat/global').push();
+        await ref.set(messageData);
+
+        var realId = ref.key;
+        var exists = window.globalMessages.some(function(msg) { return msg.id === realId; });
+        if (!exists) {
+            messageData.id = realId;
+            window.globalMessages.unshift(messageData);
+            if (window.chatModalOpen && window.currentChatTab === 'global') {
+                renderChatMessages();
+            }
+        }
+
+    } else if (tab === 'clan' && window.currentPlayer?.clanId) {
+        console.log('📨 Отправка в clanChat');
+        ref = db.ref('chat/clans/' + window.currentPlayer.clanId).push();
+        await ref.set(messageData);
+
+        var realId = ref.key;
+        var exists = window.clanMessages.some(function(msg) { return msg.id === realId; });
+        if (!exists) {
+            messageData.id = realId;
+            window.clanMessages.unshift(messageData);
+            if (window.chatModalOpen && window.currentChatTab === 'clan') {
+                renderChatMessages();
+            }
+        }
+    }
+    
+    return true;
+}
 
 // ============================================================
 // 13.14. УСТАНОВИТЬ ОТВЕТ НА СООБЩЕНИЕ
@@ -5658,7 +6101,7 @@ window.cancelReply = function() {
 };
 
 // ============================================================
-// 13.16. ПОКАЗАТЬ ИНФОРМАЦИЮ О ПОЛЬЗОВАТЕЛЕ
+// 13.16. ПОКАЗАТЬ ИНФОРМАЦИЮ О ПОЛЬЗОВАТЕЛЕ (С ПРОВЕРКОЙ ИНТЕРНЕТА)
 // ============================================================
 window.showUserInfo = function(
     playerId, playerName, playerAvatar, playerLevel, playerPower,
@@ -5666,6 +6109,11 @@ window.showUserInfo = function(
     playerAuthority, playerGangBlats, playerGangMuzhiks, playerGangFraers, playerGangTotal
 ) {
     console.log('📋 Показ информации о пользователе:', playerName);
+
+    // Проверяем интернет
+    if (!window._hasInternet) {
+        showToast('📡 Нет интернета, данные могут быть неактуальны', 'warning');
+    }
 
     var userData = {
         strength: playerStrength || 0,
@@ -5679,7 +6127,6 @@ window.showUserInfo = function(
         clanId: playerClanId || null
     };
 
-    // ✅ ОТОБРАЖЕНИЕ КЛАНА С ВОЗМОЖНОСТЬЮ КЛИКА
     var clanDisplay = '';
     if (userData.clanName && userData.clanName !== 'Без клана' && userData.clanId) {
         clanDisplay = '<div class="user-info-clan" onclick="event.stopPropagation(); showClanInfo(\'' + userData.clanId + '\')" style="cursor: pointer; color: #ffd966; text-decoration: underline; padding: 4px 8px; background: rgba(139,69,19,0.2); border-radius: 20px; display: inline-block;">🏰 ' + escapeHtml(userData.clanName) + '</div>';
@@ -5687,10 +6134,8 @@ window.showUserInfo = function(
         clanDisplay = '<div class="user-info-clan" style="color: #888; padding: 4px 8px; background: rgba(0,0,0,0.3); border-radius: 20px; display: inline-block;">🏰 Без клана</div>';
     }
 
-    // ✅ Добавляем информацию об уровне клана если есть
     var clanLevelDisplay = '';
     if (userData.clanName && userData.clanName !== 'Без клана' && userData.clanId) {
-        // Пытаемся найти клан в allClans чтобы получить уровень
         var clanInfo = window.allClans ? window.allClans.find(function(c) { return c.id === userData.clanId; }) : null;
         if (clanInfo) {
             clanLevelDisplay = '<span style="font-size: 10px; color: #c9a03d; margin-left: 5px;">📈 ур.' + (clanInfo.level || 1) + '</span>';
@@ -5731,65 +6176,75 @@ window.showUserInfo = function(
                 justify-content: center;
                 transition: all 0.2s;
             ">✕</button>
-            <div style="text-align: center;">
-                <div class="user-info-avatar">
-                    <img src="${playerAvatar}" style="
-                        width: 80px;
-                        height: 80px;
-                        border-radius: 50%;
-                        border: 2px solid #c9a03d;
-                        object-fit: cover;
-                        background: #1a1a2a;
-                    " onerror="this.src='https://cdn-icons-png.flaticon.com/512/3135/3135715.png'">
-                </div>
-                <div class="user-info-name" style="font-size: 20px; font-weight: bold; color: #ffd966; margin-bottom: 10px;">
-                    ${escapeHtml(playerName)}
-                </div>
-                <div style="display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px;">
-                    ${clanDisplay}
-                    ${clanLevelDisplay}
-                </div>
+            
+            <!-- Индикатор загрузки в модалке -->
+            <div id="userInfoLoading" style="display: none; text-align: center; padding: 20px;">
+                <div style="width: 30px; height: 30px; border: 3px solid rgba(139,69,19,0.3); border-top-color: #c9a03d; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto;"></div>
+                <div style="color: #888; margin-top: 10px;">⏳ Загрузка...</div>
             </div>
             
-            <div class="user-info-stats" style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 15px;">
-                <div class="user-info-stat" style="background: rgba(30,36,64,0.6); padding: 5px 12px; border-radius: 20px; font-size: 12px;">
-                    ⭐ Уровень: ${playerLevel || 0}
-                </div>
-                <div class="user-info-stat" style="background: rgba(30,36,64,0.6); padding: 5px 12px; border-radius: 20px; font-size: 12px;">
-                    💪 Мощь: ${playerPower || 0}
-                </div>
-                <div class="user-info-stat" style="background: rgba(30,36,64,0.6); padding: 5px 12px; border-radius: 20px; font-size: 12px;">
-                    💪 Сила: ${userData.strength}
-                </div>
-                <div class="user-info-stat" style="background: rgba(30,36,64,0.6); padding: 5px 12px; border-radius: 20px; font-size: 12px;">
-                    🛡️ Защита: ${userData.defense}
-                </div>
-                <div class="user-info-stat" style="background: rgba(30,36,64,0.6); padding: 5px 12px; border-radius: 20px; font-size: 12px;">
-                    ⭐ Авторитет: ${userData.authority}
-                </div>
-            </div>
-            
-            <div style="margin-top: 15px;">
-                <div style="font-size: 14px; color: #c9a03d; margin-bottom: 10px;">👥 БАНДА:</div>
-                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
-                    <div style="background: rgba(0,0,0,0.3); border-radius: 12px; padding: 8px; text-align: center;">
-                        <div style="font-size: 24px;">👑</div>
-                        <div style="font-size: 11px; color: #c9a03d;">БЛАТНЫЕ</div>
-                        <div style="font-size: 18px; font-weight: bold; color: #ffd966;">${userData.gangBlats}</div>
+            <div id="userInfoContent">
+                <div style="text-align: center;">
+                    <div class="user-info-avatar">
+                        <img src="${playerAvatar}" style="
+                            width: 80px;
+                            height: 80px;
+                            border-radius: 50%;
+                            border: 2px solid #c9a03d;
+                            object-fit: cover;
+                            background: #1a1a2a;
+                        " onerror="this.src='https://cdn-icons-png.flaticon.com/512/3135/3135715.png'">
                     </div>
-                    <div style="background: rgba(0,0,0,0.3); border-radius: 12px; padding: 8px; text-align: center;">
-                        <div style="font-size: 24px;">🔨</div>
-                        <div style="font-size: 11px; color: #c9a03d;">МУЖИКИ</div>
-                        <div style="font-size: 18px; font-weight: bold; color: #ffd966;">${userData.gangMuzhiks}</div>
+                    <div class="user-info-name" style="font-size: 20px; font-weight: bold; color: #ffd966; margin-bottom: 10px;">
+                        ${escapeHtml(playerName)}
                     </div>
-                    <div style="background: rgba(0,0,0,0.3); border-radius: 12px; padding: 8px; text-align: center;">
-                        <div style="font-size: 24px;">🐑</div>
-                        <div style="font-size: 11px; color: #c9a03d;">ФРАЕРА</div>
-                        <div style="font-size: 18px; font-weight: bold; color: #ffd966;">${userData.gangFraers}</div>
+                    <div style="display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px;">
+                        ${clanDisplay}
+                        ${clanLevelDisplay}
+                        ${!window._hasInternet ? '<span style="font-size: 10px; color: #e94560;">📡 офлайн</span>' : ''}
                     </div>
                 </div>
-                <div style="text-align: center; margin-top: 8px; font-size: 12px; color: #ffd966;">
-                    👥 Всего: ${userData.gangTotal} бойцов
+                
+                <div class="user-info-stats" style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 15px;">
+                    <div class="user-info-stat" style="background: rgba(30,36,64,0.6); padding: 5px 12px; border-radius: 20px; font-size: 12px;">
+                        ⭐ Уровень: ${playerLevel || 0}
+                    </div>
+                    <div class="user-info-stat" style="background: rgba(30,36,64,0.6); padding: 5px 12px; border-radius: 20px; font-size: 12px;">
+                        💪 Мощь: ${playerPower || 0}
+                    </div>
+                    <div class="user-info-stat" style="background: rgba(30,36,64,0.6); padding: 5px 12px; border-radius: 20px; font-size: 12px;">
+                        💪 Сила: ${userData.strength}
+                    </div>
+                    <div class="user-info-stat" style="background: rgba(30,36,64,0.6); padding: 5px 12px; border-radius: 20px; font-size: 12px;">
+                        🛡️ Защита: ${userData.defense}
+                    </div>
+                    <div class="user-info-stat" style="background: rgba(30,36,64,0.6); padding: 5px 12px; border-radius: 20px; font-size: 12px;">
+                        ⭐ Авторитет: ${userData.authority}
+                    </div>
+                </div>
+                
+                <div style="margin-top: 15px;">
+                    <div style="font-size: 14px; color: #c9a03d; margin-bottom: 10px;">👥 БАНДА:</div>
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+                        <div style="background: rgba(0,0,0,0.3); border-radius: 12px; padding: 8px; text-align: center;">
+                            <div style="font-size: 24px;"></div>
+                            <div style="font-size: 11px; color: #c9a03d;">БЛАТНЫЕ</div>
+                            <div style="font-size: 18px; font-weight: bold; color: #ffd966;">${userData.gangBlats}</div>
+                        </div>
+                        <div style="background: rgba(0,0,0,0.3); border-radius: 12px; padding: 8px; text-align: center;">
+                            <div style="font-size: 24px;"></div>
+                            <div style="font-size: 11px; color: #c9a03d;">МУЖИКИ</div>
+                            <div style="font-size: 18px; font-weight: bold; color: #ffd966;">${userData.gangMuzhiks}</div>
+                        </div>
+                        <div style="background: rgba(0,0,0,0.3); border-radius: 12px; padding: 8px; text-align: center;">
+                            <div style="font-size: 24px;"></div>
+                            <div style="font-size: 11px; color: #c9a03d;">ФРАЕРА</div>
+                            <div style="font-size: 18px; font-weight: bold; color: #ffd966;">${userData.gangFraers}</div>
+                        </div>
+                    </div>
+                    <div style="text-align: center; margin-top: 8px; font-size: 12px; color: #ffd966;">
+                        👥 Всего: ${userData.gangTotal} бойцов
+                    </div>
                 </div>
             </div>
         </div>
@@ -5810,7 +6265,7 @@ window.closeUserInfoModal = function() {
 };
 
 // ============================================================
-// 13.18. ПОКАЗАТЬ ИНФОРМАЦИЮ О КЛАНЕ
+// 13.18. ПОКАЗАТЬ ИНФОРМАЦИЮ О КЛАНЕ (С ПРОВЕРКОЙ ИНТЕРНЕТА)
 // ============================================================
 window.showClanInfo = async function(clanId) {
     if (!clanId) {
@@ -5819,16 +6274,44 @@ window.showClanInfo = async function(clanId) {
     }
 
     console.log('📋 Показ информации о клане:', clanId);
+    
+    // Проверяем интернет
+    if (!window._hasInternet) {
+        showToast('📡 Нет интернета, данные могут быть неактуальны', 'warning');
+    }
+
+    // Показываем индикатор загрузки в модалке
+    var loadingModal = document.createElement('div');
+    loadingModal.id = 'clanInfoLoadingModal';
+    loadingModal.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(10,14,26,0.95);
+        padding: 30px;
+        border-radius: 20px;
+        border: 2px solid #8B4513;
+        z-index: 10003;
+        text-align: center;
+    `;
+    loadingModal.innerHTML = `
+        <div style="width: 40px; height: 40px; border: 3px solid rgba(139,69,19,0.3); border-top-color: #c9a03d; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto;"></div>
+        <div style="color: #c9a03d; margin-top: 12px; font-weight: 600;">⏳ Загрузка клана...</div>
+    `;
+    document.body.appendChild(loadingModal);
 
     try {
         if (!db) {
             showToast('❌ База данных не доступна', 'error');
+            loadingModal.remove();
             return;
         }
         
         var clanSnapshot = await db.ref('clans/' + clanId).once('value');
         if (!clanSnapshot.exists()) {
             showToast('Клан не найден', 'error');
+            loadingModal.remove();
             return;
         }
 
@@ -5837,6 +6320,10 @@ window.showClanInfo = async function(clanId) {
 
         var members = [];
         if (clan.membersIds && Array.isArray(clan.membersIds)) {
+            // Показываем загрузку участников
+            var membersLoading = document.getElementById('clanMembersLoading');
+            if (membersLoading) membersLoading.style.display = 'block';
+            
             for (var i = 0; i < clan.membersIds.length; i++) {
                 var memberId = clan.membersIds[i];
                 try {
@@ -5883,6 +6370,8 @@ window.showClanInfo = async function(clanId) {
             `;
         }).join('');
 
+        loadingModal.remove();
+
         var modalHtml = `
             <div class="user-info-modal" id="clanInfoModal" style="
                 position: fixed;
@@ -5923,6 +6412,7 @@ window.showClanInfo = async function(clanId) {
                         ${escapeHtml(clan.name)}
                     </div>
                     <div class="user-info-clan" style="color: #c9a03d;">👑 Главарь: ${escapeHtml(clan.leader)}</div>
+                    ${!window._hasInternet ? '<div style="font-size: 10px; color: #e94560; margin-top: 5px;">📡 офлайн</div>' : ''}
                 </div>
                 
                 <div class="user-info-stats" style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 15px;">
@@ -5955,6 +6445,7 @@ window.showClanInfo = async function(clanId) {
         document.body.insertAdjacentHTML('beforeend', modalHtml);
 
     } catch (e) {
+        loadingModal.remove();
         console.error('Ошибка загрузки клана:', e);
         showToast('Ошибка загрузки информации о клане: ' + e.message, 'error');
     }
@@ -6018,15 +6509,44 @@ function getGangDetails(player) {
 function initChat() {
     console.log('🔵 Инициализация чата...');
     
+    if (window._chatInitialized) {
+        console.log('🔵 Чат уже инициализирован');
+        return;
+    }
+    window._chatInitialized = true;
+    
+    // Проверяем интернет
+    window._hasInternet = checkInternetConnection();
+    console.log('🌐 Статус интернета:', window._hasInternet ? 'онлайн' : 'офлайн');
+    
     if (window.currentPlayer && window.currentPlayer.id) {
         showChatButton();
     }
     
     if (window.currentPlayer) {
-        subscribeToSearchChat();
-        subscribeToGlobalChat();
-        if (window.currentPlayer.clanId) {
-            subscribeToClanChat();
+        // Подписываемся только если есть интернет
+        if (window._hasInternet) {
+            subscribeToSearchChat();
+            subscribeToGlobalChat();
+            if (window.currentPlayer.clanId) {
+                subscribeToClanChat();
+            }
+        } else {
+            console.log('📡 Нет интернета, подписка на чаты отложена');
+            // Подпишемся при восстановлении
+            var checkInterval = setInterval(function() {
+                if (window._hasInternet) {
+                    clearInterval(checkInterval);
+                    if (window.currentPlayer) {
+                        subscribeToSearchChat();
+                        subscribeToGlobalChat();
+                        if (window.currentPlayer.clanId) {
+                            subscribeToClanChat();
+                        }
+                    }
+                    console.log('✅ Подписка на чаты выполнена после восстановления интернета');
+                }
+            }, 5000);
         }
     }
     
@@ -6039,6 +6559,27 @@ function initChat() {
             var btn = document.getElementById('chatBtn');
             if (!btn || btn.style.display === 'none') {
                 showChatButton();
+            }
+        }
+        // Обновляем статус интернета
+        var newStatus = checkInternetConnection();
+        if (newStatus !== window._hasInternet) {
+            window._hasInternet = newStatus;
+            var statusEl = document.getElementById('chatConnectionStatus');
+            if (statusEl) {
+                statusEl.textContent = window._hasInternet ? '🟢' : '🔴';
+                statusEl.style.color = window._hasInternet ? '#4caf50' : '#e94560';
+            }
+            if (window._hasInternet) {
+                sendPendingMessages();
+                // Переподписываемся
+                if (window.currentPlayer) {
+                    subscribeToSearchChat();
+                    subscribeToGlobalChat();
+                    if (window.currentPlayer.clanId) {
+                        subscribeToClanChat();
+                    }
+                }
             }
         }
     }, 5000);
@@ -6069,6 +6610,9 @@ function stopChat() {
         try { window.chatListeners.search(); } catch(e) {}
         window.chatListeners.search = null;
     }
+    
+    window._chatInitialized = false;
+    window._pendingMessages = [];
     
     console.log('🔵 Чат остановлен');
 }
@@ -6625,12 +7169,257 @@ console.log('✅ Дополнительные функции инвентаря 
 // ============================================================
 
 // ============================================================
+// 15.0. ПЕРЕМЕННЫЕ ДЛЯ ПРОВЕРКИ ИНТЕРНЕТА В НАСТРОЙКАХ
+// ============================================================
+if (typeof window._settingsHasInternet === 'undefined') {
+    window._settingsHasInternet = navigator.onLine !== false;
+}
+if (typeof window._settingsModalOpening === 'undefined') {
+    window._settingsModalOpening = false;
+}
+if (typeof window._settingsPendingOperations === 'undefined') {
+    window._settingsPendingOperations = [];
+}
+if (typeof window._settingsCheckInterval === 'undefined') {
+    window._settingsCheckInterval = null;
+}
+
+console.log('🔵 НАСТРОЙКИ: начальный статус интернета:', window._settingsHasInternet);
+
+// ============================================================
+// 15.0.1. ПРОВЕРКА ИНТЕРНЕТА ДЛЯ НАСТРОЕК
+// ============================================================
+function checkSettingsInternetConnection() {
+    var isOnline = navigator.onLine !== false;
+    console.log('🔵 НАСТРОЙКИ: проверка интернета ->', isOnline);
+    return isOnline;
+}
+
+// ============================================================
+// 15.0.2. ОБНОВЛЕНИЕ СТАТУСА ИНТЕРНЕТА В НАСТРОЙКАХ
+// ============================================================
+function updateSettingsInternetStatus() {
+    var newStatus = checkSettingsInternetConnection();
+    
+    if (newStatus !== window._settingsHasInternet) {
+        console.log('🔄 НАСТРОЙКИ: статус интернета изменен:', window._settingsHasInternet, '->', newStatus);
+        window._settingsHasInternet = newStatus;
+        
+        // Обновляем UI
+        updateSettingsUI();
+        
+        if (window._settingsHasInternet) {
+            // Если интернет появился - выполняем ожидающие операции
+            processPendingSettingsOperations();
+            showToast('🌐 Интернет восстановлен!', 'success');
+        } else {
+            showToast('📡 Интернет потерян!', 'error');
+        }
+    }
+    
+    return window._settingsHasInternet;
+}
+
+// ============================================================
+// 15.0.3. ОЧЕРЕДЬ ОПЕРАЦИЙ НАСТРОЕК
+// ============================================================
+function addToPendingSettingsOperations(operation, data) {
+    window._settingsPendingOperations.push({
+        operation: operation,
+        data: data || null,
+        timestamp: Date.now()
+    });
+    console.log('📨 Операция добавлена в очередь ожидания (интернет отсутствует):', operation);
+}
+
+async function processPendingSettingsOperations() {
+    if (!window._settingsHasInternet) {
+        console.log('📡 Интернет все еще отсутствует, выполнение отложено');
+        return;
+    }
+    
+    if (window._settingsPendingOperations.length === 0) {
+        console.log('📨 Нет ожидающих операций Настроек');
+        return;
+    }
+    
+    console.log('📨 Выполнение ' + window._settingsPendingOperations.length + ' ожидающих операций Настроек...');
+    
+    var operationsToProcess = window._settingsPendingOperations.slice();
+    window._settingsPendingOperations = [];
+    
+    for (var i = 0; i < operationsToProcess.length; i++) {
+        var op = operationsToProcess[i];
+        try {
+            if (op.operation === 'ranking') {
+                await loadRankingDataDirect();
+                console.log('✅ Загружен рейтинг');
+            } else if (op.operation === 'invite') {
+                await loadInviteDataDirect();
+                console.log('✅ Загружены данные приглашений');
+            }
+        } catch (e) {
+            console.error('❌ Ошибка выполнения ожидающей операции:', e);
+            window._settingsPendingOperations.push(op);
+        }
+    }
+    
+    if (window._settingsPendingOperations.length > 0) {
+        console.log('📨 ' + window._settingsPendingOperations.length + ' операций осталось в очереди');
+    } else {
+        console.log('✅ Все ожидающие операции Настроек выполнены');
+    }
+}
+
+// ============================================================
+// 15.0.4. ИНДИКАТОР ЗАГРУЗКИ ДЛЯ НАСТРОЕК
+// ============================================================
+function showSettingsLoading(show, text) {
+    // Используем общий индикатор загрузки, если он есть
+    if (typeof showLoading === 'function') {
+        showLoading(show, text || '⏳ Загрузка...');
+        return;
+    }
+    
+    // Создаем свой индикатор, если общего нет
+    var overlay = document.getElementById('settingsLoadingOverlay');
+    if (!overlay && show) {
+        overlay = document.createElement('div');
+        overlay.id = 'settingsLoadingOverlay';
+        overlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(10,14,26,0.85);
+            backdrop-filter: blur(8px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 99999;
+            animation: fadeIn 0.3s ease;
+        `;
+        overlay.innerHTML = `
+            <div style="width: 48px; height: 48px; border: 3px solid rgba(139,69,19,0.3); border-top-color: #c9a03d; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+            <div id="settingsLoadingText" style="color: #c9a03d; font-size: 14px; margin-top: 16px; font-weight: 600;">⏳ Загрузка...</div>
+        `;
+        document.body.appendChild(overlay);
+    }
+    
+    if (overlay) {
+        overlay.style.display = show ? 'flex' : 'none';
+        var textEl = document.getElementById('settingsLoadingText');
+        if (textEl && text) textEl.textContent = text;
+    }
+}
+
+// ============================================================
+// 15.0.5. ОБНОВЛЕНИЕ UI НАСТРОЕК
+// ============================================================
+function updateSettingsUI() {
+    console.log('🔵 НАСТРОЙКИ: updateSettingsUI вызвана, интернет:', window._settingsHasInternet);
+    
+    // Обновляем индикатор интернета в окне настроек
+    var statusEl = document.getElementById('settingsConnectionStatus');
+    if (statusEl) {
+        statusEl.textContent = window._settingsHasInternet ? '🟢' : '🔴';
+        statusEl.style.color = window._settingsHasInternet ? '#4caf50' : '#e94560';
+        console.log('🔵 НАСТРОЙКИ: статус обновлен:', window._settingsHasInternet ? '🟢' : '🔴');
+    }
+    
+    // Обновляем кнопки
+    var rankBtn = document.querySelector('.settings-rank-btn');
+    var inviteBtn = document.querySelector('.settings-invite-btn');
+    
+    if (rankBtn) {
+        if (window._settingsHasInternet) {
+            rankBtn.disabled = false;
+            rankBtn.style.background = 'linear-gradient(135deg, #8B4513, #5a2d0a)';
+            rankBtn.style.border = '1px solid #c9a03d';
+            rankBtn.style.color = '#ffd966';
+            rankBtn.style.opacity = '1';
+            rankBtn.style.cursor = 'pointer';
+            rankBtn.textContent = '🏆 РЕЙТИНГ';
+        } else {
+            rankBtn.disabled = true;
+            rankBtn.style.background = '#444';
+            rankBtn.style.border = '1px solid #666';
+            rankBtn.style.color = '#888';
+            rankBtn.style.opacity = '0.6';
+            rankBtn.style.cursor = 'not-allowed';
+            rankBtn.textContent = '🏆 РЕЙТИНГ 📡';
+        }
+    }
+    
+    if (inviteBtn) {
+        if (window._settingsHasInternet) {
+            inviteBtn.disabled = false;
+            inviteBtn.style.background = 'linear-gradient(135deg, #1a3a5c, #0d2a4a)';
+            inviteBtn.style.border = '1px solid #4a8caf';
+            inviteBtn.style.color = '#7ec8e0';
+            inviteBtn.style.opacity = '1';
+            inviteBtn.style.cursor = 'pointer';
+            inviteBtn.textContent = '👥 ПРИГЛАСИТЬ';
+        } else {
+            inviteBtn.disabled = true;
+            inviteBtn.style.background = '#444';
+            inviteBtn.style.border = '1px solid #666';
+            inviteBtn.style.color = '#888';
+            inviteBtn.style.opacity = '0.6';
+            inviteBtn.style.cursor = 'not-allowed';
+            inviteBtn.textContent = '👥 ПРИГЛАСИТЬ 📡';
+        }
+    }
+    
+    // Обновляем статус в информации об игроке
+    var statusInfo = document.querySelector('.settings-status-info');
+    if (statusInfo) {
+        statusInfo.textContent = window._settingsHasInternet ? '🟢 Онлайн' : '🔴 Офлайн';
+        statusInfo.style.color = window._settingsHasInternet ? '#4caf50' : '#e94560';
+    }
+    
+    // Обновляем все кнопки в окне настроек
+    var allBtns = document.querySelectorAll('.settings-content-area button:not(.settings-tab-btn)');
+    allBtns.forEach(function(btn) {
+        if (btn.classList.contains('settings-rank-btn') || btn.classList.contains('settings-invite-btn')) {
+            // Уже обновлены выше
+            return;
+        }
+        if (!window._settingsHasInternet) {
+            btn.disabled = true;
+            btn.style.opacity = '0.6';
+            btn.style.cursor = 'not-allowed';
+        } else {
+            btn.disabled = false;
+            btn.style.opacity = '1';
+            btn.style.cursor = 'pointer';
+        }
+    });
+}
+
+// ============================================================
 // 15.1. ОТКРЫТИЕ НАСТРОЕК (ПОЛНОЭКРАННЫЙ ТЮРЕМНЫЙ СТИЛЬ)
 // ============================================================
 window.openSettingsModal = function() {
+    if (window._settingsModalOpening) {
+        return;
+    }
+    window._settingsModalOpening = true;
+    
     if (!window.currentPlayer) {
         showToast('❌ Игрок не найден!', 'error');
+        window._settingsModalOpening = false;
         return;
+    }
+    
+    // Обновляем статус интернета при открытии
+    updateSettingsInternetStatus();
+    
+    // Проверяем интернет
+    if (!window._settingsHasInternet) {
+        showToast('📡 Нет интернета, данные могут быть неактуальны', 'warning');
     }
     
     // Получаем количество приглашённых
@@ -6653,6 +7442,25 @@ window.openSettingsModal = function() {
             padding: 20px 16px;
             padding-bottom: 80px;
         ">
+            <!-- ИНДИКАТОР ЗАГРУЗКИ ВНУТРИ ОКНА -->
+            <div id="settingsModalLoadingOverlay" style="
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(10,14,26,0.85);
+                display: none;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                z-index: 100;
+                border-radius: 0;
+            ">
+                <div style="width: 40px; height: 40px; border: 3px solid rgba(139,69,19,0.3); border-top-color: #c9a03d; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                <div id="settingsModalLoadingText" style="color: #c9a03d; font-size: 13px; margin-top: 12px; font-weight: 600;">⏳ Загрузка...</div>
+            </div>
+            
             <!-- ТЮРЕМНАЯ ШАПКА -->
             <div class="settings-header-bar" style="
                 background: linear-gradient(135deg, #1a1a2a 0%, #0d0d15 100%);
@@ -6683,6 +7491,9 @@ window.openSettingsModal = function() {
                     gap: 10px;
                 ">
                     <span></span> НАСТРОЙКИ
+                    <!--<span id="settingsConnectionStatus" style="font-size: 14px; color: ${window._settingsHasInternet ? '#4caf50' : '#e94560'};">
+                        ${window._settingsHasInternet ? '🟢' : '🔴'}
+                    </span>--!>
                 </div>
             </div>
             
@@ -6693,38 +7504,39 @@ window.openSettingsModal = function() {
                 margin-bottom: 10px;
             ">
                 
-                
                 <!-- КНОПКИ ДЕЙСТВИЙ -->
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 12px 0;">
                     <button class="settings-rank-btn" onclick="openRankingOverlay()" style="
-                        background: linear-gradient(135deg, #8B4513, #5a2d0a);
-                        border: 1px solid #c9a03d;
+                        background: ${window._settingsHasInternet ? 'linear-gradient(135deg, #8B4513, #5a2d0a)' : '#444'};
+                        border: 1px solid ${window._settingsHasInternet ? '#c9a03d' : '#666'};
                         border-radius: 40px;
                         padding: 14px;
                         font-weight: 700;
                         font-size: 14px;
-                        color: #ffd966;
-                        cursor: pointer;
+                        color: ${window._settingsHasInternet ? '#ffd966' : '#888'};
+                        cursor: ${window._settingsHasInternet ? 'pointer' : 'not-allowed'};
                         transition: all 0.2s;
                         text-align: center;
                         width: 100%;
-                    ">
-                        🏆 РЕЙТИНГ
+                        ${!window._settingsHasInternet ? 'opacity: 0.6;' : ''}
+                    " ${!window._settingsHasInternet ? 'disabled' : ''}>
+                        🏆 РЕЙТИНГ ${!window._settingsHasInternet ? '📡' : ''}
                     </button>
                     <button class="settings-invite-btn" onclick="openInviteOverlay()" style="
-                        background: linear-gradient(135deg, #1a3a5c, #0d2a4a);
-                        border: 1px solid #4a8caf;
+                        background: ${window._settingsHasInternet ? 'linear-gradient(135deg, #1a3a5c, #0d2a4a)' : '#444'};
+                        border: 1px solid ${window._settingsHasInternet ? '#4a8caf' : '#666'};
                         border-radius: 40px;
                         padding: 14px;
                         font-weight: 700;
                         font-size: 14px;
-                        color: #7ec8e0;
-                        cursor: pointer;
+                        color: ${window._settingsHasInternet ? '#7ec8e0' : '#888'};
+                        cursor: ${window._settingsHasInternet ? 'pointer' : 'not-allowed'};
                         transition: all 0.2s;
                         text-align: center;
                         width: 100%;
-                    ">
-                        👥 ПРИГЛАСИТЬ
+                        ${!window._settingsHasInternet ? 'opacity: 0.6;' : ''}
+                    " ${!window._settingsHasInternet ? 'disabled' : ''}>
+                        👥 ПРИГЛАСИТЬ ${!window._settingsHasInternet ? '📡' : ''}
                     </button>
                 </div>
                 <!-- ИНФОРМАЦИЯ ОБ ИГРОКЕ -->
@@ -6751,8 +7563,12 @@ window.openSettingsModal = function() {
                     <div style="font-size: 36px; margin-bottom: 10px;">⚙️</div>
                     <div style="font-size: 16px; font-weight: 700; color: #ffd966;">${escapeHtml(window.currentPlayer.username)}</div>
                     <div style="font-size: 12px; color: #888; margin-top: 4px;">🆔 ${window.playerId}</div>
-                    <div style="font-size: 11px; color: #666; margin-top: 8px;">Версия - 1.0.1.043</div>
+                    <div style="font-size: 11px; color: #666; margin-top: 8px;">Версия - 1.0.1.044</div>
+                    <div class="settings-status-info" style="font-size: 10px; color: ${window._settingsHasInternet ? '#4caf50' : '#e94560'}; margin-top: 6px;">
+                        ${window._settingsHasInternet ? '🟢 Онлайн' : '🔴 Офлайн'}
+                    </div>
                 </div>
+            </div>
             
             <!-- НИЖНЯЯ ПАНЕЛЬ НАВИГАЦИИ -->
             <div class="settings-bottom-nav" style="
@@ -6802,6 +7618,15 @@ window.openSettingsModal = function() {
     
     document.body.insertAdjacentHTML('beforeend', html);
     if (window.tg) window.tg.BackButton.show();
+    
+    // Обновляем статус интернета
+    setTimeout(function() {
+        updateSettingsUI();
+    }, 100);
+    
+    setTimeout(function() {
+        window._settingsModalOpening = false;
+    }, 500);
 };
 
 // ============================================================
@@ -6824,7 +7649,29 @@ window.closeSettingsModal = function() {
 };
 
 // ============================================================
-// 15.3. РЕЙТИНГ (В СТИЛЕ ЧАТА)
+// 15.2.1. ЗАГРУЗКА ДАННЫХ РЕЙТИНГА (ПРЯМАЯ ФУНКЦИЯ ДЛЯ ОЧЕРЕДИ)
+// ============================================================
+async function loadRankingDataDirect() {
+    if (!db) throw new Error('База данных не доступна');
+    
+    var snapshot = await db.ref('players').once('value');
+    if (!snapshot.exists()) {
+        throw new Error('Нет данных для рейтинга');
+    }
+    
+    return snapshot;
+}
+
+// ============================================================
+// 15.2.2. ЗАГРУЗКА ДАННЫХ ПРИГЛАШЕНИЙ (ПРЯМАЯ ФУНКЦИЯ ДЛЯ ОЧЕРЕДИ)
+// ============================================================
+async function loadInviteDataDirect() {
+    if (!window.currentPlayer) throw new Error('Игрок не найден');
+    return window.currentPlayer.invitedPlayers || [];
+}
+
+// ============================================================
+// 15.3. РЕЙТИНГ (С ПРОВЕРКОЙ ИНТЕРНЕТА)
 // ============================================================
 window.openRankingOverlay = function() {
     if (!window.currentPlayer) {
@@ -6832,10 +7679,21 @@ window.openRankingOverlay = function() {
         return;
     }
     
-    showLoading(true, 'Загрузка рейтинга...');
+    // Обновляем статус интернета
+    updateSettingsInternetStatus();
+    
+    // Проверяем интернет
+    if (!window._settingsHasInternet) {
+        showToast('📡 Нет интернета, рейтинг недоступен. Добавлено в очередь.', 'warning');
+        addToPendingSettingsOperations('ranking');
+        return;
+    }
+    
+    // Показываем индикатор загрузки
+    showSettingsLoading(true, '⏳ Загрузка рейтинга...');
     
     db.ref('players').once('value').then(function(snapshot) {
-        showLoading(false);
+        showSettingsLoading(false);
         
         if (!snapshot.exists()) {
             showToast('❌ Нет данных для рейтинга', 'error');
@@ -6946,7 +7804,7 @@ window.openRankingOverlay = function() {
                     </div>
                     
                     <div class="modal-window-content">
-                        <!-- ТАБЫ СОРТИРОВКИ (как в чате) -->
+                        <!-- ТАБЫ СОРТИРОВКИ -->
                         <div style="
                             display: flex;
                             gap: 6px;
@@ -7059,7 +7917,7 @@ window.openRankingOverlay = function() {
                             .sort-tab.active { background: linear-gradient(135deg, #e94560, #c73e54) !important; color: white !important; }
                         </style>
                         
-                        <!-- СПИСОК ИГРОКОВ (как сообщения в чате) -->
+                        <!-- СПИСОК ИГРОКОВ -->
                         <div id="rankListContainerOverlay" style="
                             max-height: 50vh;
                             overflow-y: auto;
@@ -7067,6 +7925,7 @@ window.openRankingOverlay = function() {
                         ">
                             ${renderRankChatStyle(topPlayers, 'power')}
                         </div>
+                        ${!window._settingsHasInternet ? '<div style="text-align:center; margin-top:10px; font-size:10px; color:#e94560;">📡 Данные могут быть неактуальны (офлайн)</div>' : ''}
                     </div>
                 </div>
             </div>
@@ -7179,7 +8038,7 @@ window.openRankingOverlay = function() {
         }
         
     }).catch(function(error) {
-        showLoading(false);
+        showSettingsLoading(false);
         console.error('Ошибка загрузки рейтинга:', error);
         showToast('❌ Ошибка загрузки рейтинга', 'error');
     });
@@ -7200,7 +8059,7 @@ window.closeRankingOverlay = function() {
 };
 
 // ============================================================
-// 15.5. ПРИГЛАШЕНИЕ (В СТИЛЕ ЧАТА)
+// 15.5. ПРИГЛАШЕНИЕ (С ПРОВЕРКОЙ ИНТЕРНЕТА И УМЕНЬШЕННОЙ ССЫЛКОЙ)
 // ============================================================
 window.openInviteOverlay = function() {
     if (!window.currentPlayer) {
@@ -7208,8 +8067,18 @@ window.openInviteOverlay = function() {
         return;
     }
     
-    const gameUrl = window.location.href.split('?')[0];
-    const refLink = `${gameUrl}?ref=${window.currentPlayer.inviteCode}`;
+    // Обновляем статус интернета
+    updateSettingsInternetStatus();
+    
+    // Проверяем интернет
+    if (!window._settingsHasInternet) {
+        showToast('📡 Нет интернета, данные могут быть неактуальны', 'warning');
+    }
+    
+    // Получаем короткую ссылку (только код приглашения)
+    var inviteCode = window.currentPlayer.inviteCode || '';
+    var shortLink = inviteCode;
+    
     const invitedCount = window.currentPlayer.invitedPlayers?.length || 0;
     const maxInvites = 10;
 
@@ -7294,12 +8163,12 @@ window.openInviteOverlay = function() {
                 </div>
                 
                 <div class="modal-window-content">
-                    <!-- ССЫЛКА (как сообщение в чате) -->
+                    <!-- ССЫЛКА (компактная) -->
                     <div style="
                         background: rgba(20, 20, 30, 0.9);
                         border: 1px solid #8B4513;
                         border-radius: 16px;
-                        padding: 20px;
+                        padding: 16px 20px;
                         margin-bottom: 20px;
                         text-align: center;
                         position: relative;
@@ -7314,41 +8183,46 @@ window.openInviteOverlay = function() {
                             background: linear-gradient(90deg, #8B4513, #c9a03d, #8B4513);
                         "></div>
                         
-                        <div style="font-size: 48px; margin-bottom: 10px;">📨</div>
-                        <div style="font-size: 14px; color: #c9a03d; margin-bottom: 8px; font-weight: 700;">✨ ТВОЯ РЕФЕРАЛЬНАЯ ССЫЛКА ✨</div>
+                        <div style="font-size: 32px; margin-bottom: 6px;">📨</div>
+                        <div style="font-size: 11px; color: #c9a03d; margin-bottom: 6px; font-weight: 600;">✨ ПРИГЛАСИТЕЛЬНЫЙ КОД ✨</div>
                         
-                        <!-- ССЫЛКА КАК СООБЩЕНИЕ В ЧАТЕ -->
+                        <!-- КОРОТКАЯ ССЫЛКА (только код) -->
                         <div style="
-                            background: rgba(0,0,0,0.4);
-                            border-radius: 12px;
-                            padding: 12px 16px;
-                            margin: 10px 0;
-                            border-left: 3px solid #c9a03d;
-                            text-align: left;
-                            word-break: break-all;
+                            background: rgba(0,0,0,0.5);
+                            border-radius: 10px;
+                            padding: 10px 16px;
+                            margin: 8px 0;
+                            border: 1px solid rgba(201,160,61,0.3);
+                            display: flex;
+                            align-items: center;
+                            justify-content: space-between;
+                            gap: 12px;
                         ">
-                            <div style="font-size: 11px; color: #888; margin-bottom: 4px;">📎 Реферальная ссылка</div>
-                            <div style="font-family: monospace; font-size: 12px; color: #ffd966;">${refLink}</div>
+                            <div style="font-family: monospace; font-size: 16px; color: #ffd966; font-weight: 700; letter-spacing: 2px; flex: 1; text-align: center;">
+                                ${escapeHtml(shortLink)}
+                            </div>
+                            <button onclick="copyToClipboard('${escapeHtml(shortLink)}')" style="
+                                padding: 6px 16px;
+                                background: linear-gradient(135deg, #e94560, #c73e54);
+                                border: none;
+                                border-radius: 30px;
+                                font-size: 12px;
+                                font-weight: 700;
+                                color: white;
+                                cursor: pointer;
+                                transition: all 0.2s;
+                                flex-shrink: 0;
+                            ">
+                                📋 КОПИРОВАТЬ
+                            </button>
                         </div>
                         
-                        <button onclick="copyToClipboard('${refLink}'); showToast('Ссылка скопирована!', 'success');" style="
-                            width: 100%;
-                            padding: 14px;
-                            background: linear-gradient(135deg, #e94560, #c73e54);
-                            border: none;
-                            border-radius: 40px;
-                            font-size: 16px;
-                            font-weight: 700;
-                            color: white;
-                            cursor: pointer;
-                            transition: all 0.2s;
-                            margin-top: 5px;
-                        ">
-                            📋 КОПИРОВАТЬ ССЫЛКУ
-                        </button>
+                        <div style="font-size: 9px; color: #666; margin-top: 4px;">
+                            💡 Скопируйте код и поделитесь с друзьями
+                        </div>
                     </div>
                     
-                    <!-- СПИСОК ПРИГЛАШЁННЫХ (как список чатов) -->
+                    <!-- СПИСОК ПРИГЛАШЁННЫХ -->
                     <div style="
                         background: rgba(20, 20, 30, 0.9);
                         border: 1px solid #8B4513;
@@ -7455,6 +8329,7 @@ window.openInviteOverlay = function() {
                                 📊 Осталось приглашений: ${maxInvites - invitedCount}
                             </div>`
                         }
+                        ${!window._settingsHasInternet ? '<div style="text-align:center; margin-top:10px; font-size:10px; color:#e94560;">📡 Данные могут быть неактуальны (офлайн)</div>' : ''}
                     </div>
                 </div>
             </div>
@@ -7483,12 +8358,12 @@ window.closeInviteOverlay = function() {
 };
 
 // ============================================================
-// 15.7. КОПИРОВАНИЕ В БУФЕР ОБМЕНА
+// 15.7. КОПИРОВАНИЕ В БУФЕР ОБМЕНА (С МГНОВЕННЫМ TOAST)
 // ============================================================
 window.copyToClipboard = function(text) {
     if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(text).then(function() {
-            showToast('✅ Ссылка скопирована!', 'success');
+            showToast('✅ Скопировано!', 'success');
         }).catch(function() {
             fallbackCopy(text);
         });
@@ -7508,7 +8383,7 @@ function fallbackCopy(text) {
     textarea.select();
     try {
         document.execCommand('copy');
-        showToast('✅ Ссылка скопирована!', 'success');
+        showToast('✅ Скопировано!', 'success');
     } catch (e) {
         showToast('❌ Не удалось скопировать', 'error');
     }
@@ -7538,6 +8413,100 @@ function calculatePlayerPower(player) {
         gangPower
     );
 }
+
+// ============================================================
+// 15.9. ИНИЦИАЛИЗАЦИЯ СИСТЕМЫ НАСТРОЕК
+// ============================================================
+function initSettingsSystem() {
+    console.log('🔄 Инициализация системы НАСТРОЙКИ...');
+    
+    if (!window.currentPlayer) {
+        console.log('❌ Нет игрока');
+        return;
+    }
+    
+    // Устанавливаем начальный статус интернета
+    window._settingsHasInternet = checkSettingsInternetConnection();
+    console.log('🌐 Статус интернета (Настройки):', window._settingsHasInternet ? 'онлайн' : 'офлайн');
+    
+    // Запускаем периодическую проверку интернета (каждые 5 секунд)
+    if (window._settingsCheckInterval) {
+        clearInterval(window._settingsCheckInterval);
+    }
+    window._settingsCheckInterval = setInterval(function() {
+        var oldStatus = window._settingsHasInternet;
+        var newStatus = checkSettingsInternetConnection();
+        
+        if (newStatus !== oldStatus) {
+            console.log('🔄 НАСТРОЙКИ: статус интернета изменился:', oldStatus, '->', newStatus);
+            window._settingsHasInternet = newStatus;
+            
+            // Обновляем UI в реальном времени
+            updateSettingsUI();
+            
+            // Обновляем кнопки в окне настроек, если оно открыто
+            var settingsModal = document.getElementById('settingsFullscreen');
+            if (settingsModal) {
+                updateSettingsUI();
+            }
+            
+            // Обновляем кнопки в окне приглашения, если оно открыто
+            var inviteModal = document.getElementById('inviteModalOverlay');
+            if (inviteModal) {
+                // Обновляем статус в окне приглашения
+                var statusEl = inviteModal.querySelector('.settings-status-info');
+                if (statusEl) {
+                    statusEl.textContent = window._settingsHasInternet ? '🟢 Онлайн' : '🔴 Офлайн';
+                    statusEl.style.color = window._settingsHasInternet ? '#4caf50' : '#e94560';
+                }
+            }
+            
+            // Обновляем кнопки в окне рейтинга, если оно открыто
+            var rankingModal = document.getElementById('rankingModalOverlay');
+            if (rankingModal) {
+                var statusEl = rankingModal.querySelector('.settings-status-info');
+                if (statusEl) {
+                    statusEl.textContent = window._settingsHasInternet ? '🟢 Онлайн' : '🔴 Офлайн';
+                    statusEl.style.color = window._settingsHasInternet ? '#4caf50' : '#e94560';
+                }
+            }
+            
+            if (window._settingsHasInternet) {
+                // Если интернет появился - выполняем ожидающие операции
+                processPendingSettingsOperations();
+                showToast('🌐 Интернет восстановлен!', 'success');
+            } else {
+                showToast('📡 Интернет потерян!', 'error');
+            }
+        }
+    }, 5000);
+    
+    console.log('✅ Система НАСТРОЙКИ инициализирована');
+}
+
+function stopSettingsSystem() {
+    if (window._settingsCheckInterval) {
+        clearInterval(window._settingsCheckInterval);
+        window._settingsCheckInterval = null;
+    }
+    window._settingsPendingOperations = [];
+    console.log('🛑 Система НАСТРОЙКИ остановлена');
+}
+
+// ============================================================
+// 15.10. ЭКСПОРТ ФУНКЦИЙ
+// ============================================================
+window.checkSettingsInternetConnection = checkSettingsInternetConnection;
+window.updateSettingsInternetStatus = updateSettingsInternetStatus;
+window.addToPendingSettingsOperations = addToPendingSettingsOperations;
+window.processPendingSettingsOperations = processPendingSettingsOperations;
+window.showSettingsLoading = showSettingsLoading;
+window.updateSettingsUI = updateSettingsUI;
+window.initSettingsSystem = initSettingsSystem;
+window.stopSettingsSystem = stopSettingsSystem;
+
+console.log('✅ Блок НАСТРОЙКИ полностью загружен с проверкой интернета!');
+
 // ============================================================
 // 16. ПРОФИЛЬ - ДОБАВЛЯЕМ ОТОБРАЖЕНИЕ БОЙЦОВ В НАЙМЕ
 // ============================================================
@@ -8651,7 +9620,7 @@ function getGangDisplayString(player) {
     const blats = player.gang.blats?.fighters || 0;
     const muzhiks = player.gang.muzhiks?.fighters || 0;
     const fraers = player.gang.fraers?.fighters || 0;
-    return `👑 Блатные: ${blats} | 🔨 Мужики: ${muzhiks} | 🐑 Фраера: ${fraers}`;
+    return `Блатные: ${blats} | Мужики: ${muzhiks} | Фраера: ${fraers}`;
 }
 
 // ============================================================
@@ -10717,7 +11686,7 @@ window.initQuestsFull = initQuestsFull;
 console.log('✅ Блок ЗАДАНИЯ полностью загружен');
 
 // ============================================================
-// 19. СИЗО (БАНДА) - ПОЛНАЯ ВЕРСИЯ С АВТОНОМНЫМИ СЧЕТЧИКАМИ
+// 19. СИЗО (БАНДА) - ПОЛНАЯ ВЕРСИЯ С АВТОНОМНЫМИ СЧЕТЧИКАМИ И ПРОВЕРКОЙ ИНТЕРНЕТА
 // ============================================================
 
 // ============================================================
@@ -10742,6 +11711,18 @@ if (typeof window.gangTimerFlags === 'undefined') {
         upgrade: { blats: false, muzhiks: false, fraers: false }
     };
 }
+// Флаг наличия интернета
+if (typeof window._gangHasInternet === 'undefined') {
+    window._gangHasInternet = true;
+}
+// Очередь операций СИЗО
+if (typeof window._pendingGangOperations === 'undefined') {
+    window._pendingGangOperations = [];
+}
+// Флаг открытия окна СИЗО
+if (typeof window._gangModalOpening === 'undefined') {
+    window._gangModalOpening = false;
+}
 
 // ============================================================
 // 19.0.1. ПЕРЕМЕННЫЕ ДЛЯ СЧЕТЧИКОВ НА КАРТЕ (СИЗО)
@@ -10765,16 +11746,142 @@ if (typeof window.gangLastCounterUpdate === 'undefined') {
 // Список всех процессов СИЗО для отслеживания
 if (typeof window.GANG_PROCESS_TYPES === 'undefined') {
     window.GANG_PROCESS_TYPES = [
-        { id: 'gang-blats-recruit', type: 'blats', subtype: 'recruit', icon: '👑', label: 'БЛАТНЫЕ НАЙМ', isWork: true },
-        { id: 'gang-muzhiks-recruit', type: 'muzhiks', subtype: 'recruit', icon: '🔨', label: 'МУЖИКИ НАЙМ', isWork: true },
-        { id: 'gang-fraers-recruit', type: 'fraers', subtype: 'recruit', icon: '🐑', label: 'ФРАЕРА НАЙМ', isWork: true },
-        { id: 'gang-blats-upgrade', type: 'blats', subtype: 'upgrade', icon: '👑', label: 'БЛАТНЫЕ ⬆', isWork: false },
-        { id: 'gang-muzhiks-upgrade', type: 'muzhiks', subtype: 'upgrade', icon: '🔨', label: 'МУЖИКИ ⬆', isWork: false },
-        { id: 'gang-fraers-upgrade', type: 'fraers', subtype: 'upgrade', icon: '🐑', label: 'ФРАЕРА ⬆', isWork: false }
+        { id: 'gang-blats-recruit', type: 'blats', subtype: 'recruit', icon: '', label: 'БЛАТНЫЕ НАЙМ', isWork: true },
+        { id: 'gang-muzhiks-recruit', type: 'muzhiks', subtype: 'recruit', icon: '', label: 'МУЖИКИ НАЙМ', isWork: true },
+        { id: 'gang-fraers-recruit', type: 'fraers', subtype: 'recruit', icon: '', label: 'ФРАЕРА НАЙМ', isWork: true },
+        { id: 'gang-blats-upgrade', type: 'blats', subtype: 'upgrade', icon: '', label: 'БЛАТНЫЕ ⬆', isWork: false },
+        { id: 'gang-muzhiks-upgrade', type: 'muzhiks', subtype: 'upgrade', icon: '', label: 'МУЖИКИ ⬆', isWork: false },
+        { id: 'gang-fraers-upgrade', type: 'fraers', subtype: 'upgrade', icon: '', label: 'ФРАЕРА ⬆', isWork: false }
     ];
 }
 
 console.log('✅ СИЗО: переменные инициализированы');
+
+// ============================================================
+// 19.0.2. ПРОВЕРКА ИНТЕРНЕТА ДЛЯ СИЗО
+// ============================================================
+function checkGangInternetConnection() {
+    return navigator.onLine;
+}
+
+// Слушаем изменения статуса интернета для СИЗО
+window.addEventListener('online', function() {
+    console.log('🌐 Интернет восстановлен (СИЗО)!');
+    window._gangHasInternet = true;
+    
+    // Выполняем все ожидающие операции
+    processPendingGangOperations();
+    
+    // Обновляем UI
+    updateGangModalUI();
+    updateGangButtonBadge();
+    updateGangCountersOnMap();
+    
+    showToast('🌐 Интернет восстановлен!', 'success');
+});
+
+window.addEventListener('offline', function() {
+    console.log('📡 Интернет потерян (СИЗО)!');
+    window._gangHasInternet = false;
+    showToast('📡 Нет подключения к интернету! Операции будут выполнены при восстановлении.', 'error');
+});
+
+// ============================================================
+// 19.0.3. ОЧЕРЕДЬ ОПЕРАЦИЙ СИЗО
+// ============================================================
+function addToPendingGangOperations(operation, type, data) {
+    window._pendingGangOperations.push({
+        operation: operation,
+        type: type,
+        data: data || null,
+        timestamp: Date.now()
+    });
+    console.log('📨 Операция добавлена в очередь ожидания (интернет отсутствует):', operation, type);
+}
+
+async function processPendingGangOperations() {
+    if (!window._gangHasInternet) {
+        console.log('📡 Интернет все еще отсутствует, выполнение отложено');
+        return;
+    }
+    
+    if (window._pendingGangOperations.length === 0) {
+        console.log('📨 Нет ожидающих операций СИЗО');
+        return;
+    }
+    
+    console.log('📨 Выполнение ' + window._pendingGangOperations.length + ' ожидающих операций СИЗО...');
+    
+    var operationsToProcess = window._pendingGangOperations.slice();
+    window._pendingGangOperations = [];
+    
+    for (var i = 0; i < operationsToProcess.length; i++) {
+        var op = operationsToProcess[i];
+        try {
+            if (op.operation === 'recruit') {
+                await collectGangIncomeDirect(op.type);
+                console.log('✅ Выполнен ожидающий найм для:', op.type);
+            } else if (op.operation === 'upgrade') {
+                await upgradeGangCasteDirect(op.type);
+                console.log('✅ Выполнена ожидающая прокачка для:', op.type);
+            }
+        } catch (e) {
+            console.error('❌ Ошибка выполнения ожидающей операции:', e);
+            // Возвращаем в очередь
+            window._pendingGangOperations.push(op);
+        }
+    }
+    
+    if (window._pendingGangOperations.length > 0) {
+        console.log('📨 ' + window._pendingGangOperations.length + ' операций осталось в очереди');
+    } else {
+        console.log('✅ Все ожидающие операции СИЗО выполнены');
+    }
+}
+
+// ============================================================
+// 19.0.4. ИНДИКАТОР ЗАГРУЗКИ ДЛЯ СИЗО
+// ============================================================
+function showGangLoading(show, text) {
+    // Используем общий индикатор загрузки, если он есть
+    if (typeof showLoading === 'function') {
+        showLoading(show, text || '⏳ Загрузка...');
+        return;
+    }
+    
+    // Создаем свой индикатор, если общего нет
+    var overlay = document.getElementById('gangLoadingOverlay');
+    if (!overlay && show) {
+        overlay = document.createElement('div');
+        overlay.id = 'gangLoadingOverlay';
+        overlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(10,14,26,0.85);
+            backdrop-filter: blur(8px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 99999;
+            animation: fadeIn 0.3s ease;
+        `;
+        overlay.innerHTML = `
+            <div style="width: 48px; height: 48px; border: 3px solid rgba(139,69,19,0.3); border-top-color: #c9a03d; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+            <div id="gangLoadingText" style="color: #c9a03d; font-size: 14px; margin-top: 16px; font-weight: 600;">⏳ Загрузка...</div>
+        `;
+        document.body.appendChild(overlay);
+    }
+    
+    if (overlay) {
+        overlay.style.display = show ? 'flex' : 'none';
+        var textEl = document.getElementById('gangLoadingText');
+        if (textEl && text) textEl.textContent = text;
+    }
+}
 
 // ============================================================
 // 19.1. ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
@@ -11017,11 +12124,18 @@ async function checkAndCompleteRecruit(gangType) {
 }
 
 // ============================================================
-// 19.5. ВЕРБОВКА (НАЙМ)
+// 19.5. ВЕРБОВКА (НАЙМ) - С ПРОВЕРКОЙ ИНТЕРНЕТА
 // ============================================================
 window.collectGangIncome = async function(type) {
     if (!window.currentPlayer) {
         showToast('❌ Игрок не найден!', 'error');
+        return;
+    }
+    
+    // Проверяем интернет
+    if (!window._gangHasInternet) {
+        showToast('📡 Нет интернета, операция добавлена в очередь', 'warning');
+        addToPendingGangOperations('recruit', type);
         return;
     }
     
@@ -11076,62 +12190,82 @@ window.collectGangIncome = async function(type) {
     }
     
     try {
-        showLoading(true, 'Найм бойцов...');
+        showGangLoading(true, '⏳ Найм бойцов...');
         
-        window.currentPlayer.cigarettes -= cost.cigarettes;
-        window.currentPlayer.lumber.wood -= cost.wood;
-        window.currentPlayer.quarry.stone -= cost.stone;
+        // Прямое выполнение
+        await collectGangIncomeDirect(type);
         
-        var recruitGain = getRecruitGain(type);
-        var now = Date.now();
-        
-        gang[type].lastGatherTime = now;
-        gang[type].pendingGain = recruitGain;
-        
-        var updateData = {
-            cigarettes: window.currentPlayer.cigarettes,
-            lumber: window.currentPlayer.lumber,
-            quarry: window.currentPlayer.quarry,
-            gang: window.currentPlayer.gang
-        };
-        
-        await dbUpdate('players/' + window.playerId, updateData);
-        
-        var cooldownMs = 2 * 60 * 1000;
-        cooldownMs = Math.floor(cooldownMs * (1 + (gang[type].level - 1) * 0.05));
-        var typeName = type === 'blats' ? 'блатных' : (type === 'muzhiks' ? 'мужиков' : 'фраеров');
-        
-        showToast('👥 Найм ' + typeName + ' начат! Новые зеки придут через ' + Math.ceil(cooldownMs / 60000) + ' мин.', 'success');
-        
-        showLoading(false);
-        
-        // УСТАНАВЛИВАЕМ ФЛАГ, ЧТО ТАЙМЕР ЗАПУЩЕН
-        window.gangTimerFlags.recruit[type] = true;
-        
-        // ✅ ОБНОВЛЯЕМ СЧЕТЧИКИ НА КАРТЕ (СРАЗУ ПОЯВЛЯЮТСЯ)
-        updateGangCountersOnMap();
-        
-        // СРАЗУ ОБНОВЛЯЕМ UI - БЛОКИРУЕМ КНОПКИ
-        updateTopBarResources();
-        updateGangButtonBadge();
-        updateGangModalUI();
-        
-        // ЗАПУСКАЕМ ТАЙМЕР (ТОЛЬКО ОДИН!)
-        startRecruitTimer(type);
+        showGangLoading(false);
         
     } catch (e) {
-        showLoading(false);
+        showGangLoading(false);
         showToast('❌ Ошибка найма: ' + e.message, 'error');
         console.error('Ошибка найма:', e);
     }
 };
 
+// Прямая функция найма (для очереди)
+async function collectGangIncomeDirect(type) {
+    if (!window.currentPlayer) throw new Error('Игрок не найден');
+    
+    var gang = window.currentPlayer.gang;
+    if (!gang) throw new Error('Банда не инициализирована');
+    
+    var cost = getRecruitCost(type);
+    var recruitGain = getRecruitGain(type);
+    var now = Date.now();
+    
+    // Списываем ресурсы
+    window.currentPlayer.cigarettes -= cost.cigarettes;
+    window.currentPlayer.lumber.wood -= cost.wood;
+    window.currentPlayer.quarry.stone -= cost.stone;
+    
+    gang[type].lastGatherTime = now;
+    gang[type].pendingGain = recruitGain;
+    
+    var updateData = {
+        cigarettes: window.currentPlayer.cigarettes,
+        lumber: window.currentPlayer.lumber,
+        quarry: window.currentPlayer.quarry,
+        gang: window.currentPlayer.gang
+    };
+    
+    await dbUpdate('players/' + window.playerId, updateData);
+    
+    var cooldownMs = 2 * 60 * 1000;
+    cooldownMs = Math.floor(cooldownMs * (1 + (gang[type].level - 1) * 0.05));
+    var typeName = type === 'blats' ? 'блатных' : (type === 'muzhiks' ? 'мужиков' : 'фраеров');
+    
+    showToast('👥 Найм ' + typeName + ' начат! Новые зеки придут через ' + Math.ceil(cooldownMs / 60000) + ' мин.', 'success');
+    
+    // УСТАНАВЛИВАЕМ ФЛАГ, ЧТО ТАЙМЕР ЗАПУЩЕН
+    window.gangTimerFlags.recruit[type] = true;
+    
+    // ✅ ОБНОВЛЯЕМ СЧЕТЧИКИ НА КАРТЕ (СРАЗУ ПОЯВЛЯЮТСЯ)
+    updateGangCountersOnMap();
+    
+    // СРАЗУ ОБНОВЛЯЕМ UI - БЛОКИРУЕМ КНОПКИ
+    updateTopBarResources();
+    updateGangButtonBadge();
+    updateGangModalUI();
+    
+    // ЗАПУСКАЕМ ТАЙМЕР (ТОЛЬКО ОДИН!)
+    startRecruitTimer(type);
+}
+
 // ============================================================
-// 19.6. ПРОКАЧКА БАНДЫ
+// 19.6. ПРОКАЧКА БАНДЫ - С ПРОВЕРКОЙ ИНТЕРНЕТА
 // ============================================================
 window.upgradeGangCaste = async function(type) {
     if (!window.currentPlayer) {
         showToast('❌ Игрок не найден!', 'error');
+        return;
+    }
+    
+    // Проверяем интернет
+    if (!window._gangHasInternet) {
+        showToast('📡 Нет интернета, операция добавлена в очередь', 'warning');
+        addToPendingGangOperations('upgrade', type);
         return;
     }
     
@@ -11186,56 +12320,72 @@ window.upgradeGangCaste = async function(type) {
     }
     
     try {
-        showLoading(true, 'Начало прокачки...');
+        showGangLoading(true, '⏳ Начало прокачки...');
         
-        if (cost.cigarettes > 0) {
-            window.currentPlayer.cigarettes -= cost.cigarettes;
-        }
-        window.currentPlayer.lumber.wood -= cost.wood;
-        window.currentPlayer.quarry.stone -= cost.stone;
+        // Прямое выполнение
+        await upgradeGangCasteDirect(type);
         
-        var upgradeDurationMs = 2 * 60 * 1000;
-        upgradeDurationMs = Math.floor(upgradeDurationMs * (1 + (currentLevel - 1) * 0.05));
-        var upgradeStartTime = Date.now();
-        
-        gang[type].upgradeStartTime = upgradeStartTime;
-        gang[type].upgradeDuration = upgradeDurationMs;
-        
-        var updateData = {
-            cigarettes: window.currentPlayer.cigarettes,
-            lumber: window.currentPlayer.lumber,
-            quarry: window.currentPlayer.quarry,
-            gang: window.currentPlayer.gang
-        };
-        
-        await dbUpdate('players/' + window.playerId, updateData);
-        
-        var minutes = Math.floor(upgradeDurationMs / 60000);
-        var seconds = Math.floor((upgradeDurationMs % 60000) / 1000);
-        showToast('⏳ Начата прокачка ' + (type === 'blats' ? 'Блатных' : type === 'muzhiks' ? 'Мужиков' : 'Фраеров') + '! Завершится через ' + minutes + ' мин ' + seconds + ' сек.', 'success');
-        
-        showLoading(false);
-        
-        // УСТАНАВЛИВАЕМ ФЛАГ, ЧТО ТАЙМЕР ЗАПУЩЕН
-        window.gangTimerFlags.upgrade[type] = true;
-        
-        // ✅ ОБНОВЛЯЕМ СЧЕТЧИКИ НА КАРТЕ (СРАЗУ ПОЯВЛЯЮТСЯ)
-        updateGangCountersOnMap();
-        
-        // СРАЗУ ОБНОВЛЯЕМ UI - БЛОКИРУЕМ КНОПКИ
-        updateTopBarResources();
-        updateGangButtonBadge();
-        updateGangModalUI();
-        
-        // ЗАПУСКАЕМ ТАЙМЕР (ТОЛЬКО ОДИН!)
-        startUpgradeTimer(type);
+        showGangLoading(false);
         
     } catch (e) {
-        showLoading(false);
+        showGangLoading(false);
         showToast('❌ Ошибка прокачки: ' + e.message, 'error');
         console.error('Ошибка прокачки:', e);
     }
 };
+
+// Прямая функция прокачки (для очереди)
+async function upgradeGangCasteDirect(type) {
+    if (!window.currentPlayer) throw new Error('Игрок не найден');
+    
+    var gang = window.currentPlayer.gang;
+    if (!gang) throw new Error('Банда не инициализирована');
+    
+    var currentLevel = gang[type].level || 1;
+    var cost = getUpgradeCost(type);
+    
+    // Списываем ресурсы
+    if (cost.cigarettes > 0) {
+        window.currentPlayer.cigarettes -= cost.cigarettes;
+    }
+    window.currentPlayer.lumber.wood -= cost.wood;
+    window.currentPlayer.quarry.stone -= cost.stone;
+    
+    var upgradeDurationMs = 2 * 60 * 1000;
+    upgradeDurationMs = Math.floor(upgradeDurationMs * (1 + (currentLevel - 1) * 0.05));
+    var upgradeStartTime = Date.now();
+    
+    gang[type].upgradeStartTime = upgradeStartTime;
+    gang[type].upgradeDuration = upgradeDurationMs;
+    
+    var updateData = {
+        cigarettes: window.currentPlayer.cigarettes,
+        lumber: window.currentPlayer.lumber,
+        quarry: window.currentPlayer.quarry,
+        gang: window.currentPlayer.gang
+    };
+    
+    await dbUpdate('players/' + window.playerId, updateData);
+    
+    var minutes = Math.floor(upgradeDurationMs / 60000);
+    var seconds = Math.floor((upgradeDurationMs % 60000) / 1000);
+    var typeName = type === 'blats' ? 'Блатных' : type === 'muzhiks' ? 'Мужиков' : 'Фраеров';
+    showToast('⏳ Начата прокачка ' + typeName + '! Завершится через ' + minutes + ' мин ' + seconds + ' сек.', 'success');
+    
+    // УСТАНАВЛИВАЕМ ФЛАГ, ЧТО ТАЙМЕР ЗАПУЩЕН
+    window.gangTimerFlags.upgrade[type] = true;
+    
+    // ✅ ОБНОВЛЯЕМ СЧЕТЧИКИ НА КАРТЕ (СРАЗУ ПОЯВЛЯЮТСЯ)
+    updateGangCountersOnMap();
+    
+    // СРАЗУ ОБНОВЛЯЕМ UI - БЛОКИРУЕМ КНОПКИ
+    updateTopBarResources();
+    updateGangButtonBadge();
+    updateGangModalUI();
+    
+    // ЗАПУСКАЕМ ТАЙМЕР (ТОЛЬКО ОДИН!)
+    startUpgradeTimer(type);
+}
 
 // ============================================================
 // 19.7. ТАЙМЕРЫ ДЛЯ ОНЛАЙН ОБНОВЛЕНИЯ
@@ -11304,6 +12454,13 @@ function startUpgradeTimer(type) {
 function updateGangModalUI() {
     var modal = document.getElementById('gangFullscreen');
     if (!modal) return;
+    
+    // Обновляем статус интернета в окне
+    var statusEl = document.getElementById('gangConnectionStatus');
+    //if (statusEl) {
+    //    statusEl.textContent = window._gangHasInternet ? '🟢' : '🔴';
+    //    statusEl.style.color = window._gangHasInternet ? '#4caf50' : '#e94560';
+    //}
     
     var gang = window.currentPlayer.gang;
     if (!gang) return;
@@ -11374,6 +12531,14 @@ function updateGangModalUI() {
                 collectBtn.style.background = '#444';
                 collectBtn.style.border = '1px solid #666';
                 collectBtn.style.color = '#888';
+                collectBtn.style.opacity = '0.6';
+                collectBtn.style.cursor = 'not-allowed';
+            } else if (!window._gangHasInternet) {
+                collectBtn.disabled = true;
+                collectBtn.textContent = '📡 ОЖИДАНИЕ ИНТЕРНЕТА...';
+                collectBtn.style.background = '#444';
+                collectBtn.style.border = '1px solid #ff9800';
+                collectBtn.style.color = '#ff9800';
                 collectBtn.style.opacity = '0.6';
                 collectBtn.style.cursor = 'not-allowed';
             } else {
@@ -11450,6 +12615,14 @@ function updateGangModalUI() {
                 upgradeBtn.style.color = '#888';
                 upgradeBtn.style.opacity = '0.6';
                 upgradeBtn.style.cursor = 'not-allowed';
+            } else if (!window._gangHasInternet) {
+                upgradeBtn.disabled = true;
+                upgradeBtn.textContent = '📡 ОЖИДАНИЕ ИНТЕРНЕТА...';
+                upgradeBtn.style.background = '#444';
+                upgradeBtn.style.border = '1px solid #ff9800';
+                upgradeBtn.style.color = '#ff9800';
+                upgradeBtn.style.opacity = '0.6';
+                upgradeBtn.style.cursor = 'not-allowed';
             } else {
                 upgradeBtn.disabled = false;
                 upgradeBtn.textContent = '⬆️ УЛУЧШИТЬ ' + displayNames[i].toUpperCase();
@@ -11506,18 +12679,26 @@ window.switchGangTab = function(tab) {
 };
 
 // ============================================================
-// 19.10. ОТКРЫТИЕ ОКНА СИЗО
+// 19.10. ОТКРЫТИЕ ОКНА СИЗО (С ПРОВЕРКОЙ ИНТЕРНЕТА)
 // ============================================================
 window.openGangModal = function() {
-    if (window._opening_gang_modal) { 
+    if (window._gangModalOpening) { 
         return; 
     }
-    window._opening_gang_modal = true;
+    window._gangModalOpening = true;
     
     if (!window.currentPlayer) { 
-        window._opening_gang_modal = false; 
+        window._gangModalOpening = false; 
         return; 
     }
+    
+    // Проверяем интернет
+    if (!window._gangHasInternet) {
+        showToast('📡 Нет интернета, данные могут быть неактуальны', 'warning');
+    }
+    
+    // Показываем индикатор загрузки
+    showGangLoading(true, '⏳ Загрузка СИЗО...');
     
     if (!window.currentPlayer.gang) {
         window.currentPlayer.gang = {
@@ -11533,7 +12714,8 @@ window.openGangModal = function() {
         existingModal.style.display = 'flex';
         if (window.tg) window.tg.BackButton.show();
         updateGangModalUI();
-        window._opening_gang_modal = false;
+        showGangLoading(false);
+        window._gangModalOpening = false;
         return;
     }
     
@@ -11556,6 +12738,25 @@ window.openGangModal = function() {
             height: 100vh;
             max-height: 100vh;
         ">
+            <!-- ИНДИКАТОР ЗАГРУЗКИ -->
+            <div id="gangModalLoadingOverlay" style="
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(10,14,26,0.85);
+                display: none;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                z-index: 100;
+                border-radius: 0;
+            ">
+                <div style="width: 40px; height: 40px; border: 3px solid rgba(139,69,19,0.3); border-top-color: #c9a03d; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                <div id="gangModalLoadingText" style="color: #c9a03d; font-size: 13px; margin-top: 12px; font-weight: 600;">⏳ Загрузка...</div>
+            </div>
+            
             <div class="gang-header-bar" style="
                 background: linear-gradient(135deg, #1a1a2a 0%, #0d0d15 100%);
                 border-bottom: 2px solid #8B4513;
@@ -11581,8 +12782,12 @@ window.openGangModal = function() {
                     letter-spacing: 2px;
                 ">
                      СИЗО
+                     <!--<span id="gangConnectionStatus" style="font-size: 14px; margin-left: 8px; color: ${window._gangHasInternet ? '#4caf50' : '#e94560'};">
+                         ${window._gangHasInternet ? '🟢' : '🔴'}
+                     </span>--!>
                 </div>
             </div>
+            
             <div style="flex: 1; overflow-y: auto; overflow-x: hidden; padding: 4px 2px; margin-bottom: 4px;">
                 <div style="background: rgba(20, 20, 30, 0.9); backdrop-filter: blur(10px); border: 1px solid #8B4513; border-radius: 16px; padding: 9px 10px; margin: 6px 0; position: relative; overflow: hidden;">
                     <div style="position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, #8B4513, #c9a03d, #8B4513);"></div>
@@ -11640,15 +12845,15 @@ window.openGangModal = function() {
                 </div>
                 
                 <div id="gangRecruitContainer" style="display: ${window.currentGangTab === 'recruit' ? 'block' : 'none'};">
-                    ${renderGangRecruitCard('blats', '👑', 'БЛАТНЫЕ', '+10% к силе в бою')}
-                    ${renderGangRecruitCard('muzhiks', '🔨', 'МУЖИКИ', '+5% к добыче в шахте')}
-                    ${renderGangRecruitCard('fraers', '🐑', 'ФРАЕРА', '+5% к авторитету')}
+                    ${renderGangRecruitCard('blats', '<img src="https://sviter-pro.github.io/GameZone/src/photo/blat.png" width="60" height="54" draggable="false" style="display: block; margin: 0 auto;">', 'БЛАТНЫЕ', '+10% к силе в бою')}
+                    ${renderGangRecruitCard('muzhiks', '<img src="https://sviter-pro.github.io/GameZone/src/photo/muzh.png" width="60" height="54" draggable="false" style="display: block; margin: 0 auto;">', 'МУЖИКИ', '+5% к добыче в шахте')}
+                    ${renderGangRecruitCard('fraers', '<img src="https://sviter-pro.github.io/GameZone/src/photo/phra.png" width="60" height="54" draggable="false" style="display: block; margin: 0 auto;">', 'ФРАЕРА', '+5% к авторитету')}
                 </div>
                 
                 <div id="gangUpgradeContainer" style="display: ${window.currentGangTab === 'upgrade' ? 'block' : 'none'};">
-                    ${renderGangUpgradeCard('blats', '👑', 'БЛАТНЫЕ', '+10% к силе в бою')}
-                    ${renderGangUpgradeCard('muzhiks', '🔨', 'МУЖИКИ', '+5% к добыче в шахте')}
-                    ${renderGangUpgradeCard('fraers', '🐑', 'ФРАЕРА', '+5% к авторитету')}
+                    ${renderGangUpgradeCard('blats', '<img src="https://sviter-pro.github.io/GameZone/src/photo/blat.png" width="60" height="54" draggable="false" style="display: block; margin: 0 auto;">', 'БЛАТНЫЕ', '+10% к силе в бою')}
+                    ${renderGangUpgradeCard('muzhiks', '<img src="https://sviter-pro.github.io/GameZone/src/photo/muzh.png" width="60" height="54" draggable="false" style="display: block; margin: 0 auto;">', 'МУЖИКИ', '+5% к добыче в шахте')}
+                    ${renderGangUpgradeCard('fraers', '<img src="https://sviter-pro.github.io/GameZone/src/photo/phra.png" width="60" height="54" draggable="false" style="display: block; margin: 0 auto;">', 'ФРАЕРА', '+5% к авторитету')}
                 </div>
             </div>
             
@@ -11697,6 +12902,9 @@ window.openGangModal = function() {
     // ЗАПУСКАЕМ ОСНОВНОЙ ТАЙМЕР
     startGangMainTimer();
     
+    // СКРЫВАЕМ ИНДИКАТОР ЗАГРУЗКИ
+    showGangLoading(false);
+    
     // СРАЗУ ОБНОВЛЯЕМ UI
     setTimeout(function() {
         updateGangModalUI();
@@ -11705,7 +12913,7 @@ window.openGangModal = function() {
     }, 100);
     
     setTimeout(function() { 
-        window._opening_gang_modal = false; 
+        window._gangModalOpening = false; 
     }, 500);
 };
 
@@ -11727,13 +12935,18 @@ function renderGangRecruitCard(type, icon, title, desc) {
     if (remaining <= 0 && !upgradeActive) {
         timerText = '✅ ГОТОВ К НАЙМУ!';
     }
+    if (!window._gangHasInternet) {
+        timerText = '📡 ОЖИДАНИЕ ИНТЕРНЕТА...';
+    }
     
     var btnText = '👥 НАНЯТЬ ЗЕКОВ (+' + recruitGain + ' ЧЕЛ)';
-    var btnDisabled = !canRecruitNow || upgradeActive;
+    var btnDisabled = !canRecruitNow || upgradeActive || !window._gangHasInternet;
     if (upgradeActive) {
         btnText = '⏳ ПРОКАЧКА ИДЕТ...';
     } else if (!canRecruitNow && remaining > 0) {
         btnText = '⏳ ' + formatTimerMinutes(remaining);
+    } else if (!window._gangHasInternet) {
+        btnText = '📡 ОЖИДАНИЕ ИНТЕРНЕТА...';
     }
     
     return `
@@ -11827,11 +13040,13 @@ function renderGangUpgradeCard(type, icon, title, desc) {
     `;
     
     var btnText = '⬆️ УЛУЧШИТЬ ' + title;
-    var btnDisabled = !canUpgradeNow || upgradeActive;
+    var btnDisabled = !canUpgradeNow || upgradeActive || !window._gangHasInternet;
     if (upgradeActive) {
         btnText = '⏳ ПРОКАЧКА ИДЕТ...';
     } else if (!canUpgradeNow) {
         btnText = '🔒 НЕДОСТУПНО';
+    } else if (!window._gangHasInternet) {
+        btnText = '📡 ОЖИДАНИЕ ИНТЕРНЕТА...';
     }
     
     return `
@@ -12365,6 +13580,10 @@ function initGangSystem() {
         return;
     }
     
+    // Проверяем интернет
+    window._gangHasInternet = checkGangInternetConnection();
+    console.log('🌐 Статус интернета (СИЗО):', window._gangHasInternet ? 'онлайн' : 'офлайн');
+    
     if (!window.currentPlayer.gang) {
         window.currentPlayer.gang = {
             blats: { level: 1, lastGatherTime: 0, fighters: 0, upgradeStartTime: 0, upgradeDuration: 0, pendingGain: 0 },
@@ -12409,6 +13628,16 @@ function initGangSystem() {
         updateGangButtonBadge();
         updateGangStatusInTopBar();
         updateGangCountersOnMap();
+        
+        // Обновляем статус интернета
+        var newStatus = checkGangInternetConnection();
+        if (newStatus !== window._gangHasInternet) {
+            window._gangHasInternet = newStatus;
+            updateGangModalUI();
+            if (window._gangHasInternet) {
+                processPendingGangOperations();
+            }
+        }
     }, 5000);
     
     console.log('✅ Система СИЗО инициализирована');
@@ -12435,6 +13664,7 @@ function stopGangSystem() {
     }
     // Останавливаем счетчики на карте
     stopGangCountersOnMap();
+    window._pendingGangOperations = [];
     console.log('🛑 Система СИЗО остановлена');
 }
 
@@ -12457,6 +13687,12 @@ window.updateGangButtonBadge = updateGangButtonBadge;
 window.initGangSystem = initGangSystem;
 window.stopGangSystem = stopGangSystem;
 
+// Экспорт функций проверки интернета
+window.checkGangInternetConnection = checkGangInternetConnection;
+window.addToPendingGangOperations = addToPendingGangOperations;
+window.processPendingGangOperations = processPendingGangOperations;
+window.showGangLoading = showGangLoading;
+
 // Экспорт функций счетчиков
 window.initializeGangCounterContainer = initializeGangCounterContainer;
 window.getGangProcessRemainingAuto = getGangProcessRemainingAuto;
@@ -12471,7 +13707,7 @@ window.stopGangCountersOnMap = stopGangCountersOnMap;
 window.GANG_PROCESS_TYPES = window.GANG_PROCESS_TYPES;
 window.gangCounterElements = window.gangCounterElements;
 
-console.log('✅ Блок СИЗО полностью загружен с автономными счетчиками на карте!');
+console.log('✅ Блок СИЗО полностью загружен с автономными счетчиками на карте и проверкой интернета!');
 console.log('🎯 Счетчики СИЗО работают полностью автономно на building b7!');
 
 // ============================================================
@@ -14447,17 +15683,17 @@ function renderMembersHTML() {
                 <div id="${memberId}" style="display: none; padding: 8px 12px 12px; border-top: 1px solid rgba(139,69,19,0.2);">
                     <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:8px;">
                         <div style="background:rgba(0,0,0,0.3); border-radius:10px; padding:8px; text-align:center;">
-                            <div style="font-size:20px;">👑</div>
+                            <div style="font-size:20px;"></div>
                             <div style="font-size:10px; color:#c9a03d;">БЛАТНЫЕ</div>
                             <div style="font-size:16px; font-weight:700; color:#ffd966;">${blats}</div>
                         </div>
                         <div style="background:rgba(0,0,0,0.3); border-radius:10px; padding:8px; text-align:center;">
-                            <div style="font-size:20px;">🔨</div>
+                            <div style="font-size:20px;"></div>
                             <div style="font-size:10px; color:#c9a03d;">МУЖИКИ</div>
                             <div style="font-size:16px; font-weight:700; color:#ffd966;">${muzhiks}</div>
                         </div>
                         <div style="background:rgba(0,0,0,0.3); border-radius:10px; padding:8px; text-align:center;">
-                            <div style="font-size:20px;">🐑</div>
+                            <div style="font-size:20px;"></div>
                             <div style="font-size:10px; color:#c9a03d;">ФРАЕРА</div>
                             <div style="font-size:16px; font-weight:700; color:#ffd966;">${fraers}</div>
                         </div>
@@ -21179,21 +22415,21 @@ function openRobberyConfig(item) {
                     </div>
                     <div style="margin:15px 0; padding:10px; background:rgba(139,69,19,0.2); border-radius:12px;">
                         <div style="font-weight:bold; margin-bottom:10px;">👥 ВЫБЕРИТЕ БОЙЦОВ:</div>
-                        <div style="margin-bottom:8px;"><span>👑</span> Блатные: <span id="blatsCount">0</span> / ${available.blats}
+                        <div style="margin-bottom:8px;"><span></span> Блатные: <span id="blatsCount">0</span> / ${available.blats}
                             <div><button class="btn-secondary" style="padding:2px 8px;" onclick="adjustFighters('blats', -10, ${available.blats})">-10</button>
                             <button class="btn-secondary" style="padding:2px 8px;" onclick="adjustFighters('blats', -1, ${available.blats})">-1</button>
                             <input type="range" id="blatsSlider" min="0" max="${available.blats}" value="0" style="width:80px;" oninput="updateFightersFromSlider('blats', this.value)">
                             <button class="btn-secondary" style="padding:2px 8px;" onclick="adjustFighters('blats', 1, ${available.blats})">+1</button>
                             <button class="btn-secondary" style="padding:2px 8px;" onclick="adjustFighters('blats', 10, ${available.blats})">+10</button></div>
                         </div>
-                        <div style="margin-bottom:8px;"><span>🔨</span> Мужики: <span id="muzhiksCount">0</span> / ${available.muzhiks}
+                        <div style="margin-bottom:8px;"><span></span> Мужики: <span id="muzhiksCount">0</span> / ${available.muzhiks}
                             <div><button class="btn-secondary" style="padding:2px 8px;" onclick="adjustFighters('muzhiks', -10, ${available.muzhiks})">-10</button>
                             <button class="btn-secondary" style="padding:2px 8px;" onclick="adjustFighters('muzhiks', -1, ${available.muzhiks})">-1</button>
                             <input type="range" id="muzhiksSlider" min="0" max="${available.muzhiks}" value="0" style="width:80px;" oninput="updateFightersFromSlider('muzhiks', this.value)">
                             <button class="btn-secondary" style="padding:2px 8px;" onclick="adjustFighters('muzhiks', 1, ${available.muzhiks})">+1</button>
                             <button class="btn-secondary" style="padding:2px 8px;" onclick="adjustFighters('muzhiks', 10, ${available.muzhiks})">+10</button></div>
                         </div>
-                        <div><span>🐑</span> Фраера: <span id="fraersCount">0</span> / ${available.fraers}
+                        <div><span></span> Фраера: <span id="fraersCount">0</span> / ${available.fraers}
                             <div><button class="btn-secondary" style="padding:2px 8px;" onclick="adjustFighters('fraers', -10, ${available.fraers})">-10</button>
                             <button class="btn-secondary" style="padding:2px 8px;" onclick="adjustFighters('fraers', -1, ${available.fraers})">-1</button>
                             <input type="range" id="fraersSlider" min="0" max="${available.fraers}" value="0" style="width:80px;" oninput="updateFightersFromSlider('fraers', this.value)">
@@ -22487,9 +23723,9 @@ function testRobberySystem() {
     var gang = currentPlayer.gang || {};
     var totalFighters = (gang.blats?.fighters || 0) + (gang.muzhiks?.fighters || 0) + (gang.fraers?.fighters || 0);
     console.log('📊 Бойцов в банде:', totalFighters);
-    console.log('   👑 Блатные:', gang.blats?.fighters || 0);
-    console.log('   🔨 Мужики:', gang.muzhiks?.fighters || 0);
-    console.log('   🐑 Фраера:', gang.fraers?.fighters || 0);
+    console.log('   Блатные:', gang.blats?.fighters || 0);
+    console.log('   Мужики:', gang.muzhiks?.fighters || 0);
+    console.log('   Фраера:', gang.fraers?.fighters || 0);
     
     // Проверяем цели
     console.log('📊 Целей в списке:', window.robberyItems ? window.robberyItems.length : 0);
