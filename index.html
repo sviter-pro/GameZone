@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>GameZona - 1.0.1.044</title>
+    <title>GameZona - 1.0.1.045</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -6643,19 +6643,177 @@ function updateChatAvatar() {
 console.log('✅ Блок ЧАТ полностью загружен');
 
 // ============================================================
-// 14. ИНВЕНТАРЬ (КАМЕРА) - ТЮРЕМНЫЙ СТИЛЬ
+// 14. ИНВЕНТАРЬ (КАМЕРА) - ТЮРЕМНЫЙ СТИЛЬ С ПРОВЕРКОЙ ИНТЕРНЕТА
 // ============================================================
 
 // ============================================================
-// 14.1. ОТКРЫТИЕ ИНВЕНТАРЯ (ПОЛНОЭКРАННЫЙ ТЮРЕМНЫЙ СТИЛЬ)
+// 14.0. ПЕРЕМЕННЫЕ ДЛЯ ПРОВЕРКИ ИНТЕРНЕТА
 // ============================================================
-window.openInventoryModal = function() {
-    if (!window.currentPlayer) {
-        showToast('❌ Игрок не найден!', 'error');
+if (typeof window._inventoryHasInternet === 'undefined') {
+    window._inventoryHasInternet = navigator.onLine !== false;
+}
+if (typeof window._inventoryCheckInterval === 'undefined') {
+    window._inventoryCheckInterval = null;
+}
+if (typeof window._inventoryOpeningModal === 'undefined') {
+    window._inventoryOpeningModal = false;
+}
+
+console.log('✅ ИНВЕНТАРЬ: переменные интернета инициализированы');
+
+// ============================================================
+// 14.0.1. ПРОВЕРКА ИНТЕРНЕТА ДЛЯ ИНВЕНТАРЯ
+// ============================================================
+function checkInventoryInternetConnection() {
+    return navigator.onLine !== false;
+}
+
+function updateInventoryInternetStatus() {
+    var newStatus = checkInventoryInternetConnection();
+    
+    if (newStatus !== window._inventoryHasInternet) {
+        console.log('🔄 ИНВЕНТАРЬ: статус интернета изменен:', window._inventoryHasInternet, '->', newStatus);
+        window._inventoryHasInternet = newStatus;
+        
+        // Обновляем UI
+        updateInventoryUI();
+        
+        if (window._inventoryHasInternet) {
+            showToast('🌐 Интернет восстановлен!', 'success');
+        } else {
+            showToast('📡 Интернет потерян!', 'error');
+        }
+    }
+    
+    return window._inventoryHasInternet;
+}
+
+// ============================================================
+// 14.0.2. ИНДИКАТОР ЗАГРУЗКИ ДЛЯ ИНВЕНТАРЯ
+// ============================================================
+function showInventoryLoading(show, text) {
+    if (typeof showLoading === 'function') {
+        showLoading(show, text || '⏳ Загрузка...');
         return;
     }
     
-    // ✅ ЗАГРУЖАЕМ НАКОЛКИ ИЗ LOCALSTORAGE ЕСЛИ ЕСТЬ
+    var overlay = document.getElementById('inventoryLoadingOverlay');
+    if (!overlay && show) {
+        overlay = document.createElement('div');
+        overlay.id = 'inventoryLoadingOverlay';
+        overlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(10,14,26,0.85);
+            backdrop-filter: blur(8px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 99999;
+            animation: fadeIn 0.3s ease;
+        `;
+        overlay.innerHTML = `
+            <div style="width: 48px; height: 48px; border: 3px solid rgba(139,69,19,0.3); border-top-color: #c9a03d; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+            <div id="inventoryLoadingText" style="color: #c9a03d; font-size: 14px; margin-top: 16px; font-weight: 600;">⏳ Загрузка...</div>
+        `;
+        document.body.appendChild(overlay);
+    }
+    
+    if (overlay) {
+        overlay.style.display = show ? 'flex' : 'none';
+        var textEl = document.getElementById('inventoryLoadingText');
+        if (textEl && text) textEl.textContent = text;
+    }
+}
+
+// ============================================================
+// 14.0.3. ОБНОВЛЕНИЕ UI ИНВЕНТАРЯ
+// ============================================================
+function updateInventoryUI() {
+    console.log('🔵 ИНВЕНТАРЬ: updateInventoryUI, интернет =', window._inventoryHasInternet);
+    
+    // Обновляем статус в окне инвентаря
+    var statusEl = document.getElementById('inventoryConnectionStatus');
+    if (statusEl) {
+        statusEl.textContent = window._inventoryHasInternet ? '🟢' : '🔴';
+        statusEl.style.color = window._inventoryHasInternet ? '#4caf50' : '#e94560';
+    }
+    
+    // Обновляем кнопки смены экипировки
+    var equipBtns = document.querySelectorAll('#inventoryFullscreen [onclick*="changeEquipment"]');
+    equipBtns.forEach(function(btn) {
+        if (!window._inventoryHasInternet) {
+            btn.disabled = true;
+            btn.style.background = '#444';
+            btn.style.border = '2px solid #666';
+            btn.style.opacity = '0.6';
+            btn.style.cursor = 'not-allowed';
+        } else {
+            btn.disabled = false;
+            btn.style.background = 'rgba(30,36,64,0.6)';
+            btn.style.border = '2px solid transparent';
+            btn.style.opacity = '1';
+            btn.style.cursor = 'pointer';
+        }
+    });
+    
+    // Добавляем предупреждение об офлайн-режиме
+    var modal = document.getElementById('inventoryFullscreen');
+    if (modal) {
+        var existingWarning = modal.querySelector('.inventory-offline-warning');
+        if (!window._inventoryHasInternet && !existingWarning) {
+            var warning = document.createElement('div');
+            warning.className = 'inventory-offline-warning';
+            warning.style.cssText = `
+                text-align: center;
+                padding: 8px;
+                background: rgba(233,69,96,0.15);
+                border-bottom: 1px solid rgba(233,69,96,0.3);
+                color: #e94560;
+                font-size: 11px;
+                flex-shrink: 0;
+                margin: 0 -16px;
+            `;
+            warning.textContent = '📡 Нет подключения к интернету. Смена экипировки недоступна.';
+            modal.insertBefore(warning, modal.querySelector('.inventory-card'));
+        } else if (window._inventoryHasInternet && existingWarning) {
+            existingWarning.remove();
+        }
+    }
+}
+
+// ============================================================
+// 14.1. ОТКРЫТИЕ ИНВЕНТАРЯ (С ПРОВЕРКОЙ ИНТЕРНЕТА)
+// ============================================================
+window.openInventoryModal = function() {
+    if (window._inventoryOpeningModal) {
+        console.log('⏳ Блокировка: окно уже открывается');
+        return;
+    }
+    window._inventoryOpeningModal = true;
+    
+    if (!window.currentPlayer) {
+        showToast('❌ Игрок не найден!', 'error');
+        window._inventoryOpeningModal = false;
+        return;
+    }
+    
+    // Обновляем статус интернета
+    updateInventoryInternetStatus();
+    
+    // Проверяем интернет
+    if (!window._inventoryHasInternet) {
+        showToast('📡 Нет интернета, данные могут быть неактуальны', 'warning');
+    }
+    
+    // Показываем индикатор загрузки
+    showInventoryLoading(true, '⏳ Загрузка инвентаря...');
+    
+    // Загружаем наколки из localStorage
     try {
         var savedTattoos = localStorage.getItem('tattoos_' + window.currentPlayer.id);
         if (savedTattoos) {
@@ -6666,12 +6824,12 @@ window.openInventoryModal = function() {
         }
     } catch(e) {}
     
-    // ✅ ИНИЦИАЛИЗИРУЕМ stats если нет
+    // Инициализируем stats если нет
     if (!window.currentPlayer.stats) {
         window.currentPlayer.stats = { strength: 10, defense: 5, critical: 5 };
     }
     
-    // ✅ ИНИЦИАЛИЗИРУЕМ tattoos если нет
+    // Инициализируем tattoos если нет
     if (!window.currentPlayer.tattoos) {
         window.currentPlayer.tattoos = [];
     }
@@ -6735,11 +6893,29 @@ window.openInventoryModal = function() {
                     display: flex; align-items: center; gap: 10px;
                 ">
                     <span></span> КАМЕРА
+                    <!-- <span id="inventoryConnectionStatus" style="font-size: 14px; color: ${window._inventoryHasInternet ? '#4caf50' : '#e94560'};">
+                        ${window._inventoryHasInternet ? '🟢' : '🔴'}
+                    </span> --!>
                 </div>
             </div>
             
             <!-- КОНТЕНТ -->
             <div style="flex: 1; overflow-y: auto; overflow-x: hidden; padding: 4px 2px; margin-bottom: 4px;">
+                ${!window._inventoryHasInternet ? `
+                    <div class="inventory-offline-warning" style="
+                        text-align: center;
+                        padding: 8px;
+                        background: rgba(233,69,96,0.15);
+                        border: 1px solid rgba(233,69,96,0.3);
+                        border-radius: 12px;
+                        color: #e94560;
+                        font-size: 11px;
+                        margin-bottom: 12px;
+                    ">
+                        📡 Нет подключения к интернету. Смена экипировки недоступна.
+                    </div>
+                ` : ''}
+                
                 <!-- ТЕКУЩАЯ ЭКИПИРОВКА -->
                 <div class="inventory-card" style="
                     background: rgba(20, 20, 30, 0.9);
@@ -6756,6 +6932,7 @@ window.openInventoryModal = function() {
                     <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid rgba(139,69,19,0.2);">
                         <span style="font-size: 18px;">🔧</span>
                         <span style="font-size: 15px; font-weight: 700; color: #c9a03d;">ТЕКУЩАЯ ЭКИПИРОВКА</span>
+                        ${!window._inventoryHasInternet ? '<span style="font-size: 10px; color: #e94560; margin-left: auto;">📡 офлайн</span>' : ''}
                     </div>
                     
                     <!-- ОРУЖИЕ -->
@@ -6763,12 +6940,14 @@ window.openInventoryModal = function() {
                         display: flex; justify-content: space-between; align-items: center;
                         background: rgba(0,0,0,0.3); border-radius: 12px; padding: 10px 14px;
                         margin-bottom: 8px; border-left: 3px solid #8B4513;
-                        cursor: pointer; transition: all 0.2s;
-                    " onclick="toggleInventorySection('weapon')">
+                        cursor: ${window._inventoryHasInternet ? 'pointer' : 'default'};
+                        transition: all 0.2s;
+                        opacity: ${window._inventoryHasInternet ? '1' : '0.7'};
+                    " onclick="${window._inventoryHasInternet ? "toggleInventorySection('weapon')" : ''}">
                         <span style="color: #c9a03d; font-size: 13px; font-weight: 600;">🔪 ОРУЖИЕ</span>
                         <span style="color: #ffd966; font-size: 13px; font-weight: 600;">
                             ${escapeHtml(equipped.weapon)}
-                            <span style="font-size: 10px; color: #888;">▼</span>
+                            <span style="font-size: 10px; color: #888;">${window._inventoryHasInternet ? '▼' : '🔒'}</span>
                         </span>
                     </div>
                     <div id="inventoryWeaponSection" style="display: none; margin-top: 8px; padding: 8px; background: rgba(0,0,0,0.2); border-radius: 10px;">
@@ -6781,10 +6960,12 @@ window.openInventoryModal = function() {
                                     <div style="
                                         background: rgba(30,36,64,0.6);
                                         border-radius: 12px; padding: 8px; text-align: center;
-                                        cursor: pointer; transition: all 0.2s;
+                                        cursor: ${window._inventoryHasInternet ? 'pointer' : 'default'};
+                                        transition: all 0.2s;
                                         border: 2px solid ${isEquipped ? '#c9a03d' : 'transparent'};
                                         ${isEquipped ? 'box-shadow: 0 0 15px rgba(201,160,61,0.2);' : ''}
-                                    " onclick="changeEquipment('weapon', '${item.name}', '${item.stat || ''}', ${item.bonus || 0})">
+                                        ${!window._inventoryHasInternet ? 'opacity: 0.6;' : ''}
+                                    " onclick="${window._inventoryHasInternet ? "changeEquipment('weapon', '" + item.name + "', '" + (item.stat || '') + "', " + (item.bonus || 0) + ")" : ''}">
                                         ${item.imageUrl ? 
                                             '<img src="' + escapeHtml(item.imageUrl) + '" style="width: 50px; height: 50px; object-fit: cover; border-radius: 12px; margin: 0 auto 4px; display: block;">' : 
                                             '<div style="font-size: 28px;">🔪</div>'
@@ -6805,12 +6986,14 @@ window.openInventoryModal = function() {
                         display: flex; justify-content: space-between; align-items: center;
                         background: rgba(0,0,0,0.3); border-radius: 12px; padding: 10px 14px;
                         margin-bottom: 8px; border-left: 3px solid #8B4513;
-                        cursor: pointer; transition: all 0.2s;
-                    " onclick="toggleInventorySection('armor')">
+                        cursor: ${window._inventoryHasInternet ? 'pointer' : 'default'};
+                        transition: all 0.2s;
+                        opacity: ${window._inventoryHasInternet ? '1' : '0.7'};
+                    " onclick="${window._inventoryHasInternet ? "toggleInventorySection('armor')" : ''}">
                         <span style="color: #c9a03d; font-size: 13px; font-weight: 600;">👕 ОДЕЖДА</span>
                         <span style="color: #ffd966; font-size: 13px; font-weight: 600;">
                             ${escapeHtml(equipped.armor)}
-                            <span style="font-size: 10px; color: #888;">▼</span>
+                            <span style="font-size: 10px; color: #888;">${window._inventoryHasInternet ? '▼' : '🔒'}</span>
                         </span>
                     </div>
                     <div id="inventoryArmorSection" style="display: none; margin-top: 8px; padding: 8px; background: rgba(0,0,0,0.2); border-radius: 10px;">
@@ -6823,10 +7006,12 @@ window.openInventoryModal = function() {
                                     <div style="
                                         background: rgba(30,36,64,0.6);
                                         border-radius: 12px; padding: 8px; text-align: center;
-                                        cursor: pointer; transition: all 0.2s;
+                                        cursor: ${window._inventoryHasInternet ? 'pointer' : 'default'};
+                                        transition: all 0.2s;
                                         border: 2px solid ${isEquipped ? '#c9a03d' : 'transparent'};
                                         ${isEquipped ? 'box-shadow: 0 0 15px rgba(201,160,61,0.2);' : ''}
-                                    " onclick="changeEquipment('armor', '${item.name}', '${item.stat || ''}', ${item.bonus || 0})">
+                                        ${!window._inventoryHasInternet ? 'opacity: 0.6;' : ''}
+                                    " onclick="${window._inventoryHasInternet ? "changeEquipment('armor', '" + item.name + "', '" + (item.stat || '') + "', " + (item.bonus || 0) + ")" : ''}">
                                         ${item.imageUrl ? 
                                             '<img src="' + escapeHtml(item.imageUrl) + '" style="width: 50px; height: 50px; object-fit: cover; border-radius: 12px; margin: 0 auto 4px; display: block;">' : 
                                             '<div style="font-size: 28px;">👕</div>'
@@ -6847,12 +7032,14 @@ window.openInventoryModal = function() {
                         display: flex; justify-content: space-between; align-items: center;
                         background: rgba(0,0,0,0.3); border-radius: 12px; padding: 10px 14px;
                         border-left: 3px solid #8B4513;
-                        cursor: pointer; transition: all 0.2s;
-                    " onclick="toggleInventorySection('accessory')">
+                        cursor: ${window._inventoryHasInternet ? 'pointer' : 'default'};
+                        transition: all 0.2s;
+                        opacity: ${window._inventoryHasInternet ? '1' : '0.7'};
+                    " onclick="${window._inventoryHasInternet ? "toggleInventorySection('accessory')" : ''}">
                         <span style="color: #c9a03d; font-size: 13px; font-weight: 600;">💍 АКСЕССУАРЫ</span>
                         <span style="color: #ffd966; font-size: 13px; font-weight: 600;">
                             ${escapeHtml(equipped.accessory)}
-                            <span style="font-size: 10px; color: #888;">▼</span>
+                            <span style="font-size: 10px; color: #888;">${window._inventoryHasInternet ? '▼' : '🔒'}</span>
                         </span>
                     </div>
                     <div id="inventoryAccessorySection" style="display: none; margin-top: 8px; padding: 8px; background: rgba(0,0,0,0.2); border-radius: 10px;">
@@ -6865,10 +7052,12 @@ window.openInventoryModal = function() {
                                     <div style="
                                         background: rgba(30,36,64,0.6);
                                         border-radius: 12px; padding: 8px; text-align: center;
-                                        cursor: pointer; transition: all 0.2s;
+                                        cursor: ${window._inventoryHasInternet ? 'pointer' : 'default'};
+                                        transition: all 0.2s;
                                         border: 2px solid ${isEquipped ? '#c9a03d' : 'transparent'};
                                         ${isEquipped ? 'box-shadow: 0 0 15px rgba(201,160,61,0.2);' : ''}
-                                    " onclick="changeEquipment('accessory', '${item.name}', '${item.stat || ''}', ${item.bonus || 0})">
+                                        ${!window._inventoryHasInternet ? 'opacity: 0.6;' : ''}
+                                    " onclick="${window._inventoryHasInternet ? "changeEquipment('accessory', '" + item.name + "', '" + (item.stat || '') + "', " + (item.bonus || 0) + ")" : ''}">
                                         ${item.imageUrl ? 
                                             '<img src="' + escapeHtml(item.imageUrl) + '" style="width: 50px; height: 50px; object-fit: cover; border-radius: 12px; margin: 0 auto 4px; display: block;">' : 
                                             '<div style="font-size: 28px;">💍</div>'
@@ -6885,9 +7074,7 @@ window.openInventoryModal = function() {
                     </div>
                 </div>
                 
-                <!-- ============================================================
-                     НАКОЛКИ (ИСПРАВЛЕННОЕ ОТОБРАЖЕНИЕ)
-                     ============================================================ -->
+                <!-- НАКОЛКИ -->
                 <div class="inventory-card" style="
                     background: rgba(20, 20, 30, 0.9);
                     backdrop-filter: blur(10px);
@@ -6914,9 +7101,7 @@ window.openInventoryModal = function() {
                         '<div style="color: #888; font-size: 12px; text-align: center; padding: 20px;">❌ Нет наколок</div>' :
                         '<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">' +
                         tattoos.map(function(tattoo) {
-                            // Проверяем, что tattoo - объект
                             if (typeof tattoo === 'string') {
-                                // Если строка - преобразуем в объект
                                 return `
                                     <div style="
                                         background: rgba(30,36,64,0.6);
@@ -6988,7 +7173,18 @@ window.openInventoryModal = function() {
     
     document.body.insertAdjacentHTML('beforeend', html);
     if (window.tg) window.tg.BackButton.show();
+    
+    // Скрываем индикатор загрузки
+    showInventoryLoading(false);
+    
+    // Обновляем UI с учетом статуса интернета
+    setTimeout(function() {
+        updateInventoryUI();
+    }, 100);
+    
+    window._inventoryOpeningModal = false;
 };
+
 // ============================================================
 // 14.2. ЗАКРЫТИЕ ИНВЕНТАРЯ
 // ============================================================
@@ -7003,12 +7199,18 @@ window.closeInventoryModal = function() {
     document.body.classList.remove('modal-open');
     
     updateResources();
+    window._inventoryOpeningModal = false;
 };
 
 // ============================================================
 // 14.3. РАЗВОРАЧИВАНИЕ/СВОРАЧИВАНИЕ СЕКЦИЙ
 // ============================================================
 window.toggleInventorySection = function(section) {
+    if (!window._inventoryHasInternet) {
+        showToast('📡 Нет интернета, смена экипировки недоступна', 'warning');
+        return;
+    }
+    
     var element = document.getElementById('inventory' + section.charAt(0).toUpperCase() + section.slice(1) + 'Section');
     if (element) {
         if (element.style.display === 'none' || !element.style.display) {
@@ -7030,11 +7232,17 @@ window.toggleInventorySection = function(section) {
 };
 
 // ============================================================
-// 14.4. СМЕНА ЭКИПИРОВКИ
+// 14.4. СМЕНА ЭКИПИРОВКИ (С ПРОВЕРКОЙ ИНТЕРНЕТА)
 // ============================================================
 window.changeEquipment = async function(slot, itemName, stat, bonus) {
     if (!window.currentPlayer) {
         showToast('❌ Игрок не найден!', 'error');
+        return;
+    }
+    
+    // Проверяем интернет
+    if (!window._inventoryHasInternet) {
+        showToast('📡 Нет интернета, смена экипировки недоступна', 'warning');
         return;
     }
     
@@ -7060,7 +7268,7 @@ window.changeEquipment = async function(slot, itemName, stat, bonus) {
     }
     
     try {
-        showLoading(true, 'Смена экипировки...');
+        showInventoryLoading(true, '⏳ Смена экипировки...');
         
         var updateData = {};
         
@@ -7091,7 +7299,7 @@ window.changeEquipment = async function(slot, itemName, stat, bonus) {
         
         var statName = stat === 'strength' ? 'силы' : (stat === 'defense' ? 'защиты' : 'крита');
         showToast('✅ Надето: ' + itemName + '! +' + bonus + ' ' + statName, 'success');
-        showLoading(false);
+        showInventoryLoading(false);
         
         // Обновляем окно инвентаря
         closeInventoryModal();
@@ -7100,7 +7308,7 @@ window.changeEquipment = async function(slot, itemName, stat, bonus) {
         updateResources();
         
     } catch (e) {
-        showLoading(false);
+        showInventoryLoading(false);
         showToast('❌ Ошибка: ' + e.message, 'error');
         console.error('Ошибка смены экипировки:', e);
     }
@@ -7154,15 +7362,78 @@ function getPlayerEquipment() {
 }
 
 // ============================================================
-// 14.10. ЭКСПОРТ ФУНКЦИЙ
+// 14.10. ИНИЦИАЛИЗАЦИЯ СИСТЕМЫ ИНВЕНТАРЯ
+// ============================================================
+function initInventorySystem() {
+    console.log('🔄 Инициализация системы ИНВЕНТАРЬ...');
+    
+    if (!window.currentPlayer) {
+        console.log('❌ Нет игрока');
+        return;
+    }
+    
+    // Устанавливаем начальный статус интернета
+    window._inventoryHasInternet = checkInventoryInternetConnection();
+    console.log('🌐 Статус интернета (Инвентарь):', window._inventoryHasInternet ? 'онлайн' : 'офлайн');
+    
+    // Запускаем периодическую проверку интернета (каждые 5 секунд)
+    if (window._inventoryCheckInterval) {
+        clearInterval(window._inventoryCheckInterval);
+    }
+    window._inventoryCheckInterval = setInterval(function() {
+        var oldStatus = window._inventoryHasInternet;
+        var newStatus = checkInventoryInternetConnection();
+        
+        if (newStatus !== oldStatus) {
+            console.log('🔄 ИНВЕНТАРЬ: статус интернета изменился:', oldStatus, '->', newStatus);
+            window._inventoryHasInternet = newStatus;
+            
+            // Обновляем UI в реальном времени
+            var modal = document.getElementById('inventoryFullscreen');
+            if (modal) {
+                updateInventoryUI();
+                // Перерисовываем окно для обновления кнопок
+                closeInventoryModal();
+                setTimeout(function() {
+                    openInventoryModal();
+                }, 300);
+            }
+            
+            if (window._inventoryHasInternet) {
+                showToast('🌐 Интернет восстановлен!', 'success');
+            } else {
+                showToast('📡 Интернет потерян!', 'error');
+            }
+        }
+    }, 5000);
+    
+    console.log('✅ Система ИНВЕНТАРЬ инициализирована');
+}
+
+function stopInventorySystem() {
+    if (window._inventoryCheckInterval) {
+        clearInterval(window._inventoryCheckInterval);
+        window._inventoryCheckInterval = null;
+    }
+    console.log('🛑 Система ИНВЕНТАРЬ остановлена');
+}
+
+// ============================================================
+// 14.11. ЭКСПОРТ ФУНКЦИЙ
 // ============================================================
 window.hasTattoo = hasTattoo;
 window.getPlayerTattoos = getPlayerTattoos;
 window.hasEquipment = hasEquipment;
 window.getPlayerEquipment = getPlayerEquipment;
 window.refreshInventory = refreshInventory;
+window.checkInventoryInternetConnection = checkInventoryInternetConnection;
+window.updateInventoryInternetStatus = updateInventoryInternetStatus;
+window.showInventoryLoading = showInventoryLoading;
+window.updateInventoryUI = updateInventoryUI;
+window.initInventorySystem = initInventorySystem;
+window.stopInventorySystem = stopInventorySystem;
 
-console.log('✅ Дополнительные функции инвентаря загружены');
+console.log('✅ Блок ИНВЕНТАРЬ полностью загружен с проверкой интернета');
 
 // ============================================================
 // 15. НАСТРОЙКИ (ТЮРЕМНЫЙ СТИЛЬ + ЧАТ-СТИЛЬ ДЛЯ ОКОН)
@@ -7563,7 +7834,7 @@ window.openSettingsModal = function() {
                     <div style="font-size: 36px; margin-bottom: 10px;">⚙️</div>
                     <div style="font-size: 16px; font-weight: 700; color: #ffd966;">${escapeHtml(window.currentPlayer.username)}</div>
                     <div style="font-size: 12px; color: #888; margin-top: 4px;">🆔 ${window.playerId}</div>
-                    <div style="font-size: 11px; color: #666; margin-top: 8px;">Версия - 1.0.1.044</div>
+                    <div style="font-size: 11px; color: #666; margin-top: 8px;">Версия - 1.0.1.045</div>
                     <div class="settings-status-info" style="font-size: 10px; color: ${window._settingsHasInternet ? '#4caf50' : '#e94560'}; margin-top: 6px;">
                         ${window._settingsHasInternet ? '🟢 Онлайн' : '🔴 Офлайн'}
                     </div>
@@ -8569,7 +8840,7 @@ window.openProfileModal = function() {
             animation: fadeIn 0.25s ease;
             overflow-y: auto;
             padding: 20px 16px;
-            padding-bottom: 80px;
+            padding-bottom: 0px;
         ">
             <!-- ТЮРЕМНАЯ ШАПКА -->
             <div class="profile-header-bar" style="
@@ -9344,14 +9615,12 @@ window.openAvatarSelector = function() {
                     position: absolute;
                     right: 16px;
                     top: 50%;
-                    transform: translateY(-50%);
-                    background: rgba(139, 69, 19, 0.3);
+                    transform: translateY(-50%); 
                     border: none;
                     border-radius: 50%;
                     width: 34px;
                     height: 34px;
                     cursor: pointer;
-                    color: white;
                     font-size: 20px;
                     display: flex;
                     align-items: center;
@@ -9622,6 +9891,7 @@ function getGangDisplayString(player) {
     const fraers = player.gang.fraers?.fighters || 0;
     return `Блатные: ${blats} | Мужики: ${muzhiks} | Фраера: ${fraers}`;
 }
+
 
 // ============================================================
 // 17. ЗАГРУЗКА КАРТИНОК С КЭШИРОВАНИЕМ
@@ -10176,7 +10446,7 @@ window.initImageCache = initImageCache;
 console.log('✅ Блок ЗАГРУЗКА КАРТИНОК загружен');
 
 // ============================================================
-// 18. ЗАДАНИЯ (ЕЖЕДНЕВНЫЕ, СЮЖЕТНЫЕ, ПРЕМИУМ) - ИСПРАВЛЕННАЯ ВЕРСИЯ
+// 18. ЗАДАНИЯ (ЕЖЕДНЕВНЫЕ, СЮЖЕТНЫЕ, ПРЕМИУМ) - С ПРОВЕРКОЙ ИНТЕРНЕТА
 // ============================================================
 
 // ============================================================
@@ -10204,7 +10474,226 @@ if (typeof window.questTouchEndX === 'undefined') {
     window.questTouchEndX = 0;
 }
 
+// Переменные для проверки интернета
+if (typeof window._questHasInternet === 'undefined') {
+    window._questHasInternet = navigator.onLine !== false;
+}
+if (typeof window._questCheckInterval === 'undefined') {
+    window._questCheckInterval = null;
+}
+if (typeof window._questOpeningModal === 'undefined') {
+    window._questOpeningModal = false;
+}
+if (typeof window._pendingQuestOperations === 'undefined') {
+    window._pendingQuestOperations = [];
+}
+
 console.log('✅ Переменные заданий инициализированы');
+
+// ============================================================
+// 18.0.1. ПРОВЕРКА ИНТЕРНЕТА ДЛЯ ЗАДАНИЙ
+// ============================================================
+function checkQuestInternetConnection() {
+    return navigator.onLine !== false;
+}
+
+function updateQuestInternetStatus() {
+    var newStatus = checkQuestInternetConnection();
+    
+    if (newStatus !== window._questHasInternet) {
+        console.log('🔄 ЗАДАНИЯ: статус интернета изменен:', window._questHasInternet, '->', newStatus);
+        window._questHasInternet = newStatus;
+        
+        // Обновляем UI
+        updateQuestsUI();
+        
+        if (window._questHasInternet) {
+            // Если интернет появился - выполняем ожидающие операции
+            processPendingQuestOperations();
+            showToast('🌐 Интернет восстановлен!', 'success');
+        } else {
+            showToast('📡 Интернет потерян!', 'error');
+        }
+    }
+    
+    return window._questHasInternet;
+}
+
+// ============================================================
+// 18.0.2. ОЧЕРЕДЬ ОПЕРАЦИЙ ДЛЯ ЗАДАНИЙ
+// ============================================================
+function addToPendingQuestOperations(operation, data) {
+    window._pendingQuestOperations.push({
+        operation: operation,
+        data: data || null,
+        timestamp: Date.now()
+    });
+    console.log('📨 Операция добавлена в очередь ожидания (интернет отсутствует):', operation);
+}
+
+async function processPendingQuestOperations() {
+    if (!window._questHasInternet) {
+        console.log('📡 Интернет все еще отсутствует, выполнение отложено');
+        return;
+    }
+    
+    if (window._pendingQuestOperations.length === 0) {
+        console.log('📨 Нет ожидающих операций Заданий');
+        return;
+    }
+    
+    console.log('📨 Выполнение ' + window._pendingQuestOperations.length + ' ожидающих операций Заданий...');
+    
+    var operationsToProcess = window._pendingQuestOperations.slice();
+    window._pendingQuestOperations = [];
+    
+    for (var i = 0; i < operationsToProcess.length; i++) {
+        var op = operationsToProcess[i];
+        try {
+            if (op.operation === 'claimStory') {
+                await claimStoryQuestDirect(op.data.questId, op.data.reward, op.data.type);
+                console.log('✅ Выполнено получение сюжетной награды');
+            } else if (op.operation === 'claimDaily') {
+                await claimDailyQuestDirect(op.data.questId, op.data.reward, op.data.type);
+                console.log('✅ Выполнено получение ежедневной награды');
+            } else if (op.operation === 'claimPremium') {
+                await claimPremiumQuestDirect(op.data.questId, op.data.reward, op.data.type);
+                console.log('✅ Выполнено получение премиум награды');
+            } else if (op.operation === 'claimBonus') {
+                await claimDailyBonusDirect();
+                console.log('✅ Выполнено получение ежедневного бонуса');
+            } else if (op.operation === 'openModal') {
+                await openQuestsModalDirect();
+                console.log('✅ Открыто окно заданий');
+            }
+        } catch (e) {
+            console.error('❌ Ошибка выполнения ожидающей операции:', e);
+            window._pendingQuestOperations.push(op);
+        }
+    }
+    
+    if (window._pendingQuestOperations.length > 0) {
+        console.log('📨 ' + window._pendingQuestOperations.length + ' операций осталось в очереди');
+    } else {
+        console.log('✅ Все ожидающие операции Заданий выполнены');
+    }
+}
+
+// ============================================================
+// 18.0.3. ИНДИКАТОР ЗАГРУЗКИ ДЛЯ ЗАДАНИЙ
+// ============================================================
+function showQuestLoading(show, text) {
+    // Используем общий индикатор загрузки, если он есть
+    if (typeof showLoading === 'function') {
+        showLoading(show, text || '⏳ Загрузка...');
+        return;
+    }
+    
+    var overlay = document.getElementById('questLoadingOverlay');
+    if (!overlay && show) {
+        overlay = document.createElement('div');
+        overlay.id = 'questLoadingOverlay';
+        overlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(10,14,26,0.85);
+            backdrop-filter: blur(8px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 99999;
+            animation: fadeIn 0.3s ease;
+        `;
+        overlay.innerHTML = `
+            <div style="width: 48px; height: 48px; border: 3px solid rgba(139,69,19,0.3); border-top-color: #c9a03d; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+            <div id="questLoadingText" style="color: #c9a03d; font-size: 14px; margin-top: 16px; font-weight: 600;">⏳ Загрузка...</div>
+        `;
+        document.body.appendChild(overlay);
+    }
+    
+    if (overlay) {
+        overlay.style.display = show ? 'flex' : 'none';
+        var textEl = document.getElementById('questLoadingText');
+        if (textEl && text) textEl.textContent = text;
+    }
+}
+
+// ============================================================
+// 18.0.4. ОБНОВЛЕНИЕ UI ЗАДАНИЙ
+// ============================================================
+function updateQuestsUI() {
+    console.log('🔵 ЗАДАНИЯ: updateQuestsUI, интернет =', window._questHasInternet);
+    
+    // Обновляем статус в окне заданий
+    var statusEl = document.getElementById('questConnectionStatus');
+    if (statusEl) {
+        statusEl.textContent = window._questHasInternet ? '🟢' : '🔴';
+        statusEl.style.color = window._questHasInternet ? '#4caf50' : '#e94560';
+    }
+    
+    // Обновляем все кнопки "ЗАБРАТЬ" в окне заданий
+    var claimButtons = document.querySelectorAll('#questsFullscreen .quest-claim-btn, #questsFullscreen button[onclick*="claim"]');
+    claimButtons.forEach(function(btn) {
+        if (!window._questHasInternet) {
+            btn.disabled = true;
+            btn.style.background = '#444';
+            btn.style.border = '1px solid #666';
+            btn.style.color = '#888';
+            btn.style.opacity = '0.6';
+            btn.style.cursor = 'not-allowed';
+            var originalText = btn.textContent;
+            if (!btn.dataset.originalText) {
+                btn.dataset.originalText = originalText;
+            }
+            btn.textContent = '📡 ОЖИДАНИЕ ИНТЕРНЕТА';
+        } else {
+            btn.disabled = false;
+            btn.style.background = 'linear-gradient(135deg, #8B4513, #5a2d0a)';
+            btn.style.border = '1px solid #c9a03d';
+            btn.style.color = '#ffd966';
+            btn.style.opacity = '1';
+            btn.style.cursor = 'pointer';
+            if (btn.dataset.originalText) {
+                btn.textContent = btn.dataset.originalText;
+            }
+        }
+    });
+    
+    // Обновляем кнопку ежедневного бонуса
+    var bonusBtn = document.querySelector('#questsDailyPage button[onclick*="claimDailyBonusFromModal"]');
+    if (bonusBtn) {
+        if (!window._questHasInternet) {
+            bonusBtn.disabled = true;
+            bonusBtn.style.background = '#444';
+            bonusBtn.style.border = '1px solid #666';
+            bonusBtn.style.color = '#888';
+            bonusBtn.style.opacity = '0.6';
+            bonusBtn.style.cursor = 'not-allowed';
+            var origText = bonusBtn.textContent;
+            if (!bonusBtn.dataset.originalText) {
+                bonusBtn.dataset.originalText = origText;
+            }
+            bonusBtn.textContent = '📡 ОЖИДАНИЕ ИНТЕРНЕТА';
+        } else {
+            bonusBtn.disabled = false;
+            bonusBtn.style.background = 'linear-gradient(135deg, #8B4513, #5a2d0a)';
+            bonusBtn.style.border = '1px solid #c9a03d';
+            bonusBtn.style.color = '#ffd966';
+            bonusBtn.style.opacity = '1';
+            bonusBtn.style.cursor = 'pointer';
+            if (bonusBtn.dataset.originalText) {
+                bonusBtn.textContent = bonusBtn.dataset.originalText;
+            }
+        }
+    }
+    
+    // Обновляем бейдж
+    updateQuestsBadge();
+}
 
 // ============================================================
 // 18.1. СЮЖЕТНЫЕ ЗАДАНИЯ
@@ -10267,7 +10756,6 @@ function checkQuestsCompletion() {
     
     var newCount = 0;
     
-    // ✅ ИСПОЛЬЗУЕМ window.completedQuests (УЖЕ ЗАГРУЖЕН ИЗ БД)
     var storyQuests = getStoryQuests();
     for (var i = 0; i < storyQuests.length; i++) {
         var quest = storyQuests[i];
@@ -10313,7 +10801,6 @@ function updateQuestsBadge() {
         badge.className = 'badge-count';
         badge.textContent = window.questNotificationCount;
         
-        // ✅✅✅ КРАСНЫЙ КРУЖОК С ЦИФРОЙ (КАК В СИСТЕМЕ ОПОВЕЩЕНИЙ)
         badge.style.cssText = `
             position: absolute;
             top: -6px;
@@ -10342,23 +10829,52 @@ function updateQuestsBadge() {
 }
 
 // ============================================================
-// 18.7. ОТКРЫТИЕ ОКНА ЗАДАНИЙ (ИСПРАВЛЕННОЕ)
+// 18.7. ОТКРЫТИЕ ОКНА ЗАДАНИЙ (С ПРОВЕРКОЙ ИНТЕРНЕТА)
 // ============================================================
 window.openQuestsModal = function() {
-    if (window._opening_modal) { 
+    if (window._questOpeningModal) { 
         console.log('Блокировка: окно уже открывается'); 
         return; 
     }
-    window._opening_modal = true;
+    window._questOpeningModal = true;
 
     if (!window.currentPlayer) { 
-        window._opening_modal = false; 
+        window._questOpeningModal = false; 
         return; 
     }
-
+    
+    // Обновляем статус интернета
+    updateQuestInternetStatus();
+    
+    // Проверяем интернет
+    if (!window._questHasInternet) {
+        showToast('📡 Нет интернета, данные могут быть неактуальны', 'warning');
+        addToPendingQuestOperations('openModal');
+        // Все равно открываем окно, но с блокировкой кнопок
+        renderQuestsModal();
+        window._questOpeningModal = false;
+        return;
+    }
+    
+    // Показываем индикатор загрузки
+    showQuestLoading(true, '⏳ Загрузка заданий...');
+    
+    // Загружаем данные перед открытием
+    loadQuestsData();
+    
     window.questNotificationCount = checkQuestsCompletion();
     updateQuestsBadge();
+    
+    renderQuestsModal();
+    
+    showQuestLoading(false);
+    window._questOpeningModal = false;
+};
 
+// ============================================================
+// 18.7.1. ОТРИСОВКА ОКНА ЗАДАНИЙ (ВЫНЕСЕНО В ОТДЕЛЬНУЮ ФУНКЦИЮ)
+// ============================================================
+function renderQuestsModal() {
     var modalHtml = `
         <div class="quests-fullscreen" id="questsFullscreen" style="
             position: fixed;
@@ -10409,13 +10925,16 @@ window.openQuestsModal = function() {
                     gap: 10px;
                 ">
                     <span></span> ЗАДАНИЯ
+                    <!--<span id="questConnectionStatus" style="font-size: 14px; color: ${window._questHasInternet ? '#4caf50' : '#e94560'};">
+                        ${window._questHasInternet ? '🟢' : '🔴'}
+                    </span>--!>
                 </div>
             </div>
             
             <!-- КОНТЕНТ -->
             <div style="flex: 1; overflow-y: auto; overflow-x: hidden; padding: 4px 2px; margin-bottom: 4px;" ontouchstart="handleQuestsTouchStart(event)" ontouchend="handleQuestsTouchEnd(event)">
                 
-                <!-- ВКЛАДКИ (ИСПРАВЛЕННЫЕ) -->
+                <!-- ВКЛАДКИ -->
                 <div style="
                     display: flex;
                     background: rgba(10,14,26,0.9);
@@ -10537,6 +11056,11 @@ window.openQuestsModal = function() {
     renderStoryPage();
     renderDailyPage();
     renderPremiumPage();
+    
+    // Обновляем UI с учетом статуса интернета
+    setTimeout(function() {
+        updateQuestsUI();
+    }, 100);
 
     if (window.questNotificationInterval) {
         clearInterval(window.questNotificationInterval);
@@ -10558,12 +11082,19 @@ window.openQuestsModal = function() {
         renderStoryPage();
         renderDailyPage();
         renderPremiumPage();
+        // Обновляем статус интернета в UI
+        updateQuestInternetStatus();
     }, 5000);
+}
 
-    setTimeout(function() { 
-        window._opening_modal = false; 
-    }, 500);
-};
+// ============================================================
+// 18.7.2. ПРЯМОЕ ОТКРЫТИЕ ОКНА (ДЛЯ ОЧЕРЕДИ)
+// ============================================================
+function openQuestsModalDirect() {
+    window.questNotificationCount = checkQuestsCompletion();
+    updateQuestsBadge();
+    renderQuestsModal();
+}
 
 // ============================================================
 // 18.8. ЗАКРЫТИЕ ОКНА ЗАДАНИЙ
@@ -10589,23 +11120,20 @@ window.closeQuestsModal = function() {
 };
 
 // ============================================================
-// 18.9. ПЕРЕКЛЮЧЕНИЕ ВКЛАДОК (ИСПРАВЛЕННОЕ)
+// 18.9. ПЕРЕКЛЮЧЕНИЕ ВКЛАДОК
 // ============================================================
 window.switchQuestsTab = function(index) {
     console.log('🔄 Переключение на вкладку:', index);
     
-    // Проверяем, что индекс валидный
     if (index < 1 || index > 3) return;
     
     window.currentQuestsTab = index;
     
-    // Обновляем слайдер
     var slider = document.querySelector('.quests-slider');
     if (slider) {
         slider.style.transform = 'translateX(-' + ((index - 1) * 100) + '%)';
     }
     
-    // Обновляем кнопки
     var btns = document.querySelectorAll('.quests-tab-btn[data-tab]');
     btns.forEach(function(btn) {
         var tabIndex = parseInt(btn.getAttribute('data-tab'));
@@ -10618,14 +11146,18 @@ window.switchQuestsTab = function(index) {
         }
     });
     
-    // Рендерим нужную страницу
     if (index === 1) renderStoryPage();
     else if (index === 2) renderDailyPage();
     else if (index === 3) renderPremiumPage();
+    
+    // Обновляем UI после переключения
+    setTimeout(function() {
+        updateQuestsUI();
+    }, 100);
 };
 
 // ============================================================
-// 18.10-18.12. ОТРИСОВКА СТРАНИЦ (БЕЗ ИЗМЕНЕНИЙ)
+// 18.10-18.12. ОТРИСОВКА СТРАНИЦ (С БЛОКИРОВКОЙ КНОПОК)
 // ============================================================
 function renderStoryPage() {
     var container = document.getElementById('questsStoryPage');
@@ -10673,6 +11205,7 @@ function renderStoryPage() {
                 ">
                     ${storyQuests.length}
                 </span>
+                ${!window._questHasInternet ? '<span style="font-size: 10px; color: #e94560; margin-left: 8px;">📡 офлайн</span>' : ''}
             </div>
     `;
 
@@ -10682,6 +11215,7 @@ function renderStoryPage() {
         var progressPercent = Math.min(100, (quest.current / quest.requirement) * 100);
         var rewardText = quest.type === 'cigarettes' ? quest.reward + ' 🚬' : quest.reward + ' 💰';
         var isClaimed = window.completedQuests.includes(quest.id);
+        var canClaim = isCompleted && !isClaimed && window._questHasInternet;
 
         html += `
             <div style="
@@ -10719,17 +11253,20 @@ function renderStoryPage() {
                     ${isClaimed ? 
                         '<span style="color: #4caf50; font-size: 12px; font-weight: 600;">✅ НАГРАДА ПОЛУЧЕНА</span>' : 
                         (isCompleted ? 
-                            `<button onclick="claimStoryQuest('${quest.id}', ${quest.reward}, '${quest.type}')" style="
-                                background: linear-gradient(135deg, #8B4513, #5a2d0a);
-                                border: 1px solid #c9a03d;
+                            `<button class="quest-claim-btn" onclick="claimStoryQuest('${quest.id}', ${quest.reward}, '${quest.type}')" style="
+                                background: ${canClaim ? 'linear-gradient(135deg, #8B4513, #5a2d0a)' : '#444'};
+                                border: 1px solid ${canClaim ? '#c9a03d' : '#666'};
                                 border-radius: 30px;
                                 padding: 6px 16px;
                                 font-size: 12px;
                                 font-weight: 700;
-                                color: #ffd966;
-                                cursor: pointer;
+                                color: ${canClaim ? '#ffd966' : '#888'};
+                                cursor: ${canClaim ? 'pointer' : 'not-allowed'};
                                 transition: all 0.2s;
-                            ">🎁 ЗАБРАТЬ</button>` : 
+                                ${!canClaim ? 'opacity: 0.6;' : ''}
+                            " ${!canClaim ? 'disabled' : ''}>
+                                ${!window._questHasInternet ? '📡 ОЖИДАНИЕ ИНТЕРНЕТА' : '🎁 ЗАБРАТЬ'}
+                            </button>` : 
                             '<span style="color: #888; font-size: 12px;">🔒 НЕ ВЫПОЛНЕНО</span>'
                         )
                     }
@@ -10748,7 +11285,7 @@ function renderDailyPage() {
 
     var dailyQuests = getDailyQuests();
     var nextBonusTime = getNextBonusTime();
-    var canClaim = nextBonusTime <= 0 && (window.dailyBonus.lastClaimDay || 0) < 30;
+    var canClaim = nextBonusTime <= 0 && (window.dailyBonus.lastClaimDay || 0) < 30 && window._questHasInternet;
     var currentDay = getNextBonusDay();
     var bonusAmount = currentDay <= 30 ? getDailyBonusAmount(currentDay) : 0;
     var timerText = nextBonusTime > 0 ? formatTimeDetailed(nextBonusTime) : 'ГОТОВ К ПОЛУЧЕНИЮ!';
@@ -10787,7 +11324,7 @@ function renderDailyPage() {
                 margin: 6px 0;
             ">⏳ ${timerText}</div>
             ${canClaim ? 
-                `<button onclick="claimDailyBonusFromModal()" style="
+                `<button class="quest-claim-btn" onclick="claimDailyBonusFromModal()" style="
                     display: block;
                     width: 100%;
                     margin-top: 10px;
@@ -10814,7 +11351,7 @@ function renderDailyPage() {
                     color: #888;
                     cursor: not-allowed;
                     opacity: 0.5;
-                ">⏳ ДОСТУПНО ЧЕРЕЗ ${timerText}</button>`
+                ">${!window._questHasInternet ? '📡 ОЖИДАНИЕ ИНТЕРНЕТА' : '⏳ ДОСТУПНО ЧЕРЕЗ ' + timerText}</button>`
             }
         </div>
         
@@ -10857,6 +11394,7 @@ function renderDailyPage() {
                 ">
                     ${dailyQuests.length}
                 </span>
+                ${!window._questHasInternet ? '<span style="font-size: 10px; color: #e94560; margin-left: 8px;">📡 офлайн</span>' : ''}
             </div>
     `;
 
@@ -10866,6 +11404,7 @@ function renderDailyPage() {
         var progressPercent = Math.min(100, (quest.current / quest.requirement) * 100);
         var rewardText = quest.type === 'cigarettes' ? quest.reward + ' 🚬' : quest.reward + ' 💰';
         var isClaimed = window.completedQuests.includes(quest.id);
+        var canClaim = isCompleted && !isClaimed && window._questHasInternet;
 
         html += `
             <div style="
@@ -10903,17 +11442,20 @@ function renderDailyPage() {
                     ${isClaimed ? 
                         '<span style="color: #4caf50; font-size: 12px; font-weight: 600;">✅ НАГРАДА ПОЛУЧЕНА</span>' : 
                         (isCompleted ? 
-                            `<button onclick="claimDailyQuest('${quest.id}', ${quest.reward}, '${quest.type}')" style="
-                                background: linear-gradient(135deg, #8B4513, #5a2d0a);
-                                border: 1px solid #c9a03d;
+                            `<button class="quest-claim-btn" onclick="claimDailyQuest('${quest.id}', ${quest.reward}, '${quest.type}')" style="
+                                background: ${canClaim ? 'linear-gradient(135deg, #8B4513, #5a2d0a)' : '#444'};
+                                border: 1px solid ${canClaim ? '#c9a03d' : '#666'};
                                 border-radius: 30px;
                                 padding: 6px 16px;
                                 font-size: 12px;
                                 font-weight: 700;
-                                color: #ffd966;
-                                cursor: pointer;
+                                color: ${canClaim ? '#ffd966' : '#888'};
+                                cursor: ${canClaim ? 'pointer' : 'not-allowed'};
                                 transition: all 0.2s;
-                            ">🎁 ЗАБРАТЬ</button>` : 
+                                ${!canClaim ? 'opacity: 0.6;' : ''}
+                            " ${!canClaim ? 'disabled' : ''}>
+                                ${!window._questHasInternet ? '📡 ОЖИДАНИЕ ИНТЕРНЕТА' : '🎁 ЗАБРАТЬ'}
+                            </button>` : 
                             '<span style="color: #888; font-size: 12px;">🔒 НЕ ВЫПОЛНЕНО</span>'
                         )
                     }
@@ -10972,6 +11514,7 @@ function renderPremiumPage() {
                 ">
                     ${premiumQuests.length}
                 </span>
+                ${!window._questHasInternet ? '<span style="font-size: 10px; color: #e94560; margin-left: 8px;">📡 офлайн</span>' : ''}
             </div>
     `;
 
@@ -10981,6 +11524,7 @@ function renderPremiumPage() {
         var progressPercent = Math.min(100, (quest.current / quest.requirement) * 100);
         var rewardText = quest.type === 'cigarettes' ? quest.reward + ' 🚬' : quest.reward + ' 💰';
         var isClaimed = window.completedQuests.includes(quest.id);
+        var canClaim = isCompleted && !isClaimed && window._questHasInternet;
 
         html += `
             <div style="
@@ -11018,17 +11562,20 @@ function renderPremiumPage() {
                     ${isClaimed ? 
                         '<span style="color: #4caf50; font-size: 12px; font-weight: 600;">✅ НАГРАДА ПОЛУЧЕНА</span>' : 
                         (isCompleted ? 
-                            `<button onclick="claimPremiumQuest('${quest.id}', ${quest.reward}, '${quest.type}')" style="
-                                background: linear-gradient(135deg, #8B4513, #5a2d0a);
-                                border: 1px solid #c9a03d;
+                            `<button class="quest-claim-btn" onclick="claimPremiumQuest('${quest.id}', ${quest.reward}, '${quest.type}')" style="
+                                background: ${canClaim ? 'linear-gradient(135deg, #8B4513, #5a2d0a)' : '#444'};
+                                border: 1px solid ${canClaim ? '#c9a03d' : '#666'};
                                 border-radius: 30px;
                                 padding: 6px 16px;
                                 font-size: 12px;
                                 font-weight: 700;
-                                color: #ffd966;
-                                cursor: pointer;
+                                color: ${canClaim ? '#ffd966' : '#888'};
+                                cursor: ${canClaim ? 'pointer' : 'not-allowed'};
                                 transition: all 0.2s;
-                            ">🎁 ЗАБРАТЬ</button>` : 
+                                ${!canClaim ? 'opacity: 0.6;' : ''}
+                            " ${!canClaim ? 'disabled' : ''}>
+                                ${!window._questHasInternet ? '📡 ОЖИДАНИЕ ИНТЕРНЕТА' : '🎁 ЗАБРАТЬ'}
+                            </button>` : 
                             '<span style="color: #888; font-size: 12px;">🔒 НЕ ВЫПОЛНЕНО</span>'
                         )
                     }
@@ -11062,25 +11609,33 @@ window.handleQuestsTouchEnd = function(e) {
 };
 
 // ============================================================
-// 18.14. ПОЛУЧЕНИЕ НАГРАДЫ ЗА ЗАДАНИЯ (ИСПРАВЛЕННЫЕ)
+// 18.14. ПОЛУЧЕНИЕ НАГРАДЫ ЗА ЗАДАНИЯ (С ПРОВЕРКОЙ ИНТЕРНЕТА)
 // ============================================================
 async function claimStoryQuest(questId, reward, type) {
-    // ✅ ПРОВЕРЯЕМ В БД, НЕ ПОЛУЧЕНА ЛИ УЖЕ НАГРАДА
+    // Проверяем интернет
+    if (!window._questHasInternet) {
+        showToast('📡 Нет интернета, операция добавлена в очередь', 'warning');
+        addToPendingQuestOperations('claimStory', { questId: questId, reward: reward, type: type });
+        return;
+    }
+    
     if (window.completedQuests.includes(questId)) { 
         showToast('Награда уже получена!', 'warning'); 
         return; 
     }
     
-    // ✅ ДОПОЛНИТЕЛЬНАЯ ПРОВЕРКА В БД
+    // Показываем индикатор загрузки
+    showQuestLoading(true, '⏳ Получение награды...');
+    
     try {
         var snapshot = await db.ref('players/' + window.playerId + '/completedQuests').once('value');
         if (snapshot.exists()) {
             var dbCompleted = snapshot.val();
             if (dbCompleted && Array.isArray(dbCompleted) && dbCompleted.includes(questId)) {
-                // Если в БД уже есть - обновляем локально и выходим
                 window.completedQuests = dbCompleted;
                 localStorage.setItem('completedQuests_' + window.currentPlayer.id, JSON.stringify(window.completedQuests));
                 showToast('Награда уже получена!', 'warning');
+                showQuestLoading(false);
                 return;
             }
         }
@@ -11088,6 +11643,13 @@ async function claimStoryQuest(questId, reward, type) {
         console.warn('⚠️ Ошибка проверки БД:', e);
     }
     
+    // Выполняем получение
+    await claimStoryQuestDirect(questId, reward, type);
+    showQuestLoading(false);
+}
+
+// Прямая функция для получения сюжетной награды (для очереди)
+async function claimStoryQuestDirect(questId, reward, type) {
     window.completedQuests.push(questId);
     await dbUpdate('players/' + window.playerId, { completedQuests: window.completedQuests });
     localStorage.setItem('completedQuests_' + window.currentPlayer.id, JSON.stringify(window.completedQuests));
@@ -11107,13 +11669,23 @@ async function claimStoryQuest(questId, reward, type) {
     updateResources();
 }
 
+// ============================================================
+// 18.14.1. ПОЛУЧЕНИЕ ЕЖЕДНЕВНОЙ НАГРАДЫ (С ПРОВЕРКОЙ ИНТЕРНЕТА)
+// ============================================================
 async function claimDailyQuest(questId, reward, type) {
+    if (!window._questHasInternet) {
+        showToast('📡 Нет интернета, операция добавлена в очередь', 'warning');
+        addToPendingQuestOperations('claimDaily', { questId: questId, reward: reward, type: type });
+        return;
+    }
+    
     if (window.completedQuests.includes(questId)) { 
         showToast('Награда уже получена!', 'warning'); 
         return; 
     }
     
-    // ✅ ПРОВЕРКА В БД
+    showQuestLoading(true, '⏳ Получение награды...');
+    
     try {
         var snapshot = await db.ref('players/' + window.playerId + '/completedQuests').once('value');
         if (snapshot.exists()) {
@@ -11122,6 +11694,7 @@ async function claimDailyQuest(questId, reward, type) {
                 window.completedQuests = dbCompleted;
                 localStorage.setItem('completedQuests_' + window.currentPlayer.id, JSON.stringify(window.completedQuests));
                 showToast('Награда уже получена!', 'warning');
+                showQuestLoading(false);
                 return;
             }
         }
@@ -11129,6 +11702,11 @@ async function claimDailyQuest(questId, reward, type) {
         console.warn('⚠️ Ошибка проверки БД:', e);
     }
     
+    await claimDailyQuestDirect(questId, reward, type);
+    showQuestLoading(false);
+}
+
+async function claimDailyQuestDirect(questId, reward, type) {
     window.completedQuests.push(questId);
     await dbUpdate('players/' + window.playerId, { completedQuests: window.completedQuests });
     localStorage.setItem('completedQuests_' + window.currentPlayer.id, JSON.stringify(window.completedQuests));
@@ -11148,13 +11726,23 @@ async function claimDailyQuest(questId, reward, type) {
     updateResources();
 }
 
+// ============================================================
+// 18.14.2. ПОЛУЧЕНИЕ ПРЕМИУМ НАГРАДЫ (С ПРОВЕРКОЙ ИНТЕРНЕТА)
+// ============================================================
 async function claimPremiumQuest(questId, reward, type) {
+    if (!window._questHasInternet) {
+        showToast('📡 Нет интернета, операция добавлена в очередь', 'warning');
+        addToPendingQuestOperations('claimPremium', { questId: questId, reward: reward, type: type });
+        return;
+    }
+    
     if (window.completedQuests.includes(questId)) { 
         showToast('Награда уже получена!', 'warning'); 
         return; 
     }
     
-    // ✅ ПРОВЕРКА В БД
+    showQuestLoading(true, '⏳ Получение награды...');
+    
     try {
         var snapshot = await db.ref('players/' + window.playerId + '/completedQuests').once('value');
         if (snapshot.exists()) {
@@ -11163,6 +11751,7 @@ async function claimPremiumQuest(questId, reward, type) {
                 window.completedQuests = dbCompleted;
                 localStorage.setItem('completedQuests_' + window.currentPlayer.id, JSON.stringify(window.completedQuests));
                 showToast('Награда уже получена!', 'warning');
+                showQuestLoading(false);
                 return;
             }
         }
@@ -11170,6 +11759,11 @@ async function claimPremiumQuest(questId, reward, type) {
         console.warn('⚠️ Ошибка проверки БД:', e);
     }
     
+    await claimPremiumQuestDirect(questId, reward, type);
+    showQuestLoading(false);
+}
+
+async function claimPremiumQuestDirect(questId, reward, type) {
     window.completedQuests.push(questId);
     await dbUpdate('players/' + window.playerId, { completedQuests: window.completedQuests });
     localStorage.setItem('completedQuests_' + window.currentPlayer.id, JSON.stringify(window.completedQuests));
@@ -11190,9 +11784,15 @@ async function claimPremiumQuest(questId, reward, type) {
 }
 
 // ============================================================
-// 18.15. ПОЛУЧЕНИЕ ЕЖЕДНЕВНОГО БОНУСА (ИСПРАВЛЕННОЕ)
+// 18.15. ПОЛУЧЕНИЕ ЕЖЕДНЕВНОГО БОНУСА (С ПРОВЕРКОЙ ИНТЕРНЕТА)
 // ============================================================
 async function claimDailyBonusFromModal() {
+    if (!window._questHasInternet) {
+        showToast('📡 Нет интернета, операция добавлена в очередь', 'warning');
+        addToPendingQuestOperations('claimBonus');
+        return;
+    }
+    
     var lastClaimDay = window.dailyBonus.lastClaimDay || 0;
     var nextDay = lastClaimDay + 1;
     
@@ -11203,7 +11803,17 @@ async function claimDailyBonusFromModal() {
     
     var bonusAmount = getDailyBonusAmount(nextDay);
     
-    // ✅ ИСПРАВЛЕННАЯ ЗАПИСЬ В БД (БЕЗ ТОЧЕК В КЛЮЧАХ)
+    showQuestLoading(true, '⏳ Получение бонуса...');
+    
+    await claimDailyBonusDirect();
+    showQuestLoading(false);
+}
+
+async function claimDailyBonusDirect() {
+    var lastClaimDay = window.dailyBonus.lastClaimDay || 0;
+    var nextDay = lastClaimDay + 1;
+    var bonusAmount = getDailyBonusAmount(nextDay);
+    
     await dbUpdate('players/' + window.playerId, {
         cigarettes: firebase.database.ServerValue.increment(bonusAmount),
         dailyBonus: {
@@ -11218,7 +11828,6 @@ async function claimDailyBonusFromModal() {
     window.dailyBonus.lastClaimTime = Date.now();
     window.dailyBonus.streak = (window.dailyBonus.streak || 0) + 1;
     
-    // Сохраняем в localStorage
     try {
         localStorage.setItem('dailyBonus_' + window.currentPlayer.id, JSON.stringify(window.dailyBonus));
     } catch(e) {}
@@ -11237,7 +11846,6 @@ function loadQuestsData() {
     
     console.log('📋 Загрузка данных заданий...');
     
-    // ✅ СНАЧАЛА ЗАГРУЖАЕМ ИЗ БД
     if (db && window.playerId) {
         db.ref('players/' + window.playerId + '/completedQuests').once('value', function(snapshot) {
             if (snapshot.exists()) {
@@ -11253,7 +11861,6 @@ function loadQuestsData() {
         });
     }
     
-    // ✅ ПОТОМ ИЗ localStorage (КАК ЗАПАСНОЙ ВАРИАНТ)
     try {
         var savedProgress = localStorage.getItem('questsProgress_' + window.currentPlayer.id);
         if (savedProgress) {
@@ -11265,10 +11872,8 @@ function loadQuestsData() {
         var savedCompleted = localStorage.getItem('completedQuests_' + window.currentPlayer.id);
         if (savedCompleted) {
             var parsed = JSON.parse(savedCompleted);
-            // Если в localStorage есть данные, но в БД их нет - используем localStorage
             if (window.completedQuests.length === 0 && parsed.length > 0) {
                 window.completedQuests = parsed;
-                // Сохраняем в БД
                 dbUpdate('players/' + window.playerId, { completedQuests: window.completedQuests });
                 console.log('✅ Восстановлено completedQuests из localStorage в БД:', window.completedQuests.length);
             }
@@ -11299,7 +11904,10 @@ function initQuests() {
         return;
     }
     
-    // ✅ ЗАГРУЖАЕМ ДАННЫЕ ИЗ БД
+    // Устанавливаем начальный статус интернета
+    window._questHasInternet = checkQuestInternetConnection();
+    console.log('🌐 Статус интернета (Задания):', window._questHasInternet ? 'онлайн' : 'офлайн');
+    
     if (db && window.playerId) {
         db.ref('players/' + window.playerId + '/completedQuests').once('value', function(snapshot) {
             if (snapshot.exists()) {
@@ -11310,12 +11918,10 @@ function initQuests() {
                     console.log('✅ Загружено completedQuests из БД:', window.completedQuests.length);
                 }
             }
-            // После загрузки - обновляем UI
             window.questNotificationCount = checkQuestsCompletion();
             updateQuestsBadge();
         }).catch(function(e) {
             console.warn('⚠️ Ошибка загрузки completedQuests из БД:', e);
-            // Если ошибка - пробуем из localStorage
             loadQuestsData();
         });
     }
@@ -11324,11 +11930,37 @@ function initQuests() {
     window.questNotificationCount = checkQuestsCompletion();
     updateQuestsBadge();
     
+    // Запускаем периодическую проверку интернета (каждые 5 секунд)
     if (window._questCheckInterval) {
         clearInterval(window._questCheckInterval);
     }
-    
     window._questCheckInterval = setInterval(function() {
+        var oldStatus = window._questHasInternet;
+        var newStatus = checkQuestInternetConnection();
+        
+        if (newStatus !== oldStatus) {
+            console.log('🔄 ЗАДАНИЯ: статус интернета изменился:', oldStatus, '->', newStatus);
+            window._questHasInternet = newStatus;
+            
+            // Обновляем UI
+            var modal = document.getElementById('questsFullscreen');
+            if (modal) {
+                updateQuestsUI();
+                // Перерисовываем страницы для обновления кнопок
+                if (window.currentQuestsTab === 1) renderStoryPage();
+                else if (window.currentQuestsTab === 2) renderDailyPage();
+                else if (window.currentQuestsTab === 3) renderPremiumPage();
+            }
+            
+            if (window._questHasInternet) {
+                processPendingQuestOperations();
+                showToast('🌐 Интернет восстановлен!', 'success');
+            } else {
+                showToast('📡 Интернет потерян!', 'error');
+            }
+        }
+        
+        // Также проверяем новые выполненные задания
         if (!window.currentPlayer) {
             if (window._questCheckInterval) {
                 clearInterval(window._questCheckInterval);
@@ -11349,47 +11981,10 @@ function initQuests() {
                 if (window.currentQuestsTab === 3) renderPremiumPage();
             }
         }
-    }, 30000);
+    }, 5000);
     
     console.log('✅ Задания инициализированы');
     console.log('📋 Доступно наград:', window.questNotificationCount);
-}
-
-async function syncQuestsWithDB() {
-    if (!window.currentPlayer || !window.playerId) {
-        console.warn('❌ Нет игрока для синхронизации заданий');
-        return;
-    }
-    
-    try {
-        var snapshot = await db.ref('players/' + window.playerId + '/completedQuests').once('value');
-        if (snapshot.exists()) {
-            var dbCompleted = snapshot.val();
-            if (dbCompleted && Array.isArray(dbCompleted)) {
-                // Объединяем с локальными (сохраняем уникальные)
-                var merged = window.completedQuests || [];
-                for (var i = 0; i < dbCompleted.length; i++) {
-                    if (!merged.includes(dbCompleted[i])) {
-                        merged.push(dbCompleted[i]);
-                    }
-                }
-                window.completedQuests = merged;
-                localStorage.setItem('completedQuests_' + window.currentPlayer.id, JSON.stringify(window.completedQuests));
-                await dbUpdate('players/' + window.playerId, { completedQuests: window.completedQuests });
-                console.log('✅ Задания синхронизированы с БД:', window.completedQuests.length);
-                return true;
-            }
-        }
-        // Если в БД пусто - сохраняем локальные
-        if (window.completedQuests && window.completedQuests.length > 0) {
-            await dbUpdate('players/' + window.playerId, { completedQuests: window.completedQuests });
-            console.log('✅ Локальные задания сохранены в БД:', window.completedQuests.length);
-        }
-        return false;
-    } catch (e) {
-        console.error('❌ Ошибка синхронизации заданий:', e);
-        return false;
-    }
 }
 
 // ============================================================
@@ -11408,282 +12003,21 @@ window.claimDailyBonusFromModal = claimDailyBonusFromModal;
 window.loadQuestsData = loadQuestsData;
 window.initQuests = initQuests;
 
-console.log('✅ Блок ЗАДАНИЯ полностью загружен');
+// Экспорт функций проверки интернета
+window.checkQuestInternetConnection = checkQuestInternetConnection;
+window.updateQuestInternetStatus = updateQuestInternetStatus;
+window.addToPendingQuestOperations = addToPendingQuestOperations;
+window.processPendingQuestOperations = processPendingQuestOperations;
+window.showQuestLoading = showQuestLoading;
+window.updateQuestsUI = updateQuestsUI;
+window.renderQuestsModal = renderQuestsModal;
+window.openQuestsModalDirect = openQuestsModalDirect;
+window.claimStoryQuestDirect = claimStoryQuestDirect;
+window.claimDailyQuestDirect = claimDailyQuestDirect;
+window.claimPremiumQuestDirect = claimPremiumQuestDirect;
+window.claimDailyBonusDirect = claimDailyBonusDirect;
 
-// ============================================================
-// 18.19. ОБНОВЛЕНИЕ ПРОГРЕССА ЗАДАНИЙ
-// ============================================================
-async function updateQuestProgress(type, value) {
-    if (!window.currentPlayer) return;
-    
-    console.log('📊 Обновление прогресса задания:', type, value);
-    
-    if (!window.questsProgress) {
-        window.questsProgress = {};
-    }
-    if (!window.questsProgress[type]) {
-        window.questsProgress[type] = 0;
-    }
-    window.questsProgress[type] += value;
-    
-    try {
-        localStorage.setItem('questsProgress_' + window.currentPlayer.id, JSON.stringify(window.questsProgress));
-    } catch(e) {}
-    
-    var newCount = checkQuestsCompletion();
-    if (newCount > window.questNotificationCount) {
-        window.questNotificationCount = newCount;
-        updateQuestsBadge();
-        showToast('📋 У вас новые выполненные задания!', 'success');
-    }
-    
-    var modal = document.getElementById('questsFullscreen');
-    if (modal) {
-        if (window.currentQuestsTab === 1) renderStoryPage();
-        if (window.currentQuestsTab === 2) renderDailyPage();
-        if (window.currentQuestsTab === 3) renderPremiumPage();
-    }
-}
-
-// ============================================================
-// 18.20. ПРОВЕРКА ВРЕМЕНИ ДЛЯ СБРОСА ЕЖЕДНЕВНЫХ ЗАДАНИЙ
-// ============================================================
-function checkDailyReset() {
-    if (!window.currentPlayer) return;
-    
-    var lastReset = localStorage.getItem('dailyReset_' + window.currentPlayer.id);
-    var now = Date.now();
-    var today = new Date(now).toDateString();
-    
-    if (!lastReset || new Date(parseInt(lastReset)).toDateString() !== today) {
-        resetDailyQuests();
-        localStorage.setItem('dailyReset_' + window.currentPlayer.id, now.toString());
-        console.log('✅ Ежедневные задания сброшены (новый день)');
-    }
-}
-
-// ============================================================
-// 18.21. СБРОС ЕЖЕДНЕВНЫХ ЗАДАНИЙ
-// ============================================================
-function resetDailyQuests() {
-    if (!window.currentPlayer) return;
-    
-    console.log('🔄 Сброс ежедневных заданий...');
-    
-    var dailyQuestIds = getDailyQuests().map(function(q) { return q.id; });
-    window.completedQuests = window.completedQuests.filter(function(id) {
-        return !dailyQuestIds.includes(id);
-    });
-    
-    window.questsProgress = {};
-    
-    try {
-        localStorage.setItem('completedQuests_' + window.currentPlayer.id, JSON.stringify(window.completedQuests));
-        localStorage.setItem('questsProgress_' + window.currentPlayer.id, JSON.stringify(window.questsProgress));
-    } catch(e) {}
-    
-    window.questNotificationCount = checkQuestsCompletion();
-    updateQuestsBadge();
-    
-    var modal = document.getElementById('questsFullscreen');
-    if (modal) {
-        renderDailyPage();
-    }
-    
-    console.log('✅ Ежедневные задания сброшены');
-}
-
-// ============================================================
-// 18.22. ОТКРЫТИЕ ЗАДАНИЙ ИЗ НИЖНЕЙ ПАНЕЛИ
-// ============================================================
-window.openQuestsFromBottom = function() {
-    if (!window.currentPlayer) {
-        showToast('❌ Игрок не найден!', 'error');
-        return;
-    }
-    
-    openQuestsModal();
-    
-    var navBtns = document.querySelectorAll('.nav-btn');
-    navBtns.forEach(function(btn) {
-        btn.classList.remove('active');
-        var img = btn.querySelector('img');
-        if (img && img.src && img.src.includes('Untitled_5')) {
-            btn.classList.add('active');
-        }
-    });
-};
-
-// ============================================================
-// 18.23. ПОЛУЧЕНИЕ ВСЕХ ЗАДАНИЙ
-// ============================================================
-function getAllQuests() {
-    var storyQuests = getStoryQuests();
-    var dailyQuests = getDailyQuests();
-    var premiumQuests = getPremiumQuests();
-    
-    return {
-        story: storyQuests,
-        daily: dailyQuests,
-        premium: premiumQuests,
-        all: storyQuests.concat(dailyQuests, premiumQuests)
-    };
-}
-
-// ============================================================
-// 18.24. ПРОВЕРКА ВЫПОЛНЕНИЯ ЗАДАНИЯ
-// ============================================================
-function isQuestCompleted(questId) {
-    return window.completedQuests && window.completedQuests.includes(questId);
-}
-
-// ============================================================
-// 18.25. ПОЛУЧЕНИЕ ПРОГРЕССА ЗАДАНИЯ
-// ============================================================
-function getQuestProgress(questId) {
-    var allQuests = getAllQuests().all;
-    var quest = allQuests.find(function(q) { return q.id === questId; });
-    
-    if (!quest) return { current: 0, required: 0, progress: 0 };
-    
-    var current = quest.current || 0;
-    var required = quest.requirement || 1;
-    var progress = Math.min(100, (current / required) * 100);
-    
-    return { current: current, required: required, progress: progress };
-}
-
-// ============================================================
-// 18.26. ПОКАЗАТЬ СТАТИСТИКУ ЗАДАНИЙ
-// ============================================================
-function showQuestsStats() {
-    console.log('📊 СТАТИСТИКА ЗАДАНИЙ:');
-    console.log('  📋 Завершенных заданий:', window.completedQuests ? window.completedQuests.length : 0);
-    console.log('  🎁 Доступно наград:', window.questNotificationCount || 0);
-    console.log('  📅 Ежедневный бонус:', window.dailyBonus);
-    console.log('  📈 Прогресс:', window.questsProgress || {});
-    
-    var storyQuests = getStoryQuests();
-    var dailyQuests = getDailyQuests();
-    var premiumQuests = getPremiumQuests();
-    
-    console.log('  📖 Сюжетных:', storyQuests.length);
-    console.log('  📅 Ежедневных:', dailyQuests.length);
-    console.log('  ⭐ Премиум:', premiumQuests.length);
-}
-
-// ============================================================
-// 18.27. ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ ВСЕХ ЗАДАНИЙ
-// ============================================================
-function refreshAllQuests() {
-    console.log('🔄 Принудительное обновление всех заданий...');
-    
-    window.questNotificationCount = checkQuestsCompletion();
-    updateQuestsBadge();
-    
-    var modal = document.getElementById('questsFullscreen');
-    if (modal) {
-        renderStoryPage();
-        renderDailyPage();
-        renderPremiumPage();
-    }
-    
-    showToast('✅ Задания обновлены!', 'success');
-    console.log('✅ Задания обновлены, доступно наград:', window.questNotificationCount);
-}
-
-// ============================================================
-// 18.28. ОСТАНОВКА ЗАДАНИЙ (ПРИ ВЫХОДЕ)
-// ============================================================
-function stopQuests() {
-    if (window._questCheckInterval) {
-        clearInterval(window._questCheckInterval);
-        window._questCheckInterval = null;
-    }
-    
-    if (window.questNotificationInterval) {
-        clearInterval(window.questNotificationInterval);
-        window.questNotificationInterval = null;
-    }
-    
-    try {
-        if (window.completedQuests) {
-            localStorage.setItem('completedQuests_' + window.currentPlayer.id, JSON.stringify(window.completedQuests));
-        }
-        if (window.dailyBonus) {
-            localStorage.setItem('dailyBonus_' + window.currentPlayer.id, JSON.stringify(window.dailyBonus));
-        }
-        if (window.questsProgress) {
-            localStorage.setItem('questsProgress_' + window.currentPlayer.id, JSON.stringify(window.questsProgress));
-        }
-    } catch(e) {}
-    
-    console.log('🛑 Задания остановлены');
-}
-
-// ============================================================
-// 18.29. ИНИЦИАЛИЗАЦИЯ ЗАДАНИЙ ПРИ СТАРТЕ
-// ============================================================
-function initQuestsFull() {
-    console.log('🔄 Полная инициализация заданий...');
-    
-    if (!window.currentPlayer) {
-        console.log('❌ Нет игрока');
-        return;
-    }
-    
-    loadQuestsData();
-    checkDailyReset();
-    window.questNotificationCount = checkQuestsCompletion();
-    updateQuestsBadge();
-    
-    if (window._questCheckInterval) {
-        clearInterval(window._questCheckInterval);
-    }
-    
-    window._questCheckInterval = setInterval(function() {
-        if (!window.currentPlayer) {
-            if (window._questCheckInterval) {
-                clearInterval(window._questCheckInterval);
-                window._questCheckInterval = null;
-            }
-            return;
-        }
-        
-        var newCount = checkQuestsCompletion();
-        if (newCount !== window.questNotificationCount) {
-            window.questNotificationCount = newCount;
-            updateQuestsBadge();
-            
-            var modal = document.getElementById('questsFullscreen');
-            if (modal) {
-                if (window.currentQuestsTab === 1) renderStoryPage();
-                if (window.currentQuestsTab === 2) renderDailyPage();
-                if (window.currentQuestsTab === 3) renderPremiumPage();
-            }
-        }
-    }, 30000);
-    
-    console.log('✅ Задания полностью инициализированы');
-    console.log('📋 Доступно наград:', window.questNotificationCount);
-}
-
-// ============================================================
-// 18.30. ЭКСПОРТ ВСЕХ ФУНКЦИЙ
-// ============================================================
-window.updateQuestProgress = updateQuestProgress;
-window.checkDailyReset = checkDailyReset;
-window.resetDailyQuests = resetDailyQuests;
-window.openQuestsFromBottom = openQuestsFromBottom;
-window.getAllQuests = getAllQuests;
-window.isQuestCompleted = isQuestCompleted;
-window.getQuestProgress = getQuestProgress;
-window.showQuestsStats = showQuestsStats;
-window.refreshAllQuests = refreshAllQuests;
-window.stopQuests = stopQuests;
-window.initQuestsFull = initQuestsFull;
-
-console.log('✅ Блок ЗАДАНИЯ полностью загружен');
+console.log('✅ Блок ЗАДАНИЯ полностью загружен с проверкой интернета');
 
 // ============================================================
 // 19. СИЗО (БАНДА) - ПОЛНАЯ ВЕРСИЯ С АВТОНОМНЫМИ СЧЕТЧИКАМИ И ПРОВЕРКОЙ ИНТЕРНЕТА
@@ -16428,9 +16762,482 @@ window.checkNotificationsForPlayer = checkNotificationsForPlayer;
 
 console.log('✅ КЛАН: блок полностью загружен');
 console.log('🎯 КЛАН: все функции работают онлайн!');
+// ============================================================
+// 20.19. ДОПОЛНИТЕЛЬНЫЕ ФУНКЦИИ ДЛЯ УПРАВЛЕНИЯ СТАТУСАМИ ЗАЯВОК
+// ============================================================
+
+// Сохранение статуса заявки в localStorage
+function saveRequestStatus(playerId, clanId, status) {
+    if (!playerId || !clanId) return;
+    
+    var key = 'requestStatus_' + playerId + '_' + clanId;
+    var data = {
+        status: status,
+        timestamp: Date.now()
+    };
+    
+    try {
+        localStorage.setItem(key, JSON.stringify(data));
+        console.log('✅ Статус заявки сохранен:', playerId, clanId, status);
+    } catch(e) {
+        console.warn('⚠️ Ошибка сохранения статуса заявки:', e);
+    }
+}
+
+// Получение статуса заявки из localStorage
+function getRequestStatusFromStorage(playerId, clanId) {
+    if (!playerId || !clanId) return null;
+    
+    var key = 'requestStatus_' + playerId + '_' + clanId;
+    
+    try {
+        var data = localStorage.getItem(key);
+        if (data) {
+            var parsed = JSON.parse(data);
+            return parsed;
+        }
+    } catch(e) {
+        console.warn('⚠️ Ошибка чтения статуса заявки:', e);
+    }
+    
+    return null;
+}
+
+// Очистка статуса заявки
+function clearRequestStatus(playerId, clanId) {
+    if (!playerId || !clanId) return;
+    
+    var key = 'requestStatus_' + playerId + '_' + clanId;
+    
+    try {
+        localStorage.removeItem(key);
+        console.log('✅ Статус заявки очищен:', playerId, clanId);
+    } catch(e) {
+        console.warn('⚠️ Ошибка очистки статуса заявки:', e);
+    }
+}
+
+// Проверка статуса заявки для кнопки
+function getRequestButtonStatus(clanId) {
+    if (!currentPlayer) return { type: 'none', text: '📝 ПОДАТЬ ЗАЯВКУ', disabled: false };
+    
+    // Если игрок уже в клане
+    if (currentPlayer.clanId === clanId) {
+        return { type: 'member', text: '✅ ВЫ В КЛАНЕ', disabled: true, color: '#4caf50' };
+    }
+    
+    // Проверяем статус заявки
+    var status = getRequestStatusFromStorage(currentPlayer.id, clanId);
+    
+    if (status) {
+        if (status.status === 'pending') {
+            return { type: 'pending', text: '⏳ ЗАЯВКА ПОДАНА', disabled: true, color: '#888' };
+        } else if (status.status === 'rejected') {
+            return { type: 'rejected', text: '❌ ЗАЯВКА ОТКЛОНЕНА', disabled: true, color: '#e94560' };
+        } else if (status.status === 'kicked') {
+            return { type: 'kicked', text: '❌ ИЗГНАН ИЗ КЛАНА', disabled: true, color: '#e94560' };
+        }
+    }
+    
+    // Проверяем старый формат (sentRequests)
+    var sentRequests = JSON.parse(localStorage.getItem('sentRequests_' + currentPlayer.id) || '[]');
+    if (sentRequests.includes(clanId)) {
+        return { type: 'pending', text: '⏳ ЗАЯВКА ПОДАНА', disabled: true, color: '#888' };
+    }
+    
+    return { type: 'none', text: '📝 ПОДАТЬ ЗАЯВКУ', disabled: false };
+}
+
+// Обновление функции sendJoinRequest с проверкой статуса
+async function sendJoinRequest(clanId) {
+    if (!currentPlayer) {
+        showToast('❌ Игрок не найден!', 'error');
+        return;
+    }
+    if (currentPlayer.clanId) {
+        showToast('❌ Вы уже в клане!', 'warning');
+        return;
+    }
+    
+    // Проверяем статус заявки
+    var status = getRequestStatusFromStorage(currentPlayer.id, clanId);
+    if (status && (status.status === 'rejected' || status.status === 'kicked')) {
+        showToast('❌ Вы не можете подать заявку в этот клан', 'error');
+        return;
+    }
+    
+    if (!isDBReady()) {
+        showToast('❌ База данных не доступна!', 'error');
+        return;
+    }
+    
+    var clan = window.allClans.find(function(c) { return c.id === clanId; });
+    if (!clan) {
+        showToast('❌ Клан не найден!', 'error');
+        return;
+    }
+    
+    try {
+        var ref = getDBRef('clanJoinRequests/' + clanId);
+        if (!ref) {
+            showToast('❌ Ошибка доступа к БД!', 'error');
+            return;
+        }
+        
+        var snapshot = await ref.once('value');
+        var requests = snapshot.exists() ? snapshot.val() || [] : [];
+        
+        var alreadySent = false;
+        if (Array.isArray(requests)) {
+            for (var i = 0; i < requests.length; i++) {
+                if (requests[i].playerId === currentPlayer.id) {
+                    alreadySent = true;
+                    break;
+                }
+            }
+        }
+        
+        if (alreadySent) {
+            showToast('⏳ Вы уже отправили заявку!', 'warning');
+            return;
+        }
+        
+        var newRequest = {
+            playerId: currentPlayer.id,
+            playerName: currentPlayer.username,
+            playerLevel: currentPlayer.level || 1,
+            playerPower: calculatePlayerPower(currentPlayer) || 0,
+            playerCigarettes: currentPlayer.cigarettes || 0,
+            playerRubles: currentPlayer.rubles || 0,
+            playerGang: getGangInfoString(currentPlayer),
+            status: 'pending',
+            timestamp: Date.now()
+        };
+        
+        if (!Array.isArray(requests)) requests = [];
+        requests.push(newRequest);
+        await ref.set(requests);
+        
+        // ✅ СОХРАНЯЕМ СТАТУС ЗАЯВКИ
+        saveRequestStatus(currentPlayer.id, clanId, 'pending');
+        
+        // ✅✅✅ ОТПРАВЛЯЕМ УВЕДОМЛЕНИЕ ГЛАВАРЮ КЛАНА
+        if (clan && clan.leaderId) {
+            var notificationMessage = '👤 Игрок ' + currentPlayer.username + ' (ур.' + currentPlayer.level + ', 💪' + calculatePlayerPower(currentPlayer) + ') хочет вступить в ваш клан "' + clan.name + '"!';
+            await sendNotificationToPlayer(
+                clan.leaderId,
+                'clan',
+                '📝 Новая заявка в клан',
+                notificationMessage
+            );
+            console.log('📨 Уведомление главарю отправлено о заявке');
+        }
+        
+        showToast('✅ Заявка отправлена в клан "' + clan.name + '"!', 'success');
+        updateTopBarResources();
+        updateClanNotificationBadge();
+        
+        // ✅ ОБНОВЛЯЕМ КНОПКУ В ПОИСКЕ
+        if (typeof updateClanSearchResults === 'function') {
+            updateClanSearchResults();
+        }
+    } catch (e) {
+        console.error('❌ КЛАН: ошибка отправки заявки:', e);
+        showToast('❌ Ошибка отправки заявки!', 'error');
+    }
+}
+
+// Обновленная функция выхода из клана
+async function leaveClanFromModal() {
+    if (!currentPlayer.clanId) {
+        showToast('❌ Вы не в клане!', 'warning');
+        return;
+    }
+    if (!confirm('⚠️ Точно выйти из клана?')) return;
+    
+    if (!isDBReady()) {
+        showToast('❌ База данных не доступна!', 'error');
+        return;
+    }
+    
+    try {
+        var clanId = currentPlayer.clanId;
+        var clanName = '';
+        var clanLeaderId = '';
+        var playerName = currentPlayer.username;
+        
+        // Получаем информацию о клане
+        var clanRef = getDBRef('clans/' + clanId);
+        if (!clanRef) {
+            showToast('❌ Ошибка доступа к БД!', 'error');
+            return;
+        }
+        
+        var clanSnapshot = await clanRef.once('value');
+        if (clanSnapshot.exists()) {
+            var clanData = clanSnapshot.val();
+            clanName = clanData.name || 'неизвестный';
+            clanLeaderId = clanData.leaderId || '';
+            
+            var members = clanData.members || [];
+            var membersIds = clanData.membersIds || [];
+            
+            var newMembers = members.filter(function(m) { return m !== currentPlayer.username; });
+            var newMembersIds = membersIds.filter(function(id) { return id !== currentPlayer.id; });
+            
+            await clanRef.update({
+                members: newMembers,
+                membersIds: newMembersIds
+            });
+        }
+        
+        var playerRef = getDBRef('players/' + currentPlayer.id);
+        if (playerRef) {
+            await playerRef.update({ 
+                clanId: null, 
+                clanLeader: null 
+            });
+        }
+        
+        // ✅ ОЧИЩАЕМ СТАТУС ЗАЯВКИ ПРИ ВЫХОДЕ
+        clearRequestStatus(currentPlayer.id, clanId);
+        
+        // ✅ УДАЛЯЕМ ИЗ sentRequests (старый формат)
+        var sentRequests = JSON.parse(localStorage.getItem('sentRequests_' + currentPlayer.id) || '[]');
+        var newSent = sentRequests.filter(function(id) { return id !== clanId; });
+        localStorage.setItem('sentRequests_' + currentPlayer.id, JSON.stringify(newSent));
+        
+        // ✅✅✅ ОТПРАВЛЯЕМ УВЕДОМЛЕНИЕ ГЛАВАРЮ
+        if (clanLeaderId && clanLeaderId !== currentPlayer.id) {
+            var notificationMessage = '👤 Игрок ' + playerName + ' покинул ваш клан "' + clanName + '"!';
+            await sendNotificationToPlayer(
+                clanLeaderId,
+                'clan',
+                '👋 Выход из клана',
+                notificationMessage
+            );
+            console.log('📨 Уведомление главарю отправлено о выходе');
+        }
+        
+        currentPlayer.clanId = null;
+        currentPlayer.clanLeader = null;
+        
+        // Отписываемся от слушателей
+        if (window._clanListeners.clan) {
+            try { window._clanListeners.clan(); } catch(e) {}
+            window._clanListeners.clan = null;
+        }
+        if (window._clanListeners.members) {
+            try { window._clanListeners.members(); } catch(e) {}
+            window._clanListeners.members = null;
+        }
+        if (window._clanListeners.requests) {
+            try { window._clanListeners.requests(); } catch(e) {}
+            window._clanListeners.requests = null;
+        }
+        
+        localStorage.removeItem('clanQuests_' + clanId);
+        
+        showToast('👋 Вы вышли из клана', 'success');
+        await loadAllClans();
+        updateTopBarResources();
+        updateClanNotificationBadge();
+        
+        // ✅ ОБНОВЛЯЕМ КНОПКУ В ПОИСКЕ
+        if (typeof updateClanSearchResults === 'function') {
+            updateClanSearchResults();
+        }
+        
+        if (document.getElementById('clanFullscreen')) {
+            updateClanUI();
+        }
+    } catch (e) { 
+        console.error('❌ КЛАН: ошибка выхода:', e);
+        showToast('❌ Ошибка: ' + e.message, 'error'); 
+    }
+}
+
+// Обновленная функция исключения из клана
+async function kickFromClan(memberId, memberName) {
+    if (!currentPlayer || currentPlayer.username !== currentPlayer.clanLeader) {
+        showToast('❌ Только главарь может исключать участников!', 'error');
+        return;
+    }
+    if (memberName === currentPlayer.username) {
+        showToast('❌ Нельзя исключить самого себя!', 'warning');
+        return;
+    }
+    if (!confirm('Исключить ' + memberName + ' из клана?')) return;
+    
+    if (!isDBReady()) {
+        showToast('❌ База данных не доступна!', 'error');
+        return;
+    }
+
+    try {
+        var clanId = currentPlayer.clanId;
+        var clanName = '';
+
+        var clanRef = getDBRef('clans/' + clanId);
+        if (!clanRef) {
+            showToast('❌ Ошибка доступа к БД!', 'error');
+            return;
+        }
+        
+        var clanSnapshot = await clanRef.once('value');
+        if (clanSnapshot.exists()) {
+            var clanData = clanSnapshot.val();
+            clanName = clanData.name || 'неизвестный';
+            var members = clanData.members || [];
+            var membersIds = clanData.membersIds || [];
+            
+            var newMembers = members.filter(function(m) { return m !== memberName; });
+            var newMembersIds = membersIds.filter(function(id) { return id !== memberId; });
+            
+            await clanRef.update({
+                members: newMembers,
+                membersIds: newMembersIds
+            });
+        }
+
+        var playerRef = getDBRef('players/' + memberId);
+        if (playerRef) {
+            await playerRef.update({
+                clanId: null,
+                clanLeader: null
+            });
+        }
+
+        // ✅ СОХРАНЯЕМ СТАТУС ИЗГНАНИЯ
+        saveRequestStatus(memberId, clanId, 'kicked');
+        
+        // ✅ УДАЛЯЕМ ИЗ sentRequests (старый формат)
+        var sentRequests = JSON.parse(localStorage.getItem('sentRequests_' + memberId) || '[]');
+        var newSent = sentRequests.filter(function(id) { return id !== clanId; });
+        localStorage.setItem('sentRequests_' + memberId, JSON.stringify(newSent));
+
+        // ✅✅✅ ОТПРАВЛЯЕМ УВЕДОМЛЕНИЕ ОБ ИЗГНАНИИ
+        var notificationData = {
+            id: Date.now(),
+            type: 'clan',
+            title: '❌ ИСКЛЮЧЕН ИЗ КЛАНА',
+            message: 'Главарь ' + currentPlayer.username + ' исключил вас из клана "' + clanName + '"!',
+            timestamp: Date.now(),
+            read: false
+        };
+        await saveNotificationToPlayer(memberId, notificationData);
+
+        showToast('✅ ' + memberName + ' исключен из клана!', 'success');
+        updateTopBarResources();
+        updateClanNotificationBadge();
+        
+        // ✅ ОБНОВЛЯЕМ КНОПКУ В ПОИСКЕ
+        if (typeof updateClanSearchResults === 'function') {
+            updateClanSearchResults();
+        }
+        
+        if (document.getElementById('clanFullscreen')) {
+            updateClanUI();
+        }
+    } catch (e) {
+        console.error('❌ КЛАН: ошибка исключения:', e);
+        showToast('❌ Ошибка при исключении: ' + e.message, 'error');
+    }
+}
+
+// Обновленная функция рендера поиска с новыми статусами
+function updateClanSearchResults() {
+    var input = document.getElementById('clanSearchInput');
+    var results = document.getElementById('clanSearchResults');
+    if (!input || !results) return;
+
+    var query = input.value.toLowerCase() || '';
+    var filtered = window.allClans.filter(function(c) { 
+        return c.name.toLowerCase().includes(query); 
+    });
+
+    if (filtered.length === 0) {
+        results.innerHTML = '<div style="text-align:center; padding:20px; color:#888;">🔍 Нет кланов</div>';
+        return;
+    }
+
+    results.innerHTML = filtered.map(function(c) {
+        var buttonStatus = getRequestButtonStatus(c.id);
+        var buttonHtml = '';
+        
+        if (buttonStatus.type === 'member') {
+            buttonHtml = '<button class="btn-primary" disabled style="width: 70%; padding: 8px; background:#4caf50; opacity:0.7; color:white; border-color:#4caf50; cursor:not-allowed; border-radius:30px; font-size:12px; font-weight:700;">✅ ВЫ В КЛАНЕ</button>';
+        } else if (buttonStatus.type === 'pending') {
+            buttonHtml = '<button class="btn-primary" disabled style="width: 70%; padding: 8px; background:#555; opacity:0.7; color:#aaa; border-color:#888; cursor:not-allowed; border-radius:30px; font-size:12px; font-weight:700;">⏳ ЗАЯВКА ПОДАНА</button>';
+        } else if (buttonStatus.type === 'rejected' || buttonStatus.type === 'kicked') {
+            buttonHtml = '<button class="btn-primary" disabled style="width: 70%; padding: 8px; background:#8B1a1a; opacity:0.7; color:#e94560; border-color:#e94560; cursor:not-allowed; border-radius:30px; font-size:12px; font-weight:700;">❌ ' + (buttonStatus.type === 'kicked' ? 'ИЗГНАН' : 'ЗАЯВКА ОТКЛОНЕНА') + '</button>';
+        } else {
+            buttonHtml = '<button class="btn-primary" style="width: 70%; padding: 8px; background: linear-gradient(135deg, #8B4513, #5a2d0a); border: 1px solid #c9a03d; border-radius:30px; font-size:12px; font-weight:700; color:#ffd966; cursor:pointer; transition:all 0.2s;" onclick="sendJoinRequest(\'' + c.id + '\')">📝 ПОДАТЬ ЗАЯВКУ</button>';
+        }
+        
+        return `
+            <div style="background:rgba(30,36,64,0.6); border-radius:16px; padding:12px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                    <strong style="color:#ffd966;">${escapeHtml(c.name)}</strong><br>
+                    <small style="color:#888;">👑 ${escapeHtml(c.leader)} | 👥 ${(c.membersIds || []).length || 0} уч. | 📈 ур.${c.level || 1}</small>
+                </div>
+                ${buttonHtml}
+            </div>
+        `;
+    }).join('');
+}
 
 // ============================================================
-// 21. СИСТЕМА ОПОВЕЩЕНИЯ (ПОЛНАЯ ВЕРСИЯ)
+// 20.20. ЭКСПОРТ ВСЕХ ФУНКЦИЙ
+// ============================================================
+
+window.loadAllClans = loadAllClans;
+window.loadClanFast = loadClanFast;
+window.sendJoinRequest = sendJoinRequest;
+window.acceptJoinRequest = acceptJoinRequest;
+window.rejectJoinRequest = rejectJoinRequest;
+window.createClanFromModal = createClanFromModal;
+window.leaveClanFromModal = leaveClanFromModal;
+window.kickFromClan = kickFromClan;
+window.callToWar = callToWar;
+window.toggleDefenseFromModal = toggleDefenseFromModal;
+window.donateToClanFromModal = donateToClanFromModal;
+window.autoUpgradeClanLevel = autoUpgradeClanLevel;
+window.upgradeClanLevel = upgradeClanLevel;
+window.initClanQuests = initClanQuests;
+window.loadClanQuests = loadClanQuests;
+window.startClanQuests = startClanQuests;
+window.checkClanQuestsReady = checkClanQuestsReady;
+window.claimClanQuestInternal = claimClanQuestInternal;
+window.claimClanQuestExternal = claimClanQuestExternal;
+window.renderClanQuestsHTML = renderClanQuestsHTML;
+window.startClanQuestsTimer = startClanQuestsTimer;
+window.switchClanTab = switchClanTab;
+window.openClanFullModal = openClanFullModal;
+window.closeClanFullModal = closeClanFullModal;
+window.initClanSystem = initClanSystem;
+window.updateClanNotificationBadge = updateClanNotificationBadge;
+window.updateClanUI = updateClanUI;
+window.toggleMemberDetails = toggleMemberDetails;
+window.subscribeToClan = subscribeToClan;
+window.subscribeToClanMembers = subscribeToClanMembers;
+window.subscribeToClanRequests = subscribeToClanRequests;
+window.loadClanJoinRequests = loadClanJoinRequests;
+window.isDBReady = isDBReady;
+window.saveNotificationToPlayer = saveNotificationToPlayer;
+window.checkNotificationsForPlayer = checkNotificationsForPlayer;
+
+// Новые функции для управления статусами заявок
+window.saveRequestStatus = saveRequestStatus;
+window.getRequestStatusFromStorage = getRequestStatusFromStorage;
+window.clearRequestStatus = clearRequestStatus;
+window.getRequestButtonStatus = getRequestButtonStatus;
+window.updateClanSearchResults = updateClanSearchResults;
+
+console.log('✅ КЛАН: блок полностью загружен с новой системой статусов заявок');
+console.log('🎯 КЛАН: все функции работают онлайн!');
+// ============================================================
+// 21. СИСТЕМА ОПОВЕЩЕНИЯ (ПОЛНАЯ ВЕРСИЯ С ПРОВЕРКОЙ ИНТЕРНЕТА)
 // ============================================================
 
 // ============================================================
@@ -16451,8 +17258,199 @@ if (typeof window.settingsNotifications === 'undefined') {
 if (typeof window._notificationListeners === 'undefined') {
     window._notificationListeners = {};
 }
+// Переменные для проверки интернета
+if (typeof window._notifHasInternet === 'undefined') {
+    window._notifHasInternet = navigator.onLine !== false;
+}
+if (typeof window._notifCheckInterval === 'undefined') {
+    window._notifCheckInterval = null;
+}
+if (typeof window._notifOpeningModal === 'undefined') {
+    window._notifOpeningModal = false;
+}
+if (typeof window._pendingNotifOperations === 'undefined') {
+    window._pendingNotifOperations = [];
+}
 
 console.log('✅ СИСТЕМА ОПОВЕЩЕНИЯ: переменные инициализированы');
+
+// ============================================================
+// 21.0.1. ПРОВЕРКА ИНТЕРНЕТА ДЛЯ СИСТЕМЫ ОПОВЕЩЕНИЯ
+// ============================================================
+function checkNotifInternetConnection() {
+    return navigator.onLine !== false;
+}
+
+function updateNotifInternetStatus() {
+    var newStatus = checkNotifInternetConnection();
+    
+    if (newStatus !== window._notifHasInternet) {
+        console.log('🔄 ОПОВЕЩЕНИЯ: статус интернета изменен:', window._notifHasInternet, '->', newStatus);
+        window._notifHasInternet = newStatus;
+        
+        // Обновляем UI
+        updateNotificationUI();
+        
+        if (window._notifHasInternet) {
+            // Если интернет появился - выполняем ожидающие операции
+            processPendingNotifOperations();
+            showToast('🌐 Интернет восстановлен!', 'success');
+        } else {
+            showToast('📡 Интернет потерян!', 'error');
+        }
+    }
+    
+    return window._notifHasInternet;
+}
+
+// ============================================================
+// 21.0.2. ОЧЕРЕДЬ ОПЕРАЦИЙ ДЛЯ ОПОВЕЩЕНИЙ
+// ============================================================
+function addToPendingNotifOperations(operation, data) {
+    window._pendingNotifOperations.push({
+        operation: operation,
+        data: data || null,
+        timestamp: Date.now()
+    });
+    console.log('📨 Операция добавлена в очередь ожидания (интернет отсутствует):', operation);
+}
+
+async function processPendingNotifOperations() {
+    if (!window._notifHasInternet) {
+        console.log('📡 Интернет все еще отсутствует, выполнение отложено');
+        return;
+    }
+    
+    if (window._pendingNotifOperations.length === 0) {
+        console.log('📨 Нет ожидающих операций Оповещений');
+        return;
+    }
+    
+    console.log('📨 Выполнение ' + window._pendingNotifOperations.length + ' ожидающих операций Оповещений...');
+    
+    var operationsToProcess = window._pendingNotifOperations.slice();
+    window._pendingNotifOperations = [];
+    
+    for (var i = 0; i < operationsToProcess.length; i++) {
+        var op = operationsToProcess[i];
+        try {
+            if (op.operation === 'openModal') {
+                await renderNotificationsModalDirect();
+                console.log('✅ Открыто окно уведомлений');
+            } else if (op.operation === 'loadNotifs') {
+                await loadNotificationsFromFirebaseDirect();
+                console.log('✅ Загружены уведомления');
+            }
+        } catch (e) {
+            console.error('❌ Ошибка выполнения ожидающей операции:', e);
+            window._pendingNotifOperations.push(op);
+        }
+    }
+    
+    if (window._pendingNotifOperations.length > 0) {
+        console.log('📨 ' + window._pendingNotifOperations.length + ' операций осталось в очереди');
+    } else {
+        console.log('✅ Все ожидающие операции Оповещений выполнены');
+    }
+}
+
+// ============================================================
+// 21.0.3. ИНДИКАТОР ЗАГРУЗКИ ДЛЯ ОПОВЕЩЕНИЙ
+// ============================================================
+function showNotifLoading(show, text) {
+    // Используем общий индикатор загрузки, если он есть
+    if (typeof showLoading === 'function') {
+        showLoading(show, text || '⏳ Загрузка...');
+        return;
+    }
+    
+    // Создаем свой индикатор, если общего нет
+    var overlay = document.getElementById('notifLoadingOverlay');
+    if (!overlay && show) {
+        overlay = document.createElement('div');
+        overlay.id = 'notifLoadingOverlay';
+        overlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(10,14,26,0.85);
+            backdrop-filter: blur(8px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 99999;
+            animation: fadeIn 0.3s ease;
+        `;
+        overlay.innerHTML = `
+            <div style="width: 48px; height: 48px; border: 3px solid rgba(139,69,19,0.3); border-top-color: #c9a03d; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+            <div id="notifLoadingText" style="color: #c9a03d; font-size: 14px; margin-top: 16px; font-weight: 600;">⏳ Загрузка...</div>
+        `;
+        document.body.appendChild(overlay);
+    }
+    
+    if (overlay) {
+        overlay.style.display = show ? 'flex' : 'none';
+        var textEl = document.getElementById('notifLoadingText');
+        if (textEl && text) textEl.textContent = text;
+    }
+}
+
+// ============================================================
+// 21.0.4. ОБНОВЛЕНИЕ UI ОПОВЕЩЕНИЙ
+// ============================================================
+function updateNotificationUI() {
+    console.log('🔔 updateNotificationUI: интернет =', window._notifHasInternet);
+    
+    // Обновляем бейдж
+    updateNotificationBadge();
+    
+    // Обновляем кнопку уведомлений
+    var btn = document.getElementById('notificationsBtn');
+    if (btn) {
+        if (!window._notifHasInternet) {
+            btn.style.opacity = '0.6';
+            btn.title = 'Нет интернета';
+        } else {
+            btn.style.opacity = '1';
+            btn.title = 'Уведомления';
+        }
+    }
+    
+    // Обновляем окно уведомлений, если открыто
+    if (window.notificationsModalOpen) {
+        var modal = document.getElementById('notificationsModal');
+        if (modal) {
+            var statusEl = modal.querySelector('.notif-status-info');
+            if (statusEl) {
+                statusEl.textContent = window._notifHasInternet ? '🟢 Онлайн' : '🔴 Офлайн';
+                statusEl.style.color = window._notifHasInternet ? '#4caf50' : '#e94560';
+            }
+            
+            // Если нет интернета - добавляем предупреждение
+            var existingWarning = modal.querySelector('.notif-offline-warning');
+            if (!window._notifHasInternet && !existingWarning) {
+                var warning = document.createElement('div');
+                warning.className = 'notif-offline-warning';
+                warning.style.cssText = `
+                    text-align: center;
+                    padding: 8px;
+                    background: rgba(233,69,96,0.15);
+                    border-bottom: 1px solid rgba(233,69,96,0.3);
+                    color: #e94560;
+                    font-size: 11px;
+                    flex-shrink: 0;
+                `;
+                warning.textContent = '📡 Нет подключения к интернету. Данные могут быть неактуальны.';
+                modal.insertBefore(warning, modal.querySelector('.notifications-list'));
+            } else if (window._notifHasInternet && existingWarning) {
+                existingWarning.remove();
+            }
+        }
+    }
+}
 
 // ============================================================
 // 21.1. ЗАГРУЗКА УВЕДОМЛЕНИЙ ИЗ LOCALSTORAGE
@@ -16601,7 +17599,6 @@ function updateNotificationBadge() {
             badge.className = 'badge-count';
             badge.textContent = count;
             
-            // ✅ КРАСНЫЙ КРУЖОК С ЦИФРОЙ
             badge.style.cssText = `
                 position: absolute;
                 top: -6px;
@@ -16637,13 +17634,35 @@ function updateNotificationBadge() {
 }
 
 // ============================================================
-// 21.8. ЗАГРУЗКА УВЕДОМЛЕНИЙ ИЗ FIREBASE
+// 21.8. ЗАГРУЗКА УВЕДОМЛЕНИЙ ИЗ FIREBASE (ПРЯМАЯ ФУНКЦИЯ ДЛЯ ОЧЕРЕДИ)
+// ============================================================
+async function loadNotificationsFromFirebaseDirect() {
+    if (!currentPlayer) throw new Error('Нет игрока');
+    if (!isDBReady()) throw new Error('БД не инициализирована');
+    
+    var ref = getDBRef('playerNotifications/' + currentPlayer.id);
+    if (!ref) throw new Error('Не удалось получить ссылку на БД');
+    
+    var snapshot = await ref.once('value');
+    return snapshot;
+}
+
+// ============================================================
+// 21.8.1. ОСНОВНАЯ ЗАГРУЗКА УВЕДОМЛЕНИЙ ИЗ FIREBASE (С ПРОВЕРКОЙ ИНТЕРНЕТА)
 // ============================================================
 async function loadNotificationsFromFirebase() {
     console.log("🔔 loadNotificationsFromFirebase START, currentPlayer:", currentPlayer ? currentPlayer.id : "null");
 
     if (!currentPlayer) {
         console.log("🔔 Нет currentPlayer, выходим");
+        return;
+    }
+
+    // Проверяем интернет
+    if (!window._notifHasInternet) {
+        console.log("📡 Нет интернета, загрузка отложена");
+        addToPendingNotifOperations('loadNotifs');
+        showToast('📡 Нет интернета, уведомления будут загружены при восстановлении', 'warning');
         return;
     }
 
@@ -16670,7 +17689,6 @@ async function loadNotificationsFromFirebase() {
 
             var newNotificationsCount = 0;
 
-            // Проверяем, что это массив
             if (!Array.isArray(firebaseNotifs)) {
                 console.log("📨 Данные не являются массивом, преобразуем");
                 firebaseNotifs = Object.values(firebaseNotifs);
@@ -16736,9 +17754,11 @@ function startNotificationCheck() {
     window.notificationCheckInterval = setInterval(function() {
         if (currentPlayer && isDBReady()) {
             console.log("🔔 Периодическая проверка уведомлений...");
+            // Обновляем статус интернета
+            updateNotifInternetStatus();
             loadNotificationsFromFirebase();
         }
-    }, 5000); // каждые 5 секунд
+    }, 5000);
 }
 
 // ============================================================
@@ -16753,20 +17773,64 @@ function toggleNotificationsModal() {
 }
 
 function openNotificationsModal() {
-    if (window.notificationsModalOpen) return;
-    window.notificationsModalOpen = true;
-    renderNotificationsModal();
+    if (window._notifOpeningModal) return;
+    window._notifOpeningModal = true;
+    
+    if (window.notificationsModalOpen) {
+        window._notifOpeningModal = false;
+        return;
+    }
+    
+    // Обновляем статус интернета
+    updateNotifInternetStatus();
+    
+    // Проверяем интернет
+    if (!window._notifHasInternet) {
+        showToast('📡 Нет интернета, данные могут быть неактуальны', 'warning');
+        addToPendingNotifOperations('openModal');
+        // Показываем окно с офлайн-статусом
+        window.notificationsModalOpen = true;
+        renderNotificationsModal();
+        window._notifOpeningModal = false;
+        return;
+    }
+    
+    // Показываем индикатор загрузки
+    showNotifLoading(true, '⏳ Загрузка уведомлений...');
+    
+    // Загружаем уведомления из Firebase перед открытием
+    loadNotificationsFromFirebase().then(function() {
+        showNotifLoading(false);
+        window.notificationsModalOpen = true;
+        renderNotificationsModal();
+        window._notifOpeningModal = false;
+    }).catch(function(e) {
+        showNotifLoading(false);
+        console.error('❌ Ошибка загрузки уведомлений:', e);
+        window.notificationsModalOpen = true;
+        renderNotificationsModal();
+        window._notifOpeningModal = false;
+    });
 }
 
 function closeNotificationsModal() {
     var modal = document.getElementById('notificationsModal');
     if (modal) modal.remove();
     window.notificationsModalOpen = false;
+    window._notifOpeningModal = false;
 
     document.body.style.overflow = '';
     document.body.style.position = '';
     document.body.style.width = '';
     document.body.classList.remove('modal-open');
+}
+
+// ============================================================
+// 21.10.1. ПРЯМАЯ ОТРИСОВКА МОДАЛЬНОГО ОКНА (ДЛЯ ОЧЕРЕДИ)
+// ============================================================
+function renderNotificationsModalDirect() {
+    window.notificationsModalOpen = true;
+    renderNotificationsModal();
 }
 
 // ============================================================
@@ -16848,6 +17912,9 @@ function renderNotificationsModal() {
             ">
                 <h3 style="font-size: 15px; color: #c9a03d; margin: 0; display: flex; align-items: center; gap: 8px;">
                     🔔 УВЕДОМЛЕНИЯ ${unreadCount > 0 ? `(${unreadCount})` : ''}
+                    <span class="notif-status-info" style="font-size: 11px; color: ${window._notifHasInternet ? '#4caf50' : '#e94560'};">
+                        ${window._notifHasInternet ? '🟢' : '🔴'}
+                    </span>
                 </h3>
                 <div style="display: flex; gap: 10px;">
                     ${unreadCount > 0 ? `
@@ -16878,6 +17945,19 @@ function renderNotificationsModal() {
                     ">✕</button>
                 </div>
             </div>
+            ${!window._notifHasInternet ? `
+                <div class="notif-offline-warning" style="
+                    text-align: center;
+                    padding: 8px;
+                    background: rgba(233,69,96,0.15);
+                    border-bottom: 1px solid rgba(233,69,96,0.3);
+                    color: #e94560;
+                    font-size: 11px;
+                    flex-shrink: 0;
+                ">
+                    📡 Нет подключения к интернету. Данные могут быть неактуальны.
+                </div>
+            ` : ''}
             <div class="notifications-list" style="
                 flex: 1;
                 overflow-y: auto;
@@ -16927,20 +18007,17 @@ function renderNotificationsModal() {
 // 21.12. ДОБАВЛЕНИЕ КНОПКИ УВЕДОМЛЕНИЙ
 // ============================================================
 function addNotificationsButton() {
-    // Проверяем, существует ли уже кнопка
     if (document.getElementById('notificationsBtn')) {
         console.log("🔔 Кнопка уже существует");
         return;
     }
 
-    // Создаём кнопку
     var btn = document.createElement('div');
     btn.className = 'notifications-btn';
     btn.id = 'notificationsBtn';
     btn.innerHTML = '<span class="bell-icon" style="font-size: 22px; color: white;">🔔</span>';
     btn.onclick = toggleNotificationsModal;
     
-    // Устанавливаем стили
     btn.style.cssText = `
         position: fixed;
         right: 16px;
@@ -16972,7 +18049,6 @@ function addNotificationsButton() {
     document.body.appendChild(btn);
     console.log("🔔 Кнопка уведомлений СОЗДАНА");
     
-    // Если есть игрок - показываем
     if (currentPlayer) {
         btn.style.display = 'flex';
     }
@@ -17005,7 +18081,6 @@ function showNotificationsButton() {
         btn.style.display = 'none';
         console.log("🔔 Кнопка уведомлений СКРЫТА (нет игрока)");
     } else {
-        // Если кнопки нет - создаём
         addNotificationsButton();
     }
 }
@@ -17066,7 +18141,6 @@ async function saveNotificationToFirebase(playerId, notificationData) {
         var snapshot = await ref.once('value');
         var notifications = snapshot.exists() ? snapshot.val() || [] : [];
         
-        // Проверяем, что это массив
         if (!Array.isArray(notifications)) {
             notifications = Object.values(notifications);
         }
@@ -17096,10 +18170,8 @@ async function sendNotificationToPlayer(playerId, type, title, message) {
         read: false
     };
     
-    // Сохраняем в Firebase
     var saved = await saveNotificationToFirebase(playerId, notificationData);
     
-    // Если текущий игрок - добавляем локально
     if (currentPlayer && currentPlayer.id === playerId) {
         addNotification(type, title, message);
     }
@@ -17121,7 +18193,6 @@ function subscribeToNotifications() {
         return;
     }
     
-    // Отписываемся от старого слушателя
     if (window._notificationListeners.global) {
         try { window._notificationListeners.global(); } catch(e) {}
         window._notificationListeners.global = null;
@@ -17136,6 +18207,12 @@ function subscribeToNotifications() {
     }
     
     window._notificationListeners.global = ref.on('value', function(snapshot) {
+        // Проверяем интернет
+        if (!window._notifHasInternet) {
+            console.log('📡 Нет интернета, уведомление будет загружено позже');
+            return;
+        }
+        
         if (!snapshot.exists()) return;
         
         try {
@@ -17166,7 +18243,6 @@ function subscribeToNotifications() {
                 saveNotifications();
                 updateNotificationBadge();
                 
-                // Очищаем Firebase после загрузки
                 ref.set([]);
                 
                 if (newCount > 0) {
@@ -17296,6 +18372,10 @@ function initNotificationSystem() {
         return;
     }
     
+    // Устанавливаем начальный статус интернета
+    window._notifHasInternet = checkNotifInternetConnection();
+    console.log('🌐 Статус интернета (Оповещения):', window._notifHasInternet ? 'онлайн' : 'офлайн');
+    
     // Загружаем уведомления
     loadNotifications();
     
@@ -17309,17 +18389,19 @@ function initNotificationSystem() {
     // Подписываемся на обновления
     subscribeToNotifications();
     
-    // ✅✅✅ ЗАПУСКАЕМ ПЕРИОДИЧЕСКУЮ ПРОВЕРКУ (КАЖДЫЕ 5 СЕКУНД)
+    // ЗАПУСКАЕМ ПЕРИОДИЧЕСКУЮ ПРОВЕРКУ (КАЖДЫЕ 5 СЕКУНД)
     if (window._forceCheckInterval) {
         clearInterval(window._forceCheckInterval);
     }
     window._forceCheckInterval = setInterval(function() {
         if (currentPlayer && isDBReady()) {
+            // Обновляем статус интернета
+            updateNotifInternetStatus();
             forceCheckNotifications();
         }
-    }, 5000); // 5000 мс = 5 секунд
+    }, 5000);
     
-    // Запускаем старую проверку (можно оставить или убрать)
+    // Запускаем проверку уведомлений
     startNotificationCheck();
     
     // Очищаем старые уведомления раз в день
@@ -17328,7 +18410,7 @@ function initNotificationSystem() {
     }
     window._cleanNotificationsInterval = setInterval(function() {
         cleanOldNotifications();
-    }, 24 * 60 * 60 * 1000); // раз в день
+    }, 24 * 60 * 60 * 1000);
     
     console.log('✅ Система оповещения инициализирована');
     console.log('📨 Уведомлений:', window.notifications.length);
@@ -17339,7 +18421,6 @@ function initNotificationSystem() {
 // 21.26. ОСТАНОВКА СИСТЕМЫ ОПОВЕЩЕНИЯ
 // ============================================================
 function stopNotificationSystem() {
-    // ✅✅✅ ОСТАНАВЛИВАЕМ ИНТЕРВАЛ ПРИНУДИТЕЛЬНОЙ ПРОВЕРКИ
     if (window._forceCheckInterval) {
         clearInterval(window._forceCheckInterval);
         window._forceCheckInterval = null;
@@ -17361,6 +18442,7 @@ function stopNotificationSystem() {
     }
     
     hideNotificationsButton();
+    window._pendingNotifOperations = [];
     
     console.log('🛑 Система оповещения остановлена');
 }
@@ -17398,20 +18480,36 @@ window.initNotificationSystem = initNotificationSystem;
 window.stopNotificationSystem = stopNotificationSystem;
 window.forceCheckNotifications = forceCheckNotifications;
 
-// ✅✅✅ ДОБАВЛЯЕМ ПЕРЕМЕННУЮ ДЛЯ ИНТЕРВАЛА
+// Экспорт функций проверки интернета
+window.checkNotifInternetConnection = checkNotifInternetConnection;
+window.updateNotifInternetStatus = updateNotifInternetStatus;
+window.addToPendingNotifOperations = addToPendingNotifOperations;
+window.processPendingNotifOperations = processPendingNotifOperations;
+window.showNotifLoading = showNotifLoading;
+window.updateNotificationUI = updateNotificationUI;
+window.loadNotificationsFromFirebaseDirect = loadNotificationsFromFirebaseDirect;
+window.renderNotificationsModalDirect = renderNotificationsModalDirect;
+
 window._forceCheckInterval = null;
 
 console.log('✅ СИСТЕМА ОПОВЕЩЕНИЯ: блок полностью загружен');
 console.log('📨 Все функции уведомлений готовы к использованию!');
 
 // ============================================================
-// 21.28. ПРИНУДИТЕЛЬНАЯ ПРОВЕРКА УВЕДОМЛЕНИЙ (ДЛЯ ТЕСТА)
+// 21.28. ПРИНУДИТЕЛЬНАЯ ПРОВЕРКА УВЕДОМЛЕНИЙ (С ПРОВЕРКОЙ ИНТЕРНЕТА)
 // ============================================================
 async function forceCheckNotifications() {
     console.log('🔔 Принудительная проверка уведомлений...');
     
     if (!currentPlayer) {
         console.log('❌ Нет игрока');
+        return;
+    }
+    
+    // Проверяем интернет
+    if (!window._notifHasInternet) {
+        console.log('📡 Нет интернета, проверка отложена');
+        addToPendingNotifOperations('loadNotifs');
         return;
     }
     
@@ -17433,7 +18531,6 @@ async function forceCheckNotifications() {
         if (snapshot.exists()) {
             var firebaseNotifs = snapshot.val() || [];
             
-            // Проверяем, что это массив
             if (!Array.isArray(firebaseNotifs)) {
                 firebaseNotifs = Object.values(firebaseNotifs);
             }
@@ -17463,18 +18560,15 @@ async function forceCheckNotifications() {
                 saveNotifications();
                 updateNotificationBadge();
                 
-                // Очищаем Firebase после загрузки
                 await ref.set([]);
                 console.log('📨 Firebase очищен после загрузки');
                 
-                // ✅✅✅ ПОКАЗЫВАЕМ ТОСТ ТОЛЬКО ЕСЛИ НОВЫХ УВЕДОМЛЕНИЙ БОЛЬШЕ 0
                 showToast('🔔 Загружено ' + newCount + ' новых уведомлений!', 'success');
                 
                 if (window.notificationsModalOpen) {
                     renderNotificationsModal();
                 }
             } else {
-                // ✅✅✅ НЕ ПОКАЗЫВАЕМ ТОСТ, ЕСЛИ НЕТ НОВЫХ УВЕДОМЛЕНИЙ
                 console.log('📨 Нет новых уведомлений');
             }
         } else {
