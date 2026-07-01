@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>GameZona - 1.0.1.057</title>
+    <title>GameZona - 1.0.1.058</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -8069,7 +8069,7 @@ window.openSettingsModal = function() {
                     <div style="font-size: 36px; margin-bottom: 10px;">⚙️</div>
                     <div style="font-size: 16px; font-weight: 700; color: #ffd966;">${escapeHtml(window.currentPlayer.username)}</div>
                     <div style="font-size: 12px; color: #888; margin-top: 4px;">🆔 ${window.playerId}</div>
-                    <div style="font-size: 11px; color: #666; margin-top: 8px;">Версия - 1.0.1.057</div>
+                    <div style="font-size: 11px; color: #666; margin-top: 8px;">Версия - 1.0.1.058</div>
                     <div class="settings-status-info" style="font-size: 10px; color: ${window._settingsHasInternet ? '#4caf50' : '#e94560'}; margin-top: 6px;">
                         ${window._settingsHasInternet ? '🟢 Онлайн' : '🔴 Офлайн'}
                     </div>
@@ -29586,20 +29586,11 @@ if (typeof window._cardGameRoomExists === 'undefined') {
 if (typeof window._cardGameUpdateInterval === 'undefined') {
     window._cardGameUpdateInterval = null;
 }
-if (typeof window._durakAttackerId === 'undefined') {
-    window._durakAttackerId = null; // Кто атакует в текущем раунде
+if (typeof window._durakRoundStarting === 'undefined') {
+    window._durakRoundStarting = false;
 }
-if (typeof window._durakDefenderId === 'undefined') {
-    window._durakDefenderId = null; // Кто защищается в текущем раунде
-}
-if (typeof window._durakTableCards === 'undefined') {
-    window._durakTableCards = []; // Карты на столе в текущем раунде
-}
-if (typeof window._durakRoundActive === 'undefined') {
-    window._durakRoundActive = false; // Активен ли текущий раунд
-}
-if (typeof window._durakFirstMove === 'undefined') {
-    window._durakFirstMove = true; // Первый ход в раунде
+if (typeof window._durakCanThrowMore === 'undefined') {
+    window._durakCanThrowMore = true; // Можно ли подкидывать еще карты
 }
 
 // ============================================================
@@ -29699,7 +29690,8 @@ async function createCardGameRoom(roomData) {
             defenderId: null,
             roundActive: false,
             firstMove: true,
-            tableCards: []
+            tableCards: [],
+            canThrowMore: true
         };
         const newRef = ref.push();
         await newRef.set(newRoom);
@@ -29818,19 +29810,14 @@ async function deleteCardGameRoom(roomId) {
 // 26.3. ПРАВИЛЬНАЯ ЛОГИКА ИГРЫ В ДУРАКА
 // ============================================================
 
-// Проверка может ли игрок побить карту
 function canBeatCard(card, beatCard, trumpSuit) {
     if (!card || !beatCard) return false;
-    // Если бьющая карта - козырь, а бьемая - нет
     if (isTrump(beatCard, trumpSuit) && !isTrump(card, trumpSuit)) return true;
-    // Если обе одной масти - сравниваем старшинство
     if (beatCard.suit === card.suit && getCardValue(beatCard) > getCardValue(card)) return true;
-    // Если обе козыри - сравниваем старшинство
     if (isTrump(beatCard, trumpSuit) && isTrump(card, trumpSuit) && getCardValue(beatCard) > getCardValue(card)) return true;
     return false;
 }
 
-// Получить следующего игрока (по часовой стрелке)
 function getNextPlayer(room, currentPlayerId) {
     if (!room || !room.players || !Array.isArray(room.players)) return currentPlayerId;
     const activePlayers = room.players.filter(p => p && p.isActive && p.cards && p.cards.length > 0);
@@ -29841,7 +29828,6 @@ function getNextPlayer(room, currentPlayerId) {
     return activePlayers[nextIndex] ? activePlayers[nextIndex].id : currentPlayerId;
 }
 
-// Получить игрока слева от защищающегося (атакующий)
 function getLeftPlayer(room, defenderId) {
     if (!room || !room.players || !Array.isArray(room.players)) return null;
     const activePlayers = room.players.filter(p => p && p.isActive && p.cards && p.cards.length > 0);
@@ -29852,7 +29838,6 @@ function getLeftPlayer(room, defenderId) {
     return activePlayers[leftIndex];
 }
 
-// Найти самого младшего козыря для первого хода
 function findLowestTrumpPlayer(room) {
     if (!room || !room.players || !Array.isArray(room.players)) return null;
     let lowestTrumpValue = 999;
@@ -29872,14 +29857,12 @@ function findLowestTrumpPlayer(room) {
             }
         }
     }
-    // Если нет козырей - первый игрок
     if (!lowestPlayer && room.players.length > 0) {
         lowestPlayer = room.players[0];
     }
     return lowestPlayer;
 }
 
-// Добрать карты до 6
 function drawCardsToSix(room, playerId) {
     const player = room.players.find(p => p && p.id === playerId);
     if (!player) return;
@@ -29887,26 +29870,21 @@ function drawCardsToSix(room, playerId) {
     
     while (player.cards.length < 6 && room.deck && room.deck.length > 0) {
         const card = room.deck.pop();
-        player.cards.push(card);
+        if (card) player.cards.push(card);
     }
 }
 
-// Проверка на победителя в дураке
 function checkDurakWinner(room) {
     if (!room || !room.players || !Array.isArray(room.players)) return null;
     
-    // Проверяем, есть ли игроки с картами
     const playersWithCards = room.players.filter(p => p && p.cards && p.cards.length > 0);
     
-    // Если только один игрок с картами - он проиграл (дурак)
     if (playersWithCards.length === 1) {
         room.gameOver = true;
         room.winner = playersWithCards[0] ? playersWithCards[0].id : null;
-        // Проигравший - последний с картами
         return room.winner;
     }
     
-    // Если все игроки без карт - никто не проиграл (ничья)
     if (playersWithCards.length === 0) {
         room.gameOver = true;
         room.winner = null;
@@ -29916,56 +29894,140 @@ function checkDurakWinner(room) {
     return null;
 }
 
+// Проверка можно ли подкинуть еще карты
+function canThrowMoreCards(room) {
+    if (!room || !room.tableCards || room.tableCards.length === 0) return true;
+    if (room.gameOver) return false;
+    if (!room.roundActive) return false;
+    if (room.attackerId !== window.currentPlayer.id) return false;
+    
+    // Проверяем, все ли карты побиты
+    const allBeaten = room.tableCards.every(c => c && c.beaten === true);
+    if (!allBeaten) return false;
+    
+    // Проверяем, есть ли у атакующего карты для подкидывания
+    const attacker = room.players.find(p => p && p.id === room.attackerId);
+    if (!attacker || !attacker.cards || attacker.cards.length === 0) return false;
+    
+    // Проверяем, есть ли карты того же достоинства на столе
+    for (let card of attacker.cards) {
+        for (let tc of room.tableCards) {
+            if (tc && tc.card && tc.card.rank === card.rank) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 // ============================================================
 // 26.4. ОСНОВНЫЕ ДЕЙСТВИЯ В ДУРАКЕ
 // ============================================================
 
-// Начать новый раунд (кто-то атакует)
-function startNewDurakRound(room) {
+// Начать новый раунд
+async function startNewDurakRound(room) {
     if (!room) return null;
+    if (room.gameOver) {
+        console.log('⏳ Игра уже завершена');
+        return null;
+    }
+    if (window._durakRoundStarting) {
+        console.log('⏳ Раунд уже запускается');
+        return null;
+    }
     
-    // Если игра окончена - ничего не делаем
-    if (room.gameOver) return null;
+    // Проверяем, есть ли у кого-то карты
+    const playersWithCards = room.players.filter(p => p && p.cards && p.cards.length > 0);
+    if (playersWithCards.length <= 1) {
+        const winner = checkDurakWinner(room);
+        if (winner) {
+            await finishCardGame(room.id, winner);
+        }
+        return null;
+    }
     
-    // Определяем защищающегося
-    let defenderId = room.currentTurn;
-    if (!defenderId) {
-        // Если нет текущего хода - берем первого игрока
+    window._durakRoundStarting = true;
+    
+    // Находим первого игрока с картами
+    let currentPlayerId = room.currentTurn;
+    if (!currentPlayerId) {
         const firstPlayer = room.players.find(p => p && p.isActive && p.cards && p.cards.length > 0);
         if (firstPlayer) {
-            defenderId = firstPlayer.id;
+            currentPlayerId = firstPlayer.id;
         } else {
+            window._durakRoundStarting = false;
             return null;
         }
     }
     
-    // Определяем атакующего (игрок слева от защищающегося)
-    const attacker = getLeftPlayer(room, defenderId);
-    if (!attacker) return null;
-    
-    // Устанавливаем состояние раунда
-    room.attackerId = attacker.id;
-    room.defenderId = defenderId;
-    room.roundActive = true;
-    room.firstMove = true;
-    room.tableCards = [];
-    
-    // Если у атакующего нет карт - переходим к следующему
-    if (!attacker.cards || attacker.cards.length === 0) {
-        room.currentTurn = getNextPlayer(room, defenderId);
-        room.attackerId = null;
-        room.defenderId = null;
-        room.roundActive = false;
+    // Проверяем есть ли карты у текущего игрока
+    const currentPlayer = room.players.find(p => p && p.id === currentPlayerId);
+    if (!currentPlayer || !currentPlayer.cards || currentPlayer.cards.length === 0) {
+        const nextPlayer = getNextPlayer(room, currentPlayerId);
+        if (nextPlayer === currentPlayerId) {
+            // Все игроки без карт - завершаем игру
+            const winner = checkDurakWinner(room);
+            if (winner) {
+                await finishCardGame(room.id, winner);
+            }
+            window._durakRoundStarting = false;
+            return null;
+        }
+        room.currentTurn = nextPlayer;
+        window._durakRoundStarting = false;
         return startNewDurakRound(room);
     }
     
-    room.currentTurn = attacker.id;
-    console.log(`🔄 Новый раунд: ${attacker.name} атакует, ${room.players.find(p => p.id === defenderId).name} защищается`);
+    // Находим защитника (текущий игрок)
+    const defender = room.players.find(p => p && p.id === currentPlayerId);
+    if (!defender) {
+        window._durakRoundStarting = false;
+        return null;
+    }
     
-    return { attackerId: attacker.id, defenderId: defenderId };
+    // Находим атакующего (игрок слева от защитника)
+    const attacker = getLeftPlayer(room, currentPlayerId);
+    if (!attacker) {
+        room.currentTurn = getNextPlayer(room, currentPlayerId);
+        window._durakRoundStarting = false;
+        return startNewDurakRound(room);
+    }
+    
+    // Проверяем есть ли карты у атакующего
+    if (!attacker.cards || attacker.cards.length === 0) {
+        room.currentTurn = getNextPlayer(room, currentPlayerId);
+        window._durakRoundStarting = false;
+        return startNewDurakRound(room);
+    }
+    
+    // Устанавливаем состояние раунда
+    room.attackerId = attacker.id;
+    room.defenderId = defender.id;
+    room.roundActive = true;
+    room.firstMove = true;
+    room.tableCards = [];
+    room.currentTurn = attacker.id;
+    room.canThrowMore = true;
+    
+    console.log(`🔄 Новый раунд: ${attacker.name} атакует, ${defender.name} защищается`);
+    
+    await updateCardGameRoom(room.id, {
+        attackerId: room.attackerId,
+        defenderId: room.defenderId,
+        roundActive: room.roundActive,
+        firstMove: room.firstMove,
+        tableCards: room.tableCards || [],
+        currentTurn: room.currentTurn,
+        canThrowMore: room.canThrowMore
+    });
+    
+    window._durakRoundStarting = false;
+    showCardGameRoom();
+    
+    return { attackerId: attacker.id, defenderId: defender.id };
 }
 
-// Ход в дурака (положить карту на стол)
+// Ход в дурака
 async function durakMove(room, playerId, cardIndex) {
     if (!room || !room.players || !Array.isArray(room.players)) {
         showToast('❌ Ошибка: комната не найдена', 'error');
@@ -29973,6 +30035,10 @@ async function durakMove(room, playerId, cardIndex) {
     }
     if (!window._cardGameRoomExists) {
         showToast('❌ Комната была удалена', 'error');
+        return null;
+    }
+    if (room.gameOver) {
+        showToast('⏳ Игра уже завершена', 'warning');
         return null;
     }
     
@@ -29987,46 +30053,31 @@ async function durakMove(room, playerId, cardIndex) {
         return null;
     }
     
-    // Проверяем, активен ли раунд
+    // Если раунд не активен - начинаем новый
     if (!room.roundActive) {
-        // Если раунд не активен - начинаем новый
-        const result = startNewDurakRound(room);
+        const result = await startNewDurakRound(room);
         if (!result) {
             showToast('❌ Не удалось начать раунд', 'error');
             return null;
         }
-        // Обновляем комнату
-        await updateCardGameRoom(room.id, {
-            attackerId: room.attackerId,
-            defenderId: room.defenderId,
-            roundActive: room.roundActive,
-            firstMove: room.firstMove,
-            tableCards: room.tableCards || [],
-            currentTurn: room.currentTurn
-        });
-        // Повторяем попытку хода
         return durakMove(room, playerId, cardIndex);
     }
     
-    // Проверяем, может ли игрок ходить
     const isAttacker = playerId === room.attackerId;
     const isDefender = playerId === room.defenderId;
-    const canMove = isAttacker || isDefender;
     
-    if (!canMove) {
+    if (!isAttacker && !isDefender) {
         showToast('❌ Сейчас не ваш ход', 'warning');
         return null;
     }
     
-    // Если защищающийся - проверяем, может ли он бить
+    // Если защищающийся - бьет карту
     if (isDefender) {
-        // Проверяем, есть ли карты на столе для битья
         if (!room.tableCards || room.tableCards.length === 0) {
             showToast('❌ Нечего бить', 'warning');
             return null;
         }
         
-        // Находим последнюю небитую карту
         let lastUnbeaten = null;
         for (let i = room.tableCards.length - 1; i >= 0; i--) {
             if (room.tableCards[i] && !room.tableCards[i].beaten) {
@@ -30048,73 +30099,94 @@ async function durakMove(room, playerId, cardIndex) {
             return null;
         }
         
-        // Бьем карту
         player.cards.splice(cardIndex, 1);
         lastUnbeaten.beaten = true;
         lastUnbeaten.beatCard = beatCard;
         lastUnbeaten.beatPlayerId = playerId;
         
-        // Проверяем, все ли карты побиты
         const allBeaten = room.tableCards.every(c => c && c.beaten === true);
         
         if (allBeaten) {
-            // Все карты побиты - защитник отбился
-            room.discard = room.discard || [];
-            room.discard.push(...room.tableCards);
-            room.tableCards = [];
-            room.roundActive = false;
-            
-            // Атакующий и защитник добирают карты до 6
-            drawCardsToSix(room, room.attackerId);
-            drawCardsToSix(room, room.defenderId);
-            
-            // Ход переходит к защитнику (он ходит)
-            room.currentTurn = room.defenderId;
-            
-            showToast('✅ Защитник отбился!', 'success');
+            // Все карты побиты - проверяем можно ли подкинуть еще
+            const canThrow = canThrowMoreCards(room);
+            if (canThrow) {
+                room.currentTurn = room.attackerId;
+                showToast('🔄 Можно подкинуть еще карты', 'info');
+                await updateCardGameRoom(room.id, {
+                    players: room.players,
+                    tableCards: room.tableCards || [],
+                    currentTurn: room.currentTurn,
+                    roundActive: room.roundActive,
+                    deck: room.deck || []
+                });
+                return { success: true, action: 'can_throw_more' };
+            } else {
+                // Отбой
+                room.discard = room.discard || [];
+                room.discard.push(...room.tableCards);
+                room.tableCards = [];
+                room.roundActive = false;
+                
+                drawCardsToSix(room, room.attackerId);
+                drawCardsToSix(room, room.defenderId);
+                
+                room.currentTurn = room.defenderId;
+                
+                showToast('✅ Отбой! Защитник отбился!', 'success');
+                
+                await updateCardGameRoom(room.id, {
+                    players: room.players,
+                    tableCards: room.tableCards || [],
+                    discard: room.discard || [],
+                    currentTurn: room.currentTurn,
+                    roundActive: room.roundActive,
+                    deck: room.deck || [],
+                    attackerId: room.attackerId,
+                    defenderId: room.defenderId
+                });
+                
+                const winner = checkDurakWinner(room);
+                if (winner) {
+                    await finishCardGame(room.id, winner);
+                    return { success: true, gameOver: true };
+                }
+                
+                setTimeout(async () => {
+                    await startNewDurakRound(room);
+                }, 300);
+                
+                return { success: true, action: 'beat_all' };
+            }
         } else {
-            // Есть еще небитые карты - ход переходит к следующему игроку (он должен бить)
             room.currentTurn = getNextPlayer(room, playerId);
+            await updateCardGameRoom(room.id, {
+                players: room.players,
+                tableCards: room.tableCards || [],
+                currentTurn: room.currentTurn,
+                roundActive: room.roundActive,
+                deck: room.deck || []
+            });
+            return { success: true, action: 'beat' };
         }
-        
-        // Обновляем комнату
-        await updateCardGameRoom(room.id, {
-            players: room.players,
-            tableCards: room.tableCards || [],
-            discard: room.discard || [],
-            currentTurn: room.currentTurn,
-            roundActive: room.roundActive,
-            deck: room.deck || []
-        });
-        
-        // Проверяем победителя
-        const winner = checkDurakWinner(room);
-        if (winner) {
-            await finishCardGame(room.id, winner);
-        }
-        
-        return { success: true, action: 'beat' };
     }
     
     // Если атакующий - кладет карту
     if (isAttacker) {
-        // Проверяем, можно ли положить карту (первый ход или после того как защитник отбился)
         if (room.firstMove) {
-            // Первый ход - кладем любую карту
             const card = player.cards.splice(cardIndex, 1)[0];
             room.tableCards = room.tableCards || [];
             room.tableCards.push({ card, playerId: playerId, beaten: false });
             room.firstMove = false;
-            room.currentTurn = room.defenderId; // Ход переходит к защитнику
+            room.currentTurn = room.defenderId;
             showToast(`🃏 Атакующий положил карту ${card.rank}${card.suit}`, 'success');
         } else {
-            // Не первый ход - можно подкидывать карты того же достоинства
-            if (!room.tableCards || room.tableCards.length === 0) {
-                showToast('❌ Нет карт на столе для подкидывания', 'warning');
+            // Проверяем все ли карты побиты
+            const allBeaten = room.tableCards.every(c => c && c.beaten === true);
+            if (!allBeaten) {
+                showToast('❌ Сначала побейте все карты на столе', 'warning');
                 return null;
             }
             
-            // Проверяем, можно ли подкинуть карту
             const card = player.cards[cardIndex];
             let canThrow = false;
             for (let tc of room.tableCards) {
@@ -30125,18 +30197,16 @@ async function durakMove(room, playerId, cardIndex) {
             }
             
             if (!canThrow) {
-                showToast('❌ Нельзя подкинуть эту карту', 'warning');
+                showToast('❌ Нельзя подкинуть эту карту (нет такого достоинства на столе)', 'warning');
                 return null;
             }
             
-            // Подкидываем карту
             player.cards.splice(cardIndex, 1);
             room.tableCards.push({ card, playerId: playerId, beaten: false });
-            room.currentTurn = room.defenderId; // Ход переходит к защитнику
+            room.currentTurn = room.defenderId;
             showToast(`🃏 Подкинута карта ${card.rank}${card.suit}`, 'success');
         }
         
-        // Обновляем комнату
         await updateCardGameRoom(room.id, {
             players: room.players,
             tableCards: room.tableCards || [],
@@ -30145,7 +30215,6 @@ async function durakMove(room, playerId, cardIndex) {
             deck: room.deck || []
         });
         
-        // Проверяем победителя
         const winner = checkDurakWinner(room);
         if (winner) {
             await finishCardGame(room.id, winner);
@@ -30167,6 +30236,10 @@ async function durakPass(room, playerId) {
         showToast('❌ Комната была удалена', 'error');
         return null;
     }
+    if (room.gameOver) {
+        showToast('⏳ Игра уже завершена', 'warning');
+        return null;
+    }
     
     if (playerId !== room.defenderId) {
         showToast('❌ Только защитник может забрать карты', 'warning');
@@ -30185,16 +30258,13 @@ async function durakPass(room, playerId) {
     }
     if (!player.cards) player.cards = [];
     
-    // Забираем все карты со стола
     const tableCards = room.tableCards.map(c => c.card);
     player.cards.push(...tableCards);
     room.tableCards = [];
     room.roundActive = false;
     
-    // Ход переходит к следующему игроку (слева от защитника)
     room.currentTurn = getNextPlayer(room, playerId);
     
-    // Обновляем комнату
     await updateCardGameRoom(room.id, {
         players: room.players,
         tableCards: room.tableCards || [],
@@ -30205,11 +30275,15 @@ async function durakPass(room, playerId) {
     
     showToast(`📥 Вы забрали ${tableCards.length} карт`, 'warning');
     
-    // Проверяем победителя
     const winner = checkDurakWinner(room);
     if (winner) {
         await finishCardGame(room.id, winner);
+        return { success: true, gameOver: true };
     }
+    
+    setTimeout(async () => {
+        await startNewDurakRound(room);
+    }, 300);
     
     return { success: true };
 }
@@ -30229,7 +30303,6 @@ async function finishCardGame(roomId, winnerId) {
     room.status = 'finished';
     room.roundActive = false;
 
-    // Находим проигравшего (дурака) - последний с картами
     const loser = room.players ? room.players.find(p => p && p.cards && p.cards.length > 0) : null;
     const loserName = loser ? loser.name : 'Никто';
 
@@ -30259,6 +30332,7 @@ async function finishCardGame(roomId, winnerId) {
 
     showToast(`🏆 ${winner.name} победил! Проигравший (дурак): ${loserName}! Выигрыш: ${totalCigarettes}🚬 ${totalRubles}💰`, 'success');
     window._isProcessingMove = false;
+    window._durakRoundStarting = false;
 }
 
 // ============================================================
@@ -30485,12 +30559,13 @@ function updateCardGameUI() {
         if (room.gameOver) {
             turnText = '🔴 Игра завершена';
         } else if (!room.roundActive) {
-            turnText = '🟢 Новый раунд начинается...';
+            turnText = '🟢 Новый раунд...';
         } else if (isMyTurn) {
             const isAttacker = room.attackerId === window.currentPlayer.id;
             const isDefender = room.defenderId === window.currentPlayer.id;
             if (isAttacker) {
-                turnText = '🎯 ВАШ ХОД (АТАКА)';
+                const canThrow = canThrowMoreCards(room);
+                turnText = canThrow ? '🎯 ВАШ ХОД (можно подкинуть карту)' : '🎯 ВАШ ХОД (АТАКА)';
             } else if (isDefender) {
                 turnText = '🎯 ВАШ ХОД (ЗАЩИТА)';
             } else {
@@ -30796,6 +30871,7 @@ function showCardGameRoom() {
     const isAttacker = room.attackerId === window.currentPlayer.id;
     const isDefender = room.defenderId === window.currentPlayer.id;
     const canAct = isMyTurn && (isAttacker || isDefender) && room.roundActive;
+    const canThrow = canThrowMoreCards(room);
 
     let html = `
         <div style="text-align: center; margin-bottom: 12px;">
@@ -30806,6 +30882,7 @@ function showCardGameRoom() {
             <div class="game-turn-info" style="font-size: 14px; color: ${canAct ? '#4caf50' : '#ffd966'}; margin-top: 4px; font-weight: 700; background: rgba(0,0,0,0.3); padding: 4px 12px; border-radius: 20px; display: inline-block;">
                 ${room.gameOver ? '🔴 Игра завершена' : 
                     !room.roundActive ? '🟢 Новый раунд...' :
+                    isMyTurn && isAttacker && canThrow ? '🎯 Подкиньте карту (если есть)' :
                     canAct ? (isAttacker ? '🎯 ВАШ ХОД (АТАКА)' : '🎯 ВАШ ХОД (ЗАЩИТА)') :
                     `⏳ ХОД: ${currentTurnPlayer ? currentTurnPlayer.name : '...'}`
                 }
@@ -30858,10 +30935,11 @@ function showCardGameRoom() {
             <div style="background: rgba(0,0,0,0.3); border-radius: 16px; padding: 12px; border: 1px solid #8B4513; margin-top: 8px;">
                 <div style="font-size: 12px; color: #c9a03d; text-align: center; margin-bottom: 8px;">
                     ${room.roundActive ? 
-                        (isAttacker ? '⚔️ ВЫ АТАКУЕТЕ (зажмите карту для хода)' : 
+                        (isAttacker && canThrow ? '⚔️ ВЫ МОЖЕТЕ ПОДКИНУТЬ КАРТУ' : 
+                        isAttacker ? '⚔️ ВЫ АТАКУЕТЕ (зажмите карту для хода)' : 
                         isDefender ? '🛡️ ВЫ ЗАЩИЩАЕТЕСЬ (зажмите карту для битья)' : 
                         `⏳ ${room.players ? room.players.find(p => p && p.id === room.attackerId)?.name || '...' : '...'} атакует`)
-                        : '🔄 Новый раунд начинается...'}
+                        : '🔄 Загрузка нового раунда...'}
                 </div>
                 
                 <!-- СТОЛ -->
@@ -30966,7 +31044,6 @@ function showCardGameRoom() {
 
     content.innerHTML = html;
     
-    // Сохраняем комнату в localStorage
     if (window.cardGameCurrentRoom && currentPlayer && window._cardGameRoomExists) {
         try {
             const saveRoom = window.cardGameCurrentRoom;
@@ -31029,7 +31106,7 @@ window.startLongPress = function(cardIndex) {
     }
     if (!room.roundActive) {
         console.log('⏳ Раунд не активен');
-        showToast('⏳ Подождите начала раунда', 'warning');
+        showToast('⏳ Раунд не активен', 'warning');
         return;
     }
     if (room.attackerId !== currentPlayer.id && room.defenderId !== currentPlayer.id) {
@@ -31087,7 +31164,7 @@ window.startLongPressTouch = function(event, cardIndex) {
     }
     if (!room.roundActive) {
         console.log('⏳ Раунд не активен');
-        showToast('⏳ Подождите начала раунда', 'warning');
+        showToast('⏳ Раунд не активен', 'warning');
         return;
     }
     if (room.attackerId !== currentPlayer.id && room.defenderId !== currentPlayer.id) {
@@ -31186,15 +31263,10 @@ function executeCardAction(cardIndex) {
     const isDefender = room.defenderId === currentPlayer.id;
     
     if (room.gameType === 'durak') {
-        if (isAttacker) {
-            // Атакующий кладет карту
-            durakMove(room, currentPlayer.id, cardIndex);
-        } else if (isDefender) {
-            // Защитник бьет карту
+        if (isAttacker || isDefender) {
             durakMove(room, currentPlayer.id, cardIndex);
         }
     } else if (room.gameType === 'twentyone') {
-        // Для 21 используем старую логику
         makeTwentyOneMove(room, currentPlayer.id, 'hit');
     }
     
@@ -31282,7 +31354,6 @@ window.startCardGame = async function() {
     let trumpSuit = null;
     let trumpCard = null;
 
-    // Раздача по 6 карт
     const cardsPerPlayer = 6;
     for (let player of room.players) {
         if (!player) continue;
@@ -31296,14 +31367,12 @@ window.startCardGame = async function() {
         player.ready = false;
     }
 
-    // Определяем козырь
     if (deck.length > 0) {
         trumpCard = deck.pop();
         trumpSuit = trumpCard.suit;
         deck.unshift(trumpCard);
     }
 
-    // Находим игрока с самым младшим козырем для первого хода
     let firstPlayer = findLowestTrumpPlayer(room);
     let firstPlayerId = firstPlayer ? firstPlayer.id : (room.players[0] ? room.players[0].id : currentPlayer.id);
 
@@ -31320,6 +31389,7 @@ window.startCardGame = async function() {
     room.attackerId = null;
     room.defenderId = null;
     room.firstMove = true;
+    room.canThrowMore = true;
 
     await updateCardGameRoom(room.id, {
         deck: room.deck,
@@ -31335,24 +31405,15 @@ window.startCardGame = async function() {
         roundActive: false,
         attackerId: null,
         defenderId: null,
-        firstMove: true
+        firstMove: true,
+        canThrowMore: true
     });
 
     showLoading(false);
     showToast('🎴 Игра началась! Первый ход у ' + (firstPlayer ? firstPlayer.name : 'неизвестного'), 'success');
     
-    // Запускаем первый раунд
-    setTimeout(() => {
-        startNewDurakRound(room);
-        updateCardGameRoom(room.id, {
-            attackerId: room.attackerId,
-            defenderId: room.defenderId,
-            roundActive: room.roundActive,
-            firstMove: room.firstMove,
-            tableCards: room.tableCards || [],
-            currentTurn: room.currentTurn
-        });
-        showCardGameRoom();
+    setTimeout(async () => {
+        await startNewDurakRound(room);
     }, 500);
 };
 
@@ -31380,6 +31441,7 @@ window.closeCardGameModal = function() {
     document.body.classList.remove('modal-open');
     window._opening_cardgame_modal = false;
     window._isProcessingMove = false;
+    window._durakRoundStarting = false;
 };
 
 // ============================================================
@@ -31537,6 +31599,7 @@ window.resetCardGame = function() {
     window._isLongPress = false;
     window._isProcessingMove = false;
     window._cardGameRoomExists = false;
+    window._durakRoundStarting = false;
     
     try {
         const keys = Object.keys(localStorage);
@@ -31636,7 +31699,9 @@ console.log('🃏 Поддерживаются колоды 36 и 52 карты'
 console.log('👥 Игроки: 2-4 человека');
 console.log('🎯 Доступны игры: Дурак и 21 (Блэкджек)');
 console.log('👆 Долгий тап для хода, одиночный клик для выделения');
-console.log('🎯 Правила дурака: атака, защита, подкидывание, отбой');
+console.log('🎯 Правила дурака: атака, защита, подкидывание, отбой, добор до 6');
+console.log('🔄 Автоматический запуск нового раунда после отбоя и паса');
+console.log('➕ Можно подкидывать карты одного достоинства');
 
 if (typeof currentPlayer !== 'undefined' && currentPlayer) {
     initCardGameSystem();
