@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>GameZona - 1.0.1.050</title>
+    <title>GameZona - 1.0.1.051</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -8069,7 +8069,7 @@ window.openSettingsModal = function() {
                     <div style="font-size: 36px; margin-bottom: 10px;">⚙️</div>
                     <div style="font-size: 16px; font-weight: 700; color: #ffd966;">${escapeHtml(window.currentPlayer.username)}</div>
                     <div style="font-size: 12px; color: #888; margin-top: 4px;">🆔 ${window.playerId}</div>
-                    <div style="font-size: 11px; color: #666; margin-top: 8px;">Версия - 1.0.1.050</div>
+                    <div style="font-size: 11px; color: #666; margin-top: 8px;">Версия - 1.0.1.051</div>
                     <div class="settings-status-info" style="font-size: 10px; color: ${window._settingsHasInternet ? '#4caf50' : '#e94560'}; margin-top: 6px;">
                         ${window._settingsHasInternet ? '🟢 Онлайн' : '🔴 Офлайн'}
                     </div>
@@ -29527,7 +29527,7 @@ console.log('✅ Счетчики ВОЙНЫ КЛАНОВ работают по�
 
 
 // ============================================================
-// 26. ИГРОВАЯ (КАРТЫ) - ПОЛНАЯ ВЕРСИЯ С ПЕРЕТЯГИВАНИЕМ
+// 26. ИГРОВАЯ (КАРТЫ) - ПОЛНАЯ ВЕРСИЯ С ДОЛГИМ ТАПОМ (ИСПРАВЛЕННАЯ)
 // ============================================================
 
 // ============================================================
@@ -29569,8 +29569,17 @@ if (typeof window._cardGameSubscribed === 'undefined') {
 if (typeof window._selectedCardIndex === 'undefined') {
     window._selectedCardIndex = null;
 }
-if (typeof window._dragData === 'undefined') {
-    window._dragData = null;
+if (typeof window._longPressTimer === 'undefined') {
+    window._longPressTimer = null;
+}
+if (typeof window._longPressCardIndex === 'undefined') {
+    window._longPressCardIndex = null;
+}
+if (typeof window._isLongPress === 'undefined') {
+    window._isLongPress = false;
+}
+if (typeof window._isProcessingMove === 'undefined') {
+    window._isProcessingMove = false;
 }
 
 // ============================================================
@@ -29713,7 +29722,16 @@ async function updateCardGameRoom(roomId, data) {
     try {
         const ref = getCardGameRef();
         if (!ref) return false;
-        await ref.child(roomId).update(data);
+        const cleanData = {};
+        for (const key in data) {
+            if (data[key] !== undefined && data[key] !== null) {
+                cleanData[key] = data[key];
+            }
+        }
+        if (Object.keys(cleanData).length === 0) {
+            return true;
+        }
+        await ref.child(roomId).update(cleanData);
         return true;
     } catch (e) {
         console.error('❌ Ошибка обновления комнаты:', e);
@@ -29746,7 +29764,7 @@ function canBeatCard(card, beatCard, trumpSuit) {
 }
 
 function getNextPlayer(room, currentPlayerId) {
-    const players = room.players.filter(p => p.isActive);
+    const players = room.players.filter(p => p.isActive && p.cards && p.cards.length > 0);
     if (players.length === 0) return currentPlayerId;
     const index = players.findIndex(p => p.id === currentPlayerId);
     if (index === -1) return players[0].id;
@@ -29755,14 +29773,14 @@ function getNextPlayer(room, currentPlayerId) {
 }
 
 function checkDurakWinner(room) {
-    const activePlayers = room.players.filter(p => p.isActive);
+    const activePlayers = room.players.filter(p => p.isActive && p.cards && p.cards.length > 0);
     if (activePlayers.length === 1) {
         room.gameOver = true;
         room.winner = activePlayers[0].id;
         return room.winner;
     }
-    for (let player of activePlayers) {
-        if (player.cards.length === 0) {
+    for (let player of room.players) {
+        if (player.cards && player.cards.length === 0 && player.isActive) {
             player.isActive = false;
             room.gameOver = true;
             room.winner = player.id;
@@ -29793,12 +29811,12 @@ function calculateHandValue(cards) {
 }
 
 function checkTwentyOneWinner(room) {
-    const activePlayers = room.players.filter(p => p.isActive);
+    const activePlayers = room.players.filter(p => p.isActive && p.cards && p.cards.length > 0);
     if (activePlayers.length === 0) {
         let bestScore = 0;
         let winner = null;
         for (let player of room.players) {
-            if (!player.isActive) continue;
+            if (!player.cards || player.cards.length === 0) continue;
             const score = calculateHandValue(player.cards);
             if (score > 21) continue;
             if (score > bestScore) {
@@ -29924,9 +29942,6 @@ function showCardGameLobby() {
     const content = document.getElementById('cardGameContent');
     if (!content) return;
 
-    // Если есть активная комната, но мы в лобби - просто показываем лобби
-    // Не переключаемся на комнату автоматически, чтобы можно было посмотреть другие игры
-    
     getCardGameRooms().then(rooms => {
         window.cardGameRooms = rooms;
         renderLobby(content);
@@ -30122,7 +30137,7 @@ window.joinCardGameRoom = async function(roomId) {
 };
 
 // ============================================================
-// 26.7. ОТОБРАЖЕНИЕ КОМНАТЫ С ПЕРЕТЯГИВАНИЕМ
+// 26.7. ОТОБРАЖЕНИЕ КОМНАТЫ С ДОЛГИМ ТАПОМ
 // ============================================================
 function showCardGameRoom() {
     const content = document.getElementById('cardGameContent');
@@ -30178,7 +30193,6 @@ function showCardGameRoom() {
     } else if (room.status === 'playing') {
         const currentPlayerObj = room.players.find(p => p.id === window.currentPlayer.id);
         const isMyTurn = room.currentTurn === window.currentPlayer.id;
-        const otherPlayers = room.players.filter(p => p.id !== window.currentPlayer.id);
 
         const hasTableCards = room.table && room.table.length > 0;
         const isBeatMode = hasTableCards && room.table.some(c => c.beaten === false);
@@ -30187,15 +30201,14 @@ function showCardGameRoom() {
             <div style="background: rgba(0,0,0,0.3); border-radius: 16px; padding: 12px; border: 1px solid #8B4513; margin-top: 8px;">
                 <div style="font-size: 12px; color: #c9a03d; text-align: center; margin-bottom: 8px;">
                     ${isMyTurn ? 
-                        (isBeatMode ? '🎯 ВАШ ХОД (ПЕРЕТЯНИТЕ КАРТУ НА СТОЛ ДЛЯ БИТЬЯ)' : '🎯 ВАШ ХОД (ПЕРЕТЯНИТЕ КАРТУ НА СТОЛ)') : 
+                        (isBeatMode ? '🎯 ВАШ ХОД (ЗАЖМИТЕ КАРТУ ДЛЯ БИТЬЯ)' : '🎯 ВАШ ХОД (ЗАЖМИТЕ КАРТУ ДЛЯ ХОДА)') : 
                         `⏳ ХОД: ${room.players.find(p => p.id === room.currentTurn)?.name || '...'}`
                     }
-                    ${isMyTurn ? `<br><span style="font-size: 10px; color: #888;">👆 Зажмите карту и перетащите на стол</span>` : ''}
+                    ${isMyTurn ? `<br><span style="font-size: 10px; color: #888;">👆 Зажмите карту на 0.5 сек для хода</span>` : ''}
                 </div>
                 
-                <!-- СТОЛ - ЦЕЛЬ ДЛЯ ПЕРЕТАСКИВАНИЯ -->
-                <div class="game-card-table" id="tableDropZone" style="border: 2px dashed ${isMyTurn ? '#c9a03d' : '#444'}; min-height: 80px; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: all 0.3s;">
-                    <div class="game-hand-label">🎴 СТОЛ (${isMyTurn ? 'ПЕРЕТЯНИТЕ КАРТУ СЮДА' : 'ОЖИДАНИЕ ХОДА'})</div>
+                <div class="game-card-table" id="tableDropZone" style="border: 2px dashed ${isMyTurn ? '#c9a03d' : '#444'}; min-height: 80px; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: all 0.3s; background: rgba(0,0,0,0.2); border-radius: 12px;">
+                    <div class="game-hand-label">🎴 СТОЛ ${isMyTurn ? '(ЗАЖМИТЕ КАРТУ ДЛЯ ХОДА)' : ''}</div>
                     <div class="game-hand" id="tableHand">
                         ${(room.table || []).map((c, idx) => `
                             <div class="game-card ${getCardDisplay(c.card).color}" style="${c.beaten ? 'opacity:0.5;' : ''}">
@@ -30213,10 +30226,14 @@ function showCardGameRoom() {
                             ${currentPlayerObj.cards.map((card, idx) => `
                                 <div class="game-card ${getCardDisplay(card).color} ${window._selectedCardIndex === idx ? 'selected' : ''}" 
                                      id="card_${idx}"
-                                     draggable="${isMyTurn ? 'true' : 'false'}"
-                                     ondragstart="${isMyTurn ? `onDragStart(event, ${idx})` : 'return false;'}"
-                                     ondragend="onDragEnd(event)"
-                                     style="${isMyTurn ? 'cursor:grab;' : 'cursor:default; opacity:0.7;'}"
+                                     onmousedown="${isMyTurn ? `startLongPress(${idx})` : ''}"
+                                     onmouseup="${isMyTurn ? `cancelLongPress()` : ''}"
+                                     onmouseleave="${isMyTurn ? `cancelLongPress()` : ''}"
+                                     ontouchstart="${isMyTurn ? `startLongPressTouch(event, ${idx})` : ''}"
+                                     ontouchend="${isMyTurn ? `cancelLongPressTouch(event)` : ''}"
+                                     ontouchmove="${isMyTurn ? `cancelLongPressTouch(event)` : ''}"
+                                     onclick="onCardClick(${idx})"
+                                     style="${isMyTurn ? 'cursor:pointer;' : 'cursor:default; opacity:0.7;'}"
                                      data-index="${idx}">
                                     ${getCardDisplay(card).display}
                                 </div>
@@ -30225,23 +30242,6 @@ function showCardGameRoom() {
                     </div>
                 ` : ''}
                 
-                <!-- ЗОНА ДЛЯ СБРОСА ПЕРЕТАСКИВАНИЯ -->
-                <div style="margin-top: 8px; padding: 8px; background: rgba(139,69,19,0.1); border-radius: 12px; border: 1px dashed #8B4513; text-align: center; min-height: 40px; display: flex; align-items: center; justify-content: center;" 
-                     id="dropZone"
-                     ondragover="onDragOver(event)"
-                     ondragleave="onDragLeave(event)"
-                     ondrop="onDrop(event)">
-                    <span style="color: #666; font-size: 12px;">📥 Перетащите карту сюда для хода</span>
-                </div>
-                
-                ${otherPlayers.map(p => `
-                    <div class="game-card-table" style="margin-top: 6px;">
-                        <div class="game-hand-label">${escapeHtml(p.name)} (${p.cards.length} карт)</div>
-                        <div class="game-hand">
-                            ${p.cards.map(() => `<div class="game-card hidden">🂠</div>`).join('')}
-                        </div>
-                    </div>
-                `).join('')}
                 ${isMyTurn && isBeatMode ? `
                     <div class="game-controls" style="margin-top: 10px;">
                         <button onclick="cardGameDurakPass()" class="btn-game-secondary">⏭️ ПАС (ВЗЯТЬ КАРТЫ)</button>
@@ -30261,82 +30261,119 @@ function showCardGameRoom() {
 }
 
 // ============================================================
-// 26.8. ОБРАБОТЧИКИ ПЕРЕТАСКИВАНИЯ (DRAG & DROP)
+// 26.8. ОБРАБОТЧИКИ ДОЛГОГО ТАПА
 // ============================================================
 
-window.onDragStart = function(event, cardIndex) {
-    console.log('🔄 Начало перетаскивания карты:', cardIndex);
+window.onCardClick = function(cardIndex) {
+    console.log('🃏 Одиночный клик по карте:', cardIndex);
     const room = window.cardGameCurrentRoom;
     if (!room) return;
-    if (room.currentTurn !== currentPlayer.id) {
-        event.preventDefault();
+    
+    if (window._isLongPress) {
+        window._isLongPress = false;
         return;
     }
     
-    window._dragData = { cardIndex: cardIndex };
-    event.dataTransfer.effectAllowed = 'move';
-    event.dataTransfer.setData('text/plain', cardIndex);
+    document.querySelectorAll('#playerCards .game-card').forEach(el => {
+        el.classList.remove('selected');
+    });
     
-    // Добавляем визуальный эффект
-    setTimeout(() => {
-        const card = document.getElementById('card_' + cardIndex);
-        if (card) {
-            card.style.opacity = '0.5';
-        }
-    }, 0);
-};
-
-window.onDragEnd = function(event) {
-    console.log('🔄 Завершение перетаскивания');
-    // Восстанавливаем видимость карты
-    if (window._dragData) {
-        const card = document.getElementById('card_' + window._dragData.cardIndex);
-        if (card) {
-            card.style.opacity = '1';
-        }
-    }
-    window._dragData = null;
-};
-
-window.onDragOver = function(event) {
-    event.preventDefault();
-    event.dataTransfer.dropEffect = 'move';
-    
-    // Подсвечиваем зону сброса
-    const dropZone = document.getElementById('dropZone');
-    if (dropZone) {
-        dropZone.style.background = 'rgba(201,160,61,0.2)';
-        dropZone.style.border = '2px dashed #c9a03d';
+    const cardEl = document.getElementById('card_' + cardIndex);
+    if (cardEl) {
+        cardEl.classList.add('selected');
+        window._selectedCardIndex = cardIndex;
     }
 };
 
-window.onDragLeave = function(event) {
-    // Убираем подсветку
-    const dropZone = document.getElementById('dropZone');
-    if (dropZone) {
-        dropZone.style.background = 'rgba(139,69,19,0.1)';
-        dropZone.style.border = '1px dashed #8B4513';
-    }
-};
-
-window.onDrop = function(event) {
-    event.preventDefault();
-    
-    // Убираем подсветку
-    const dropZone = document.getElementById('dropZone');
-    if (dropZone) {
-        dropZone.style.background = 'rgba(139,69,19,0.1)';
-        dropZone.style.border = '1px dashed #8B4513';
-    }
-    
-    const cardIndex = parseInt(event.dataTransfer.getData('text/plain'));
-    if (isNaN(cardIndex)) {
-        console.log('❌ Ошибка: неверный индекс карты');
+window.startLongPress = function(cardIndex) {
+    console.log('🔄 Начало долгого тапа (мышь), карта:', cardIndex);
+    const room = window.cardGameCurrentRoom;
+    if (!room) return;
+    if (room.currentTurn !== currentPlayer.id) return;
+    if (window._isProcessingMove) {
+        console.log('⏳ Уже выполняется ход, игнорируем');
         return;
     }
     
-    console.log('🔄 Карта брошена на стол, индекс:', cardIndex);
+    window._longPressCardIndex = cardIndex;
+    window._isLongPress = false;
     
+    if (window._longPressTimer) {
+        clearTimeout(window._longPressTimer);
+    }
+    
+    window._longPressTimer = setTimeout(() => {
+        console.log('✅ Долгий тап сработал (мышь), карта:', cardIndex);
+        window._isLongPress = true;
+        executeCardAction(cardIndex);
+        window._longPressCardIndex = null;
+    }, 500);
+};
+
+window.cancelLongPress = function() {
+    if (window._longPressTimer) {
+        clearTimeout(window._longPressTimer);
+        window._longPressTimer = null;
+    }
+    window._longPressCardIndex = null;
+};
+
+window.startLongPressTouch = function(event, cardIndex) {
+    console.log('🔄 Начало долгого тапа (touch), карта:', cardIndex);
+    const room = window.cardGameCurrentRoom;
+    if (!room) return;
+    if (room.currentTurn !== currentPlayer.id) return;
+    if (window._isProcessingMove) {
+        console.log('⏳ Уже выполняется ход, игнорируем');
+        return;
+    }
+    
+    window._longPressCardIndex = cardIndex;
+    window._isLongPress = false;
+    window._touchStartX = event.touches[0].clientX;
+    window._touchStartY = event.touches[0].clientY;
+    
+    if (window._longPressTimer) {
+        clearTimeout(window._longPressTimer);
+    }
+    
+    window._longPressTimer = setTimeout(() => {
+        console.log('✅ Долгий тап сработал (touch), карта:', cardIndex);
+        window._isLongPress = true;
+        executeCardAction(cardIndex);
+        window._longPressCardIndex = null;
+        if (navigator.vibrate) {
+            navigator.vibrate(50);
+        }
+    }, 500);
+};
+
+window.cancelLongPressTouch = function(event) {
+    if (window._longPressTimer) {
+        clearTimeout(window._longPressTimer);
+        window._longPressTimer = null;
+    }
+    if (event && event.changedTouches) {
+        const touch = event.changedTouches[0];
+        if (touch) {
+            const dx = Math.abs(touch.clientX - (window._touchStartX || 0));
+            const dy = Math.abs(touch.clientY - (window._touchStartY || 0));
+            if (dx > 10 || dy > 10) {
+                window._longPressCardIndex = null;
+                return;
+            }
+        }
+    }
+    window._longPressCardIndex = null;
+};
+
+function executeCardAction(cardIndex) {
+    if (window._isProcessingMove) {
+        console.log('⏳ Уже выполняется ход, игнорируем');
+        return;
+    }
+    
+    console.log('🎯 Исполнение действия с картой:', cardIndex);
     const room = window.cardGameCurrentRoom;
     if (!room) {
         showToast('❌ Нет активной игры', 'error');
@@ -30350,63 +30387,69 @@ window.onDrop = function(event) {
     
     const player = room.players.find(p => p.id === currentPlayer.id);
     if (!player) return;
-    if (cardIndex < 0 || cardIndex >= player.cards.length) return;
+    if (cardIndex < 0 || cardIndex >= player.cards.length) {
+        showToast('❌ Нет такой карты', 'error');
+        return;
+    }
+    
+    window._isProcessingMove = true;
     
     const hasTableCards = room.table && room.table.length > 0;
     const isBeatMode = hasTableCards && room.table.some(c => c.beaten === false);
     
     if (room.gameType === 'durak') {
         if (isBeatMode) {
-            // Режим битья
-            console.log('⚔️ Попытка побить карту через перетаскивание');
+            console.log('⚔️ Попытка побить карту через долгий тап');
             cardGameDurakBeat(cardIndex);
         } else {
-            // Режим хода (кладем карту)
-            console.log('🎯 Попытка положить карту через перетаскивание');
+            console.log('🎯 Попытка положить карту через долгий тап');
             cardGameDurakMove(cardIndex);
         }
     } else if (room.gameType === 'twentyone') {
         cardGameTwentyOneHit();
     }
     
-    // Восстанавливаем видимость карты
-    const card = document.getElementById('card_' + cardIndex);
-    if (card) {
-        card.style.opacity = '1';
-    }
-    window._dragData = null;
-};
+    document.querySelectorAll('#playerCards .game-card').forEach(el => {
+        el.classList.remove('selected');
+    });
+    window._selectedCardIndex = null;
+}
 
 // ============================================================
 // 26.9. ДЕЙСТВИЯ В ИГРЕ (ДУРАК)
 // ============================================================
 
-// Ход в дурака (положить карту)
 window.cardGameDurakMove = async function(cardIndex) {
     console.log('🎯 Ход в дурака, карта:', cardIndex);
     const room = window.cardGameCurrentRoom;
-    if (!room) return;
+    if (!room) {
+        window._isProcessingMove = false;
+        return;
+    }
     if (room.currentTurn !== currentPlayer.id) {
+        window._isProcessingMove = false;
         showToast('⏳ Сейчас не ваш ход', 'warning');
         return;
     }
     
     const player = room.players.find(p => p.id === currentPlayer.id);
-    if (!player) return;
+    if (!player) {
+        window._isProcessingMove = false;
+        return;
+    }
     if (cardIndex < 0 || cardIndex >= player.cards.length) {
+        window._isProcessingMove = false;
         showToast('❌ Нет такой карты', 'error');
         return;
     }
     
-    // Проверяем, есть ли уже карты на столе
     if (room.table && room.table.length > 0) {
-        // Проверяем, все ли карты побиты
         const allBeaten = room.table.every(c => c.beaten === true);
         if (!allBeaten) {
+            window._isProcessingMove = false;
             showToast('❌ Сначала побейте карты на столе', 'warning');
             return;
         }
-        // Если все побиты - карты уходят в отбой автоматически
         room.discard = room.discard || [];
         room.discard.push(...room.table);
         room.table = [];
@@ -30416,27 +30459,49 @@ window.cardGameDurakMove = async function(cardIndex) {
     if (!room.table) room.table = [];
     room.table.push({ card, playerId: currentPlayer.id, beaten: false });
     
-    // Передаем ход следующему
+    // Проверяем, не осталось ли карт у игрока
+    if (player.cards.length === 0) {
+        player.isActive = false;
+        room.gameOver = true;
+        room.winner = currentPlayer.id;
+        await updateCardGameRoom(room.id, {
+            players: room.players,
+            table: room.table,
+            discard: room.discard || [],
+            currentTurn: room.currentTurn,
+            gameOver: true,
+            winner: currentPlayer.id,
+            status: 'finished'
+        });
+        showToast(`🏆 ${player.name} победил! Все карты сброшены!`, 'success');
+        window._isProcessingMove = false;
+        await finishCardGame(room.id, currentPlayer.id);
+        return;
+    }
+    
     room.currentTurn = getNextPlayer(room, currentPlayer.id);
     
     await updateCardGameRoom(room.id, {
         players: room.players,
         table: room.table,
-        discard: room.discard,
+        discard: room.discard || [],
         currentTurn: room.currentTurn
     });
     
     showToast(`🃏 Вы положили карту ${card.rank}${card.suit}`, 'success');
     window._selectedCardIndex = null;
+    window._isProcessingMove = false;
     
-    // Проверяем победу
+    document.querySelectorAll('#playerCards .game-card').forEach(el => {
+        el.classList.remove('selected');
+    });
+    
     const winner = checkDurakWinner(room);
     if (winner) {
         await finishCardGame(room.id, winner);
     }
 };
 
-// Пас в дурака (взять карты)
 window.cardGameDurakPass = async function() {
     console.log('⏭️ Пас в дурака');
     const room = window.cardGameCurrentRoom;
@@ -30453,19 +30518,16 @@ window.cardGameDurakPass = async function() {
     const player = room.players.find(p => p.id === currentPlayer.id);
     if (!player) return;
     
-    // Проверяем, все ли карты побиты - если да, то пасовать нельзя
     const allBeaten = room.table.every(c => c.beaten === true);
     if (allBeaten) {
         showToast('❌ Все карты побиты, ходите', 'warning');
         return;
     }
     
-    // Игрок забирает все карты со стола
     const tableCards = room.table.map(c => c.card);
     player.cards.push(...tableCards);
     room.table = [];
     
-    // Передаем ход следующему
     room.currentTurn = getNextPlayer(room, currentPlayer.id);
     
     await updateCardGameRoom(room.id, {
@@ -30476,30 +30538,41 @@ window.cardGameDurakPass = async function() {
     
     showToast(`📥 Вы взяли ${tableCards.length} карт`, 'warning');
     window._selectedCardIndex = null;
+    
+    document.querySelectorAll('#playerCards .game-card').forEach(el => {
+        el.classList.remove('selected');
+    });
 };
 
-// Бить в дурака (перетаскиванием)
 window.cardGameDurakBeat = async function(cardIndex) {
     console.log('⚔️ Бить в дурака, карта:', cardIndex);
     const room = window.cardGameCurrentRoom;
-    if (!room) return;
+    if (!room) {
+        window._isProcessingMove = false;
+        return;
+    }
     if (room.currentTurn !== currentPlayer.id) {
+        window._isProcessingMove = false;
         showToast('⏳ Сейчас не ваш ход', 'warning');
         return;
     }
     if (!room.table || room.table.length === 0) {
+        window._isProcessingMove = false;
         showToast('❌ Нечего бить', 'warning');
         return;
     }
     
     const player = room.players.find(p => p.id === currentPlayer.id);
-    if (!player) return;
+    if (!player) {
+        window._isProcessingMove = false;
+        return;
+    }
     if (cardIndex < 0 || cardIndex >= player.cards.length) {
+        window._isProcessingMove = false;
         showToast('❌ Нет такой карты', 'error');
         return;
     }
     
-    // Находим последнюю небитую карту на столе
     let lastCardIndex = -1;
     let lastCard = null;
     for (let i = room.table.length - 1; i >= 0; i--) {
@@ -30511,6 +30584,7 @@ window.cardGameDurakBeat = async function(cardIndex) {
     }
     
     if (!lastCard) {
+        window._isProcessingMove = false;
         showToast('❌ Все карты уже побиты', 'warning');
         return;
     }
@@ -30518,47 +30592,64 @@ window.cardGameDurakBeat = async function(cardIndex) {
     const beatCard = player.cards[cardIndex];
     const trumpSuit = room.trumpSuit;
     
-    console.log('💥 Бьем карту:', lastCard.card.rank + lastCard.card.suit, 'картой:', beatCard.rank + beatCard.suit, 'козырь:', trumpSuit);
-    
     if (canBeatCard(lastCard.card, beatCard, trumpSuit)) {
-        // Карта побита
         player.cards.splice(cardIndex, 1);
         lastCard.beaten = true;
         lastCard.beatCard = beatCard;
         lastCard.beatPlayerId = currentPlayer.id;
         
-        console.log('✅ Карта побита!');
+        // Проверяем, не осталось ли карт у игрока после битья
+        if (player.cards.length === 0) {
+            player.isActive = false;
+            room.gameOver = true;
+            room.winner = currentPlayer.id;
+            await updateCardGameRoom(room.id, {
+                players: room.players,
+                table: room.table || [],
+                discard: room.discard || [],
+                currentTurn: room.currentTurn,
+                gameOver: true,
+                winner: currentPlayer.id,
+                status: 'finished'
+            });
+            showToast(`🏆 ${player.name} победил! Все карты сброшены!`, 'success');
+            window._isProcessingMove = false;
+            await finishCardGame(room.id, currentPlayer.id);
+            return;
+        }
         
-        // Проверяем, все ли карты побиты
         const allBeaten = room.table.every(c => c.beaten === true);
         if (allBeaten) {
-            // Все карты побиты - они уходят в отбой, ход переходит к следующему
             room.discard = room.discard || [];
             room.discard.push(...room.table);
             room.table = [];
             room.currentTurn = getNextPlayer(room, currentPlayer.id);
             showToast('✅ Все карты побиты! Ход переходит к следующему', 'success');
         } else {
-            // Если не все побиты - ход переходит к следующему, но он должен бить
             room.currentTurn = getNextPlayer(room, currentPlayer.id);
             showToast(`⚔️ Вы побили карту ${lastCard.card.rank}${lastCard.card.suit}`, 'success');
         }
         
         await updateCardGameRoom(room.id, {
             players: room.players,
-            table: room.table,
-            discard: room.discard,
+            table: room.table || [],
+            discard: room.discard || [],
             currentTurn: room.currentTurn
         });
         
         window._selectedCardIndex = null;
+        window._isProcessingMove = false;
         
-        // Проверяем победу
+        document.querySelectorAll('#playerCards .game-card').forEach(el => {
+            el.classList.remove('selected');
+        });
+        
         const winner = checkDurakWinner(room);
         if (winner) {
             await finishCardGame(room.id, winner);
         }
     } else {
+        window._isProcessingMove = false;
         showToast(`❌ Нельзя побить ${lastCard.card.rank}${lastCard.card.suit} картой ${beatCard.rank}${beatCard.suit}`, 'error');
     }
 };
@@ -30631,8 +30722,8 @@ window.startCardGame = async function() {
         deck: room.deck,
         trumpSuit: room.trumpSuit,
         trumpCard: room.trumpCard,
-        table: room.table,
-        discard: room.discard,
+        table: room.table || [],
+        discard: room.discard || [],
         currentTurn: room.currentTurn,
         status: room.status,
         gameOver: room.gameOver,
@@ -30730,6 +30821,9 @@ async function finishCardGame(roomId, winnerId) {
     });
 
     showToast(`🏆 ${winner.name} победил! Выигрыш: ${totalCigarettes}🚬 ${totalRubles}💰`, 'success');
+    
+    // Сбрасываем флаг обработки
+    window._isProcessingMove = false;
 }
 
 // ============================================================
@@ -30756,6 +30850,7 @@ window.closeCardGameModal = function() {
     document.body.style.width = '';
     document.body.classList.remove('modal-open');
     window._opening_cardgame_modal = false;
+    window._isProcessingMove = false;
 };
 
 // ============================================================
@@ -30844,11 +30939,11 @@ window.createCardGameRoomFromUI = createCardGameRoomFromUI;
 window.joinCardGameRoom = joinCardGameRoom;
 window.toggleCardGameReady = toggleCardGameReady;
 window.startCardGame = startCardGame;
-window.onDragStart = onDragStart;
-window.onDragEnd = onDragEnd;
-window.onDragOver = onDragOver;
-window.onDragLeave = onDragLeave;
-window.onDrop = onDrop;
+window.onCardClick = onCardClick;
+window.startLongPress = startLongPress;
+window.cancelLongPress = cancelLongPress;
+window.startLongPressTouch = startLongPressTouch;
+window.cancelLongPressTouch = cancelLongPressTouch;
 window.cardGameDurakMove = cardGameDurakMove;
 window.cardGameDurakPass = cardGameDurakPass;
 window.cardGameDurakBeat = cardGameDurakBeat;
@@ -30856,7 +30951,7 @@ window.cardGameTwentyOneHit = cardGameTwentyOneHit;
 window.cardGameTwentyOneStand = cardGameTwentyOneStand;
 window.initCardGameSystem = initCardGameSystem;
 
-console.log('✅ Блок ИГРОВАЯ (КАРТЫ) полностью загружен с перетаскиванием!');
+console.log('✅ Блок ИГРОВАЯ (КАРТЫ) полностью загружен с долгим тапом и исправленной логикой победы!');
 
 if (typeof currentPlayer !== 'undefined' && currentPlayer) {
     initCardGameSystem();
