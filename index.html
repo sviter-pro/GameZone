@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>GameZona - 1.0.1.054</title>
+    <title>GameZona - 1.0.1.055</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -8069,7 +8069,7 @@ window.openSettingsModal = function() {
                     <div style="font-size: 36px; margin-bottom: 10px;">⚙️</div>
                     <div style="font-size: 16px; font-weight: 700; color: #ffd966;">${escapeHtml(window.currentPlayer.username)}</div>
                     <div style="font-size: 12px; color: #888; margin-top: 4px;">🆔 ${window.playerId}</div>
-                    <div style="font-size: 11px; color: #666; margin-top: 8px;">Версия - 1.0.1.054</div>
+                    <div style="font-size: 11px; color: #666; margin-top: 8px;">Версия - 1.0.1.055</div>
                     <div class="settings-status-info" style="font-size: 10px; color: ${window._settingsHasInternet ? '#4caf50' : '#e94560'}; margin-top: 6px;">
                         ${window._settingsHasInternet ? '🟢 Онлайн' : '🔴 Офлайн'}
                     </div>
@@ -29526,7 +29526,7 @@ console.log('✅ Все функции войны кланов готовы к �
 console.log('✅ Счетчики ВОЙНЫ КЛАНОВ работают полностью автономно на building b6!');
 
 // ============================================================
-// 26. ИГРОВАЯ (КАРТЫ) - ИСПРАВЛЕННАЯ ВЕРСИЯ (ОБРАБОТКА ОШИБОК)
+// 26. ИГРОВАЯ (КАРТЫ) - ИСПРАВЛЕННАЯ ВЕРСИЯ
 // ============================================================
 
 // ============================================================
@@ -29580,17 +29580,14 @@ if (typeof window._isLongPress === 'undefined') {
 if (typeof window._isProcessingMove === 'undefined') {
     window._isProcessingMove = false;
 }
-if (typeof window._currentTrumpSuit === 'undefined') {
-    window._currentTrumpSuit = null;
-}
-if (typeof window._currentTrumpCard === 'undefined') {
-    window._currentTrumpCard = null;
-}
-if (typeof window._cardGameShowReset === 'undefined') {
-    window._cardGameShowReset = false;
-}
 if (typeof window._cardGameRoomExists === 'undefined') {
     window._cardGameRoomExists = true;
+}
+if (typeof window._cardGameUpdateInterval === 'undefined') {
+    window._cardGameUpdateInterval = null;
+}
+if (typeof window._cardGameIsReady === 'undefined') {
+    window._cardGameIsReady = false;
 }
 
 // ============================================================
@@ -29627,10 +29624,6 @@ function getCardDisplay(card) {
     const rank = card.rank;
     const color = (card.suit === '♥' || card.suit === '♦') ? 'red' : 'black';
     return { display: rank + suitSymbol, color };
-}
-
-function isTrump(card, trumpSuit) {
-    return card && card.suit === trumpSuit;
 }
 
 function getCardValue(card) {
@@ -29726,6 +29719,7 @@ function subscribeToCardGameRoom(roomId, callback) {
     const ref = getCardGameRef();
     if (!ref) return null;
     const roomRef = ref.child(roomId);
+    
     const listener = roomRef.on('value', (snapshot) => {
         if (snapshot.exists()) {
             const data = snapshot.val();
@@ -29733,23 +29727,23 @@ function subscribeToCardGameRoom(roomId, callback) {
             window._cardGameRoomExists = true;
             callback(data);
         } else {
-            // Комната удалена
             window._cardGameRoomExists = false;
             window.cardGameCurrentRoom = null;
-            // Очищаем localStorage
             if (currentPlayer) {
                 try {
                     localStorage.removeItem('cardGameRoom_' + currentPlayer.id);
                 } catch(e) {}
             }
-            // Показываем уведомление и перенаправляем в лобби
             showToast('❌ Комната была удалена', 'error');
             callback(null);
+            setTimeout(() => {
+                showCardGameLobby();
+            }, 500);
         }
     }, (error) => {
         console.error('❌ Ошибка слушателя комнаты:', error);
-        callback(null);
     });
+    
     window._cardGameSubscribed = true;
     return () => {
         roomRef.off('value', listener);
@@ -29776,24 +29770,10 @@ async function updateCardGameRoom(roomId, data) {
         if (Object.keys(cleanData).length === 0) {
             return true;
         }
-        // Проверяем существование комнаты перед обновлением
-        const checkRef = ref.child(roomId);
-        const checkSnapshot = await checkRef.once('value');
-        if (!checkSnapshot.exists()) {
-            window._cardGameRoomExists = false;
-            window.cardGameCurrentRoom = null;
-            showToast('❌ Комната больше не существует', 'error');
-            return false;
-        }
-        await checkRef.update(cleanData);
+        await ref.child(roomId).update(cleanData);
         return true;
     } catch (e) {
         console.error('❌ Ошибка обновления комнаты:', e);
-        // Если ошибка связана с отсутствием комнаты
-        if (e.message && e.message.includes('permission_denied')) {
-            window._cardGameRoomExists = false;
-            window.cardGameCurrentRoom = null;
-        }
         return false;
     }
 }
@@ -29814,7 +29794,7 @@ async function deleteCardGameRoom(roomId) {
 }
 
 // ============================================================
-// 26.3. ПОЛНАЯ ЛОГИКА ИГРЫ ДУРАК
+// 26.3. ЛОГИКА ИГР
 // ============================================================
 
 function canBeatCard(card, beatCard, trumpSuit) {
@@ -29936,11 +29916,9 @@ async function makeDurakMove(room, playerId, cardIndex, action) {
         if (cardIndex === undefined || cardIndex < 0 || cardIndex >= (player.cards ? player.cards.length : 0)) return null;
         
         let lastUnbeaten = null;
-        let lastIndex = -1;
         for (let i = table.length - 1; i >= 0; i--) {
             if (!table[i].beaten) {
                 lastUnbeaten = table[i];
-                lastIndex = i;
                 break;
             }
         }
@@ -30037,10 +30015,6 @@ async function makeDurakMove(room, playerId, cardIndex, action) {
     
     return null;
 }
-
-// ============================================================
-// 26.4. ПОЛНАЯ ЛОГИКА ИГРЫ 21 (БЛЭКДЖЕК)
-// ============================================================
 
 function calculateHandValue(cards) {
     if (!cards || cards.length === 0) return 0;
@@ -30164,7 +30138,7 @@ async function makeTwentyOneMove(room, playerId, action) {
 }
 
 // ============================================================
-// 26.5. ЗАВЕРШЕНИЕ ИГРЫ
+// 26.4. ЗАВЕРШЕНИЕ ИГРЫ
 // ============================================================
 async function finishCardGame(roomId, winnerId) {
     const room = window.cardGameCurrentRoom;
@@ -30204,7 +30178,7 @@ async function finishCardGame(roomId, winnerId) {
 }
 
 // ============================================================
-// 26.6. ОТКРЫТИЕ ОКНА ИГРОВОЙ И ЛОББИ
+// 26.5. ОТКРЫТИЕ ОКНА ИГРОВОЙ
 // ============================================================
 window.openCardGameModal = function() {
     if (window._opening_cardgame_modal) return;
@@ -30217,8 +30191,9 @@ window.openCardGameModal = function() {
     }
 
     getCardGameRooms().then(rooms => {
-        window.cardGameRooms = rooms;
+        window.cardGameRooms = rooms || [];
         
+        // Проверяем, есть ли активная комната для игрока
         const myActiveRoom = rooms.find(r => {
             if (!r) return false;
             if (r.createdBy === currentPlayer.id) return true;
@@ -30226,15 +30201,16 @@ window.openCardGameModal = function() {
             return false;
         });
         
+        renderCardGameModal();
+        
         if (myActiveRoom && myActiveRoom.status !== 'finished') {
             window.cardGameCurrentRoom = myActiveRoom;
             window._cardGameRoomExists = true;
-            renderCardGameModal();
+            // Подключаемся к комнате
             setTimeout(() => {
                 joinCardGameRoom(myActiveRoom.id);
-            }, 100);
+            }, 300);
         } else {
-            renderCardGameModal();
             showCardGameLobby();
         }
         window._opening_cardgame_modal = false;
@@ -30307,6 +30283,103 @@ function renderCardGameModal() {
 
     document.body.insertAdjacentHTML('beforeend', html);
     if (window.tg) window.tg.BackButton.show();
+    
+    // Запускаем автоматическое обновление
+    startCardGameAutoUpdate();
+}
+
+// ============================================================
+// 26.6. АВТОМАТИЧЕСКОЕ ОБНОВЛЕНИЕ ОКНА
+// ============================================================
+function startCardGameAutoUpdate() {
+    if (window._cardGameUpdateInterval) {
+        clearInterval(window._cardGameUpdateInterval);
+    }
+    
+    window._cardGameUpdateInterval = setInterval(() => {
+        const modal = document.getElementById('cardGameFullscreen');
+        if (!modal) {
+            if (window._cardGameUpdateInterval) {
+                clearInterval(window._cardGameUpdateInterval);
+                window._cardGameUpdateInterval = null;
+            }
+            return;
+        }
+        
+        if (window.cardGameCurrentRoom && window._cardGameRoomExists) {
+            updateCardGameUI();
+        }
+    }, 1000);
+}
+
+function updateCardGameUI() {
+    const content = document.getElementById('cardGameContent');
+    if (!content) return;
+    
+    const room = window.cardGameCurrentRoom;
+    if (!room) return;
+    
+    // Обновляем статус игроков
+    const playerSlots = content.querySelectorAll('.game-player-slot');
+    if (playerSlots.length > 0 && room.players) {
+        room.players.forEach((p, index) => {
+            if (playerSlots[index]) {
+                const statusSpan = playerSlots[index].querySelector('.player-status');
+                if (statusSpan) {
+                    statusSpan.textContent = p.ready ? '✅ Готов' : '⏳ Ожидает';
+                }
+                if (p.ready) {
+                    playerSlots[index].classList.add('ready');
+                    playerSlots[index].classList.remove('not-ready');
+                } else {
+                    playerSlots[index].classList.remove('ready');
+                    playerSlots[index].classList.add('not-ready');
+                }
+            }
+        });
+    }
+    
+    // Обновляем стол
+    const tableHand = document.getElementById('tableHand');
+    if (tableHand && room.table) {
+        tableHand.innerHTML = room.table.map((c, idx) => {
+            if (!c) return '';
+            return `
+                <div class="game-card ${getCardDisplay(c.card).color}" style="${c.beaten ? 'opacity:0.5;' : ''}">
+                    ${getCardDisplay(c.card).display}
+                    ${c.beaten ? '✓' : ''}
+                </div>
+            `;
+        }).join('') || '🃏';
+    }
+    
+    // Обновляем карты игрока
+    const playerCards = document.getElementById('playerCards');
+    if (playerCards) {
+        const currentPlayer = room.players.find(p => p && p.id === window.currentPlayer.id);
+        if (currentPlayer && currentPlayer.cards) {
+            playerCards.innerHTML = currentPlayer.cards.map((card, idx) => {
+                if (!card) return '';
+                const isSelected = window._selectedCardIndex === idx;
+                return `
+                    <div class="game-card ${getCardDisplay(card).color} ${isSelected ? 'selected' : ''}" 
+                         id="card_${idx}"
+                         onclick="onCardClick(${idx})"
+                         style="cursor:pointer;">
+                        ${getCardDisplay(card).display}
+                    </div>
+                `;
+            }).join('');
+        }
+    }
+    
+    // Обновляем информацию о ходе
+    const turnInfo = content.querySelector('.game-turn-info');
+    if (turnInfo && room.currentTurn) {
+        const playerName = room.players.find(p => p && p.id === room.currentTurn)?.name || '...';
+        const isMyTurn = room.currentTurn === window.currentPlayer.id;
+        turnInfo.textContent = isMyTurn ? '🎯 ВАШ ХОД' : `⏳ ХОД: ${playerName}`;
+    }
 }
 
 // ============================================================
@@ -30436,13 +30509,14 @@ function renderLobby(content) {
 }
 
 // ============================================================
-// 26.8. СОЗДАНИЕ И ПРИСОЕДИНЕНИЕ К КОМНАТЕ
+// 26.8. СОЗДАНИЕ И ПРИСОЕДИНЕНИЕ К КОМНАТЕ (ИСПРАВЛЕННЫЕ)
 // ============================================================
 window.createCardGameRoomFromUI = async function() {
     if (!currentPlayer) {
         showToast('❌ Игрок не найден', 'error');
         return;
     }
+    
     const gameType = document.getElementById('gameTypeSelect')?.value || 'durak';
     const deckSize = parseInt(document.getElementById('deckSizeSelect')?.value || 36);
     const maxPlayers = parseInt(document.getElementById('maxPlayersSelect')?.value || 2);
@@ -30464,16 +30538,38 @@ window.createCardGameRoomFromUI = async function() {
         createdBy: currentPlayer.id
     };
 
+    showLoading(true, 'Создание комнаты...');
+    
     const room = await createCardGameRoom(roomData);
+    showLoading(false);
+    
     if (room) {
         showToast('✅ Комната создана!', 'success');
         window.cardGameCurrentRoom = room;
         window._cardGameRoomExists = true;
-        joinCardGameRoom(room.id);
+        // Обновляем отображение
+        showCardGameRoom();
+        // Подписываемся на обновления
+        if (window.cardGameUnsubscribe) {
+            try { window.cardGameUnsubscribe(); } catch(e) {}
+        }
+        window.cardGameUnsubscribe = subscribeToCardGameRoom(room.id, (roomData) => {
+            if (!roomData) {
+                window.cardGameCurrentRoom = null;
+                window._cardGameRoomExists = false;
+                showCardGameLobby();
+                return;
+            }
+            window.cardGameCurrentRoom = roomData;
+            window._cardGameRoomExists = true;
+            showCardGameRoom();
+        });
     }
 };
 
 window.joinCardGameRoom = async function(roomId) {
+    console.log('🔗 joinCardGameRoom вызвана, roomId:', roomId);
+    
     if (!currentPlayer) {
         showToast('❌ Игрок не найден', 'error');
         return;
@@ -30483,29 +30579,31 @@ window.joinCardGameRoom = async function(roomId) {
         return;
     }
 
+    // Закрываем старую подписку
     if (window.cardGameUnsubscribe) {
-        window.cardGameUnsubscribe();
+        try { window.cardGameUnsubscribe(); } catch(e) {}
         window.cardGameUnsubscribe = null;
     }
 
-    window.cardGameUnsubscribe = subscribeToCardGameRoom(roomId, (roomData) => {
-        if (!roomData) {
-            // Комната удалена
-            window.cardGameCurrentRoom = null;
-            window._cardGameRoomExists = false;
+    showLoading(true, 'Подключение к комнате...');
+
+    try {
+        // Проверяем существование комнаты
+        const rooms = await getCardGameRooms();
+        const room = rooms.find(r => r && r.id === roomId);
+        
+        if (!room) {
+            showLoading(false);
+            showToast('❌ Комната не найдена', 'error');
             showCardGameLobby();
             return;
         }
-        window.cardGameCurrentRoom = roomData;
-        window._cardGameRoomExists = true;
-        showCardGameRoom();
-    });
 
-    const rooms = await getCardGameRooms();
-    const room = rooms.find(r => r && r.id === roomId);
-    if (room) {
+        // Проверяем, есть ли игрок в комнате
         const isInRoom = room.players && room.players.some(p => p && p.id === currentPlayer.id);
+        
         if (!isInRoom) {
+            // Добавляем игрока
             const newPlayer = {
                 id: currentPlayer.id,
                 name: currentPlayer.username,
@@ -30520,17 +30618,42 @@ window.joinCardGameRoom = async function(roomId) {
             room.players.push(newPlayer);
             await updateCardGameRoom(roomId, { players: room.players });
         } else {
+            // Активируем игрока если он был неактивен
             const player = room.players.find(p => p && p.id === currentPlayer.id);
             if (player && !player.isActive) {
                 player.isActive = true;
                 await updateCardGameRoom(roomId, { players: room.players });
             }
         }
+
+        // Устанавливаем текущую комнату
         window.cardGameCurrentRoom = room;
         window._cardGameRoomExists = true;
+        
+        // Подписываемся на обновления
+        window.cardGameUnsubscribe = subscribeToCardGameRoom(roomId, (roomData) => {
+            if (!roomData) {
+                window.cardGameCurrentRoom = null;
+                window._cardGameRoomExists = false;
+                showLoading(false);
+                showToast('❌ Комната была удалена', 'error');
+                showCardGameLobby();
+                return;
+            }
+            window.cardGameCurrentRoom = roomData;
+            window._cardGameRoomExists = true;
+            showCardGameRoom();
+            showLoading(false);
+        });
+
+        showLoading(false);
+        showToast('✅ Вы подключились к комнате!', 'success');
         showCardGameRoom();
-    } else {
-        showToast('❌ Комната не найдена', 'error');
+
+    } catch (e) {
+        showLoading(false);
+        console.error('❌ Ошибка подключения к комнате:', e);
+        showToast('❌ Ошибка подключения: ' + e.message, 'error');
         showCardGameLobby();
     }
 };
@@ -30540,13 +30663,20 @@ window.joinCardGameRoom = async function(roomId) {
 // ============================================================
 function showCardGameRoom() {
     const content = document.getElementById('cardGameContent');
-    if (!content) return;
+    if (!content) {
+        console.log('❌ Контент не найден, ждем...');
+        setTimeout(showCardGameRoom, 200);
+        return;
+    }
 
     const room = window.cardGameCurrentRoom;
     if (!room) {
+        console.log('❌ Нет комнаты, показываем лобби');
         showCardGameLobby();
         return;
     }
+
+    console.log('🔄 Показываем комнату:', room.id, 'статус:', room.status);
 
     const isCreator = room.createdBy === currentPlayer.id;
     const playerInRoom = room.players ? room.players.find(p => p && p.id === currentPlayer.id) : null;
@@ -30559,6 +30689,9 @@ function showCardGameRoom() {
             <div style="font-size: 12px; color: #888;">👥 ${room.players ? room.players.length : 0}/${room.maxPlayers || 2} | 🚬${room.bet?.cigarettes || 0} 💰${room.bet?.rubles || 0}</div>
             <div style="font-size: 11px; color: #aaa;">Статус: ${room.status === 'lobby' ? '🟢 Лобби' : room.status === 'playing' ? '🟡 Игра идет' : '🔴 Завершена'}</div>
             ${room.trumpSuit ? `<div style="font-size: 12px; color: #c9a03d;">Козырь: ${room.trumpSuit}</div>` : ''}
+            <div class="game-turn-info" style="font-size: 12px; color: #ffd966; margin-top: 4px;">
+                ${room.status === 'playing' ? (room.currentTurn === currentPlayer.id ? '🎯 ВАШ ХОД' : `⏳ ХОД: ${room.players ? room.players.find(p => p && p.id === room.currentTurn)?.name || '...' : '...'}`) : ''}
+            </div>
             <button onclick="showCardGameLobby()" class="btn-game-secondary" style="margin-top: 6px; padding: 4px 12px; font-size: 11px;">← НАЗАД В ЛОББИ</button>
         </div>
         <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px;">
@@ -30618,13 +30751,13 @@ function showCardGameRoom() {
         }
     }
 
-    // Добавляем кнопки сброса (если их еще нет)
-    if (!document.getElementById('cardGameResetBtn') && !document.getElementById('cardGameLeaveBtn') && room) {
+    // Кнопки управления
+    if (room && room.status !== 'finished') {
         const isCreator2 = room.createdBy === currentPlayer.id;
         const resetHtml = `
             <div style="display: flex; gap: 8px; justify-content: center; margin-top: 12px; flex-wrap: wrap; padding-bottom: 10px;">
                 ${isCreator2 ? `
-                    <button id="cardGameResetBtn" onclick="resetCurrentCardGame()" style="
+                    <button onclick="resetCurrentCardGame()" style="
                         padding: 6px 16px;
                         background: linear-gradient(135deg, #8B1a1a, #5a0a0a);
                         border: 1px solid #e94560;
@@ -30638,7 +30771,7 @@ function showCardGameRoom() {
                         🗑️ СБРОСИТЬ ИГРУ
                     </button>
                 ` : `
-                    <button id="cardGameLeaveBtn" onclick="leaveCardGame()" style="
+                    <button onclick="leaveCardGame()" style="
                         padding: 6px 16px;
                         background: linear-gradient(135deg, #8B4513, #5a2d0a);
                         border: 1px solid #c9a03d;
@@ -30657,24 +30790,7 @@ function showCardGameRoom() {
         content.insertAdjacentHTML('beforeend', resetHtml);
     }
 
-    // Сохраняем комнату в localStorage
-    if (window.cardGameCurrentRoom && currentPlayer && window._cardGameRoomExists) {
-        try {
-            const saveRoom = window.cardGameCurrentRoom;
-            const saveData = {
-                id: saveRoom.id,
-                status: saveRoom.status,
-                gameType: saveRoom.gameType,
-                players: saveRoom.players ? saveRoom.players.map(p => ({ id: p.id, name: p.name })) : [],
-                bet: saveRoom.bet,
-                maxPlayers: saveRoom.maxPlayers,
-                deckSize: saveRoom.deckSize
-            };
-            localStorage.setItem('cardGameRoom_' + currentPlayer.id, JSON.stringify(saveData));
-        } catch (e) {
-            console.warn('Ошибка сохранения комнаты:', e);
-        }
-    }
+    content.innerHTML = html;
 }
 
 // ============================================================
@@ -30949,7 +31065,7 @@ function executeCardAction(cardIndex) {
 }
 
 // ============================================================
-// 26.13. ДЕЙСТВИЯ В ИГРЕ (ДУРАК)
+// 26.13. ДЕЙСТВИЯ В ИГРЕ
 // ============================================================
 window.cardGameDurakPass = async function() {
     const room = window.cardGameCurrentRoom;
@@ -30965,9 +31081,6 @@ window.cardGameDurakPass = async function() {
     window._isProcessingMove = false;
 };
 
-// ============================================================
-// 26.14. ДЕЙСТВИЯ В ИГРЕ (21)
-// ============================================================
 window.cardGameTwentyOneHit = async function() {
     const room = window.cardGameCurrentRoom;
     if (!room) return;
@@ -30997,7 +31110,7 @@ window.cardGameTwentyOneStand = async function() {
 };
 
 // ============================================================
-// 26.15. УПРАВЛЕНИЕ ИГРОЙ
+// 26.14. УПРАВЛЕНИЕ ИГРОЙ
 // ============================================================
 window.toggleCardGameReady = async function() {
     const room = window.cardGameCurrentRoom;
@@ -31014,7 +31127,10 @@ window.toggleCardGameReady = async function() {
 
 window.startCardGame = async function() {
     const room = window.cardGameCurrentRoom;
-    if (!room) return;
+    if (!room) {
+        showToast('❌ Нет активной комнаты', 'error');
+        return;
+    }
     if (!window._cardGameRoomExists) {
         showToast('❌ Комната была удалена', 'error');
         return;
@@ -31031,6 +31147,8 @@ window.startCardGame = async function() {
         showToast('❌ Не все игроки готовы', 'error');
         return;
     }
+
+    showLoading(true, 'Начинаем игру...');
 
     const deckSize = room.deckSize || 36;
     let deck = createDeck(deckSize);
@@ -31083,11 +31201,13 @@ window.startCardGame = async function() {
         players: room.players
     });
 
+    showLoading(false);
     showToast('🎴 Игра началась!', 'success');
+    showCardGameRoom();
 };
 
 // ============================================================
-// 26.16. ЗАКРЫТИЕ ОКНА
+// 26.15. ЗАКРЫТИЕ ОКНА
 // ============================================================
 window.closeCardGameModal = function() {
     if (window.cardGameUnsubscribe) {
@@ -31096,14 +31216,11 @@ window.closeCardGameModal = function() {
         } catch(e) {}
         window.cardGameUnsubscribe = null;
     }
-    if (window.cardGameCurrentRoom && currentPlayer && window._cardGameRoomExists) {
-        const room = window.cardGameCurrentRoom;
-        const player = room.players ? room.players.find(p => p && p.id === currentPlayer.id) : null;
-        if (player) {
-            player.isActive = false;
-            updateCardGameRoom(room.id, { players: room.players }).catch(e => console.error(e));
-        }
+    if (window._cardGameUpdateInterval) {
+        clearInterval(window._cardGameUpdateInterval);
+        window._cardGameUpdateInterval = null;
     }
+    
     const modal = document.getElementById('cardGameFullscreen');
     if (modal) modal.remove();
     if (window.tg) window.tg.BackButton.hide();
@@ -31116,7 +31233,7 @@ window.closeCardGameModal = function() {
 };
 
 // ============================================================
-// 26.17. ПЕРЕХВАТ КНОПКИ ИГРОВОЙ НА КАРТЕ
+// 26.16. ПЕРЕХВАТ КНОПКИ ИГРОВОЙ НА КАРТЕ
 // ============================================================
 document.addEventListener('DOMContentLoaded', function() {
     const b3 = document.querySelector('.building.b3');
@@ -31129,7 +31246,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // ============================================================
-// 26.18. ФУНКЦИИ СБРОСА ИГРЫ
+// 26.17. ФУНКЦИИ СБРОСА ИГРЫ
 // ============================================================
 
 window.resetCurrentCardGame = async function() {
@@ -31256,6 +31373,11 @@ window.resetCardGame = function() {
         window.cardGameUnsubscribe = null;
     }
     
+    if (window._cardGameUpdateInterval) {
+        clearInterval(window._cardGameUpdateInterval);
+        window._cardGameUpdateInterval = null;
+    }
+    
     window.cardGameCurrentRoom = null;
     window.cardGameRooms = {};
     window.cardGameListeners = {};
@@ -31264,8 +31386,6 @@ window.resetCardGame = function() {
     window._longPressCardIndex = null;
     window._isLongPress = false;
     window._isProcessingMove = false;
-    window._currentTrumpSuit = null;
-    window._currentTrumpCard = null;
     window._cardGameRoomExists = false;
     
     try {
@@ -31306,7 +31426,7 @@ window.resetCardGame = function() {
 };
 
 // ============================================================
-// 26.19. ИНИЦИАЛИЗАЦИЯ СИСТЕМЫ
+// 26.18. ИНИЦИАЛИЗАЦИЯ СИСТЕМЫ
 // ============================================================
 function initCardGameSystem() {
     console.log('🔄 Инициализация системы ИГРОВАЯ (КАРТЫ)...');
@@ -31322,14 +31442,6 @@ function initCardGameSystem() {
                 window.cardGameCurrentRoom = roomData;
                 window._cardGameRoomExists = true;
                 console.log('🔄 Восстановлена комната:', roomData.id);
-                getCardGameRooms().then(rooms => {
-                    const exists = rooms.some(r => r && r.id === roomData.id);
-                    if (!exists) {
-                        window.cardGameCurrentRoom = null;
-                        window._cardGameRoomExists = false;
-                        localStorage.removeItem('cardGameRoom_' + currentPlayer.id);
-                    }
-                });
             } else {
                 localStorage.removeItem('cardGameRoom_' + currentPlayer.id);
             }
@@ -31349,7 +31461,7 @@ function initCardGameSystem() {
 }
 
 // ============================================================
-// 26.20. ЭКСПОРТ ФУНКЦИЙ
+// 26.19. ЭКСПОРТ ФУНКЦИЙ
 // ============================================================
 window.openCardGameModal = openCardGameModal;
 window.closeCardGameModal = closeCardGameModal;
@@ -31375,8 +31487,6 @@ console.log('✅ Блок ИГРОВАЯ (КАРТЫ) полностью заг�
 console.log('🃏 Поддерживаются колоды 36 и 52 карты');
 console.log('👥 Игроки: 2-4 человека');
 console.log('🎯 Доступны игры: Дурак и 21 (Блэкджек)');
-console.log('🔄 Для сброса игры: resetCardGame(), resetCurrentCardGame(), leaveCardGame()');
-console.log('🛡️ Добавлена защита от ошибок при удалении комнаты');
 
 if (typeof currentPlayer !== 'undefined' && currentPlayer) {
     initCardGameSystem();
