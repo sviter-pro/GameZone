@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>GameZona - 1.0.1.060</title>
+    <title>GameZona - 1.0.1.061</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -8069,7 +8069,7 @@ window.openSettingsModal = function() {
                     <div style="font-size: 36px; margin-bottom: 10px;">⚙️</div>
                     <div style="font-size: 16px; font-weight: 700; color: #ffd966;">${escapeHtml(window.currentPlayer.username)}</div>
                     <div style="font-size: 12px; color: #888; margin-top: 4px;">🆔 ${window.playerId}</div>
-                    <div style="font-size: 11px; color: #666; margin-top: 8px;">Версия - 1.0.1.060</div>
+                    <div style="font-size: 11px; color: #666; margin-top: 8px;">Версия - 1.0.1.061</div>
                     <div class="settings-status-info" style="font-size: 10px; color: ${window._settingsHasInternet ? '#4caf50' : '#e94560'}; margin-top: 6px;">
                         ${window._settingsHasInternet ? '🟢 Онлайн' : '🔴 Офлайн'}
                     </div>
@@ -29818,9 +29818,8 @@ window.openCardGameModal = function() {
         if (myActiveRoom && myActiveRoom.status !== 'finished') {
             window.cardGameCurrentRoom = myActiveRoom;
             window._cardGameRoomExists = true;
-            setTimeout(() => {
-                joinCardGameRoom(myActiveRoom.id);
-            }, 300);
+            // Показываем комнату без автоматического подключения
+            showCardGameRoom();
         } else {
             showCardGameLobby();
         }
@@ -29899,7 +29898,7 @@ function renderCardGameModal() {
 }
 
 // ============================================================
-// 26.4. АВТОМАТИЧЕСКОЕ ОБНОВЛЕНИЕ ОКНА (ОНЛАЙН БЕЗ ПЕРЕЗАГРУЗКИ)
+// 26.4. АВТОМАТИЧЕСКОЕ ОБНОВЛЕНИЕ ОКНА
 // ============================================================
 function startCardGameAutoUpdate() {
     if (window._cardGameUpdateInterval) {
@@ -29955,6 +29954,7 @@ function showCardGameLobby() {
 function renderLobby(content) {
     const rooms = window.cardGameRooms || [];
     
+    // Комнаты, где есть текущий игрок
     const myRooms = rooms.filter(r => {
         if (!r) return false;
         if (r.createdBy === currentPlayer.id) return true;
@@ -29962,13 +29962,20 @@ function renderLobby(content) {
         return false;
     });
     
+    // Активные комнаты игрока (не завершенные)
     const myActiveRooms = myRooms.filter(r => r && r.status !== 'finished');
+    
+    // Доступные комнаты для присоединения
     const availableRooms = rooms.filter(r => {
         if (!r) return false;
+        // Пропускаем комнаты созданные игроком
         if (r.createdBy === currentPlayer.id) return false;
+        // Пропускаем комнаты где уже есть игрок
         if (r.players && r.players.some(p => p && p.id === currentPlayer.id)) return false;
+        // Пропускаем завершенные и игры в процессе
         if (r.status === 'finished') return false;
         if (r.status === 'playing') return false;
+        // Проверяем есть ли место
         return r.players && r.players.length < r.maxPlayers;
     });
 
@@ -29978,20 +29985,22 @@ function renderLobby(content) {
             <p style="color: #888; font-size: 12px;">Создайте комнату или присоединитесь к игре (2 игрока, 36 карт)</p>
         </div>
         
+        <!-- СЕКЦИЯ: МОИ КОМНАТЫ -->
         <div style="margin-bottom: 16px;">
             <h4 style="color: #ff9800; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
-                <span>🔄</span> В ИГРЕ (${myActiveRooms.length})
+                <span>🔄</span> МОИ КОМНАТЫ (${myActiveRooms.length})
             </h4>
             ${myActiveRooms.length === 0 ? 
-                '<div style="text-align:center; padding:10px; color:#888; font-size:12px;">Нет активных игр</div>' : 
+                '<div style="text-align:center; padding:10px; color:#888; font-size:12px;">У вас нет активных комнат</div>' : 
                 myActiveRooms.map(room => {
                     if (!room) return '';
+                    const isCreator = room.createdBy === currentPlayer.id;
                     return `
-                        <div class="game-lobby-item" style="border-left-color: #ff9800;">
+                        <div class="game-lobby-item" style="border-left-color: ${isCreator ? '#ff9800' : '#4caf50'};">
                             <div>
                                 <div class="lobby-name">${room.gameType === 'durak' ? '🃏' : '🎯'} ${room.gameType === 'durak' ? 'Дурак (36 карт)' : 'Блэкджек (36 карт)'} ${room.status === 'playing' ? '🟡 ИДЕТ' : '🟢 ЛОББИ'}</div>
                                 <div class="lobby-info">👤 ${room.players ? room.players.length : 0}/${room.maxPlayers || 2}</div>
-                                <div class="lobby-info">Создал: ${room.createdByName || 'Игрок'}</div>
+                                <div class="lobby-info">${isCreator ? '👑 Вы создатель' : '🔗 Вы в комнате'}</div>
                             </div>
                             <button class="lobby-join-btn" onclick="joinCardGameRoom('${room.id}')" style="background: linear-gradient(135deg, #ff9800, #e68a00); border-color: #ff9800;">
                                 🔗 ВОЙТИ
@@ -30004,6 +30013,7 @@ function renderLobby(content) {
         
         <div style="border-top: 1px solid rgba(139,69,19,0.2); margin: 12px 0;"></div>
         
+        <!-- СЕКЦИЯ: СОЗДАНИЕ КОМНАТЫ -->
         ${myActiveRooms.length === 0 ? `
             <div class="game-card-item">
                 <div class="game-card-title">🆕 СОЗДАТЬ КОМНАТУ</div>
@@ -30021,12 +30031,12 @@ function renderLobby(content) {
             </div>
         ` : `
             <div class="game-card-item" style="border-color: #4caf50; background: rgba(76,175,80,0.05);">
-                <div class="game-card-title">✅ ВЫ УЖЕ В ИГРЕ</div>
-                <div class="game-card-desc">Перейдите в раздел "В ИГРЕ" чтобы продолжить</div>
-                <button onclick="joinCardGameRoom('${myActiveRooms[0] ? myActiveRooms[0].id : ''}')" class="btn-game-primary" style="margin-top: 8px; width: 100%; padding: 8px;">🔗 ВЕРНУТЬСЯ В ИГРУ</button>
+                <div class="game-card-title">✅ ВЫ УЖЕ В КОМНАТЕ</div>
+                <div class="game-card-desc">Нажмите "ВОЙТИ" в разделе "МОИ КОМНАТЫ" чтобы продолжить</div>
             </div>
         `}
 
+        <!-- СЕКЦИЯ: ДОСТУПНЫЕ КОМНАТЫ -->
         <div style="margin-top: 16px;">
             <h4 style="color: #c9a03d; margin-bottom: 8px;">📋 ДОСТУПНЫЕ КОМНАТЫ (${availableRooms.length})</h4>
             <div class="game-lobby-list">
@@ -30091,6 +30101,7 @@ window.createCardGameRoomFromUI = async function() {
         window.cardGameCurrentRoom = room;
         window._cardGameRoomExists = true;
         
+        // Подписываемся на обновления комнаты
         if (window.cardGameUnsubscribe) {
             try { window.cardGameUnsubscribe(); } catch(e) {}
         }
@@ -30106,10 +30117,12 @@ window.createCardGameRoomFromUI = async function() {
             window._cardGameRoomExists = true;
             showCardGameRoom();
             
+            // Автоматический запуск если оба готовы и комната в лобби
             if (roomData.status === 'lobby' && 
                 roomData.players && 
                 roomData.players.length === 2 && 
                 roomData.players.every(p => p && p.ready === true) &&
+                roomData.createdBy === currentPlayer.id &&
                 !window._gameStarting) {
                 console.log('🚀 Автоматический запуск игры!');
                 autoStartGameIfReady(roomData);
@@ -30132,6 +30145,7 @@ window.joinCardGameRoom = async function(roomId) {
         return;
     }
 
+    // Отписываемся от старой подписки
     if (window.cardGameUnsubscribe) {
         try { window.cardGameUnsubscribe(); } catch(e) {}
         window.cardGameUnsubscribe = null;
@@ -30150,9 +30164,26 @@ window.joinCardGameRoom = async function(roomId) {
             return;
         }
 
+        // Проверяем, не заполнена ли комната
         if (room.players && room.players.length >= room.maxPlayers) {
             showLoading(false);
             showToast('❌ Комната заполнена', 'error');
+            showCardGameLobby();
+            return;
+        }
+
+        // Проверяем, не идет ли уже игра
+        if (room.status === 'playing') {
+            showLoading(false);
+            showToast('❌ Игра уже идет', 'error');
+            showCardGameLobby();
+            return;
+        }
+
+        // Проверяем, не завершена ли игра
+        if (room.status === 'finished') {
+            showLoading(false);
+            showToast('❌ Игра завершена', 'error');
             showCardGameLobby();
             return;
         }
@@ -30173,6 +30204,7 @@ window.joinCardGameRoom = async function(roomId) {
         window.cardGameCurrentRoom = room;
         window._cardGameRoomExists = true;
         
+        // Подписываемся на обновления
         window.cardGameUnsubscribe = subscribeToCardGameRoom(roomId, (roomData) => {
             if (!roomData) {
                 window.cardGameCurrentRoom = null;
@@ -30187,13 +30219,9 @@ window.joinCardGameRoom = async function(roomId) {
             showCardGameRoom();
             showLoading(false);
             
-            if (roomData.status === 'lobby' && 
-                roomData.players && 
-                roomData.players.length === 2 && 
-                roomData.players.every(p => p && p.ready === true) &&
-                !window._gameStarting) {
-                console.log('🚀 Автоматический запуск игры!');
-                autoStartGameIfReady(roomData);
+            // Если создатель запустил игру - показываем её
+            if (roomData.status === 'playing') {
+                renderGameUI(roomData);
             }
         });
 
@@ -30210,7 +30238,7 @@ window.joinCardGameRoom = async function(roomId) {
 };
 
 // ============================================================
-// 26.6.1. АВТОМАТИЧЕСКИЙ ЗАПУСК ИГРЫ
+// 26.6.1. АВТОМАТИЧЕСКИЙ ЗАПУСК ИГРЫ (ТОЛЬКО ДЛЯ СОЗДАТЕЛЯ)
 // ============================================================
 async function autoStartGameIfReady(roomData) {
     if (!roomData) {
@@ -30267,27 +30295,53 @@ function showCardGameRoom() {
     const playerInRoom = room.players ? room.players.find(p => p && p.id === currentPlayer.id) : null;
     const allReady = room.players && room.players.length > 0 && room.players.every(p => p && p.ready === true);
     const canStart = isCreator && allReady && room.players && room.players.length === 2;
+    
+    // Проверяем, есть ли второй игрок
+    const hasSecondPlayer = room.players && room.players.length === 2;
 
     let html = `
         <div style="text-align: center; margin-bottom: 12px;">
             <div style="font-size: 18px; font-weight: 700; color: #ffd966;">${room.gameType === 'durak' ? '🃏 ДУРАК (36 карт)' : '🎯 БЛЭКДЖЕК (36 карт)'}</div>
             <div style="font-size: 12px; color: #888;">👥 ${room.players ? room.players.length : 0}/${room.maxPlayers || 2} | 🚬${room.bet?.cigarettes || 0} 💰${room.bet?.rubles || 0}</div>
             <div style="font-size: 11px; color: #aaa;">Статус: ${room.status === 'lobby' ? '🟢 Лобби' : room.status === 'playing' ? '🟡 Игра идет' : '🔴 Завершена'}</div>
-            <button onclick="showCardGameLobby()" class="btn-game-secondary" style="margin-top: 6px; padding: 4px 12px; font-size: 11px;">← НАЗАД В ЛОББИ</button>
+            
+            <!-- Кнопка выхода в лобби -->
+            <button onclick="showCardGameLobby()" class="btn-game-secondary" style="margin-top: 6px; padding: 4px 12px; font-size: 11px; background: rgba(139,69,19,0.3); border: 1px solid #8B4513; border-radius: 30px; color: #c9a03d; cursor: pointer;">
+                ← НАЗАД В ЛОББИ
+            </button>
         </div>
+        
+        <!-- СПИСОК ИГРОКОВ -->
         <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px;">
             ${room.players ? room.players.map(p => {
                 if (!p) return '';
+                const isCurrentPlayer = p.id === currentPlayer.id;
+                const isReady = p.ready === true;
                 return `
-                    <div class="game-player-slot ${p.ready ? 'ready' : 'not-ready'}">
-                        <span class="player-name">${p.id === currentPlayer.id ? '👉 ' : ''} ${escapeHtml(p.name)}</span>
-                        <span class="player-status">${p.ready ? '✅ Готов' : '⏳ Ожидает'}</span>
+                    <div class="game-player-slot ${isReady ? 'ready' : 'not-ready'}" style="
+                        background: ${isCurrentPlayer ? 'rgba(201,160,61,0.15)' : 'rgba(30,36,64,0.5)'};
+                        border-left: 3px solid ${isReady ? '#4caf50' : '#888'};
+                        border-radius: 12px;
+                        padding: 10px 14px;
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                    ">
+                        <span class="player-name" style="font-weight: 600; color: ${isCurrentPlayer ? '#ffd966' : '#fff'};">
+                            ${isCurrentPlayer ? '👉 ' : ''} ${escapeHtml(p.name)}
+                            ${isCurrentPlayer ? ' <span style="color:#c9a03d; font-size:10px;">(ВЫ)</span>' : ''}
+                            ${p.id === room.createdBy ? ' <span style="color:#ff9800; font-size:10px;">👑</span>' : ''}
+                        </span>
+                        <span class="player-status" style="font-size: 11px; color: ${isReady ? '#4caf50' : '#888'};">
+                            ${isReady ? '✅ Готов' : '⏳ Ожидает'}
+                        </span>
                     </div>
                 `;
-            }).join('') : ''}
+            }).join('') : '<div style="text-align:center; padding:10px; color:#888;">Ожидание игроков...</div>'}
         </div>
     `;
 
+    // Управление для лобби
     if (room.status === 'lobby') {
         html += `
             <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin: 8px 0;">
@@ -30296,23 +30350,44 @@ function showCardGameRoom() {
                         ${playerInRoom.ready ? '❌ ОТМЕНА ГОТОВНОСТИ' : '✅ ГОТОВ'}
                     </button>
                 ` : ''}
-                ${canStart ? `
-                    <button onclick="startCardGame()" class="btn-game-gold" style="padding: 8px 20px;">🚀 НАЧАТЬ ИГРУ</button>
+                
+                ${isCreator && canStart ? `
+                    <button onclick="startCardGame()" class="btn-game-gold" style="padding: 8px 20px; background: linear-gradient(135deg, #c9a03d, #8B6914); color: #1a1a2a; font-weight: 700; border: none; border-radius: 30px;">
+                        🚀 НАЧАТЬ ИГРУ
+                    </button>
                 ` : ''}
+                
+                ${isCreator && hasSecondPlayer && !allReady ? `
+                    <div style="font-size: 11px; color: #ff9800; padding: 4px 12px; background: rgba(255,152,0,0.15); border-radius: 20px;">
+                        ⏳ Ожидание готовности второго игрока...
+                    </div>
+                ` : ''}
+                
+                ${isCreator && !hasSecondPlayer ? `
+                    <div style="font-size: 11px; color: #888; padding: 4px 12px;">
+                        ⏳ Ожидание подключения второго игрока...
+                    </div>
+                ` : ''}
+                
                 ${isCreator ? `
-                    <button onclick="deleteCardGameRoom('${room.id}').then(() => { window.cardGameCurrentRoom = null; showCardGameLobby(); })" class="btn-game-danger" style="padding: 8px 16px;">🗑️ УДАЛИТЬ КОМНАТУ</button>
+                    <button onclick="deleteCardGameRoom('${room.id}').then(() => { window.cardGameCurrentRoom = null; showCardGameLobby(); })" class="btn-game-danger" style="padding: 8px 16px; background: linear-gradient(135deg, #8B1a1a, #5a0a0a); border: 1px solid #e94560; border-radius: 30px; color: #e94560; cursor: pointer;">
+                        🗑️ УДАЛИТЬ КОМНАТУ
+                    </button>
                 ` : ''}
+                
                 ${!playerInRoom && room.players && room.players.length < 2 ? `
                     <button onclick="joinCardGameRoom('${room.id}')" class="btn-game-primary" style="padding: 8px 20px;">🔗 ПРИСОЕДИНИТЬСЯ</button>
                 ` : ''}
             </div>
         `;
     } else if (room.status === 'playing') {
+        // Показываем игру
         html += renderGameUI(room);
     }
 
     content.innerHTML = html;
     
+    // Сохраняем комнату в localStorage
     if (window.cardGameCurrentRoom && currentPlayer && window._cardGameRoomExists) {
         try {
             const saveRoom = window.cardGameCurrentRoom;
@@ -30452,6 +30527,7 @@ function renderDurakGame(room) {
                     <span style="font-size: 16px; font-weight: 700; color: #ffd966;">🏆 ИГРА ЗАВЕРШЕНА</span>
                     ${winner ? `<div style="color: #c9a03d;">Победил: ${room.players.find(p => p.id === winner)?.name || 'Неизвестный'}</div>` : ''}
                     <button onclick="startCardGame()" class="btn-game-primary" style="margin-top: 8px; padding: 8px 20px;">🔄 НОВАЯ ИГРА</button>
+                    <button onclick="showCardGameLobby()" class="btn-game-secondary" style="margin-top: 8px; padding: 8px 20px;">← В ЛОББИ</button>
                 </div>
             ` : ''}
         </div>
@@ -30556,6 +30632,7 @@ function renderBlackjackGame(room) {
                     <span style="font-size: 16px; font-weight: 700; color: #ffd966;">🏆 ИГРА ЗАВЕРШЕНА</span>
                     ${winner ? `<div style="color: #c9a03d;">Победил: ${room.players.find(p => p.id === winner)?.name || 'Неизвестный'}</div>` : ''}
                     <button onclick="startCardGame()" class="btn-game-primary" style="margin-top: 8px; padding: 8px 20px;">🔄 НОВАЯ ИГРА</button>
+                    <button onclick="showCardGameLobby()" class="btn-game-secondary" style="margin-top: 8px; padding: 8px 20px;">← В ЛОББИ</button>
                 </div>
             ` : ''}
         </div>
@@ -31404,6 +31481,7 @@ if (typeof currentPlayer !== 'undefined' && currentPlayer) {
         }
     }, 500);
 }
+
 
         // ============================================================
         // 24. ЗАКРЫТИЕ МОДАЛЬНЫХ ОКОН
