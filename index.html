@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>GameZona - 1.0.1.059</title>
+    <title>GameZona - 1.0.1.060</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -8069,7 +8069,7 @@ window.openSettingsModal = function() {
                     <div style="font-size: 36px; margin-bottom: 10px;">⚙️</div>
                     <div style="font-size: 16px; font-weight: 700; color: #ffd966;">${escapeHtml(window.currentPlayer.username)}</div>
                     <div style="font-size: 12px; color: #888; margin-top: 4px;">🆔 ${window.playerId}</div>
-                    <div style="font-size: 11px; color: #666; margin-top: 8px;">Версия - 1.0.1.059</div>
+                    <div style="font-size: 11px; color: #666; margin-top: 8px;">Версия - 1.0.1.060</div>
                     <div class="settings-status-info" style="font-size: 10px; color: ${window._settingsHasInternet ? '#4caf50' : '#e94560'}; margin-top: 6px;">
                         ${window._settingsHasInternet ? '🟢 Онлайн' : '🔴 Офлайн'}
                     </div>
@@ -29577,6 +29577,9 @@ if (typeof window._opening_cardgame_modal === 'undefined') {
 if (typeof window._selectedCardIndex === 'undefined') {
     window._selectedCardIndex = null;
 }
+if (typeof window._gameStarting === 'undefined') {
+    window._gameStarting = false;
+}
 
 // ============================================================
 // 26.1. ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ДЛЯ КАРТ
@@ -29610,11 +29613,6 @@ function isCardRed(card) {
     return card.suit === '♥' || card.suit === '♦';
 }
 
-function getCardColorClass(card) {
-    return isCardRed(card) ? 'red' : 'black';
-}
-
-// Для блэкджека (36 карт)
 function cardValueBJ(card) {
     if (card.rank === 'A') return 11;
     if (['J', 'Q', 'K'].includes(card.rank)) return 10;
@@ -29919,7 +29917,6 @@ function startCardGameAutoUpdate() {
         }
         
         if (window.cardGameCurrentRoom && window._cardGameRoomExists) {
-            // Обновляем только если есть изменения
             updateCardGameUI();
         }
     }, 500);
@@ -29932,12 +29929,10 @@ function updateCardGameUI() {
     const room = window.cardGameCurrentRoom;
     if (!room) return;
     
-    // Если игра активна - обновляем отображение игры
     if (room.status === 'playing' && room.gameData) {
         renderGameUI(room);
     } else if (room.status === 'lobby') {
-        // Обновляем лобби
-        showCardGameLobby();
+        showCardGameRoom();
     }
 }
 
@@ -30095,10 +30090,11 @@ window.createCardGameRoomFromUI = async function() {
         showToast('✅ Комната создана!', 'success');
         window.cardGameCurrentRoom = room;
         window._cardGameRoomExists = true;
-        showCardGameRoom();
+        
         if (window.cardGameUnsubscribe) {
             try { window.cardGameUnsubscribe(); } catch(e) {}
         }
+        
         window.cardGameUnsubscribe = subscribeToCardGameRoom(room.id, (roomData) => {
             if (!roomData) {
                 window.cardGameCurrentRoom = null;
@@ -30109,7 +30105,18 @@ window.createCardGameRoomFromUI = async function() {
             window.cardGameCurrentRoom = roomData;
             window._cardGameRoomExists = true;
             showCardGameRoom();
+            
+            if (roomData.status === 'lobby' && 
+                roomData.players && 
+                roomData.players.length === 2 && 
+                roomData.players.every(p => p && p.ready === true) &&
+                !window._gameStarting) {
+                console.log('🚀 Автоматический запуск игры!');
+                autoStartGameIfReady(roomData);
+            }
         });
+        
+        showCardGameRoom();
     }
 };
 
@@ -30179,6 +30186,15 @@ window.joinCardGameRoom = async function(roomId) {
             window._cardGameRoomExists = true;
             showCardGameRoom();
             showLoading(false);
+            
+            if (roomData.status === 'lobby' && 
+                roomData.players && 
+                roomData.players.length === 2 && 
+                roomData.players.every(p => p && p.ready === true) &&
+                !window._gameStarting) {
+                console.log('🚀 Автоматический запуск игры!');
+                autoStartGameIfReady(roomData);
+            }
         });
 
         showLoading(false);
@@ -30192,6 +30208,44 @@ window.joinCardGameRoom = async function(roomId) {
         showCardGameLobby();
     }
 };
+
+// ============================================================
+// 26.6.1. АВТОМАТИЧЕСКИЙ ЗАПУСК ИГРЫ
+// ============================================================
+async function autoStartGameIfReady(roomData) {
+    if (!roomData) {
+        console.log('❌ Нет данных комнаты');
+        return;
+    }
+    if (roomData.status !== 'lobby') {
+        console.log('❌ Статус не lobby:', roomData.status);
+        return;
+    }
+    if (roomData.players && roomData.players.length < 2) {
+        console.log('❌ Не хватает игроков:', roomData.players?.length);
+        return;
+    }
+    if (!roomData.players.every(p => p && p.ready === true)) {
+        console.log('❌ Не все игроки готовы');
+        return;
+    }
+    if (roomData.createdBy !== currentPlayer.id) {
+        console.log('❌ Не создатель комнаты');
+        return;
+    }
+    if (window._gameStarting) {
+        console.log('❌ Игра уже запускается');
+        return;
+    }
+    
+    console.log('🚀 ВСЕ УСЛОВИЯ ВЫПОЛНЕНЫ! Запускаем игру...');
+    window._gameStarting = true;
+    
+    window.cardGameCurrentRoom = roomData;
+    await startCardGame();
+    
+    window._gameStarting = false;
+}
 
 // ============================================================
 // 26.7. ОТОБРАЖЕНИЕ КОМНАТЫ
@@ -30334,7 +30388,6 @@ function renderDurakGame(room) {
                 ${gameOver && winner ? `<span style="margin-left: 8px; color: #ffd966;">Победил: ${room.players.find(p => p.id === winner)?.name || 'Неизвестный'}</span>` : ''}
             </div>
             
-            <!-- Карты оппонента -->
             <div style="background: #1f4a2a; border-radius: 12px; padding: 10px; margin-bottom: 8px;">
                 <div style="color: #edf5e0; font-weight: bold; display: flex; justify-content: space-between;">
                     <span>🤖 ${escapeHtml(opponentName)}</span>
@@ -30345,7 +30398,6 @@ function renderDurakGame(room) {
                 </div>
             </div>
             
-            <!-- Стол -->
             <div style="background: #1f4a2a; border-radius: 12px; padding: 10px; margin-bottom: 8px; min-height: 70px;">
                 <div style="color: #c8e0b0; font-weight: bold; text-align: center; margin-bottom: 6px;">🎴 СТОЛ</div>
                 <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 8px;">
@@ -30359,7 +30411,6 @@ function renderDurakGame(room) {
                 </div>
             </div>
             
-            <!-- Мои карты -->
             <div style="background: #1f4a2a; border-radius: 12px; padding: 10px; ${isMyTurn && !gameOver ? 'border: 2px solid #f7d44a;' : ''}">
                 <div style="color: #edf5e0; font-weight: bold; display: flex; justify-content: space-between;">
                     <span>🧑 ${escapeHtml(myName)} ${isMyTurn && !gameOver ? '🎯 ВАШ ХОД' : ''}</span>
@@ -30385,7 +30436,6 @@ function renderDurakGame(room) {
                 </div>
             </div>
             
-            <!-- Управление -->
             ${!gameOver && isMyTurn ? `
                 <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 10px;">
                     ${phase === 'attack' ? `
@@ -30410,14 +30460,12 @@ function renderDurakGame(room) {
     return html;
 }
 
-// Выбор карты в дураке
 window.selectDurakCard = function(index) {
     if (window._selectedCardIndex === index) {
         window._selectedCardIndex = null;
     } else {
         window._selectedCardIndex = index;
     }
-    // Обновляем UI
     const room = window.cardGameCurrentRoom;
     if (room) {
         showCardGameRoom();
@@ -30466,7 +30514,6 @@ function renderBlackjackGame(room) {
                 ${gameOver && winner ? `<span style="margin-left: 8px; color: #ffd966;">Победил: ${room.players.find(p => p.id === winner)?.name || 'Неизвестный'}</span>` : ''}
             </div>
             
-            <!-- Карты оппонента -->
             <div style="background: rgba(0, 20, 15, 0.55); border-radius: 12px; padding: 10px; margin-bottom: 8px;">
                 <div style="color: #f2f7e0; font-weight: bold; display: flex; justify-content: space-between;">
                     <span>🤖 ${escapeHtml(opponentName)}</span>
@@ -30479,7 +30526,6 @@ function renderBlackjackGame(room) {
                 </div>
             </div>
             
-            <!-- Мои карты -->
             <div style="background: rgba(0, 20, 15, 0.55); border-radius: 12px; padding: 10px; ${isMyTurn && !gameOver ? 'border: 2px solid #f7d44a;' : ''}">
                 <div style="color: #f2f7e0; font-weight: bold; display: flex; justify-content: space-between;">
                     <span>🧑 ${escapeHtml(myName)} ${isMyTurn && !gameOver ? '🎯 ВАШ ХОД' : ''}</span>
@@ -30494,7 +30540,6 @@ function renderBlackjackGame(room) {
                 ${myData.bust ? '<div style="color: #e94560; font-weight: 700; margin-top: 4px;">💥 ПЕРЕБОР!</div>' : ''}
             </div>
             
-            <!-- Управление -->
             ${!gameOver && phase === 'playerTurn' && isMyTurn ? `
                 <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 10px;">
                     <button onclick="blackjackHit()" class="btn-game-primary" style="padding: 8px 20px;" ${myData.stand || myData.bust || myBJ ? 'disabled' : ''}>➕ ВЗЯТЬ</button>
@@ -30632,20 +30677,16 @@ function subscribeToGameActions(roomId) {
     
     const actionRef = ref.child(roomId);
     
-    // Слушаем изменения pendingAction
     actionRef.on('child_changed', async (snapshot) => {
         const key = snapshot.key;
         if (key === 'pendingAction') {
             const action = snapshot.val();
-            // Получаем игрока, который отправил действие
             const playerSnapshot = await actionRef.child('pendingActionPlayer').once('value');
             const playerId = playerSnapshot.val();
             const timeSnapshot = await actionRef.child('pendingActionTime').once('value');
             const timestamp = timeSnapshot.val() || 0;
             
-            // Игнорируем свои действия (уже обработаны)
             if (playerId === currentPlayer.id) {
-                // Очищаем pendingAction после обработки
                 await actionRef.update({
                     pendingAction: null,
                     pendingActionPlayer: null,
@@ -30654,10 +30695,8 @@ function subscribeToGameActions(roomId) {
                 return;
             }
             
-            // Обрабатываем действие
             await handleGameAction(roomId, action, playerId);
             
-            // Очищаем pendingAction
             await actionRef.update({
                 pendingAction: null,
                 pendingActionPlayer: null,
@@ -30673,7 +30712,6 @@ async function handleGameAction(roomId, action, playerId) {
     const room = window.cardGameCurrentRoom;
     if (!room) return;
     
-    // Получаем актуальные данные игры
     const ref = getCardGameRef();
     if (!ref) return;
     
@@ -30686,7 +30724,6 @@ async function handleGameAction(roomId, action, playerId) {
     const gameData = roomData.gameData;
     const players = roomData.players || [];
     
-    // Определяем индекс игрока
     let playerIndex = players.findIndex(p => p && p.id === playerId);
     if (playerIndex === -1) return;
     
@@ -30706,7 +30743,6 @@ async function processDurakAction(roomId, roomData, gameData, action, playerInde
     const p2 = gameData.players[1];
     const currentTurn = gameData.currentTurn || 0;
     
-    // Проверяем, чей ход
     if (playerIndex !== currentTurn) {
         console.log('⏳ Не ваш ход');
         return;
@@ -30718,7 +30754,6 @@ async function processDurakAction(roomId, roomData, gameData, action, playerInde
     const tableCards = gameData.tableCards || [];
     const phase = gameData.phase || 'attack';
     
-    // Проверяем функцию canBeat
     function canBeatDurak(attackCard, defendCard) {
         if (!defendCard) return false;
         const attackIsTrump = attackCard.suit === trumpSuit;
@@ -30735,22 +30770,18 @@ async function processDurakAction(roomId, roomData, gameData, action, playerInde
     }
     
     if (phase === 'attack') {
-        // Атака
         if (action.type === 'attack') {
             const cardIndex = action.cardIndex;
             if (cardIndex === undefined || cardIndex < 0 || cardIndex >= player.hand.length) {
                 return;
             }
             
-            // Проверяем, можно ли атаковать
             if (tableCards.length > 0) {
-                // Проверяем, все ли карты защищены
                 const hasUnprotected = tableCards.some(p => p.defend === null);
                 if (hasUnprotected) {
                     console.log('❌ Есть незащищенные карты');
                     return;
                 }
-                // Проверяем ранг
                 const card = player.hand[cardIndex];
                 const canThrow = tableCards.some(p => p.attack.rank === card.rank);
                 if (!canThrow) {
@@ -30759,19 +30790,16 @@ async function processDurakAction(roomId, roomData, gameData, action, playerInde
                 }
             }
             
-            // Атакуем
             const card = player.hand.splice(cardIndex, 1)[0];
             tableCards.push({ attack: card, defend: null });
             gameData.phase = 'defend';
             gameData.currentTurn = playerIndex === 0 ? 1 : 0;
             
-            // Проверяем, не закончились ли карты
             if (player.hand.length === 0) {
                 gameData.gameOver = true;
                 gameData.winner = players[playerIndex]?.id || null;
             }
         } else if (action.type === 'pass') {
-            // Забирает карты
             for (const pair of tableCards) {
                 if (pair.attack) player.hand.push(pair.attack);
                 if (pair.defend) player.hand.push(pair.defend);
@@ -30781,14 +30809,12 @@ async function processDurakAction(roomId, roomData, gameData, action, playerInde
             gameData.currentTurn = playerIndex === 0 ? 1 : 0;
         }
     } else if (phase === 'defend') {
-        // Защита
         if (action.type === 'defend') {
             const cardIndex = action.cardIndex;
             if (cardIndex === undefined || cardIndex < 0 || cardIndex >= player.hand.length) {
                 return;
             }
             
-            // Находим незащищенную карту
             let unprotectedIndex = -1;
             for (let i = 0; i < tableCards.length; i++) {
                 if (tableCards[i].defend === null) {
@@ -30809,18 +30835,14 @@ async function processDurakAction(roomId, roomData, gameData, action, playerInde
                 return;
             }
             
-            // Защищаемся
             player.hand.splice(cardIndex, 1);
             tableCards[unprotectedIndex].defend = defendCard;
             
-            // Проверяем, все ли карты защищены
             const allProtected = tableCards.every(p => p.defend !== null);
             if (allProtected) {
-                // Все защищены - отбой
                 gameData.tableCards = [];
                 gameData.phase = 'attack';
                 gameData.currentTurn = playerIndex === 0 ? 1 : 0;
-                // Добираем карты
                 while (p1.hand.length < 6 && gameData.deck && gameData.deck.length > 0) {
                     p1.hand.push(gameData.deck.pop());
                 }
@@ -30828,11 +30850,9 @@ async function processDurakAction(roomId, roomData, gameData, action, playerInde
                     p2.hand.push(gameData.deck.pop());
                 }
             } else {
-                // Есть еще незащищенные - ход переходит к атакующему
                 gameData.currentTurn = playerIndex === 0 ? 1 : 0;
             }
         } else if (action.type === 'pass') {
-            // Забирает карты
             for (const pair of tableCards) {
                 if (pair.attack) player.hand.push(pair.attack);
                 if (pair.defend) player.hand.push(pair.defend);
@@ -30843,11 +30863,10 @@ async function processDurakAction(roomId, roomData, gameData, action, playerInde
         }
     }
     
-    // Проверяем победителя
     if (!gameData.gameOver) {
         if (p1.hand.length === 0 && p2.hand.length === 0) {
             gameData.gameOver = true;
-            gameData.winner = null; // Ничья
+            gameData.winner = null;
         } else if (p1.hand.length === 0) {
             gameData.gameOver = true;
             gameData.winner = players[0]?.id || null;
@@ -30857,7 +30876,6 @@ async function processDurakAction(roomId, roomData, gameData, action, playerInde
         }
     }
     
-    // Сохраняем обновления
     await updateCardGameRoom(roomId, {
         gameData: gameData,
         gameOver: gameData.gameOver,
@@ -30865,7 +30883,6 @@ async function processDurakAction(roomId, roomData, gameData, action, playerInde
         status: gameData.gameOver ? 'finished' : 'playing'
     });
     
-    // Обновляем UI
     showCardGameRoom();
 }
 
@@ -30881,11 +30898,9 @@ async function processBlackjackAction(roomId, roomData, gameData, action, player
     
     if (phase === 'bet') {
         if (action.type === 'bet') {
-            // Игрок делает ставку - переходим к ходу
             gameData.phase = 'playerTurn';
             gameData.currentTurn = 0;
             
-            // Раздаем карты
             const deck = gameData.deck || [];
             p1.hand = [];
             p2.hand = [];
@@ -30895,7 +30910,6 @@ async function processBlackjackAction(roomId, roomData, gameData, action, player
             }
             gameData.deck = deck;
             
-            // Проверяем блэкджек
             if (isBlackjackBJ(p1.hand) || isBlackjackBJ(p2.hand)) {
                 await finishBlackjackRound(roomId, gameData, players);
                 return;
@@ -30926,14 +30940,12 @@ async function processBlackjackAction(roomId, roomData, gameData, action, player
             player.stand = true;
         }
         
-        // Переключаем ход или завершаем
         const bothDone = (p1.stand || p1.bust) && (p2.stand || p2.bust);
         if (bothDone) {
             await finishBlackjackRound(roomId, gameData, players);
             return;
         } else {
             gameData.currentTurn = currentTurn === 0 ? 1 : 0;
-            // Если следующий игрок уже закончил - пропускаем
             const nextPlayer = gameData.currentTurn === 0 ? p1 : p2;
             if (nextPlayer.stand || nextPlayer.bust) {
                 gameData.currentTurn = gameData.currentTurn === 0 ? 1 : 0;
@@ -30941,7 +30953,6 @@ async function processBlackjackAction(roomId, roomData, gameData, action, player
         }
     }
     
-    // Сохраняем обновления
     await updateCardGameRoom(roomId, {
         gameData: gameData,
         gameOver: gameData.gameOver || false,
@@ -30961,10 +30972,9 @@ async function finishBlackjackRound(roomId, gameData, players) {
     const p1BJ = isBlackjackBJ(p1.hand);
     const p2BJ = isBlackjackBJ(p2.hand);
     
-    // Определяем победителя
     let winnerId = null;
     if (p1.bust && p2.bust) {
-        winnerId = null; // Оба перебрали - ничья
+        winnerId = null;
     } else if (p1.bust) {
         winnerId = players[1]?.id || null;
     } else if (p2.bust) {
@@ -30978,7 +30988,7 @@ async function finishBlackjackRound(roomId, gameData, players) {
     } else if (p2Total > p1Total) {
         winnerId = players[1]?.id || null;
     } else {
-        winnerId = null; // Ничья
+        winnerId = null;
     }
     
     gameData.gameOver = true;
@@ -31041,7 +31051,6 @@ window.startCardGame = async function() {
         const deck = createCardDeck();
         
         if (room.gameType === 'durak') {
-            // Инициализация дурака
             const trumpCard = deck.pop();
             const trumpSuit = trumpCard.suit;
             
@@ -31067,7 +31076,6 @@ window.startCardGame = async function() {
                 winner: null
             };
         } else {
-            // Инициализация блэкджека
             const p1Hand = [];
             const p2Hand = [];
             for (let i = 0; i < 2; i++) {
@@ -31095,7 +31103,6 @@ window.startCardGame = async function() {
             winner: null
         });
 
-        // Подписываемся на действия
         subscribeToGameActions(room.id);
 
         showLoading(false);
@@ -31380,10 +31387,12 @@ window.initCardGameSystem = initCardGameSystem;
 window.resetCardGame = resetCardGame;
 window.resetCurrentCardGame = resetCurrentCardGame;
 window.leaveCardGame = leaveCardGame;
+window.autoStartGameIfReady = autoStartGameIfReady;
 
 console.log('✅ Блок ИГРОВАЯ (КАРТЫ) полностью загружен!');
 console.log('🃏 Доступны игры: Дурак (36 карт, 2 игрока) и Блэкджек (36 карт, 2 игрока)');
 console.log('🔄 Окно работает онлайн без перезагрузки');
+console.log('🚀 Игра запускается автоматически когда оба игрока готовы');
 
 if (typeof currentPlayer !== 'undefined' && currentPlayer) {
     initCardGameSystem();
