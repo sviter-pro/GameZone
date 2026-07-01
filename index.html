@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>GameZona - 1.0.1.052</title>
+    <title>GameZona - 1.0.1.053</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -8069,7 +8069,7 @@ window.openSettingsModal = function() {
                     <div style="font-size: 36px; margin-bottom: 10px;">⚙️</div>
                     <div style="font-size: 16px; font-weight: 700; color: #ffd966;">${escapeHtml(window.currentPlayer.username)}</div>
                     <div style="font-size: 12px; color: #888; margin-top: 4px;">🆔 ${window.playerId}</div>
-                    <div style="font-size: 11px; color: #666; margin-top: 8px;">Версия - 1.0.1.052</div>
+                    <div style="font-size: 11px; color: #666; margin-top: 8px;">Версия - 1.0.1.053</div>
                     <div class="settings-status-info" style="font-size: 10px; color: ${window._settingsHasInternet ? '#4caf50' : '#e94560'}; margin-top: 6px;">
                         ${window._settingsHasInternet ? '🟢 Онлайн' : '🔴 Офлайн'}
                     </div>
@@ -29525,9 +29525,8 @@ console.log('✅ Блок ВОЙНА КЛАНОВ полностью загру�
 console.log('✅ Все функции войны кланов готовы к использованию!');
 console.log('✅ Счетчики ВОЙНЫ КЛАНОВ работают полностью автономно на building b6!');
 
-
 // ============================================================
-// 26. ИГРОВАЯ (КАРТЫ) - ПОЛНАЯ РЕАЛИЗАЦИЯ ДУРАК И 21
+// 26. ИГРОВАЯ (КАРТЫ) - ИСПРАВЛЕННАЯ ВЕРСИЯ
 // ============================================================
 
 // ============================================================
@@ -29586,6 +29585,9 @@ if (typeof window._currentTrumpSuit === 'undefined') {
 }
 if (typeof window._currentTrumpCard === 'undefined') {
     window._currentTrumpCard = null;
+}
+if (typeof window._cardGameShowReset === 'undefined') {
+    window._cardGameShowReset = false;
 }
 
 // ============================================================
@@ -29777,19 +29779,14 @@ async function deleteCardGameRoom(roomId) {
 // 26.3. ПОЛНАЯ ЛОГИКА ИГРЫ ДУРАК
 // ============================================================
 
-// Проверка может ли игрок побить карту
 function canBeatCard(card, beatCard, trumpSuit) {
     if (!card || !beatCard) return false;
-    // Если бьющая карта - козырь, а бьемая - нет
     if (beatCard.suit === trumpSuit && card.suit !== trumpSuit) return true;
-    // Если обе одного цвета - сравниваем старшинство
     if (beatCard.suit === card.suit && getCardValue(beatCard) > getCardValue(card)) return true;
-    // Если обе козыри - сравниваем старшинство
     if (beatCard.suit === trumpSuit && card.suit === trumpSuit && getCardValue(beatCard) > getCardValue(card)) return true;
     return false;
 }
 
-// Получить следующего игрока
 function getNextPlayer(room, currentPlayerId) {
     const players = room.players.filter(p => p.isActive && p.cards && p.cards.length > 0);
     if (players.length === 0) return currentPlayerId;
@@ -29799,7 +29796,6 @@ function getNextPlayer(room, currentPlayerId) {
     return players[nextIndex].id;
 }
 
-// Проверка на победителя в дураке
 function checkDurakWinner(room) {
     const activePlayers = room.players.filter(p => p.isActive && p.cards && p.cards.length > 0);
     if (activePlayers.length === 1) {
@@ -29818,7 +29814,6 @@ function checkDurakWinner(room) {
     return null;
 }
 
-// Проверка может ли игрок защититься (есть ли карты для битья)
 function canDefend(room, playerId) {
     const player = room.players.find(p => p.id === playerId);
     if (!player || !player.cards) return false;
@@ -29840,7 +29835,6 @@ function canDefend(room, playerId) {
     return true;
 }
 
-// Полный ход в дурака
 async function makeDurakMove(room, playerId, cardIndex, action) {
     const player = room.players.find(p => p.id === playerId);
     if (!player) return null;
@@ -29848,18 +29842,15 @@ async function makeDurakMove(room, playerId, cardIndex, action) {
     const table = room.table || [];
     const trumpSuit = room.trumpSuit;
     
-    // Ход (положить карту)
     if (action === 'move') {
         if (cardIndex === undefined || cardIndex < 0 || cardIndex >= player.cards.length) return null;
         
-        // Проверяем, можно ли ходить
         if (table.length > 0) {
             const allBeaten = table.every(c => c.beaten === true);
             if (!allBeaten) {
                 showToast('❌ Сначала побейте карты на столе', 'warning');
                 return null;
             }
-            // Убираем побитые карты в отбой
             room.discard = room.discard || [];
             room.discard.push(...table);
             room.table = [];
@@ -29868,7 +29859,6 @@ async function makeDurakMove(room, playerId, cardIndex, action) {
         const card = player.cards.splice(cardIndex, 1)[0];
         room.table.push({ card, playerId: playerId, beaten: false });
         
-        // Проверяем, не закончились ли карты у игрока
         if (player.cards.length === 0) {
             room.gameOver = true;
             room.winner = playerId;
@@ -29895,11 +29885,9 @@ async function makeDurakMove(room, playerId, cardIndex, action) {
         return { success: true, card: card };
     }
     
-    // Бить карту
     if (action === 'beat') {
         if (cardIndex === undefined || cardIndex < 0 || cardIndex >= player.cards.length) return null;
         
-        // Находим последнюю небитую карту
         let lastUnbeaten = null;
         let lastIndex = -1;
         for (let i = table.length - 1; i >= 0; i--) {
@@ -29921,13 +29909,11 @@ async function makeDurakMove(room, playerId, cardIndex, action) {
             return null;
         }
         
-        // Убираем карту из руки
         player.cards.splice(cardIndex, 1);
         lastUnbeaten.beaten = true;
         lastUnbeaten.beatCard = beatCard;
         lastUnbeaten.beatPlayerId = playerId;
         
-        // Проверяем, не закончились ли карты у игрока
         if (player.cards.length === 0) {
             room.gameOver = true;
             room.winner = playerId;
@@ -29944,7 +29930,6 @@ async function makeDurakMove(room, playerId, cardIndex, action) {
             return { success: true, gameOver: true, winner: playerId };
         }
         
-        // Проверяем, все ли карты побиты
         const allBeaten = table.every(c => c.beaten === true);
         if (allBeaten) {
             room.discard = room.discard || [];
@@ -29953,10 +29938,8 @@ async function makeDurakMove(room, playerId, cardIndex, action) {
             room.currentTurn = getNextPlayer(room, playerId);
             showToast('✅ Все карты побиты! Ход переходит', 'success');
         } else {
-            // Проверяем, может ли следующий игрок защититься
             const nextPlayerId = getNextPlayer(room, playerId);
             if (!canDefend(room, nextPlayerId)) {
-                // Если не может - забирает все карты
                 const nextPlayer = room.players.find(p => p.id === nextPlayerId);
                 if (nextPlayer) {
                     const tableCards = table.map(c => c.card);
@@ -29979,7 +29962,6 @@ async function makeDurakMove(room, playerId, cardIndex, action) {
         return { success: true };
     }
     
-    // Пас (взять карты)
     if (action === 'pass') {
         if (table.length === 0) {
             showToast('❌ Нечего брать', 'warning');
@@ -30037,7 +30019,6 @@ function calculateHandValue(cards) {
 function checkTwentyOneWinner(room) {
     const activePlayers = room.players.filter(p => p.isActive && p.cards && p.cards.length > 0);
     
-    // Если все игроки закончили ход
     if (activePlayers.length === 0) {
         let bestScore = 0;
         let winner = null;
@@ -30050,7 +30031,6 @@ function checkTwentyOneWinner(room) {
                 winner = player.id;
             }
         }
-        // Если у всех перебор - победитель тот, у кого меньше перебор
         if (winner === null) {
             let minBust = 22;
             for (let player of room.players) {
@@ -30273,6 +30253,9 @@ function renderCardGameModal() {
     if (window.tg) window.tg.BackButton.show();
 }
 
+// ============================================================
+// 26.7. ЛОББИ ИГРОВОЙ
+// ============================================================
 function showCardGameLobby() {
     const content = document.getElementById('cardGameContent');
     if (!content) return;
@@ -30389,7 +30372,7 @@ function renderLobby(content) {
 }
 
 // ============================================================
-// 26.7. СОЗДАНИЕ И ПРИСОЕДИНЕНИЕ К КОМНАТЕ
+// 26.8. СОЗДАНИЕ И ПРИСОЕДИНЕНИЕ К КОМНАТЕ
 // ============================================================
 window.createCardGameRoomFromUI = async function() {
     if (!currentPlayer) {
@@ -30480,7 +30463,7 @@ window.joinCardGameRoom = async function(roomId) {
 };
 
 // ============================================================
-// 26.8. ОТОБРАЖЕНИЕ КОМНАТЫ
+// 26.9. ОТОБРАЖЕНИЕ КОМНАТЫ
 // ============================================================
 function showCardGameRoom() {
     const content = document.getElementById('cardGameContent');
@@ -30558,11 +30541,67 @@ function showCardGameRoom() {
         }
     }
 
-    content.innerHTML = html;
+    // Добавляем кнопки сброса (если их еще нет)
+    if (!document.getElementById('cardGameResetBtn') && !document.getElementById('cardGameLeaveBtn')) {
+        const isCreator2 = room && room.createdBy === currentPlayer.id;
+        const resetHtml = `
+            <div style="display: flex; gap: 8px; justify-content: center; margin-top: 12px; flex-wrap: wrap; padding-bottom: 10px;">
+                ${isCreator2 ? `
+                    <button id="cardGameResetBtn" onclick="resetCurrentCardGame()" style="
+                        padding: 6px 16px;
+                        background: linear-gradient(135deg, #8B1a1a, #5a0a0a);
+                        border: 1px solid #e94560;
+                        border-radius: 30px;
+                        color: #e94560;
+                        font-weight: 600;
+                        font-size: 11px;
+                        cursor: pointer;
+                        transition: all 0.2s;
+                    ">
+                        🗑️ СБРОСИТЬ ИГРУ
+                    </button>
+                ` : `
+                    <button id="cardGameLeaveBtn" onclick="leaveCardGame()" style="
+                        padding: 6px 16px;
+                        background: linear-gradient(135deg, #8B4513, #5a2d0a);
+                        border: 1px solid #c9a03d;
+                        border-radius: 30px;
+                        color: #ffd966;
+                        font-weight: 600;
+                        font-size: 11px;
+                        cursor: pointer;
+                        transition: all 0.2s;
+                    ">
+                        🚪 ВЫЙТИ ИЗ ИГРЫ
+                    </button>
+                `}
+            </div>
+        `;
+        content.insertAdjacentHTML('beforeend', resetHtml);
+    }
+
+    // Сохраняем комнату в localStorage
+    if (window.cardGameCurrentRoom && currentPlayer) {
+        try {
+            const saveRoom = window.cardGameCurrentRoom;
+            const saveData = {
+                id: saveRoom.id,
+                status: saveRoom.status,
+                gameType: saveRoom.gameType,
+                players: saveRoom.players.map(p => ({ id: p.id, name: p.name })),
+                bet: saveRoom.bet,
+                maxPlayers: saveRoom.maxPlayers,
+                deckSize: saveRoom.deckSize
+            };
+            localStorage.setItem('cardGameRoom_' + currentPlayer.id, JSON.stringify(saveData));
+        } catch (e) {
+            console.warn('Ошибка сохранения комнаты:', e);
+        }
+    }
 }
 
 // ============================================================
-// 26.9. РЕНДЕР ИГРЫ ДУРАК
+// 26.10. РЕНДЕР ИГРЫ ДУРАК
 // ============================================================
 function renderDurakGame(room, currentPlayerObj, isMyTurn, isBeatMode) {
     let html = `
@@ -30623,7 +30662,7 @@ function renderDurakGame(room, currentPlayerObj, isMyTurn, isBeatMode) {
 }
 
 // ============================================================
-// 26.10. РЕНДЕР ИГРЫ 21
+// 26.11. РЕНДЕР ИГРЫ 21
 // ============================================================
 function renderTwentyOneGame(room, currentPlayerObj, isMyTurn) {
     let html = `
@@ -30658,7 +30697,7 @@ function renderTwentyOneGame(room, currentPlayerObj, isMyTurn) {
 }
 
 // ============================================================
-// 26.11. ОБРАБОТЧИКИ ДОЛГОГО ТАПА
+// 26.12. ОБРАБОТЧИКИ ДОЛГОГО ТАПА
 // ============================================================
 
 window.onCardClick = function(cardIndex) {
@@ -30812,7 +30851,7 @@ function executeCardAction(cardIndex) {
 }
 
 // ============================================================
-// 26.12. ДЕЙСТВИЯ В ИГРЕ (ДУРАК)
+// 26.13. ДЕЙСТВИЯ В ИГРЕ (ДУРАК)
 // ============================================================
 window.cardGameDurakPass = async function() {
     const room = window.cardGameCurrentRoom;
@@ -30825,7 +30864,7 @@ window.cardGameDurakPass = async function() {
 };
 
 // ============================================================
-// 26.13. ДЕЙСТВИЯ В ИГРЕ (21)
+// 26.14. ДЕЙСТВИЯ В ИГРЕ (21)
 // ============================================================
 window.cardGameTwentyOneHit = async function() {
     const room = window.cardGameCurrentRoom;
@@ -30848,7 +30887,7 @@ window.cardGameTwentyOneStand = async function() {
 };
 
 // ============================================================
-// 26.14. УПРАВЛЕНИЕ ИГРОЙ
+// 26.15. УПРАВЛЕНИЕ ИГРОЙ
 // ============================================================
 window.toggleCardGameReady = async function() {
     const room = window.cardGameCurrentRoom;
@@ -30929,7 +30968,7 @@ window.startCardGame = async function() {
 };
 
 // ============================================================
-// 26.15. ЗАКРЫТИЕ ОКНА
+// 26.16. ЗАКРЫТИЕ ОКНА
 // ============================================================
 window.closeCardGameModal = function() {
     if (window.cardGameUnsubscribe) {
@@ -30956,7 +30995,7 @@ window.closeCardGameModal = function() {
 };
 
 // ============================================================
-// 26.16. ПЕРЕХВАТ КНОПКИ ИГРОВОЙ НА КАРТЕ
+// 26.17. ПЕРЕХВАТ КНОПКИ ИГРОВОЙ НА КАРТЕ
 // ============================================================
 document.addEventListener('DOMContentLoaded', function() {
     const b3 = document.querySelector('.building.b3');
@@ -30969,7 +31008,181 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // ============================================================
-// 26.17. ИНИЦИАЛИЗАЦИЯ СИСТЕМЫ
+// 26.18. ФУНКЦИИ СБРОСА ИГРЫ
+// ============================================================
+
+window.resetCurrentCardGame = async function() {
+    console.log('🔄 === СБРОС ТЕКУЩЕЙ КОМНАТЫ ===');
+    
+    if (!window.cardGameCurrentRoom) {
+        showToast('❌ Нет активной игры', 'error');
+        return;
+    }
+    
+    const room = window.cardGameCurrentRoom;
+    const isCreator = room.createdBy === currentPlayer.id;
+    
+    if (!isCreator) {
+        showToast('❌ Только создатель комнаты может сбросить игру', 'warning');
+        return;
+    }
+    
+    if (!confirm('⚠️ Сбросить текущую игру? Все игроки будут удалены из комнаты.')) {
+        return;
+    }
+    
+    try {
+        await deleteCardGameRoom(room.id);
+        console.log(`🗑️ Комната ${room.id} удалена`);
+        
+        window.cardGameCurrentRoom = null;
+        try {
+            localStorage.removeItem('cardGameRoom_' + currentPlayer.id);
+        } catch(e) {}
+        
+        const modal = document.getElementById('cardGameFullscreen');
+        if (modal) modal.remove();
+        if (window.tg) window.tg.BackButton.hide();
+        document.body.style.overflow = '';
+        document.body.style.position = '';
+        document.body.style.width = '';
+        document.body.classList.remove('modal-open');
+        window._opening_cardgame_modal = false;
+        
+        showToast('✅ Игра сброшена! Можно создать новую.', 'success');
+        
+        setTimeout(() => {
+            openCardGameModal();
+        }, 500);
+        
+    } catch(e) {
+        console.error('❌ Ошибка сброса игры:', e);
+        showToast('❌ Ошибка сброса: ' + e.message, 'error');
+    }
+};
+
+window.leaveCardGame = async function() {
+    console.log('🚪 === ВЫХОД ИЗ ИГРЫ ===');
+    
+    if (!window.cardGameCurrentRoom) {
+        showToast('❌ Нет активной игры', 'error');
+        return;
+    }
+    
+    const room = window.cardGameCurrentRoom;
+    const player = room.players.find(p => p.id === currentPlayer.id);
+    
+    if (!player) {
+        showToast('❌ Вы не в этой игре', 'error');
+        return;
+    }
+    
+    if (!confirm(`⚠️ Выйти из игры "${room.gameType === 'durak' ? 'Дурак' : '21'}"?`)) {
+        return;
+    }
+    
+    try {
+        const updatedPlayers = room.players.filter(p => p.id !== currentPlayer.id);
+        
+        if (updatedPlayers.length === 0) {
+            await deleteCardGameRoom(room.id);
+            console.log(`🗑️ Комната ${room.id} удалена (пустая)`);
+        } else {
+            await updateCardGameRoom(room.id, { players: updatedPlayers });
+            console.log(`👤 Игрок ${currentPlayer.username} удален из комнаты`);
+        }
+        
+        window.cardGameCurrentRoom = null;
+        try {
+            localStorage.removeItem('cardGameRoom_' + currentPlayer.id);
+        } catch(e) {}
+        
+        const modal = document.getElementById('cardGameFullscreen');
+        if (modal) modal.remove();
+        if (window.tg) window.tg.BackButton.hide();
+        document.body.style.overflow = '';
+        document.body.style.position = '';
+        document.body.style.width = '';
+        document.body.classList.remove('modal-open');
+        window._opening_cardgame_modal = false;
+        
+        showToast('👋 Вы вышли из игры', 'success');
+        
+        setTimeout(() => {
+            openCardGameModal();
+        }, 300);
+        
+    } catch(e) {
+        console.error('❌ Ошибка выхода из игры:', e);
+        showToast('❌ Ошибка выхода: ' + e.message, 'error');
+    }
+};
+
+window.resetCardGame = function() {
+    console.log('🔄 === ПОЛНЫЙ СБРОС ИГРЫ ===');
+    
+    if (!currentPlayer) {
+        showToast('❌ Игрок не найден', 'error');
+        return;
+    }
+    
+    if (window.cardGameUnsubscribe) {
+        try {
+            window.cardGameUnsubscribe();
+        } catch(e) {}
+        window.cardGameUnsubscribe = null;
+    }
+    
+    window.cardGameCurrentRoom = null;
+    window.cardGameRooms = {};
+    window.cardGameListeners = {};
+    window._cardGameSubscribed = false;
+    window._selectedCardIndex = null;
+    window._longPressCardIndex = null;
+    window._isLongPress = false;
+    window._isProcessingMove = false;
+    window._currentTrumpSuit = null;
+    window._currentTrumpCard = null;
+    
+    try {
+        const keys = Object.keys(localStorage);
+        for (let key of keys) {
+            if (key.startsWith('cardGameRoom_') && key.includes(currentPlayer.id)) {
+                localStorage.removeItem(key);
+                console.log(`🗑️ Удален ключ: ${key}`);
+            }
+        }
+    } catch(e) {
+        console.warn('⚠️ Ошибка очистки localStorage:', e);
+    }
+    
+    const modal = document.getElementById('cardGameFullscreen');
+    if (modal) {
+        modal.remove();
+        console.log('✅ Окно игры закрыто');
+    }
+    if (window.tg) window.tg.BackButton.hide();
+    
+    document.body.style.overflow = '';
+    document.body.style.position = '';
+    document.body.style.width = '';
+    document.body.classList.remove('modal-open');
+    window._opening_cardgame_modal = false;
+    
+    showToast('✅ Игра полностью сброшена!', 'success');
+    console.log('✅ === СБРОС ИГРЫ ЗАВЕРШЕН ===');
+    
+    setTimeout(() => {
+        if (typeof updateResources === 'function') {
+            updateResources();
+        }
+        showToast('🔄 Можно начать новую игру', 'info');
+        openCardGameModal();
+    }, 500);
+};
+
+// ============================================================
+// 26.19. ИНИЦИАЛИЗАЦИЯ СИСТЕМЫ
 // ============================================================
 function initCardGameSystem() {
     console.log('🔄 Инициализация системы ИГРОВАЯ (КАРТЫ)...');
@@ -31008,32 +31221,7 @@ function initCardGameSystem() {
 }
 
 // ============================================================
-// 26.18. СОХРАНЕНИЕ КОМНАТЫ В LOCALSTORAGE
-// ============================================================
-const originalShowCardGameRoom = showCardGameRoom;
-showCardGameRoom = function() {
-    originalShowCardGameRoom();
-    if (window.cardGameCurrentRoom && currentPlayer) {
-        try {
-            const room = window.cardGameCurrentRoom;
-            const saveData = {
-                id: room.id,
-                status: room.status,
-                gameType: room.gameType,
-                players: room.players.map(p => ({ id: p.id, name: p.name })),
-                bet: room.bet,
-                maxPlayers: room.maxPlayers,
-                deckSize: room.deckSize
-            };
-            localStorage.setItem('cardGameRoom_' + currentPlayer.id, JSON.stringify(saveData));
-        } catch (e) {
-            console.warn('Ошибка сохранения комнаты:', e);
-        }
-    }
-};
-
-// ============================================================
-// 26.19. ЭКСПОРТ ФУНКЦИЙ
+// 26.20. ЭКСПОРТ ФУНКЦИЙ
 // ============================================================
 window.openCardGameModal = openCardGameModal;
 window.closeCardGameModal = closeCardGameModal;
@@ -31051,11 +31239,15 @@ window.cardGameDurakPass = cardGameDurakPass;
 window.cardGameTwentyOneHit = cardGameTwentyOneHit;
 window.cardGameTwentyOneStand = cardGameTwentyOneStand;
 window.initCardGameSystem = initCardGameSystem;
+window.resetCardGame = resetCardGame;
+window.resetCurrentCardGame = resetCurrentCardGame;
+window.leaveCardGame = leaveCardGame;
 
-console.log('✅ Блок ИГРОВАЯ (КАРТЫ) полностью загружен с полной реализацией Дурак и 21!');
+console.log('✅ Блок ИГРОВАЯ (КАРТЫ) полностью загружен!');
 console.log('🃏 Поддерживаются колоды 36 и 52 карты');
 console.log('👥 Игроки: 2-4 человека');
 console.log('🎯 Доступны игры: Дурак и 21 (Блэкджек)');
+console.log('🔄 Для сброса игры: resetCardGame(), resetCurrentCardGame(), leaveCardGame()');
 
 if (typeof currentPlayer !== 'undefined' && currentPlayer) {
     initCardGameSystem();
@@ -31067,7 +31259,6 @@ if (typeof currentPlayer !== 'undefined' && currentPlayer) {
         }
     }, 500);
 }
-
 
         // ============================================================
         // 24. ЗАКРЫТИЕ МОДАЛЬНЫХ ОКОН
