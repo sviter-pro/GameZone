@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>GameZona - 1.0.1.071</title>
+    <title>GameZona - 1.0.1.072</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -8446,7 +8446,7 @@ window.openSettingsModal = function() {
                     <div style="font-size: 36px; margin-bottom: 10px;">⚙️</div>
                     <div style="font-size: 16px; font-weight: 700; color: #ffd966;">${escapeHtml(window.currentPlayer.username)}</div>
                     <div style="font-size: 12px; color: #888; margin-top: 4px;">🆔 ${window.playerId}</div>
-                    <div style="font-size: 11px; color: #666; margin-top: 8px;">Версия - 1.0.1.071</div>
+                    <div style="font-size: 11px; color: #666; margin-top: 8px;">Версия - 1.0.1.072</div>
                     <div class="settings-status-info" style="font-size: 10px; color: ${window._settingsHasInternet ? '#4caf50' : '#e94560'}; margin-top: 6px;">
                         ${window._settingsHasInternet ? '🟢 Онлайн' : '🔴 Офлайн'}
                     </div>
@@ -21624,6 +21624,7 @@ function createCounterAuto(process) {
     counterDiv.dataset.type = process.type;
     counterDiv.dataset.subtype = process.subtype;
     counterDiv.dataset.counterId = counterId;
+    counterDiv.dataset.remaining = process.remaining;
     
     var borderColor = process.isWork ? '#4CAF50' : '#FF9800';
     var timeColor = process.isWork ? '#66BB6A' : '#FFA726';
@@ -21650,9 +21651,29 @@ function createCounterAuto(process) {
         pointer-events: auto;
         min-height: 22px;
         animation: counterSlideIn 0.3s ease forwards;
-        transition: opacity 0.3s ease, transform 0.3s ease;
+        transition: opacity 0.3s ease, transform 0.3s ease, background 0.2s ease;
         opacity: 1;
+        cursor: pointer;
     `;
+    
+    // Добавляем эффект при наведении
+    counterDiv.onmouseover = function() {
+        this.style.background = 'rgba(255,255,255,0.12)';
+        this.style.transform = 'scale(1.02)';
+    };
+    counterDiv.onmouseout = function() {
+        this.style.background = 'rgba(0, 0, 0, 0.85)';
+        this.style.transform = 'scale(1)';
+    };
+    
+    // ДОБАВЛЯЕМ ОБРАБОТЧИК КЛИКА
+    counterDiv.onclick = function() {
+        var remaining = parseInt(this.dataset.remaining) || 0;
+        if (remaining > 0) {
+            console.log('🖱️ Клик по счетчику:', this.id, 'осталось:', remaining);
+            showSpeedUpModal(this.id, this.dataset.type, this.dataset.subtype, remaining);
+        }
+    };
     
     var iconSpan = document.createElement('span');
     iconSpan.className = 'counter-icon';
@@ -21693,12 +21714,15 @@ function createCounterAuto(process) {
     window.countersContainer.appendChild(counterDiv);
     window.activeCounterElements[counterId] = counterDiv;
     
-    console.log('✅ Создан счетчик:', counterId);
+    console.log('✅ Создан счетчик с кликом:', counterId);
 }
 
 function updateCounterTimeAuto(counterId, remaining) {
     var element = window.activeCounterElements[counterId];
     if (!element) return;
+    
+    // Обновляем dataset для клика
+    element.dataset.remaining = remaining;
     
     var timeSpan = element.querySelector('.counter-time');
     if (timeSpan) {
@@ -21816,6 +21840,279 @@ function refreshCounters() {
 function updateWorkCountersOnMap() {
     refreshCounters();
 }
+// ============================================================
+// 22.15.1. МОДАЛЬНОЕ ОКНО УСКОРЕНИЯ
+// ============================================================
+
+function showSpeedUpModal(counterId, processType, processSubtype, remaining) {
+    console.log('🚀 showSpeedUpModal вызвана:', counterId, processType, processSubtype, remaining);
+    
+    // Удаляем старое модальное окно если есть
+    var existing = document.getElementById('speedUpModal');
+    if (existing) existing.remove();
+    
+    var minutes = Math.ceil(remaining / 60000);
+    var seconds = Math.floor((remaining % 60000) / 1000);
+    var timeStr = minutes > 0 ? minutes + ' мин ' + seconds + ' сек' : seconds + ' сек';
+    
+    // Находим название процесса
+    var processName = '';
+    if (processType === 'mine') {
+        if (processSubtype === 'work') processName = '⛏️ РАБОТА В ШАХТЕ';
+        else if (processSubtype === 'paper') processName = '📄 ПРОКАЧКА БУМАГИ';
+        else if (processSubtype === 'makhorka') processName = '🌿 ПРОКАЧКА МАХОРКИ';
+    } else if (processType === 'lumber') {
+        if (processSubtype === 'work') processName = '🪓 РАБОТА В ЛЕСОПОВАЛЕ';
+        else if (processSubtype === 'upgrade') processName = '⬆️ ПРОКАЧКА ЛЕСОПОВАЛА';
+    } else if (processType === 'quarry') {
+        if (processSubtype === 'work') processName = '⛏️ РАБОТА В КАМЕНОЛОМНЕ';
+        else if (processSubtype === 'upgrade') processName = '⬆️ ПРОКАЧКА КАМЕНОЛОМНИ';
+    }
+    
+    // Формируем кнопки ускорения с ценами в рублях
+    var speedOptions = [
+        { minutes: 1, cost: 3, label: '+1 мин' },
+        { minutes: 5, cost: 15, label: '+5 мин' },
+        { minutes: 15, cost: 45, label: '+15 мин' },
+        { minutes: 30, cost: 90, label: '+30 мин' },
+        { minutes: 60, cost: 180, label: '+60 мин' }
+    ];
+    
+    var buttonsHtml = '';
+    for (var i = 0; i < speedOptions.length; i++) {
+        var opt = speedOptions[i];
+        // Проверяем, можно ли ускорить (не больше оставшегося времени)
+        var canSpeedUp = (opt.minutes * 60000) <= remaining;
+        var disabledAttr = canSpeedUp ? '' : 'disabled';
+        var opacityStyle = canSpeedUp ? '1' : '0.4';
+        
+        buttonsHtml += `
+            <button onclick="window.speedUpProcess('${counterId}', ${opt.minutes})" 
+                    style="
+                        display: flex; 
+                        justify-content: space-between; 
+                        align-items: center;
+                        padding: 12px 16px;
+                        background: rgba(255,255,255,0.05);
+                        border: 1px solid rgba(255,255,255,0.1);
+                        border-radius: 12px;
+                        color: #fff;
+                        cursor: ${canSpeedUp ? 'pointer' : 'not-allowed'};
+                        transition: all 0.2s;
+                        font-size: 14px;
+                        font-weight: 600;
+                        width: 100%;
+                        opacity: ${opacityStyle};
+                    " 
+                    ${disabledAttr}
+                    onmouseover="${canSpeedUp ? "this.style.background='rgba(255,255,255,0.12)'" : ''}" 
+                    onmouseout="${canSpeedUp ? "this.style.background='rgba(255,255,255,0.05)'" : ''}">
+                <span>⏱ ${opt.label}</span>
+                <span style="color: #ffd966;">${opt.cost} 💰</span>
+            </button>
+        `;
+    }
+    
+    var modalHtml = `
+        <div id="speedUpModal" style="
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.85);
+            z-index: 99999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: modalFadeIn 0.3s ease;
+            padding: 20px;
+        ">
+            <div style="
+                background: linear-gradient(145deg, #1a1a2e, #0d0d1a);
+                border-radius: 24px;
+                padding: 30px 24px 24px;
+                max-width: 400px;
+                width: 100%;
+                border: 2px solid #c9a03d;
+                box-shadow: 0 20px 60px rgba(0,0,0,0.9), 0 0 40px rgba(201,160,61,0.2);
+                position: relative;
+                overflow: hidden;
+            ">
+                <div style="
+                    position: absolute; top: -50%; right: -50%; 
+                    width: 200%; height: 200%;
+                    background: radial-gradient(circle at 70% 30%, rgba(201,160,61,0.05), transparent 60%);
+                    pointer-events: none;
+                "></div>
+                
+                <div style="text-align: center; margin-bottom: 16px; position: relative;">
+                    <div style="font-size: 32px; margin-bottom: 4px;">⏳</div>
+                    <div style="font-size: 18px; font-weight: 700; color: #ffd966; letter-spacing: 1px;">
+                        УСКОРИТЬ ПРОЦЕСС
+                    </div>
+                    <div style="font-size: 12px; color: #aaa; margin-top: 4px;">${processName}</div>
+                    <div style="font-size: 14px; color: #ff9800; margin-top: 4px;">⏱ Осталось: ${timeStr}</div>
+                    <div style="font-size: 12px; color: #888; margin-top: 2px;">💰 Баланс: ${currentPlayer?.rubles || 0} руб.</div>
+                    <div style="width: 60px; height: 2px; background: linear-gradient(90deg, transparent, #c9a03d, transparent); margin: 10px auto;"></div>
+                </div>
+                
+                <div style="display: flex; flex-direction: column; gap: 8px; position: relative;">
+                    ${buttonsHtml}
+                </div>
+                
+                <button onclick="window.closeSpeedUpModal()" style="
+                    width: 100%;
+                    padding: 12px;
+                    margin-top: 12px;
+                    background: rgba(255,255,255,0.05);
+                    border: 1px solid rgba(255,255,255,0.1);
+                    border-radius: 12px;
+                    color: #888;
+                    font-size: 14px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                " onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">
+                    ❌ ОТМЕНА
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+function closeSpeedUpModal() {
+    var modal = document.getElementById('speedUpModal');
+    if (modal) modal.remove();
+}
+
+// Функция ускорения процесса
+window.speedUpProcess = function(counterId, minutes) {
+    console.log('🚀 speedUpProcess вызвана:', counterId, minutes);
+    
+    var speed = minutes * 60 * 1000; // переводим минуты в миллисекунды
+    var cost = 0;
+    
+    // Определяем стоимость в рублях
+    if (minutes === 1) cost = 3;
+    else if (minutes === 5) cost = 15;
+    else if (minutes === 15) cost = 45;
+    else if (minutes === 30) cost = 90;
+    else if (minutes === 60) cost = 180;
+    else {
+        showToast('❌ Некорректное значение ускорения', 'error');
+        return;
+    }
+    
+    // Проверяем достаточно ли рублей
+    if (!currentPlayer || (currentPlayer.rubles || 0) < cost) {
+        showToast('❌ Не хватает ' + (cost - (currentPlayer.rubles || 0)) + ' 💰!', 'error');
+        return;
+    }
+    
+    // Уменьшаем количество рублей
+    currentPlayer.rubles -= cost;
+    
+    // Получаем данные процесса из счетчика
+    var counterEl = document.getElementById('counter-' + counterId);
+    if (!counterEl) {
+        showToast('❌ Счетчик не найден', 'error');
+        return;
+    }
+    
+    var type = counterEl.dataset.type;
+    var subtype = counterEl.dataset.subtype;
+    var currentRemaining = parseInt(counterEl.dataset.remaining) || 0;
+    
+    // Проверяем, можно ли ускорить (не больше оставшегося времени)
+    if (speed > currentRemaining) {
+        showToast('❌ Нельзя ускорить больше оставшегося времени!', 'warning');
+        return;
+    }
+    
+    var newRemaining = currentRemaining - speed;
+    console.log('📊 Было:', currentRemaining, 'мс, стало:', newRemaining, 'мс');
+    
+    // Обновляем время в Firebase
+    var playerRef = getDBRef('players/' + currentPlayer.id);
+    if (!playerRef) {
+        showToast('❌ Ошибка доступа к БД', 'error');
+        return;
+    }
+    
+    var updateData = {};
+    var now = Date.now();
+    
+    if (type === 'mine') {
+        if (subtype === 'work') {
+            var newTime = now - newRemaining;
+            updateData['mine/lastMineTime'] = newTime;
+            if (currentPlayer.mine) currentPlayer.mine.lastMineTime = newTime;
+        } else if (subtype === 'paper') {
+            var newStart = (currentPlayer.mine?.paperUpgradeStartTime || 0) + speed;
+            updateData['mine/paperUpgradeStartTime'] = newStart;
+            if (currentPlayer.mine) currentPlayer.mine.paperUpgradeStartTime = newStart;
+        } else if (subtype === 'makhorka') {
+            var newStart = (currentPlayer.mine?.makhorkaUpgradeStartTime || 0) + speed;
+            updateData['mine/makhorkaUpgradeStartTime'] = newStart;
+            if (currentPlayer.mine) currentPlayer.mine.makhorkaUpgradeStartTime = newStart;
+        }
+    } else if (type === 'lumber') {
+        if (subtype === 'work') {
+            var newTime = now - newRemaining;
+            updateData['lumber/lastGatherTime'] = newTime;
+            if (currentPlayer.lumber) currentPlayer.lumber.lastGatherTime = newTime;
+        } else if (subtype === 'upgrade') {
+            var newStart = (currentPlayer.lumber?.upgradeStartTime || 0) + speed;
+            updateData['lumber/upgradeStartTime'] = newStart;
+            if (currentPlayer.lumber) currentPlayer.lumber.upgradeStartTime = newStart;
+        }
+    } else if (type === 'quarry') {
+        if (subtype === 'work') {
+            var newTime = now - newRemaining;
+            updateData['quarry/lastGatherTime'] = newTime;
+            if (currentPlayer.quarry) currentPlayer.quarry.lastGatherTime = newTime;
+        } else if (subtype === 'upgrade') {
+            var newStart = (currentPlayer.quarry?.upgradeStartTime || 0) + speed;
+            updateData['quarry/upgradeStartTime'] = newStart;
+            if (currentPlayer.quarry) currentPlayer.quarry.upgradeStartTime = newStart;
+        }
+    }
+    
+    // Добавляем обновление рублей
+    updateData['rubles'] = currentPlayer.rubles;
+    
+    // Обновляем счетчик на месте
+    counterEl.dataset.remaining = newRemaining;
+    var timeSpan = counterEl.querySelector('.counter-time');
+    if (timeSpan) {
+        timeSpan.textContent = formatMapTimer(newRemaining);
+    }
+    
+    playerRef.update(updateData).then(function() {
+        console.log('✅ Ускорение применено!');
+        var minutesText = minutes + ' мин';
+        showToast('⏱ Ускорено на ' + minutesText + '! -' + cost + ' 💰', 'success');
+        closeSpeedUpModal();
+        
+        // Обновляем счетчики и UI
+        setTimeout(function() {
+            refreshCounters();
+            updateTopBarResources();
+            updateWorkCountersOnMap();
+            updateBattleCountersOnMap();
+            
+            var mineModal = document.getElementById('mineFullscreen');
+            if (mineModal && mineModal.style.display === 'flex') {
+                updateMineModalUI();
+            }
+        }, 200);
+    }).catch(function(err) {
+        console.error('Ошибка ускорения:', err);
+        showToast('❌ Ошибка ускорения', 'error');
+    });
+};
+
+window.closeSpeedUpModal = closeSpeedUpModal;
+window.showSpeedUpModal = showSpeedUpModal;
 
 // ============================================================
 // 22.16. ЭКСПОРТ ФУНКЦИЙ
@@ -30026,6 +30323,40 @@ function getCardStrength(card, trumpSuit) {
 // ============================================================
 // 26.2. РАБОТА С FIREBASE (ИГРОВАЯ)
 // ============================================================
+async function updateCardGameRoom(roomId, data) {
+    if (!getCardGameRef()) return false;
+    if (!roomId) return false;
+    if (!window._cardGameRoomExists) {
+        console.log('⚠️ Комната не существует, обновление отменено');
+        return false;
+    }
+    try {
+        const ref = getCardGameRef();
+        if (!ref) return false;
+        const cleanData = {};
+        for (const key in data) {
+            if (data[key] !== undefined && data[key] !== null) {
+                cleanData[key] = data[key];
+            }
+        }
+        if (Object.keys(cleanData).length === 0) {
+            return true;
+        }
+        
+        // ЛОГИРУЕМ ИЗМЕНЕНИЯ
+        if (cleanData.status) {
+            console.log('📝 updateCardGameRoom: статус меняется на', cleanData.status);
+            console.trace('  Кто меняет статус:');
+        }
+        
+        await ref.child(roomId).update(cleanData);
+        return true;
+    } catch (e) {
+        console.error('❌ Ошибка обновления комнаты:', e);
+        return false;
+    }
+}
+
 function getCardGameRef() {
     if (typeof db === 'undefined' || db === null) return null;
     try {
@@ -30123,6 +30454,18 @@ function subscribeToCardGameRoom(roomId, callback) {
             const data = snapshot.val();
             data.id = roomId;
             window._cardGameRoomExists = true;
+            
+            // ЕСЛИ СТАТУС FINISHED - ПОКАЗЫВАЕМ МОДАЛЬНОЕ ОКНО
+            if (data.status === 'finished' && data.winner) {
+                console.log('🏁🏁🏁 Комната завершена! Показываем модальное окно из подписки!');
+                const winner = data.players ? data.players.find(p => p && p.id === data.winner) : null;
+                if (winner && typeof window.showGameResultModal === 'function') {
+                    const bet = data.bet || { cigarettes: 0, rubles: 0 };
+                    const duration = Math.floor((Date.now() - (data.gameStartTime || Date.now())) / 1000);
+                    window.showGameResultModal(winner, data.players, bet, duration);
+                }
+            }
+            
             callback(data);
         } else {
             window._cardGameRoomExists = false;
@@ -30580,16 +30923,30 @@ function getNextPlayerTwentyOne(room, currentPlayerId) {
     return players[nextIndex] ? players[nextIndex].id : currentPlayerId;
 }
 
+
 function checkTwentyOneWinnerFull(room) {
-    if (!room || !room.players || !Array.isArray(room.players)) return null;
-    const activePlayers = room.players.filter(p => p && p.isActive && p.cards && p.cards.length > 0);
+    console.log('🔍🔍🔍 checkTwentyOneWinnerFull ВЫЗВАНА! 🔍🔍🔍');
+    if (!room || !room.players || !Array.isArray(room.players)) {
+        console.log('❌ Нет комнаты или игроков');
+        return null;
+    }
     
-    if (activePlayers.length === 0) {
+    // Проверяем, все ли игроки сделали stand или bust
+    const allFinished = room.players.every(p => p && (p.stand === true || p.bust === true));
+    console.log('📊 Все игроки завершили ход (stand или bust)?', allFinished);
+    console.log('  Статусы игроков:');
+    room.players.forEach(p => {
+        if (p) console.log(`    ${p.name}: stand=${p.stand}, bust=${p.bust}, isActive=${p.isActive}`);
+    });
+    
+    if (allFinished) {
+        console.log('✅ Все игроки завершили ход, определяем победителя...');
         let bestScore = 0;
         let winner = null;
         for (let player of room.players) {
             if (!player || !player.cards || player.cards.length === 0) continue;
             const score = calculateHandValue(player.cards);
+            console.log(`  ${player.name}: ${score} очков, stand: ${player.stand}, bust: ${player.bust}`);
             if (score > 21) continue;
             if (score > bestScore) {
                 bestScore = score;
@@ -30609,12 +30966,44 @@ function checkTwentyOneWinnerFull(room) {
         }
         room.gameOver = true;
         room.winner = winner;
+        console.log('🏆 Победитель ID:', winner);
+        console.log('🏆 Победитель найден:', winner ? room.players.find(p => p && p.id === winner)?.name : 'не определен');
+        
+        if (winner) {
+            console.log('📊📊📊 ВЫЗЫВАЕМ window.finishCardGame ДЛЯ ПОБЕДИТЕЛЯ! 📊📊📊');
+            console.log('  room.id:', room.id);
+            console.log('  winner:', winner);
+            
+            // ПРОВЕРЯЕМ НАЛИЧИЕ ФУНКЦИИ
+            if (typeof window.finishCardGame === 'function') {
+                console.log('✅ window.finishCardGame найдена, вызываем...');
+                window.finishCardGame(room.id, winner);
+            } else {
+                console.log('❌❌❌ window.finishCardGame НЕ НАЙДЕНА! ❌❌❌');
+                // ПРЯМОЙ ВЫЗОВ finishCardGame
+                if (typeof finishCardGame === 'function') {
+                    console.log('✅ finishCardGame (локальная) найдена, вызываем...');
+                    finishCardGame(room.id, winner);
+                } else {
+                    console.log('❌❌❌ finishCardGame ТОЖЕ НЕ НАЙДЕНА! ❌❌❌');
+                    const winnerPlayer = room.players.find(p => p && p.id === winner);
+                    if (winnerPlayer) {
+                        showToast(`🏆 ${winnerPlayer.name} победил!`, 'success');
+                    }
+                }
+            }
+        } else {
+            console.log('❌ Победитель не определен (winner === null)');
+        }
+        
         return winner;
     }
+    console.log('⏳ Не все игроки завершили ход, продолжаем игру');
     return null;
 }
 
 async function makeTwentyOneMoveFull(room, playerId, action) {
+    console.log('🃏 makeTwentyOneMoveFull вызвана, action:', action);
     if (!room || !room.players || !Array.isArray(room.players)) return null;
     if (!window._cardGameRoomExists) {
         showToast('❌ Комната была удалена', 'error');
@@ -30622,7 +31011,10 @@ async function makeTwentyOneMoveFull(room, playerId, action) {
     }
     
     const player = room.players.find(p => p && p.id === playerId);
-    if (!player) return null;
+    if (!player) {
+        console.log('❌ Игрок не найден');
+        return null;
+    }
     if (!player.cards) player.cards = [];
     
     if (action === 'hit') {
@@ -30632,13 +31024,17 @@ async function makeTwentyOneMoveFull(room, playerId, action) {
         }
         const card = room.deck.pop();
         player.cards.push(card);
+        console.log('🃏 Игрок взял карту:', card.rank + card.suit);
         
         const value = calculateHandValue(player.cards);
+        console.log('📊 Сумма очков:', value);
         if (value > 21) {
+            player.bust = true;
             player.isActive = false;
             room.currentTurn = getNextPlayerTwentyOne(room, playerId);
             showToast(`💥 Перебор! ${value} очков`, 'error');
         } else if (value === 21) {
+            player.stand = true;
             player.isActive = false;
             room.currentTurn = getNextPlayerTwentyOne(room, playerId);
             showToast(`🎯 21!`, 'success');
@@ -30657,14 +31053,18 @@ async function makeTwentyOneMoveFull(room, playerId, action) {
             currentTurn: room.currentTurn
         });
         
+        // ПРОВЕРЯЕМ ПОБЕДИТЕЛЯ ПОСЛЕ ХОДА
+        console.log('🔍 Проверяем победителя после hit...');
         const winner = checkTwentyOneWinnerFull(room);
         if (winner) {
-            await finishCardGame(room.id, winner);
+            console.log('🏆 Победитель определен в makeTwentyOneMoveFull (hit)');
         }
         return { success: true };
     }
     
     if (action === 'stand') {
+        console.log('✋ Игрок остановился');
+        player.stand = true;
         player.isActive = false;
         room.currentTurn = getNextPlayerTwentyOne(room, playerId);
         const value = calculateHandValue(player.cards);
@@ -30675,9 +31075,11 @@ async function makeTwentyOneMoveFull(room, playerId, action) {
             currentTurn: room.currentTurn
         });
         
+        // ПРОВЕРЯЕМ ПОБЕДИТЕЛЯ ПОСЛЕ ХОДА
+        console.log('🔍 Проверяем победителя после stand...');
         const winner = checkTwentyOneWinnerFull(room);
         if (winner) {
-            await finishCardGame(room.id, winner);
+            console.log('🏆 Победитель определен в makeTwentyOneMoveFull (stand)');
         }
         return { success: true };
     }
@@ -30688,11 +31090,33 @@ async function makeTwentyOneMoveFull(room, playerId, action) {
 // ============================================================
 // 26.5. ЗАВЕРШЕНИЕ ИГРЫ
 // ============================================================
-async function finishCardGame(roomId, winnerId) {
+window.finishCardGame = async function(roomId, winnerId) {
+    console.log('🏁🏁🏁 finishCardGame ВЫЗВАНА! 🏁🏁🏁');
+    console.log('  roomId:', roomId);
+    console.log('  winnerId:', winnerId);
+    
     const room = window.cardGameCurrentRoom;
-    if (!room) return;
+    if (!room) {
+        console.log('❌ Нет комнаты в window.cardGameCurrentRoom');
+        return;
+    }
+    console.log('  room.id:', room.id);
+    console.log('  room.players:', room.players);
+    
     const winner = room.players ? room.players.find(p => p && p.id === winnerId) : null;
-    if (!winner) return;
+    if (!winner) {
+        console.log('❌ Победитель не найден в массиве игроков!');
+        console.log('  Игроки:', room.players ? room.players.map(p => p.id + ':' + p.name) : 'нет');
+        return;
+    }
+    console.log('  Победитель найден:', winner.name);
+
+    // Запоминаем время начала игры (если не сохранено, ставим текущее)
+    if (!room.gameStartTime) {
+        room.gameStartTime = Date.now();
+    }
+    const gameDuration = Math.floor((Date.now() - room.gameStartTime) / 1000);
+    console.log('  Длительность игры:', gameDuration, 'сек');
 
     room.gameOver = true;
     room.winner = winnerId;
@@ -30701,6 +31125,7 @@ async function finishCardGame(roomId, winnerId) {
     const bet = room.bet || { cigarettes: 0, rubles: 0 };
     const totalCigarettes = bet.cigarettes * (room.players ? room.players.filter(p => p && p.id !== winnerId).length : 0);
     const totalRubles = bet.rubles * (room.players ? room.players.filter(p => p && p.id !== winnerId).length : 0);
+    console.log('  Выигрыш:', totalCigarettes, '🚬', totalRubles, '💰');
 
     try {
         const winnerRef = db.ref('players/' + winnerId);
@@ -30710,9 +31135,12 @@ async function finishCardGame(roomId, winnerId) {
             const newCigarettes = (winnerData.cigarettes || 0) + totalCigarettes;
             const newRubles = (winnerData.rubles || 0) + totalRubles;
             await winnerRef.update({ cigarettes: newCigarettes, rubles: newRubles });
+            console.log('✅ Выигрыш начислен игроку', winner.name);
+        } else {
+            console.log('⚠️ Игрок не найден в базе данных');
         }
     } catch (e) {
-        console.error('Ошибка начисления выигрыша:', e);
+        console.error('❌ Ошибка начисления выигрыша:', e);
     }
 
     await updateCardGameRoom(roomId, {
@@ -30720,10 +31148,189 @@ async function finishCardGame(roomId, winnerId) {
         winner: winnerId,
         status: 'finished'
     });
+    console.log('✅ Статус комнаты обновлен на finished');
 
-    showToast(`🏆 ${winner.name} победил! Выигрыш: ${totalCigarettes}🚬 ${totalRubles}💰`, 'success');
+    console.log('📊📊📊 Показываем модальное окно 📊📊📊');
+    console.log('  winner:', winner);
+    console.log('  room.players:', room.players);
+    console.log('  bet:', bet);
+    console.log('  gameDuration:', gameDuration);
+    
+    // ПОКАЗЫВАЕМ МОДАЛЬНОЕ ОКНО
+    if (typeof window.showGameResultModal === 'function') {
+        window.showGameResultModal(winner, room.players, bet, gameDuration);
+        console.log('✅ showGameResultModal вызвана');
+    } else {
+        console.log('❌❌❌ Функция showGameResultModal НЕ НАЙДЕНА! ❌❌❌');
+        // Запасной вариант - показать toast
+        showToast(`🏆 ${winner.name} победил! Выигрыш: ${totalCigarettes}🚬 ${totalRubles}💰`, 'success');
+    }
+    
     window._isProcessingMove = false;
-}
+};
+
+// ============================================================
+// 26.5.1. МОДАЛЬНОЕ ОКНО РЕЗУЛЬТАТОВ ИГРЫ
+// ============================================================
+window.showGameResultModal = function(winner, players, bet, duration) {
+    console.log('🔄🔄🔄 showGameResultModal ВЫЗВАНА! 🔄🔄🔄');
+    console.log('  Победитель:', winner);
+    console.log('  Игроки:', players);
+    console.log('  Ставка:', bet);
+    console.log('  Длительность:', duration);
+    
+    // Удаляем старое модальное окно если есть
+    const existing = document.getElementById('gameResultModal');
+    if (existing) {
+        existing.remove();
+        console.log('🗑️ Старое модальное окно удалено');
+    }
+
+    // Определяем проигравших
+    const loser = players ? players.find(p => p && p.id !== winner.id) : null;
+    const winnerName = winner.name || 'Игрок';
+    const loserName = loser ? loser.name : 'Неизвестно';
+
+    // Подсчет выигрыша
+    const totalCigarettes = bet.cigarettes * (players ? players.length - 1 : 0);
+    const totalRubles = bet.rubles * (players ? players.length - 1 : 0);
+
+    // Форматируем время
+    const minutes = Math.floor(duration / 60);
+    const seconds = duration % 60;
+    const timeStr = minutes > 0 ? `${minutes} мин ${seconds} сек` : `${seconds} сек`;
+
+    console.log('📊 Данные для модального окна:');
+    console.log('  Победитель:', winnerName);
+    console.log('  Против:', loserName);
+    console.log('  Время:', timeStr);
+    console.log('  Выигрыш:', totalCigarettes, '🚬', totalRubles, '💰');
+
+    // Создаем модальное окно
+    const modalHtml = `
+        <div id="gameResultModal" style="
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.85);
+            z-index: 999999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        ">
+            <div style="
+                background: linear-gradient(145deg, #1a1a2e, #0d0d1a);
+                border-radius: 24px;
+                padding: 30px 24px 24px;
+                max-width: 400px;
+                width: 100%;
+                border: 2px solid #c9a03d;
+                box-shadow: 0 20px 60px rgba(0,0,0,0.9), 0 0 40px rgba(201,160,61,0.2);
+                position: relative;
+                overflow: hidden;
+            ">
+                <div style="
+                    position: absolute; top: -50%; right: -50%; 
+                    width: 200%; height: 200%;
+                    background: radial-gradient(circle at 70% 30%, rgba(201,160,61,0.05), transparent 60%);
+                    pointer-events: none;
+                "></div>
+
+                <div style="text-align: center; margin-bottom: 20px; position: relative;">
+                    <div style="font-size: 48px; margin-bottom: 4px;">🏆</div>
+                    <div style="font-size: 22px; font-weight: 800; color: #ffd966; letter-spacing: 1px;">
+                        ИГРА ЗАВЕРШЕНА
+                    </div>
+                    <div style="width: 60px; height: 3px; background: linear-gradient(90deg, transparent, #c9a03d, transparent); margin: 8px auto;"></div>
+                </div>
+
+                <div style="
+                    background: rgba(201,160,61,0.12);
+                    border-radius: 16px;
+                    padding: 16px;
+                    text-align: center;
+                    border: 1px solid rgba(201,160,61,0.25);
+                    margin-bottom: 16px;
+                    position: relative;
+                ">
+                    <div style="font-size: 14px; color: #aaa; margin-bottom: 4px;">👑 ПОБЕДИТЕЛЬ</div>
+                    <div style="font-size: 26px; font-weight: 700; color: #ffd966;">${winnerName}</div>
+                    <div style="font-size: 13px; color: #888; margin-top: 2px;">против ${loserName}</div>
+                </div>
+
+                <div style="grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; position: relative;">
+                     <!--<div style="
+                        background: rgba(255,255,255,0.04);
+                        border-radius: 12px;
+                        padding: 12px 8px;
+                        text-align: center;
+                    ">
+                       <div style="font-size: 11px; color: #888;">⏱ ВРЕМЯ</div>
+                        <div style="font-size: 18px; font-weight: 700; color: #ddd;">${timeStr}</div>
+                    </div>--!>
+                    <div style="
+                        background: rgba(255,255,255,0.04);
+                        border-radius: 12px;
+                        padding: 12px 8px;
+                        text-align: center;
+                    ">
+                        <div style="font-size: 11px; color: #888;">👥 ИГРОКИ</div>
+                        <div style="font-size: 18px; font-weight: 700; color: #ddd;">${players ? players.length : 0}</div>
+                    </div>
+                </div>
+
+                <div style="
+                    background: linear-gradient(135deg, rgba(201,160,61,0.15), rgba(139,105,20,0.15));
+                    border-radius: 16px;
+                    padding: 16px;
+                    border: 1px solid rgba(201,160,61,0.2);
+                    margin-bottom: 20px;
+                    position: relative;
+                ">
+                    <div style="text-align: center; font-size: 13px; color: #aaa; margin-bottom: 8px;">🎁 ВЫИГРЫШ</div>
+                    <div style="display: flex; justify-content: center; gap: 30px;">
+                        <div style="text-align: center;">
+                            <div style="font-size: 28px; font-weight: 700; color: #ffd966;">${totalCigarettes}</div>
+                            <div style="font-size: 12px; color: #888;">🚬 Сигарет</div>
+                        </div>
+                        <div style="text-align: center;">
+                            <div style="font-size: 28px; font-weight: 700; color: #ffd966;">${totalRubles}</div>
+                            <div style="font-size: 12px; color: #888;">💰 Рублей</div>
+                        </div>
+                    </div>
+                </div>
+
+                <button onclick="window.closeGameResultModal()" style="
+                    width: 100%;
+                    padding: 14px;
+                    background: linear-gradient(135deg, #c9a03d, #8B6914);
+                    border: none;
+                    border-radius: 30px;
+                    color: #1a1a1a;
+                    font-size: 16px;
+                    font-weight: 700;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    letter-spacing: 1px;
+                    position: relative;
+                ">
+                    ✅ ОТЛИЧНО!
+                </button>
+            </div>
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    console.log('✅✅✅ Модальное окно добавлено в DOM! ✅✅✅');
+};
+
+window.closeGameResultModal = function() {
+    console.log('🔄 closeGameResultModal вызвана');
+    const modal = document.getElementById('gameResultModal');
+    if (modal) {
+        modal.remove();
+        console.log('🗑️ Модальное окно удалено');
+    }
+};
 
 // ============================================================
 // 26.6. ОТКРЫТИЕ ОКНА ИГРОВОЙ
@@ -30787,6 +31394,25 @@ window.openCardGameModal = function() {
 };
 
 function renderCardGameModal() {
+    // Добавьте эти стили в глобальный CSS или в начало файла
+if (!document.getElementById('workCounterStyles')) {
+    var style = document.createElement('style');
+    style.id = 'workCounterStyles';
+    style.textContent = `
+        @keyframes counterSlideIn {
+            from { opacity: 0; transform: translateY(-10px) scale(0.9); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes counterPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        .work-counter-item:hover {
+            background: rgba(255,255,255,0.15) !important;
+        }
+    `;
+    document.head.appendChild(style);
+}
     const existing = document.getElementById('cardGameFullscreen');
     if (existing) existing.remove();
 
@@ -30849,6 +31475,8 @@ function renderCardGameModal() {
     if (window.tg) window.tg.BackButton.show();
     
     startCardGameAutoUpdate();
+
+
 }
 
 // ============================================================
@@ -31064,7 +31692,7 @@ function renderLobby(content) {
                 <div class="game-card-title">🆕 СОЗДАТЬ КОМНАТУ</div>
                 <div class="game-card-desc" style="margin: 6px 0;">
                     <select id="gameTypeSelect" style="background: rgba(0,0,0,0.5); border: 1px solid #8B4513; border-radius: 30px; padding: 6px 12px; color: white; width: 100%; margin-bottom: 6px;">
-                        <option value="durak">ДУРАК</option>
+                        <!--<option value="durak">ДУРАК</option>--!>
                         <option value="twentyone">ОЧКО</option>
                     </select>
                     <div style="display: flex; gap: 8px;">
@@ -31508,11 +32136,13 @@ function renderDurakGameFull(room, currentPlayerObj, isMyTurn, isBeatMode) {
 // 26.12. РЕНДЕР ИГРЫ 21 (ОБНОВЛЕН)
 // ============================================================
 function renderTwentyOneGameFull(room, currentPlayerObj, isMyTurn) {
+    // isMyTurn должно быть true только для того игрока, чей сейчас ход
+    // и только если этот игрок - текущий пользователь
     let html = `
         <div style="background: rgba(0,0,0,0.3); border-radius: 16px; padding: 12px; border: 1px solid #8B4513; margin-top: 8px;">
             <div style="font-size: 12px; color: #c9a03d; text-align: center; margin-bottom: 8px;">
-                ${isMyTurn ? '🎯 ВАШ ХОД (ЗАЖМИТЕ КАРТУ ДЛЯ ХОДА)' : `⏳ ХОД: ${room.players ? room.players.find(p => p && p.id === room.currentTurn)?.name || '...' : '...'}`}
-                ${isMyTurn ? `<br><span style="font-size: 10px; color: #888;">👆 Зажмите карту для взятия, или нажмите СТОП</span>` : ''}
+                ${isMyTurn ? '🎯 ВАШ ХОД' : `⏳ ХОД: ${room.players ? room.players.find(p => p && p.id === room.currentTurn)?.name || '...' : '...'}`}
+                ${isMyTurn ? `<br><span style="font-size: 10px; color: #888;">👆 Нажмите СТОП или возьмите карту</span>` : ''}
             </div>
             
             ${currentPlayerObj ? `
@@ -31859,6 +32489,18 @@ window.cardGameTwentyOneHit = async function() {
         showToast('⏳ Сейчас не ваш ход', 'warning');
         return;
     }
+    
+    // ПРОВЕРКА: если игрок уже сделал stand - нельзя брать карту
+    const player = room.players.find(p => p && p.id === currentPlayer.id);
+    if (player && player.stand) {
+        showToast('⏳ Вы уже остановились!', 'warning');
+        return;
+    }
+    if (player && player.bust) {
+        showToast('💥 У вас перебор!', 'warning');
+        return;
+    }
+    
     if (!window._cardGameRoomExists) {
         showToast('❌ Комната была удалена', 'error');
         return;
@@ -31883,6 +32525,18 @@ window.cardGameTwentyOneStand = async function() {
         showToast('⏳ Сейчас не ваш ход', 'warning');
         return;
     }
+    
+    // ПРОВЕРКА: если игрок уже сделал stand - нельзя повторно нажать СТОП
+    const player = room.players.find(p => p && p.id === currentPlayer.id);
+    if (player && player.stand) {
+        showToast('⏳ Вы уже остановились!', 'warning');
+        return;
+    }
+    if (player && player.bust) {
+        showToast('💥 У вас перебор!', 'warning');
+        return;
+    }
+    
     if (!window._cardGameRoomExists) {
         showToast('❌ Комната была удалена', 'error');
         return;
@@ -31940,17 +32594,19 @@ window.startCardGame = async function() {
 
     const cardsPerPlayer = room.gameType === 'durak' ? 6 : 2;
     for (let player of room.players) {
-        if (!player) continue;
-        player.cards = [];
-        for (let i = 0; i < cardsPerPlayer; i++) {
-            if (deck.length > 0) {
-                player.cards.push(deck.pop());
-            }
+    if (!player) continue;
+    player.cards = [];
+    player.stand = false;
+    player.bust = false;
+    player.isActive = true;
+    for (let i = 0; i < cardsPerPlayer; i++) {
+        if (deck.length > 0) {
+            player.cards.push(deck.pop());
         }
-        player.isActive = true;
-        player.ready = false;
-        sortHandDurak(player.cards);
     }
+    player.ready = false;
+    sortHandDurak(player.cards);
+}
 
     if (room.gameType === 'durak') {
         if (deck.length > 0) {
