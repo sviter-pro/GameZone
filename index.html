@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>GameZona - 1.0.1.072</title>
+    <title>GameZona - 1.0.1.073</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -3602,8 +3602,8 @@ function createShopCounterAuto(process) {
     counterDiv.dataset.type = process.type;
     counterDiv.dataset.subtype = process.subtype;
     counterDiv.dataset.counterId = counterId;
+    counterDiv.dataset.remaining = process.remaining;
     
-    // Только желтый цвет для прокачки магазина
     var borderColor = '#FF9800';
     var timeColor = '#FFA726';
     var labelColor = '#FFB74D';
@@ -3629,9 +3629,29 @@ function createShopCounterAuto(process) {
         pointer-events: auto;
         min-height: 22px;
         animation: counterSlideIn 0.3s ease forwards;
-        transition: opacity 0.3s ease, transform 0.3s ease;
+        transition: opacity 0.3s ease, transform 0.3s ease, background 0.2s ease;
         opacity: 1;
+        cursor: pointer;
     `;
+    
+    // Добавляем эффект при наведении
+    counterDiv.onmouseover = function() {
+        this.style.background = 'rgba(255,255,255,0.12)';
+        this.style.transform = 'scale(1.02)';
+    };
+    counterDiv.onmouseout = function() {
+        this.style.background = 'rgba(0, 0, 0, 0.85)';
+        this.style.transform = 'scale(1)';
+    };
+    
+    // ДОБАВЛЯЕМ ОБРАБОТЧИК КЛИКА
+    counterDiv.onclick = function() {
+        var remaining = parseInt(this.dataset.remaining) || 0;
+        if (remaining > 0) {
+            console.log('🖱️ Клик по счетчику МАГАЗИНА:', this.id, 'осталось:', remaining);
+            showShopSpeedUpModal(this.id, this.dataset.type, this.dataset.subtype, remaining);
+        }
+    };
     
     var iconSpan = document.createElement('span');
     iconSpan.className = 'counter-icon';
@@ -3672,13 +3692,16 @@ function createShopCounterAuto(process) {
     window.shopCountersContainer.appendChild(counterDiv);
     window.shopCounterElements[counterId] = counterDiv;
     
-    console.log('✅ Создан счетчик МАГАЗИНА:', counterId);
+    console.log('✅ Создан счетчик МАГАЗИНА с кликом:', counterId);
 }
 
 // Обновление времени счетчика магазина
 function updateShopCounterTimeAuto(counterId, remaining) {
     var element = window.shopCounterElements[counterId];
     if (!element) return;
+    
+    // Обновляем dataset для клика
+    element.dataset.remaining = remaining;
     
     var timeSpan = element.querySelector('.counter-time');
     if (timeSpan) {
@@ -3836,6 +3859,217 @@ function stopShopCountersOnMap() {
     
     console.log('🛑 Счетчики МАГАЗИНА остановлены');
 }
+
+// ============================================================
+// 2.25.1. МОДАЛЬНОЕ ОКНО УСКОРЕНИЯ МАГАЗИНА
+// ============================================================
+
+function showShopSpeedUpModal(counterId, processType, processSubtype, remaining) {
+    console.log('🚀 showShopSpeedUpModal вызвана:', counterId, processType, processSubtype, remaining);
+    
+    // Удаляем старое модальное окно если есть
+    var existing = document.getElementById('speedUpModal');
+    if (existing) existing.remove();
+    
+    var minutes = Math.ceil(remaining / 60000);
+    var seconds = Math.floor((remaining % 60000) / 1000);
+    var timeStr = minutes > 0 ? minutes + ' мин ' + seconds + ' сек' : seconds + ' сек';
+    
+    var processName = '🏪 ПРОКАЧКА МАГАЗИНА';
+    
+    // Формируем кнопки ускорения с проверкой доступности
+    var speedOptions = [
+        { minutes: 1, cost: 3, label: '+1 мин' },
+        { minutes: 5, cost: 15, label: '+5 мин' },
+        { minutes: 15, cost: 45, label: '+15 мин' },
+        { minutes: 30, cost: 90, label: '+30 мин' },
+        { minutes: 60, cost: 180, label: '+60 мин' }
+    ];
+    
+    var buttonsHtml = '';
+    for (var i = 0; i < speedOptions.length; i++) {
+        var opt = speedOptions[i];
+        // Проверяем, можно ли ускорить (не больше оставшегося времени)
+        var canSpeedUp = (opt.minutes * 60000) <= remaining;
+        var disabledAttr = canSpeedUp ? '' : 'disabled';
+        var opacityStyle = canSpeedUp ? '1' : '0.4';
+        var cursorStyle = canSpeedUp ? 'pointer' : 'not-allowed';
+        var hoverEffect = canSpeedUp ? "this.style.background='rgba(255,255,255,0.12)'" : '';
+        var hoverOut = canSpeedUp ? "this.style.background='rgba(255,255,255,0.05)'" : '';
+        
+        buttonsHtml += `
+            <button onclick="window.speedUpShopProcess(${opt.minutes})" 
+                    style="
+                        display: flex; 
+                        justify-content: space-between; 
+                        align-items: center;
+                        padding: 12px 16px;
+                        background: rgba(255,255,255,0.05);
+                        border: 1px solid rgba(255,255,255,0.1);
+                        border-radius: 12px;
+                        color: #fff;
+                        cursor: ${cursorStyle};
+                        transition: all 0.2s;
+                        font-size: 14px;
+                        font-weight: 600;
+                        width: 100%;
+                        opacity: ${opacityStyle};
+                    " 
+                    ${disabledAttr}
+                    onmouseover="${hoverEffect}" 
+                    onmouseout="${hoverOut}">
+                <span>⏱ ${opt.label}</span>
+                <span style="color: #ffd966;">${opt.cost} 💰</span>
+            </button>
+        `;
+    }
+    
+    var modalHtml = `
+        <div id="speedUpModal" style="
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.85);
+            z-index: 99999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: modalFadeIn 0.3s ease;
+            padding: 20px;
+        ">
+            <div style="
+                background: linear-gradient(145deg, #1a1a2e, #0d0d1a);
+                border-radius: 24px;
+                padding: 30px 24px 24px;
+                max-width: 400px;
+                width: 100%;
+                border: 2px solid #c9a03d;
+                box-shadow: 0 20px 60px rgba(0,0,0,0.9), 0 0 40px rgba(201,160,61,0.2);
+                position: relative;
+                overflow: hidden;
+            ">
+                <div style="
+                    position: absolute; top: -50%; right: -50%; 
+                    width: 200%; height: 200%;
+                    background: radial-gradient(circle at 70% 30%, rgba(201,160,61,0.05), transparent 60%);
+                    pointer-events: none;
+                "></div>
+                
+                <div style="text-align: center; margin-bottom: 16px; position: relative;">
+                    <div style="font-size: 32px; margin-bottom: 4px;">⏳</div>
+                    <div style="font-size: 18px; font-weight: 700; color: #ffd966; letter-spacing: 1px;">
+                        УСКОРИТЬ ПРОЦЕСС
+                    </div>
+                    <div style="font-size: 12px; color: #aaa; margin-top: 4px;">${processName}</div>
+                    <div style="font-size: 14px; color: #ff9800; margin-top: 4px;">⏱ Осталось: ${timeStr}</div>
+                    <div style="font-size: 12px; color: #888; margin-top: 2px;">💰 Баланс: ${currentPlayer?.rubles || 0} руб.</div>
+                    <div style="width: 60px; height: 2px; background: linear-gradient(90deg, transparent, #c9a03d, transparent); margin: 10px auto;"></div>
+                </div>
+                
+                <div style="display: flex; flex-direction: column; gap: 8px; position: relative;">
+                    ${buttonsHtml}
+                </div>
+                
+                <button onclick="window.closeSpeedUpModal()" style="
+                    width: 100%;
+                    padding: 12px;
+                    margin-top: 12px;
+                    background: rgba(255,255,255,0.05);
+                    border: 1px solid rgba(255,255,255,0.1);
+                    border-radius: 12px;
+                    color: #888;
+                    font-size: 14px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                " onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">
+                    ❌ ОТМЕНА
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    console.log('✅ Модальное окно ускорения МАГАЗИНА создано');
+}
+
+// Функция ускорения прокачки магазина
+window.speedUpShopProcess = function(minutes) {
+    console.log('🚀 speedUpShopProcess вызвана:', minutes);
+    
+    var speed = minutes * 60 * 1000;
+    var cost = 0;
+    
+    if (minutes === 1) cost = 3;
+    else if (minutes === 5) cost = 15;
+    else if (minutes === 15) cost = 45;
+    else if (minutes === 30) cost = 90;
+    else if (minutes === 60) cost = 180;
+    else {
+        showToast('❌ Некорректное значение ускорения', 'error');
+        return;
+    }
+    
+    // Проверяем есть ли активная прокачка
+    if (!isShopUpgradeActive()) {
+        showToast('❌ Нет активной прокачки магазина!', 'error');
+        return;
+    }
+    
+    var currentRemaining = getShopUpgradeRemaining();
+    if (currentRemaining <= 0) {
+        showToast('❌ Прокачка уже завершена!', 'error');
+        return;
+    }
+    
+    // Проверяем, можно ли ускорить (не больше оставшегося времени)
+    if (speed > currentRemaining) {
+        showToast('❌ Нельзя ускорить больше оставшегося времени!', 'warning');
+        return;
+    }
+    
+    // Проверяем достаточно ли рублей
+    if (!currentPlayer || (currentPlayer.rubles || 0) < cost) {
+        showToast('❌ Не хватает ' + (cost - (currentPlayer.rubles || 0)) + ' 💰!', 'error');
+        return;
+    }
+    
+    // Уменьшаем количество рублей
+    currentPlayer.rubles -= cost;
+    
+    // УМЕНЬШАЕМ время прокачки (переносим upgradeStartTime ВПЕРЕД)
+    var newUpgradeStart = window.shopUpgradeStartTime + speed;
+    window.shopUpgradeStartTime = newUpgradeStart;
+    
+    // Обновляем в Firebase
+    var playerRef = getDBRef('players/' + currentPlayer.id);
+    if (playerRef) {
+        playerRef.update({
+            rubles: currentPlayer.rubles,
+            shopUpgradeStartTime: newUpgradeStart
+        }).then(function() {
+            console.log('✅ Ускорение прокачки магазина применено!');
+            showToast('⏱ Прокачка ускорена на ' + minutes + ' мин! -' + cost + ' 💰', 'success');
+            window.closeSpeedUpModal();
+            
+            // Обновляем UI
+            setTimeout(function() {
+                updateShopCountersOnMap();
+                updateTopBarResources();
+                updateShopUpgradeUI();
+                renderShopItemsContent();
+            }, 200);
+        }).catch(function(err) {
+            console.error('Ошибка ускорения прокачки магазина:', err);
+            showToast('❌ Ошибка ускорения', 'error');
+        });
+    } else {
+        showToast('❌ Ошибка доступа к БД', 'error');
+    }
+};
+
+window.closeSpeedUpModal = function() {
+    var modal = document.getElementById('speedUpModal');
+    if (modal) modal.remove();
+};
 
 // ============================================================
 // 2.26. ЭКСПОРТ ФУНКЦИЙ
@@ -8446,7 +8680,7 @@ window.openSettingsModal = function() {
                     <div style="font-size: 36px; margin-bottom: 10px;">⚙️</div>
                     <div style="font-size: 16px; font-weight: 700; color: #ffd966;">${escapeHtml(window.currentPlayer.username)}</div>
                     <div style="font-size: 12px; color: #888; margin-top: 4px;">🆔 ${window.playerId}</div>
-                    <div style="font-size: 11px; color: #666; margin-top: 8px;">Версия - 1.0.1.072</div>
+                    <div style="font-size: 11px; color: #666; margin-top: 8px;">Версия - 1.0.1.073</div>
                     <div class="settings-status-info" style="font-size: 10px; color: ${window._settingsHasInternet ? '#4caf50' : '#e94560'}; margin-top: 6px;">
                         ${window._settingsHasInternet ? '🟢 Онлайн' : '🔴 Офлайн'}
                     </div>
@@ -14280,6 +14514,7 @@ function createGangCounterAuto(process) {
     counterDiv.dataset.type = process.type;
     counterDiv.dataset.subtype = process.subtype;
     counterDiv.dataset.counterId = counterId;
+    counterDiv.dataset.remaining = process.remaining;
     
     var borderColor = process.isWork ? '#4CAF50' : '#FF9800';
     var timeColor = process.isWork ? '#66BB6A' : '#FFA726';
@@ -14306,9 +14541,29 @@ function createGangCounterAuto(process) {
         pointer-events: auto;
         min-height: 22px;
         animation: counterSlideIn 0.3s ease forwards;
-        transition: opacity 0.3s ease, transform 0.3s ease;
+        transition: opacity 0.3s ease, transform 0.3s ease, background 0.2s ease;
         opacity: 1;
+        cursor: pointer;
     `;
+    
+    // Добавляем эффект при наведении
+    counterDiv.onmouseover = function() {
+        this.style.background = 'rgba(255,255,255,0.12)';
+        this.style.transform = 'scale(1.02)';
+    };
+    counterDiv.onmouseout = function() {
+        this.style.background = 'rgba(0, 0, 0, 0.85)';
+        this.style.transform = 'scale(1)';
+    };
+    
+    // ДОБАВЛЯЕМ ОБРАБОТЧИК КЛИКА
+    counterDiv.onclick = function() {
+        var remaining = parseInt(this.dataset.remaining) || 0;
+        if (remaining > 0) {
+            console.log('🖱️ Клик по счетчику СИЗО:', this.id, 'осталось:', remaining);
+            showGangSpeedUpModal(this.id, this.dataset.type, this.dataset.subtype, remaining);
+        }
+    };
     
     var iconSpan = document.createElement('span');
     iconSpan.className = 'counter-icon';
@@ -14349,13 +14604,16 @@ function createGangCounterAuto(process) {
     window.gangCountersContainer.appendChild(counterDiv);
     window.gangCounterElements[counterId] = counterDiv;
     
-    console.log('✅ Создан счетчик СИЗО:', counterId);
+    console.log('✅ Создан счетчик СИЗО с кликом:', counterId);
 }
 
 // Обновление времени счетчика СИЗО
 function updateGangCounterTimeAuto(counterId, remaining) {
     var element = window.gangCounterElements[counterId];
     if (!element) return;
+    
+    // Обновляем dataset для клика
+    element.dataset.remaining = remaining;
     
     var timeSpan = element.querySelector('.counter-time');
     if (timeSpan) {
@@ -14515,6 +14773,278 @@ function stopGangCountersOnMap() {
     
     console.log('🛑 Счетчики СИЗО остановлены');
 }
+
+// ============================================================
+// 19.16.1. МОДАЛЬНОЕ ОКНО УСКОРЕНИЯ СИЗО
+// ============================================================
+
+function showGangSpeedUpModal(counterId, processType, processSubtype, remaining) {
+    console.log('🚀 showGangSpeedUpModal вызвана:', counterId, processType, processSubtype, remaining);
+    
+    // Удаляем старое модальное окно если есть
+    var existing = document.getElementById('speedUpModal');
+    if (existing) existing.remove();
+    
+    var minutes = Math.ceil(remaining / 60000);
+    var seconds = Math.floor((remaining % 60000) / 1000);
+    var timeStr = minutes > 0 ? minutes + ' мин ' + seconds + ' сек' : seconds + ' сек';
+    
+    // Находим название процесса
+    var processName = '';
+    var typeNames = {
+        'blats': 'БЛАТНЫЕ',
+        'muzhiks': 'МУЖИКИ',
+        'fraers': 'ФРАЕРА'
+    };
+    var subtypeNames = {
+        'recruit': 'НАЙМ',
+        'upgrade': 'ПРОКАЧКА'
+    };
+    
+    var typeDisplay = typeNames[processType] || processType.toUpperCase();
+    var subtypeDisplay = subtypeNames[processSubtype] || processSubtype.toUpperCase();
+    processName = '🏛️ ' + typeDisplay + ' - ' + subtypeDisplay;
+    
+    // Формируем кнопки ускорения с проверкой доступности
+    var speedOptions = [
+        { minutes: 1, cost: 3, label: '+1 мин' },
+        { minutes: 5, cost: 15, label: '+5 мин' },
+        { minutes: 15, cost: 45, label: '+15 мин' },
+        { minutes: 30, cost: 90, label: '+30 мин' },
+        { minutes: 60, cost: 180, label: '+60 мин' }
+    ];
+    
+    var buttonsHtml = '';
+    for (var i = 0; i < speedOptions.length; i++) {
+        var opt = speedOptions[i];
+        // Проверяем, можно ли ускорить (не больше оставшегося времени)
+        var canSpeedUp = (opt.minutes * 60000) <= remaining;
+        var disabledAttr = canSpeedUp ? '' : 'disabled';
+        var opacityStyle = canSpeedUp ? '1' : '0.4';
+        var cursorStyle = canSpeedUp ? 'pointer' : 'not-allowed';
+        
+        buttonsHtml += `
+            <button onclick="window.speedUpGangProcess('${counterId}', '${processType}', '${processSubtype}', ${opt.minutes})" 
+                    style="
+                        display: flex; 
+                        justify-content: space-between; 
+                        align-items: center;
+                        padding: 12px 16px;
+                        background: rgba(255,255,255,0.05);
+                        border: 1px solid rgba(255,255,255,0.1);
+                        border-radius: 12px;
+                        color: #fff;
+                        cursor: ${cursorStyle};
+                        transition: all 0.2s;
+                        font-size: 14px;
+                        font-weight: 600;
+                        width: 100%;
+                        opacity: ${opacityStyle};
+                    " 
+                    ${disabledAttr}
+                    onmouseover="${canSpeedUp ? "this.style.background='rgba(255,255,255,0.12)'" : ''}" 
+                    onmouseout="${canSpeedUp ? "this.style.background='rgba(255,255,255,0.05)'" : ''}">
+                <span>⏱ ${opt.label}</span>
+                <span style="color: #ffd966;">${opt.cost} 💰</span>
+            </button>
+        `;
+    }
+    
+    var modalHtml = `
+        <div id="speedUpModal" style="
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.85);
+            z-index: 99999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: modalFadeIn 0.3s ease;
+            padding: 20px;
+        ">
+            <div style="
+                background: linear-gradient(145deg, #1a1a2e, #0d0d1a);
+                border-radius: 24px;
+                padding: 30px 24px 24px;
+                max-width: 400px;
+                width: 100%;
+                border: 2px solid #c9a03d;
+                box-shadow: 0 20px 60px rgba(0,0,0,0.9), 0 0 40px rgba(201,160,61,0.2);
+                position: relative;
+                overflow: hidden;
+            ">
+                <div style="
+                    position: absolute; top: -50%; right: -50%; 
+                    width: 200%; height: 200%;
+                    background: radial-gradient(circle at 70% 30%, rgba(201,160,61,0.05), transparent 60%);
+                    pointer-events: none;
+                "></div>
+                
+                <div style="text-align: center; margin-bottom: 16px; position: relative;">
+                    <div style="font-size: 32px; margin-bottom: 4px;">⏳</div>
+                    <div style="font-size: 18px; font-weight: 700; color: #ffd966; letter-spacing: 1px;">
+                        УСКОРИТЬ ПРОЦЕСС
+                    </div>
+                    <div style="font-size: 12px; color: #aaa; margin-top: 4px;">${processName}</div>
+                    <div style="font-size: 14px; color: #ff9800; margin-top: 4px;">⏱ Осталось: ${timeStr}</div>
+                    <div style="font-size: 12px; color: #888; margin-top: 2px;">💰 Баланс: ${currentPlayer?.rubles || 0} руб.</div>
+                    <div style="width: 60px; height: 2px; background: linear-gradient(90deg, transparent, #c9a03d, transparent); margin: 10px auto;"></div>
+                </div>
+                
+                <div style="display: flex; flex-direction: column; gap: 8px; position: relative;">
+                    ${buttonsHtml}
+                </div>
+                
+                <button onclick="window.closeSpeedUpModal()" style="
+                    width: 100%;
+                    padding: 12px;
+                    margin-top: 12px;
+                    background: rgba(255,255,255,0.05);
+                    border: 1px solid rgba(255,255,255,0.1);
+                    border-radius: 12px;
+                    color: #888;
+                    font-size: 14px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                " onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">
+                    ❌ ОТМЕНА
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+window.closeSpeedUpModal = function() {
+    var modal = document.getElementById('speedUpModal');
+    if (modal) modal.remove();
+};
+
+// Функция ускорения процесса СИЗО
+window.speedUpGangProcess = function(counterId, processType, processSubtype, minutes) {
+    console.log('🚀 speedUpGangProcess вызвана:', counterId, processType, processSubtype, minutes);
+    
+    var speed = minutes * 60 * 1000; // переводим минуты в миллисекунды
+    var cost = 0;
+    
+    // Определяем стоимость в рублях
+    if (minutes === 1) cost = 3;
+    else if (minutes === 5) cost = 15;
+    else if (minutes === 15) cost = 45;
+    else if (minutes === 30) cost = 90;
+    else if (minutes === 60) cost = 180;
+    else {
+        showToast('❌ Некорректное значение ускорения', 'error');
+        return;
+    }
+    
+    // Проверяем достаточно ли рублей
+    if (!currentPlayer || (currentPlayer.rubles || 0) < cost) {
+        showToast('❌ Не хватает ' + (cost - (currentPlayer.rubles || 0)) + ' 💰!', 'error');
+        return;
+    }
+    
+    // Проверяем есть ли активный процесс
+    var gang = currentPlayer.gang || {};
+    var gangTypeData = gang[processType];
+    if (!gangTypeData) {
+        showToast('❌ Процесс не найден!', 'error');
+        return;
+    }
+    
+    var currentRemaining = 0;
+    var updateData = {};
+    
+    if (processSubtype === 'recruit') {
+        var lastGatherTime = gangTypeData.lastGatherTime || 0;
+        if (lastGatherTime === 0) {
+            showToast('❌ Нет активного найма!', 'error');
+            return;
+        }
+        var level = gangTypeData.level || 1;
+        var cooldownMs = 2 * 60 * 1000;
+        cooldownMs = Math.floor(cooldownMs * (1 + (level - 1) * 0.05));
+        currentRemaining = Math.max(0, cooldownMs - (Date.now() - lastGatherTime));
+        
+        if (currentRemaining <= 0) {
+            showToast('❌ Найм уже завершён!', 'error');
+            return;
+        }
+        
+        // Проверяем, можно ли ускорить (не больше оставшегося времени)
+        if (speed > currentRemaining) {
+            showToast('❌ Нельзя ускорить больше оставшегося времени!', 'warning');
+            return;
+        }
+        
+        // УМЕНЬШАЕМ время найма (переносим lastGatherTime ВПЕРЕД)
+        var newLastGatherTime = lastGatherTime + speed;
+        updateData['gang/' + processType + '/lastGatherTime'] = newLastGatherTime;
+        // Обновляем локальные данные
+        gangTypeData.lastGatherTime = newLastGatherTime;
+        
+    } else if (processSubtype === 'upgrade') {
+        var upgradeStart = gangTypeData.upgradeStartTime || 0;
+        var upgradeDuration = gangTypeData.upgradeDuration || 0;
+        if (upgradeStart === 0 || upgradeDuration === 0) {
+            showToast('❌ Нет активной прокачки!', 'error');
+            return;
+        }
+        currentRemaining = Math.max(0, upgradeDuration - (Date.now() - upgradeStart));
+        
+        if (currentRemaining <= 0) {
+            showToast('❌ Прокачка уже завершена!', 'error');
+            return;
+        }
+        
+        // Проверяем, можно ли ускорить (не больше оставшегося времени)
+        if (speed > currentRemaining) {
+            showToast('❌ Нельзя ускорить больше оставшегося времени!', 'warning');
+            return;
+        }
+        
+        // УМЕНЬШАЕМ время прокачки (переносим upgradeStart ВПЕРЕД)
+        var newUpgradeStart = upgradeStart + speed;
+        updateData['gang/' + processType + '/upgradeStartTime'] = newUpgradeStart;
+        // Обновляем локальные данные
+        gangTypeData.upgradeStartTime = newUpgradeStart;
+        
+    } else {
+        showToast('❌ Неизвестный тип процесса', 'error');
+        return;
+    }
+    
+    // Уменьшаем количество рублей
+    currentPlayer.rubles -= cost;
+    updateData['rubles'] = currentPlayer.rubles;
+    
+    // Обновляем в Firebase
+    var playerRef = getDBRef('players/' + currentPlayer.id);
+    if (playerRef) {
+        playerRef.update(updateData).then(function() {
+            console.log('✅ Ускорение СИЗО применено!');
+            
+            var typeName = processType === 'blats' ? 'Блатных' : (processType === 'muzhiks' ? 'Мужиков' : 'Фраеров');
+            var processName = processSubtype === 'recruit' ? 'найма' : 'прокачки';
+            showToast('⏱ Ускорен ' + processName + ' ' + typeName + ' на ' + minutes + ' мин! -' + cost + ' 💰', 'success');
+            closeSpeedUpModal();
+            
+            // Обновляем UI
+            setTimeout(function() {
+                updateGangCountersOnMap();
+                updateTopBarResources();
+                updateGangModalUI();
+                updateGangButtonBadge();
+            }, 200);
+        }).catch(function(err) {
+            console.error('Ошибка ускорения СИЗО:', err);
+            showToast('❌ Ошибка ускорения', 'error');
+        });
+    } else {
+        showToast('❌ Ошибка доступа к БД', 'error');
+    }
+};
 
 // ============================================================
 // 19.17. ИНИЦИАЛИЗАЦИЯ
@@ -21623,7 +22153,7 @@ function createCounterAuto(process) {
     counterDiv.id = 'counter-' + counterId;
     counterDiv.dataset.type = process.type;
     counterDiv.dataset.subtype = process.subtype;
-    counterDiv.dataset.counterId = counterId;
+    counterDiv.dataset.counterId = counterId; // ДОБАВЛЯЕМ data-counter-id
     counterDiv.dataset.remaining = process.remaining;
     
     var borderColor = process.isWork ? '#4CAF50' : '#FF9800';
@@ -21666,11 +22196,11 @@ function createCounterAuto(process) {
         this.style.transform = 'scale(1)';
     };
     
-    // ДОБАВЛЯЕМ ОБРАБОТЧИК КЛИКА
+    // Обработчик клика
     counterDiv.onclick = function() {
         var remaining = parseInt(this.dataset.remaining) || 0;
         if (remaining > 0) {
-            console.log('🖱️ Клик по счетчику:', this.id, 'осталось:', remaining);
+            console.log('🖱️ Клик по счетчику РАБОТЫ:', this.id, 'осталось:', remaining);
             showSpeedUpModal(this.id, this.dataset.type, this.dataset.subtype, remaining);
         }
     };
@@ -21714,7 +22244,7 @@ function createCounterAuto(process) {
     window.countersContainer.appendChild(counterDiv);
     window.activeCounterElements[counterId] = counterDiv;
     
-    console.log('✅ Создан счетчик с кликом:', counterId);
+    console.log('✅ Создан счетчик РАБОТЫ с кликом:', counterId);
 }
 
 function updateCounterTimeAuto(counterId, remaining) {
@@ -21857,19 +22387,29 @@ function showSpeedUpModal(counterId, processType, processSubtype, remaining) {
     
     // Находим название процесса
     var processName = '';
-    if (processType === 'mine') {
-        if (processSubtype === 'work') processName = '⛏️ РАБОТА В ШАХТЕ';
-        else if (processSubtype === 'paper') processName = '📄 ПРОКАЧКА БУМАГИ';
-        else if (processSubtype === 'makhorka') processName = '🌿 ПРОКАЧКА МАХОРКИ';
-    } else if (processType === 'lumber') {
-        if (processSubtype === 'work') processName = '🪓 РАБОТА В ЛЕСОПОВАЛЕ';
-        else if (processSubtype === 'upgrade') processName = '⬆️ ПРОКАЧКА ЛЕСОПОВАЛА';
-    } else if (processType === 'quarry') {
-        if (processSubtype === 'work') processName = '⛏️ РАБОТА В КАМЕНОЛОМНЕ';
-        else if (processSubtype === 'upgrade') processName = '⬆️ ПРОКАЧКА КАМЕНОЛОМНИ';
+    var typeNames = {
+        'mine': {
+            'work': '⛏️ РАБОТА В ШАХТЕ',
+            'paper': '📄 ПРОКАЧКА БУМАГИ',
+            'makhorka': '🌿 ПРОКАЧКА МАХОРКИ'
+        },
+        'lumber': {
+            'work': '🪓 РАБОТА В ЛЕСОПОВАЛЕ',
+            'upgrade': '⬆️ ПРОКАЧКА ЛЕСОПОВАЛА'
+        },
+        'quarry': {
+            'work': '⛏️ РАБОТА В КАМЕНОЛОМНЕ',
+            'upgrade': '⬆️ ПРОКАЧКА КАМЕНОЛОМНИ'
+        }
+    };
+    
+    if (typeNames[processType] && typeNames[processType][processSubtype]) {
+        processName = typeNames[processType][processSubtype];
+    } else {
+        processName = processType + ' - ' + processSubtype;
     }
     
-    // Формируем кнопки ускорения с ценами в рублях
+    // Формируем кнопки ускорения с проверкой доступности
     var speedOptions = [
         { minutes: 1, cost: 3, label: '+1 мин' },
         { minutes: 5, cost: 15, label: '+5 мин' },
@@ -21885,6 +22425,9 @@ function showSpeedUpModal(counterId, processType, processSubtype, remaining) {
         var canSpeedUp = (opt.minutes * 60000) <= remaining;
         var disabledAttr = canSpeedUp ? '' : 'disabled';
         var opacityStyle = canSpeedUp ? '1' : '0.4';
+        var cursorStyle = canSpeedUp ? 'pointer' : 'not-allowed';
+        var hoverEffect = canSpeedUp ? "this.style.background='rgba(255,255,255,0.12)'" : '';
+        var hoverOut = canSpeedUp ? "this.style.background='rgba(255,255,255,0.05)'" : '';
         
         buttonsHtml += `
             <button onclick="window.speedUpProcess('${counterId}', ${opt.minutes})" 
@@ -21897,7 +22440,7 @@ function showSpeedUpModal(counterId, processType, processSubtype, remaining) {
                         border: 1px solid rgba(255,255,255,0.1);
                         border-radius: 12px;
                         color: #fff;
-                        cursor: ${canSpeedUp ? 'pointer' : 'not-allowed'};
+                        cursor: ${cursorStyle};
                         transition: all 0.2s;
                         font-size: 14px;
                         font-weight: 600;
@@ -21905,8 +22448,8 @@ function showSpeedUpModal(counterId, processType, processSubtype, remaining) {
                         opacity: ${opacityStyle};
                     " 
                     ${disabledAttr}
-                    onmouseover="${canSpeedUp ? "this.style.background='rgba(255,255,255,0.12)'" : ''}" 
-                    onmouseout="${canSpeedUp ? "this.style.background='rgba(255,255,255,0.05)'" : ''}">
+                    onmouseover="${hoverEffect}" 
+                    onmouseout="${hoverOut}">
                 <span>⏱ ${opt.label}</span>
                 <span style="color: #ffd966;">${opt.cost} 💰</span>
             </button>
@@ -21977,12 +22520,13 @@ function showSpeedUpModal(counterId, processType, processSubtype, remaining) {
     `;
     
     document.body.insertAdjacentHTML('beforeend', modalHtml);
+    console.log('✅ Модальное окно ускорения создано');
 }
 
-function closeSpeedUpModal() {
+window.closeSpeedUpModal = function() {
     var modal = document.getElementById('speedUpModal');
     if (modal) modal.remove();
-}
+};
 
 // Функция ускорения процесса
 window.speedUpProcess = function(counterId, minutes) {
@@ -22011,16 +22555,30 @@ window.speedUpProcess = function(counterId, minutes) {
     // Уменьшаем количество рублей
     currentPlayer.rubles -= cost;
     
-    // Получаем данные процесса из счетчика
+    // Получаем данные процесса из счетчика - ПРОБУЕМ РАЗНЫЕ ВАРИАНТЫ ID
     var counterEl = document.getElementById('counter-' + counterId);
     if (!counterEl) {
+        // Пробуем найти по точному ID
+        counterEl = document.getElementById(counterId);
+    }
+    if (!counterEl) {
+        // Пробуем найти через querySelector
+        counterEl = document.querySelector('[data-counter-id="' + counterId + '"]');
+    }
+    
+    if (!counterEl) {
+        console.log('❌ Счетчик не найден, ID:', counterId);
         showToast('❌ Счетчик не найден', 'error');
         return;
     }
     
+    console.log('✅ Счетчик найден:', counterEl.id);
+    
     var type = counterEl.dataset.type;
     var subtype = counterEl.dataset.subtype;
     var currentRemaining = parseInt(counterEl.dataset.remaining) || 0;
+    
+    console.log('📊 Тип:', type, 'Подтип:', subtype, 'Осталось:', currentRemaining);
     
     // Проверяем, можно ли ускорить (не больше оставшегося времени)
     if (speed > currentRemaining) {
@@ -22028,6 +22586,7 @@ window.speedUpProcess = function(counterId, minutes) {
         return;
     }
     
+    // ВЫЧИТАЕМ ускорение из оставшегося времени (УМЕНЬШАЕМ)
     var newRemaining = currentRemaining - speed;
     console.log('📊 Было:', currentRemaining, 'мс, стало:', newRemaining, 'мс');
     
@@ -23379,10 +23938,38 @@ function updateBattleCounter() {
             var seconds = totalSeconds % 60;
             var timerText = minutes > 0 ? minutes + 'м ' + seconds + 'с' : seconds + 'с';
             
-            newHTML = '<div class="battle-counters" style="position:absolute; bottom:50px; left:50%; transform:translateX(-50%); width:92%; z-index:10; display:flex; flex-direction:column; gap:3px; pointer-events:none;">' +
-                '<div style="background:rgba(0,0,0,0.85); border:1px solid rgba(0,0,0,0.9); border-left:3px solid #ff9800; border-radius:6px; padding:4px 10px; font-size:10px; font-weight:600; color:#ffffff; text-shadow:0 1px 4px rgba(0,0,0,0.9); display:flex; align-items:center; justify-content:center; gap:6px; backdrop-filter:blur(8px); box-shadow:0 2px 8px rgba(0,0,0,0.6); font-family:\'Courier New\',monospace; pointer-events:auto; min-height:22px; animation:counterSlideIn 0.3s ease forwards;">' +
-                '⚔️ <span style="font-weight:700; font-size:11px; min-width:45px; text-align:center; color:#FFA726;">' + timerText + '</span>' +
-                '</div></div>';
+            newHTML = `
+                <div class="battle-counters" style="position:absolute; bottom:50px; left:50%; transform:translateX(-50%); width:92%; z-index:10; display:flex; flex-direction:column; gap:3px; pointer-events:none;">
+                    <div id="battle-counter-element" data-remaining="${remaining}" onclick="showBattleSpeedUpModal('battle-counter', ${remaining})" style="
+                        background:rgba(0,0,0,0.85); 
+                        border:1px solid rgba(0,0,0,0.9); 
+                        border-left:3px solid #ff9800; 
+                        border-radius:6px; 
+                        padding:4px 10px; 
+                        font-size:10px; 
+                        font-weight:600; 
+                        color:#ffffff; 
+                        text-shadow:0 1px 4px rgba(0,0,0,0.9); 
+                        display:flex; 
+                        align-items:center; 
+                        justify-content:center; 
+                        gap:6px; 
+                        backdrop-filter:blur(8px); 
+                        box-shadow:0 2px 8px rgba(0,0,0,0.6); 
+                        font-family:'Courier New',monospace; 
+                        pointer-events:auto; 
+                        min-height:22px; 
+                        animation:counterSlideIn 0.3s ease forwards;
+                        cursor:pointer;
+                        transition: background 0.2s ease, transform 0.2s ease;
+                    " 
+                    onmouseover="this.style.background='rgba(255,255,255,0.12)'; this.style.transform='scale(1.02)'" 
+                    onmouseout="this.style.background='rgba(0,0,0,0.85)'; this.style.transform='scale(1)'">
+                        ⚔️ <span style="font-weight:700; font-size:11px; min-width:45px; text-align:center; color:#FFA726;">${timerText}</span>
+                        <span style="font-size:8px; opacity:0.5; margin-left:4px;">👆 ускорить</span>
+                    </div>
+                </div>
+            `;
         }
         
         if (window._lastBattleCounterHTML !== newHTML) {
@@ -23426,6 +24013,9 @@ function updateBattleCounter() {
                         timeSpan.textContent = timerText;
                     }
                 }
+                // Обновляем data-remaining
+                var remaining = window.activeBattleEndTime - Date.now();
+                container.querySelector('#battle-counter-element')?.setAttribute('data-remaining', remaining);
             }
         }
     } catch (e) {}
@@ -23456,6 +24046,275 @@ function stopBattleCounters() {
     }
     console.log('🛑 Счётчики боя остановлены');
 }
+
+// ============================================================
+// 23.17.1. МОДАЛЬНОЕ ОКНО УСКОРЕНИЯ БОЯ
+// ============================================================
+
+function showBattleSpeedUpModal(counterId, remaining) {
+    console.log('🚀 showBattleSpeedUpModal вызвана:', counterId, remaining);
+    
+    // Удаляем старое модальное окно если есть
+    var existing = document.getElementById('speedUpModal');
+    if (existing) existing.remove();
+    
+    var minutes = Math.ceil(remaining / 60000);
+    var seconds = Math.floor((remaining % 60000) / 1000);
+    var timeStr = minutes > 0 ? minutes + ' мин ' + seconds + ' сек' : seconds + ' сек';
+    
+    // Проверяем что это бой
+    var processName = '⚔️ ТЮРЕМНАЯ РАЗБОРКА';
+    if (window.activeBattleData && window.activeBattleData.defenderName) {
+        processName = '⚔️ БОЙ С ' + window.activeBattleData.defenderName;
+    }
+    
+    var modalHtml = `
+        <div id="speedUpModal" style="
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.85);
+            z-index: 99999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: modalFadeIn 0.3s ease;
+            padding: 20px;
+        ">
+            <div style="
+                background: linear-gradient(145deg, #1a1a2e, #0d0d1a);
+                border-radius: 24px;
+                padding: 30px 24px 24px;
+                max-width: 400px;
+                width: 100%;
+                border: 2px solid #c9a03d;
+                box-shadow: 0 20px 60px rgba(0,0,0,0.9), 0 0 40px rgba(201,160,61,0.2);
+                position: relative;
+                overflow: hidden;
+            ">
+                <div style="
+                    position: absolute; top: -50%; right: -50%; 
+                    width: 200%; height: 200%;
+                    background: radial-gradient(circle at 70% 30%, rgba(201,160,61,0.05), transparent 60%);
+                    pointer-events: none;
+                "></div>
+                
+                <div style="text-align: center; margin-bottom: 16px; position: relative;">
+                    <div style="font-size: 32px; margin-bottom: 4px;">⏳</div>
+                    <div style="font-size: 18px; font-weight: 700; color: #ffd966; letter-spacing: 1px;">
+                        УСКОРИТЬ БОЙ
+                    </div>
+                    <div style="font-size: 12px; color: #aaa; margin-top: 4px;">${processName}</div>
+                    <div style="font-size: 14px; color: #ff9800; margin-top: 4px;">⏱ Осталось: ${timeStr}</div>
+                    <div style="font-size: 12px; color: #888; margin-top: 2px;">💰 Баланс: ${currentPlayer?.rubles || 0} руб.</div>
+                    <div style="width: 60px; height: 2px; background: linear-gradient(90deg, transparent, #c9a03d, transparent); margin: 10px auto;"></div>
+                </div>
+                
+                <div style="display: flex; flex-direction: column; gap: 8px; position: relative;">
+                    <button onclick="window.speedUpBattle(1)" style="
+                        display: flex; justify-content: space-between; align-items: center;
+                        padding: 12px 16px;
+                        background: rgba(255,255,255,0.05);
+                        border: 1px solid rgba(255,255,255,0.1);
+                        border-radius: 12px;
+                        color: #fff;
+                        cursor: pointer;
+                        transition: all 0.2s;
+                        font-size: 14px;
+                        font-weight: 600;
+                        width: 100%;
+                    " onmouseover="this.style.background='rgba(255,255,255,0.12)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">
+                        <span>⏱ +1 мин</span>
+                        <span style="color: #ffd966;">3 💰</span>
+                    </button>
+                    <button onclick="window.speedUpBattle(5)" style="
+                        display: flex; justify-content: space-between; align-items: center;
+                        padding: 12px 16px;
+                        background: rgba(255,255,255,0.05);
+                        border: 1px solid rgba(255,255,255,0.1);
+                        border-radius: 12px;
+                        color: #fff;
+                        cursor: pointer;
+                        transition: all 0.2s;
+                        font-size: 14px;
+                        font-weight: 600;
+                        width: 100%;
+                    " onmouseover="this.style.background='rgba(255,255,255,0.12)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">
+                        <span>⏱ +5 мин</span>
+                        <span style="color: #ffd966;">15 💰</span>
+                    </button>
+                    <button onclick="window.speedUpBattle(15)" style="
+                        display: flex; justify-content: space-between; align-items: center;
+                        padding: 12px 16px;
+                        background: rgba(255,255,255,0.05);
+                        border: 1px solid rgba(255,255,255,0.1);
+                        border-radius: 12px;
+                        color: #fff;
+                        cursor: pointer;
+                        transition: all 0.2s;
+                        font-size: 14px;
+                        font-weight: 600;
+                        width: 100%;
+                    " onmouseover="this.style.background='rgba(255,255,255,0.12)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">
+                        <span>⏱ +15 мин</span>
+                        <span style="color: #ffd966;">45 💰</span>
+                    </button>
+                    <button onclick="window.speedUpBattle(30)" style="
+                        display: flex; justify-content: space-between; align-items: center;
+                        padding: 12px 16px;
+                        background: rgba(255,255,255,0.05);
+                        border: 1px solid rgba(255,255,255,0.1);
+                        border-radius: 12px;
+                        color: #fff;
+                        cursor: pointer;
+                        transition: all 0.2s;
+                        font-size: 14px;
+                        font-weight: 600;
+                        width: 100%;
+                    " onmouseover="this.style.background='rgba(255,255,255,0.12)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">
+                        <span>⏱ +30 мин</span>
+                        <span style="color: #ffd966;">90 💰</span>
+                    </button>
+                    <button onclick="window.speedUpBattle(60)" style="
+                        display: flex; justify-content: space-between; align-items: center;
+                        padding: 12px 16px;
+                        background: rgba(255,255,255,0.05);
+                        border: 1px solid rgba(255,255,255,0.1);
+                        border-radius: 12px;
+                        color: #fff;
+                        cursor: pointer;
+                        transition: all 0.2s;
+                        font-size: 14px;
+                        font-weight: 600;
+                        width: 100%;
+                    " onmouseover="this.style.background='rgba(255,255,255,0.12)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">
+                        <span>⏱ +60 мин</span>
+                        <span style="color: #ffd966;">180 💰</span>
+                    </button>
+                </div>
+                
+                <button onclick="window.closeSpeedUpModal()" style="
+                    width: 100%;
+                    padding: 12px;
+                    margin-top: 12px;
+                    background: rgba(255,255,255,0.05);
+                    border: 1px solid rgba(255,255,255,0.1);
+                    border-radius: 12px;
+                    color: #888;
+                    font-size: 14px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                " onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">
+                    ❌ ОТМЕНА
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+window.closeSpeedUpModal = function() {
+    var modal = document.getElementById('speedUpModal');
+    if (modal) modal.remove();
+};
+
+// Функция ускорения боя
+window.speedUpBattle = function(minutes) {
+    console.log('🚀 speedUpBattle вызвана:', minutes);
+    
+    var speed = minutes * 60 * 1000; // переводим минуты в миллисекунды
+    var cost = 0;
+    
+    // Определяем стоимость в рублях
+    if (minutes === 1) cost = 3;
+    else if (minutes === 5) cost = 15;
+    else if (minutes === 15) cost = 45;
+    else if (minutes === 30) cost = 90;
+    else if (minutes === 60) cost = 180;
+    else {
+        showToast('❌ Некорректное значение ускорения', 'error');
+        return;
+    }
+    
+    // Проверяем есть ли активный бой
+    if (!window.activeBattleData || window.activeBattleEndTime <= Date.now()) {
+        showToast('❌ Нет активного боя!', 'error');
+        return;
+    }
+    
+    var currentRemaining = window.activeBattleEndTime - Date.now();
+    if (currentRemaining <= 0) {
+        showToast('❌ Бой уже завершён!', 'error');
+        return;
+    }
+    
+    // Проверяем, можно ли ускорить (не больше оставшегося времени)
+    if (speed > currentRemaining) {
+        showToast('❌ Нельзя ускорить больше оставшегося времени!', 'warning');
+        return;
+    }
+    
+    // Проверяем достаточно ли рублей
+    if (!currentPlayer || (currentPlayer.rubles || 0) < cost) {
+        showToast('❌ Не хватает ' + (cost - (currentPlayer.rubles || 0)) + ' 💰!', 'error');
+        return;
+    }
+    
+    // Уменьшаем количество рублей
+    currentPlayer.rubles -= cost;
+    
+    // УМЕНЬШАЕМ время окончания боя (вычитаем ускорение)
+    var newEndTime = window.activeBattleEndTime - speed;
+    window.activeBattleEndTime = newEndTime;
+    
+    // Обновляем в Firebase
+    var playerRef = getDBRef('players/' + currentPlayer.id);
+    if (playerRef) {
+        playerRef.update({ rubles: currentPlayer.rubles });
+    }
+    
+    // Обновляем в activeBattles если есть battleId
+    if (window.activeBattleData.battleId) {
+        var battleRef = getDBRef('activeBattles/' + window.activeBattleData.battleId);
+        if (battleRef) {
+            battleRef.update({ endTime: newEndTime });
+        }
+    }
+    
+    // Обновляем локальное сохранение
+    saveActiveBattle();
+    
+    // Обновляем счетчик на месте
+    var counterEl = document.getElementById('battle-counter-element');
+    if (counterEl) {
+        counterEl.dataset.remaining = newEndTime - Date.now();
+    }
+    
+    showToast('⏱ Бой ускорен на ' + minutes + ' мин! -' + cost + ' 💰', 'success');
+    closeSpeedUpModal();
+    
+    // Обновляем UI
+    setTimeout(function() {
+        updateBattleCounter();
+        updateTopBarResources();
+        
+        var modal = document.getElementById('attackDetailFullscreen');
+        if (modal) {
+            var timerSpan = document.getElementById('globalBattleTimer');
+            if (timerSpan) {
+                timerSpan.textContent = formatBattleTime(window.activeBattleEndTime - Date.now());
+            }
+            var activeBlock = document.getElementById('activeBattleBlock');
+            if (activeBlock) {
+                var timeSpan = activeBlock.querySelector('.battle-counters span:last-child');
+                if (timeSpan) {
+                    timeSpan.textContent = formatBattleTime(window.activeBattleEndTime - Date.now());
+                }
+            }
+            updateAttackModalButtons();
+        }
+    }, 200);
+};
 
 // ============================================================
 // 23.18. ТАЙМЕР ЗАВЕРШЕНИЯ БОЯ
@@ -27523,6 +28382,7 @@ function createHospitalCounterAuto(process) {
     counterDiv.dataset.type = process.type;
     counterDiv.dataset.subtype = process.subtype;
     counterDiv.dataset.counterId = counterId;
+    counterDiv.dataset.remaining = process.remaining;
     
     var borderColor = process.isWork ? '#4CAF50' : '#FF9800';
     var timeColor = process.isWork ? '#66BB6A' : '#FFA726';
@@ -27549,9 +28409,29 @@ function createHospitalCounterAuto(process) {
         pointer-events: auto;
         min-height: 22px;
         animation: counterSlideIn 0.3s ease forwards;
-        transition: opacity 0.3s ease, transform 0.3s ease;
+        transition: opacity 0.3s ease, transform 0.3s ease, background 0.2s ease;
         opacity: 1;
+        cursor: pointer;
     `;
+    
+    // Добавляем эффект при наведении
+    counterDiv.onmouseover = function() {
+        this.style.background = 'rgba(255,255,255,0.12)';
+        this.style.transform = 'scale(1.02)';
+    };
+    counterDiv.onmouseout = function() {
+        this.style.background = 'rgba(0, 0, 0, 0.85)';
+        this.style.transform = 'scale(1)';
+    };
+    
+    // ДОБАВЛЯЕМ ОБРАБОТЧИК КЛИКА
+    counterDiv.onclick = function() {
+        var remaining = parseInt(this.dataset.remaining) || 0;
+        if (remaining > 0) {
+            console.log('🖱️ Клик по счетчику БОЛЬНИЦЫ:', this.id, 'осталось:', remaining);
+            showHospitalSpeedUpModal(this.id, this.dataset.type, this.dataset.subtype, remaining);
+        }
+    };
     
     var iconSpan = document.createElement('span');
     iconSpan.className = 'counter-icon';
@@ -27592,13 +28472,16 @@ function createHospitalCounterAuto(process) {
     window.hospitalCountersContainer.appendChild(counterDiv);
     window.hospitalCounterElements[counterId] = counterDiv;
     
-    console.log('✅ Создан счетчик БОЛЬНИЦЫ:', counterId);
+    console.log('✅ Создан счетчик БОЛЬНИЦЫ с кликом:', counterId);
 }
 
 // Обновление времени счетчика больницы
 function updateHospitalCounterTimeAuto(counterId, remaining) {
     var element = window.hospitalCounterElements[counterId];
     if (!element) return;
+    
+    // Обновляем dataset для клика
+    element.dataset.remaining = remaining;
     
     var timeSpan = element.querySelector('.counter-time');
     if (timeSpan) {
@@ -27758,6 +28641,247 @@ function stopHospitalCountersOnMap() {
     
     console.log('🛑 Счетчики БОЛЬНИЦЫ остановлены');
 }
+
+// ============================================================
+// 24.12.1. МОДАЛЬНОЕ ОКНО УСКОРЕНИЯ БОЛЬНИЦЫ
+// ============================================================
+
+function showHospitalSpeedUpModal(counterId, processType, processSubtype, remaining) {
+    console.log('🚀 showHospitalSpeedUpModal вызвана:', counterId, processType, processSubtype, remaining);
+    
+    // Удаляем старое модальное окно если есть
+    var existing = document.getElementById('speedUpModal');
+    if (existing) existing.remove();
+    
+    var minutes = Math.ceil(remaining / 60000);
+    var seconds = Math.floor((remaining % 60000) / 1000);
+    var timeStr = minutes > 0 ? minutes + ' мин ' + seconds + ' сек' : seconds + ' сек';
+    
+    // Находим название процесса
+    var processName = '';
+    if (processSubtype === 'treatment') {
+        processName = '🏥 ЛЕЧЕНИЕ ПАЦИЕНТОВ';
+    } else if (processSubtype === 'upgrade') {
+        processName = '📈 ПРОКАЧКА БОЛЬНИЦЫ';
+    } else {
+        processName = 'БОЛЬНИЦА - ' + processSubtype;
+    }
+    
+    // Формируем кнопки ускорения с проверкой доступности
+    var speedOptions = [
+        { minutes: 1, cost: 3, label: '+1 мин' },
+        { minutes: 5, cost: 15, label: '+5 мин' },
+        { minutes: 15, cost: 45, label: '+15 мин' },
+        { minutes: 30, cost: 90, label: '+30 мин' },
+        { minutes: 60, cost: 180, label: '+60 мин' }
+    ];
+    
+    var buttonsHtml = '';
+    for (var i = 0; i < speedOptions.length; i++) {
+        var opt = speedOptions[i];
+        // Проверяем, можно ли ускорить (не больше оставшегося времени)
+        var canSpeedUp = (opt.minutes * 60000) <= remaining;
+        var disabledAttr = canSpeedUp ? '' : 'disabled';
+        var opacityStyle = canSpeedUp ? '1' : '0.4';
+        var cursorStyle = canSpeedUp ? 'pointer' : 'not-allowed';
+        var hoverEffect = canSpeedUp ? "this.style.background='rgba(255,255,255,0.12)'" : '';
+        var hoverOut = canSpeedUp ? "this.style.background='rgba(255,255,255,0.05)'" : '';
+        
+        buttonsHtml += `
+            <button onclick="window.speedUpHospitalProcess('${counterId}', '${processType}', '${processSubtype}', ${opt.minutes})" 
+                    style="
+                        display: flex; 
+                        justify-content: space-between; 
+                        align-items: center;
+                        padding: 12px 16px;
+                        background: rgba(255,255,255,0.05);
+                        border: 1px solid rgba(255,255,255,0.1);
+                        border-radius: 12px;
+                        color: #fff;
+                        cursor: ${cursorStyle};
+                        transition: all 0.2s;
+                        font-size: 14px;
+                        font-weight: 600;
+                        width: 100%;
+                        opacity: ${opacityStyle};
+                    " 
+                    ${disabledAttr}
+                    onmouseover="${hoverEffect}" 
+                    onmouseout="${hoverOut}">
+                <span>⏱ ${opt.label}</span>
+                <span style="color: #ffd966;">${opt.cost} 💰</span>
+            </button>
+        `;
+    }
+    
+    var modalHtml = `
+        <div id="speedUpModal" style="
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.85);
+            z-index: 99999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: modalFadeIn 0.3s ease;
+            padding: 20px;
+        ">
+            <div style="
+                background: linear-gradient(145deg, #1a1a2e, #0d0d1a);
+                border-radius: 24px;
+                padding: 30px 24px 24px;
+                max-width: 400px;
+                width: 100%;
+                border: 2px solid #c9a03d;
+                box-shadow: 0 20px 60px rgba(0,0,0,0.9), 0 0 40px rgba(201,160,61,0.2);
+                position: relative;
+                overflow: hidden;
+            ">
+                <div style="
+                    position: absolute; top: -50%; right: -50%; 
+                    width: 200%; height: 200%;
+                    background: radial-gradient(circle at 70% 30%, rgba(201,160,61,0.05), transparent 60%);
+                    pointer-events: none;
+                "></div>
+                
+                <div style="text-align: center; margin-bottom: 16px; position: relative;">
+                    <div style="font-size: 32px; margin-bottom: 4px;">⏳</div>
+                    <div style="font-size: 18px; font-weight: 700; color: #ffd966; letter-spacing: 1px;">
+                        УСКОРИТЬ ПРОЦЕСС
+                    </div>
+                    <div style="font-size: 12px; color: #aaa; margin-top: 4px;">${processName}</div>
+                    <div style="font-size: 14px; color: #ff9800; margin-top: 4px;">⏱ Осталось: ${timeStr}</div>
+                    <div style="font-size: 12px; color: #888; margin-top: 2px;">💰 Баланс: ${currentPlayer?.rubles || 0} руб.</div>
+                    <div style="width: 60px; height: 2px; background: linear-gradient(90deg, transparent, #c9a03d, transparent); margin: 10px auto;"></div>
+                </div>
+                
+                <div style="display: flex; flex-direction: column; gap: 8px; position: relative;">
+                    ${buttonsHtml}
+                </div>
+                
+                <button onclick="window.closeSpeedUpModal()" style="
+                    width: 100%;
+                    padding: 12px;
+                    margin-top: 12px;
+                    background: rgba(255,255,255,0.05);
+                    border: 1px solid rgba(255,255,255,0.1);
+                    border-radius: 12px;
+                    color: #888;
+                    font-size: 14px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                " onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">
+                    ❌ ОТМЕНА
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    console.log('✅ Модальное окно ускорения БОЛЬНИЦЫ создано');
+}
+
+// Функция ускорения процесса больницы
+window.speedUpHospitalProcess = function(counterId, processType, processSubtype, minutes) {
+    console.log('🚀 speedUpHospitalProcess вызвана:', counterId, processType, processSubtype, minutes);
+    
+    var speed = minutes * 60 * 1000;
+    var cost = 0;
+    
+    if (minutes === 1) cost = 3;
+    else if (minutes === 5) cost = 15;
+    else if (minutes === 15) cost = 45;
+    else if (minutes === 30) cost = 90;
+    else if (minutes === 60) cost = 180;
+    else {
+        showToast('❌ Некорректное значение ускорения', 'error');
+        return;
+    }
+    
+    // Проверяем есть ли активный процесс
+    var currentRemaining = 0;
+    var updateData = {};
+    
+    if (processSubtype === 'treatment') {
+        if (!isHospitalTreatmentActive()) {
+            showToast('❌ Нет активного лечения!', 'error');
+            return;
+        }
+        currentRemaining = getHospitalTreatmentRemaining();
+        if (currentRemaining <= 0) {
+            showToast('❌ Лечение уже завершено!', 'error');
+            return;
+        }
+    } else if (processSubtype === 'upgrade') {
+        if (!isHospitalUpgradeActive()) {
+            showToast('❌ Нет активной прокачки!', 'error');
+            return;
+        }
+        currentRemaining = getHospitalUpgradeRemaining();
+        if (currentRemaining <= 0) {
+            showToast('❌ Прокачка уже завершена!', 'error');
+            return;
+        }
+    } else {
+        showToast('❌ Неизвестный тип процесса', 'error');
+        return;
+    }
+    
+    // Проверяем, можно ли ускорить (не больше оставшегося времени)
+    if (speed > currentRemaining) {
+        showToast('❌ Нельзя ускорить больше оставшегося времени!', 'warning');
+        return;
+    }
+    
+    // Проверяем достаточно ли рублей
+    if (!currentPlayer || (currentPlayer.rubles || 0) < cost) {
+        showToast('❌ Не хватает ' + (cost - (currentPlayer.rubles || 0)) + ' 💰!', 'error');
+        return;
+    }
+    
+    // Уменьшаем количество рублей
+    currentPlayer.rubles -= cost;
+    updateData['rubles'] = currentPlayer.rubles;
+    
+    // УМЕНЬШАЕМ время процесса (переносим startTime ВПЕРЕД)
+    if (processSubtype === 'treatment') {
+        var newStart = window.hospitalTreatmentStartTime + speed;
+        window.hospitalTreatmentStartTime = newStart;
+        updateData['hospitalTreatmentStartTime'] = newStart;
+    } else if (processSubtype === 'upgrade') {
+        var newStart = window.hospitalUpgradeStartTime + speed;
+        window.hospitalUpgradeStartTime = newStart;
+        updateData['hospitalUpgradeStartTime'] = newStart;
+    }
+    
+    // Обновляем в Firebase
+    var playerRef = getDBRef('players/' + currentPlayer.id);
+    if (playerRef) {
+        playerRef.update(updateData).then(function() {
+            console.log('✅ Ускорение БОЛЬНИЦЫ применено!');
+            var processName = processSubtype === 'treatment' ? 'лечения' : 'прокачки';
+            showToast('⏱ Ускорен ' + processName + ' на ' + minutes + ' мин! -' + cost + ' 💰', 'success');
+            window.closeSpeedUpModal();
+            
+            // Обновляем UI
+            setTimeout(function() {
+                updateHospitalCountersOnMap();
+                updateTopBarResources();
+                updateHospitalModalUI();
+            }, 200);
+        }).catch(function(err) {
+            console.error('Ошибка ускорения БОЛЬНИЦЫ:', err);
+            showToast('❌ Ошибка ускорения', 'error');
+        });
+    } else {
+        showToast('❌ Ошибка доступа к БД', 'error');
+    }
+};
+
+window.closeSpeedUpModal = function() {
+    var modal = document.getElementById('speedUpModal');
+    if (modal) modal.remove();
+};
 
 // ============================================================
 // 24.13. ИНИЦИАЛИЗАЦИЯ СИСТЕМЫ БОЛЬНИЦЫ
