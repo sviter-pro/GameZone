@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>GameZona - 1.0.1.075</title>
+    <title>GameZona - 1.0.1.076</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -8716,7 +8716,7 @@ window.openSettingsModal = function() {
                     <div style="font-size: 36px; margin-bottom: 10px;">⚙️</div>
                     <div style="font-size: 16px; font-weight: 700; color: #ffd966;">${escapeHtml(window.currentPlayer.username)}</div>
                     <div style="font-size: 12px; color: #888; margin-top: 4px;">🆔 ${window.playerId}</div>
-                    <div style="font-size: 11px; color: #666; margin-top: 8px;">Версия - 1.0.1.075</div>
+                    <div style="font-size: 11px; color: #666; margin-top: 8px;">Версия - 1.0.1.076</div>
                     <div class="settings-status-info" style="font-size: 10px; color: ${window._settingsHasInternet ? '#4caf50' : '#e94560'}; margin-top: 6px;">
                         ${window._settingsHasInternet ? '🟢 Онлайн' : '🔴 Офлайн'}
                     </div>
@@ -11786,6 +11786,10 @@ function getDailyQuests() {
     var gangFraersCount = progress.gangFraersCount || 0;
     var cardGameCount = progress.cardGameCount || 0;
     
+    // Проверяем выполненные задания
+    var completed = window.dailyQuestsCompleted || {};
+    var claimed = window.dailyQuestsClaimed || {};
+    
     return [
         // ===== ШАХТА =====
         {
@@ -11796,7 +11800,9 @@ function getDailyQuests() {
             current: Math.min(5, mineWorkCount),
             reward: 100,
             type: 'cigarettes',
-            icon: '⛏️'
+            icon: '⛏️',
+            completed: completed['daily_mine_5'] || false,
+            claimed: claimed['daily_mine_5'] || false
         },
         {
             id: 'daily_mine_10',
@@ -11806,7 +11812,9 @@ function getDailyQuests() {
             current: Math.min(10, mineWorkCount),
             reward: 250,
             type: 'cigarettes',
-            icon: '⛏️'
+            icon: '⛏️',
+            completed: completed['daily_mine_10'] || false,
+            claimed: claimed['daily_mine_10'] || false
         },
         {
             id: 'daily_mine_15',
@@ -11816,7 +11824,9 @@ function getDailyQuests() {
             current: Math.min(15, mineWorkCount),
             reward: 500,
             type: 'cigarettes',
-            icon: '⛏️'
+            icon: '⛏️',
+            completed: completed['daily_mine_15'] || false,
+            claimed: claimed['daily_mine_15'] || false
         },
         
         // ===== ЛЕСОПОВАЛ =====
@@ -11828,7 +11838,9 @@ function getDailyQuests() {
             current: Math.min(5, lumberWorkCount),
             reward: 100,
             type: 'cigarettes',
-            icon: '🪓'
+            icon: '🪓',
+            completed: completed['daily_lumber_5'] || false,
+            claimed: claimed['daily_lumber_5'] || false
         },
         {
             id: 'daily_lumber_10',
@@ -11838,7 +11850,9 @@ function getDailyQuests() {
             current: Math.min(10, lumberWorkCount),
             reward: 250,
             type: 'cigarettes',
-            icon: '🪓'
+            icon: '🪓',
+            completed: completed['daily_lumber_10'] || false,
+            claimed: claimed['daily_lumber_10'] || false
         },
         {
             id: 'daily_lumber_15',
@@ -11848,7 +11862,9 @@ function getDailyQuests() {
             current: Math.min(15, lumberWorkCount),
             reward: 500,
             type: 'cigarettes',
-            icon: '🪓'
+            icon: '🪓',
+            completed: completed['daily_lumber_15'] || false,
+            claimed: claimed['daily_lumber_15'] || false
         },
         
         // ===== КАМЕНОЛОМНЯ =====
@@ -11860,7 +11876,9 @@ function getDailyQuests() {
             current: Math.min(5, quarryWorkCount),
             reward: 100,
             type: 'cigarettes',
-            icon: '🪨'
+            icon: '🪨',
+            completed: completed['daily_quarry_5'] || false,
+            claimed: claimed['daily_quarry_5'] || false
         },
         {
             id: 'daily_quarry_10',
@@ -11870,7 +11888,9 @@ function getDailyQuests() {
             current: Math.min(10, quarryWorkCount),
             reward: 250,
             type: 'cigarettes',
-            icon: '🪨'
+            icon: '🪨',
+            completed: completed['daily_quarry_10'] || false,
+            claimed: claimed['daily_quarry_10'] || false
         },
         {
             id: 'daily_quarry_15',
@@ -11880,7 +11900,9 @@ function getDailyQuests() {
             current: Math.min(15, quarryWorkCount),
             reward: 500,
             type: 'cigarettes',
-            icon: '🪨'
+            icon: '🪨',
+            completed: completed['daily_quarry_15'] || false,
+            claimed: claimed['daily_quarry_15'] || false
         },
         
         // ===== СИЗО (БАНДА) =====
@@ -11892,7 +11914,9 @@ function getDailyQuests() {
             current: Math.min(5, gangBlatsCount),
             reward: 150,
             type: 'cigarettes',
-            icon: '👑'
+            icon: '👑',
+            completed: completed['daily_gang_blats_5'] || false,
+            claimed: claimed['daily_gang_blats_5'] || false
         },
         {
             id: 'daily_gang_muzhiks_5',
@@ -11902,7 +11926,9 @@ function getDailyQuests() {
             current: Math.min(5, gangMuzhiksCount),
             reward: 150,
             type: 'cigarettes',
-            icon: '🔨'
+            icon: '🔨',
+            completed: completed['daily_gang_muzhiks_5'] || false,
+            claimed: claimed['daily_gang_muzhiks_5'] || false
         },
         {
             id: 'daily_gang_fraers_5',
@@ -11912,7 +11938,9 @@ function getDailyQuests() {
             current: Math.min(5, gangFraersCount),
             reward: 150,
             type: 'cigarettes',
-            icon: '🐑'
+            icon: '🐑',
+            completed: completed['daily_gang_fraers_5'] || false,
+            claimed: claimed['daily_gang_fraers_5'] || false
         },
         
         // ===== КАРТЫ =====
@@ -11924,10 +11952,13 @@ function getDailyQuests() {
             current: Math.min(1, cardGameCount),
             reward: 200,
             type: 'cigarettes',
-            icon: '🎴'
+            icon: '🎴',
+            completed: completed['daily_cards_1'] || false,
+            claimed: claimed['daily_cards_1'] || false
         }
     ];
 }
+
 
 // ============================================================
 // 18.3. ПРЕМИУМ ЗАДАНИЯ
@@ -12189,6 +12220,56 @@ function checkQuestsCompletion() {
     }
     
     return newCount;
+}
+
+// ============================================================
+// 18.5.1. ОБНОВЛЕНИЕ ПРОГРЕССА ЕЖЕДНЕВНЫХ ЗАДАНИЙ
+// ============================================================
+function updateDailyQuestProgress(type, amount) {
+    if (!currentPlayer) return;
+    if (!window.dailyQuestsProgress) window.dailyQuestsProgress = {};
+    
+    var key = '';
+    switch(type) {
+        case 'mine': key = 'mineWorkCount'; break;
+        case 'lumber': key = 'lumberWorkCount'; break;
+        case 'quarry': key = 'quarryWorkCount'; break;
+        case 'gang_blats': key = 'gangBlatsCount'; break;
+        case 'gang_muzhiks': key = 'gangMuzhiksCount'; break;
+        case 'gang_fraers': key = 'gangFraersCount'; break;
+        case 'cards': key = 'cardGameCount'; break;
+        default: return;
+    }
+    
+    window.dailyQuestsProgress[key] = (window.dailyQuestsProgress[key] || 0) + (amount || 1);
+    saveDailyQuestsProgress();
+    updateDailyQuestsUI();
+    updateQuestsBadge();
+}
+
+function updateDailyQuestsUI() {
+    var container = document.getElementById('questsDailyPage');
+    if (container) {
+        renderDailyPage();
+    }
+    updateQuestsBadge();
+}
+
+// Сохранение прогресса
+function saveDailyQuestsProgress() {
+    if (!currentPlayer) return;
+    
+    try {
+        var data = {
+            progress: window.dailyQuestsProgress || {},
+            completed: window.dailyQuestsCompleted || {},
+            claimed: window.dailyQuestsClaimed || {},
+            lastReset: window.dailyQuestsLastReset || Date.now()
+        };
+        localStorage.setItem('dailyQuests_' + currentPlayer.id, JSON.stringify(data));
+    } catch (e) {
+        console.warn('⚠️ Ошибка сохранения ежедневных заданий:', e);
+    }
 }
 
 // ============================================================
@@ -14033,6 +14114,15 @@ async function collectGangIncomeDirect(type) {
     
     gang[type].lastGatherTime = now;
     gang[type].pendingGain = recruitGain;
+
+        // После успешного найма, обновляем прогресс
+        if (type === 'blats') {
+            updateDailyQuestProgress('gang_blats');
+        } else if (type === 'muzhiks') {
+            updateDailyQuestProgress('gang_muzhiks');
+        } else if (type === 'fraers') {
+            updateDailyQuestProgress('gang_fraers');
+        }
     
     var updateData = {
         cigarettes: window.currentPlayer.cigarettes,
@@ -20751,6 +20841,15 @@ async function completeWorkSafe(type) {
         var workExp = 0;
         var successMessage = '';
         var updateData = {};
+
+        // После добавления ресурсов, обновляем прогресс ежедневных заданий
+        if (type === 'mine') {
+            updateDailyQuestProgress('mine');
+        } else if (type === 'lumber') {
+            updateDailyQuestProgress('lumber');
+        } else if (type === 'quarry') {
+            updateDailyQuestProgress('quarry');
+        }
         
         if (type === 'mine') {
             if (isMineUpgradeActive('paper') || isMineUpgradeActive('makhorka')) {
@@ -25613,6 +25712,9 @@ console.log('✅ СХОДКА: блок полностью загружен');
 // ============================================================
 // 23.25.0. ПЕРЕМЕННЫЕ ВОРОВСТВА
 // ============================================================
+if (typeof window.robberyCounterElements === 'undefined') {
+    window.robberyCounterElements = {};
+}
 if (typeof window.robberyItems === 'undefined') {
     window.robberyItems = [];
 }
@@ -26734,20 +26836,25 @@ function switchAttackInnerTab(tab) {
 // ============================================================
 function initializeRobberyCounterContainer() {
     try {
+        // Ищем building b6
         var b6Element = document.querySelector('.building.b6');
         if (!b6Element) {
+            console.warn('⚠️ building b6 не найден, повторная попытка через 500ms');
             setTimeout(function() {
                 initializeRobberyCounterContainer();
             }, 500);
             return false;
         }
         
+        // Убеждаемся, что b6 имеет position: relative
         if (getComputedStyle(b6Element).position === 'static') {
             b6Element.style.position = 'relative';
         }
         
+        // Ищем существующий контейнер
         window.robberyCountersContainer = b6Element.querySelector('.robbery-counters-container');
         
+        // Если контейнера нет - создаем
         if (!window.robberyCountersContainer) {
             window.robberyCountersContainer = document.createElement('div');
             window.robberyCountersContainer.className = 'robbery-counters-container';
@@ -26807,9 +26914,18 @@ function removeRobberyCounterAuto(counterId) {
 }
 
 function createRobberyCounterAuto(robbery) {
+    console.log('🦹 createRobberyCounterAuto вызвана для:', robbery.resourceName);
+    
+    if (!robbery || !robbery.id) {
+        console.warn('⚠️ Некорректные данные грабежа');
+        return;
+    }
+    
+    // Инициализируем контейнер если его нет
     if (!window.robberyCountersContainer || !window.robberyCountersContainer.parentNode) {
         var initResult = initializeRobberyCounterContainer();
         if (!initResult) {
+            console.warn('⚠️ Не удалось инициализировать контейнер');
             setTimeout(function() {
                 createRobberyCounterAuto(robbery);
             }, 500);
@@ -26822,17 +26938,32 @@ function createRobberyCounterAuto(robbery) {
         return;
     }
     
+    // Инициализируем объект элементов если его нет
+    if (typeof window.robberyCounterElements === 'undefined') {
+        window.robberyCounterElements = {};
+    }
+    
     var counterId = robbery.id;
-    if (window.robberyCounterElements[counterId]) return;
+    
+    // Если счетчик уже существует - обновляем его
+    if (window.robberyCounterElements[counterId]) {
+        var remaining = Math.max(0, robbery.endTime - Date.now());
+        updateRobberyCounterTimeAuto(counterId, remaining);
+        return;
+    }
     
     var counterDiv = document.createElement('div');
     counterDiv.className = 'robbery-counter-item';
     counterDiv.id = 'robbery-counter-' + counterId;
     counterDiv.dataset.counterId = counterId;
+    counterDiv.dataset.remaining = Math.max(0, robbery.endTime - Date.now());
     
     var borderColor = '#4CAF50';
     var timeColor = '#66BB6A';
     var labelColor = '#81C784';
+    
+    var remaining = Math.max(0, robbery.endTime - Date.now());
+    var timeText = formatRobberyMapTimer(remaining);
     
     counterDiv.style.cssText = `
         background: rgba(0, 0, 0, 0.85);
@@ -26855,15 +26986,49 @@ function createRobberyCounterAuto(robbery) {
         pointer-events: auto;
         min-height: 22px;
         animation: counterSlideIn 0.3s ease forwards;
-        transition: opacity 0.3s ease, transform 0.3s ease;
+        transition: opacity 0.3s ease, transform 0.3s ease, background 0.2s ease;
         opacity: 1;
+        cursor: pointer;
     `;
     
+    // Добавляем эффект при наведении
+    counterDiv.onmouseover = function() {
+        this.style.background = 'rgba(255,255,255,0.12)';
+        this.style.transform = 'scale(1.02)';
+    };
+    counterDiv.onmouseout = function() {
+        this.style.background = 'rgba(0, 0, 0, 0.85)';
+        this.style.transform = 'scale(1)';
+    };
+    
+    // ДОБАВЛЯЕМ ОБРАБОТЧИК КЛИКА
+    counterDiv.onclick = function() {
+        var remaining = parseInt(this.dataset.remaining) || 0;
+        if (remaining > 0) {
+            // Находим грабеж по ID
+            var robberyData = null;
+            for (var i = 0; i < window.activeRobberies.length; i++) {
+                if (window.activeRobberies[i].id === counterId) {
+                    robberyData = window.activeRobberies[i];
+                    break;
+                }
+            }
+            if (robberyData) {
+                console.log('🖱️ Клик по счетчику ВОРОВСТВА:', this.id, 'осталось:', remaining);
+                showRobberySpeedUpModal(this.id, robberyData);
+            } else {
+                showToast('❌ Данные грабежа не найдены', 'error');
+            }
+        }
+    };
+    
+    // Иконка
     var iconSpan = document.createElement('span');
     iconSpan.className = 'counter-icon';
     iconSpan.textContent = robbery.resourceIcon || '🦹';
     iconSpan.style.cssText = 'font-size: 12px; line-height: 1; flex-shrink: 0;';
     
+    // Название
     var labelSpan = document.createElement('span');
     labelSpan.className = 'counter-label';
     labelSpan.textContent = 'ВОРОВСТВО';
@@ -26878,10 +27043,10 @@ function createRobberyCounterAuto(robbery) {
         flex-shrink: 0;
     `;
     
+    // Время
     var timeSpan = document.createElement('span');
     timeSpan.className = 'counter-time';
-    var remaining = Math.max(0, robbery.endTime - Date.now());
-    timeSpan.textContent = formatRobberyMapTimer(remaining);
+    timeSpan.textContent = timeText;
     timeSpan.style.cssText = `
         font-weight: 700;
         font-size: 11px;
@@ -26898,15 +27063,17 @@ function createRobberyCounterAuto(robbery) {
     
     window.robberyCountersContainer.appendChild(counterDiv);
     window.robberyCounterElements[counterId] = counterDiv;
-    
     window.robberyCountersContainer.style.display = 'flex';
     
-    console.log('✅ Создан счётчик ВОРОВСТВА:', counterId);
+    console.log('✅ Создан счётчик ВОРОВСТВА с кликом:', counterId, robbery.resourceName, timeText);
 }
 
 function updateRobberyCounterTimeAuto(counterId, remaining) {
     var element = window.robberyCounterElements[counterId];
     if (!element) return;
+    
+    // Обновляем dataset для клика
+    element.dataset.remaining = remaining;
     
     var timeSpan = element.querySelector('.counter-time');
     if (timeSpan) {
@@ -26922,6 +27089,32 @@ function updateAllRobberyCountersAuto() {
     window._isRobberyCounterUpdating = true;
     
     try {
+        // Принудительно загружаем данные из localStorage если их нет
+        if (!window.activeRobberies || window.activeRobberies.length === 0) {
+            if (currentPlayer && currentPlayer.id) {
+                try {
+                    var saved = localStorage.getItem('activeRobberies_' + currentPlayer.id);
+                    if (saved) {
+                        window.activeRobberies = JSON.parse(saved);
+                        console.log('🔄 Загружены активные грабежи из localStorage:', window.activeRobberies.length);
+                    }
+                } catch(e) {
+                    console.warn('⚠️ Ошибка загрузки activeRobberies:', e);
+                }
+            }
+        }
+        
+        // Если данных нет - выходим
+        if (!window.activeRobberies || window.activeRobberies.length === 0) {
+            // Скрываем контейнер
+            if (window.robberyCountersContainer) {
+                window.robberyCountersContainer.style.display = 'none';
+            }
+            window._isRobberyCounterUpdating = false;
+            return;
+        }
+        
+        // Инициализируем контейнер если его нет
         if (!window.robberyCountersContainer || !window.robberyCountersContainer.parentNode) {
             var initResult = initializeRobberyCounterContainer();
             if (!initResult) {
@@ -26935,65 +27128,108 @@ function updateAllRobberyCountersAuto() {
             return;
         }
         
-        var activeRobberies = window.activeRobberies || [];
+        // Инициализируем объект для хранения элементов если его нет
+        if (typeof window.robberyCounterElements === 'undefined') {
+            window.robberyCounterElements = {};
+        }
+        
         var activeIds = {};
         var hasActive = false;
         
-        for (var i = 0; i < activeRobberies.length; i++) {
-            var robbery = activeRobberies[i];
+        // Проходим по всем активным грабежам
+        for (var i = 0; i < window.activeRobberies.length; i++) {
+            var robbery = window.activeRobberies[i];
+            if (!robbery || !robbery.endTime) continue;
+            
             var remaining = Math.max(0, robbery.endTime - Date.now());
             
+            // Если время еще не вышло - создаем/обновляем счетчик
             if (remaining > 0) {
                 hasActive = true;
                 activeIds[robbery.id] = true;
                 
-                if (window.robberyCounterElements[robbery.id]) {
+                // Проверяем, существует ли уже счетчик
+                if (window.robberyCounterElements && window.robberyCounterElements[robbery.id]) {
+                    // Обновляем время
                     updateRobberyCounterTimeAuto(robbery.id, remaining);
                 } else {
+                    // Создаем новый счетчик
                     createRobberyCounterAuto(robbery);
                 }
             }
         }
         
-        var currentIds = Object.keys(window.robberyCounterElements);
-        for (var j = 0; j < currentIds.length; j++) {
-            var id = currentIds[j];
-            if (!activeIds[id]) {
-                removeRobberyCounterAuto(id);
+        // Удаляем счетчики для завершенных грабежей
+        if (window.robberyCounterElements) {
+            var currentIds = Object.keys(window.robberyCounterElements);
+            for (var j = 0; j < currentIds.length; j++) {
+                var id = currentIds[j];
+                if (!activeIds[id]) {
+                    removeRobberyCounterAuto(id);
+                }
             }
         }
         
-        var hasCounters = Object.keys(window.robberyCounterElements).length > 0;
+        // Обновляем видимость контейнера
+        var hasCounters = window.robberyCounterElements && Object.keys(window.robberyCounterElements).length > 0;
         if (window.robberyCountersContainer) {
             window.robberyCountersContainer.style.display = hasCounters ? 'flex' : 'none';
         }
         
-        if (hasCounters && window.robberyCountersContainer.style.display === 'none') {
-            window.robberyCountersContainer.style.display = 'flex';
-        }
-        
     } catch (e) {
-        // console.warn('⚠️ Ошибка обновления счётчиков ВОРОВСТВА:', e);
+        console.warn('⚠️ Ошибка обновления счётчиков ВОРОВСТВА:', e);
     } finally {
         window._isRobberyCounterUpdating = false;
     }
 }
 
 function startRobberyCountersOnMap() {
+    console.log('🔄 Запуск счётчиков ВОРОВСТВА...');
+    
+    // Очищаем старый интервал
     if (window._robberyCounterInterval) {
         clearInterval(window._robberyCounterInterval);
         window._robberyCounterInterval = null;
     }
     
+    // Принудительно загружаем данные из localStorage
+    if (currentPlayer && currentPlayer.id) {
+        try {
+            var saved = localStorage.getItem('activeRobberies_' + currentPlayer.id);
+            if (saved) {
+                var parsed = JSON.parse(saved);
+                if (parsed && parsed.length > 0) {
+                    window.activeRobberies = parsed;
+                    console.log('🔄 Загружены активные грабежи при запуске:', window.activeRobberies.length);
+                    // Выводим список для отладки
+                    for (var i = 0; i < window.activeRobberies.length; i++) {
+                        console.log('   🦹', window.activeRobberies[i].resourceName, 'осталось:', 
+                            Math.floor((window.activeRobberies[i].endTime - Date.now()) / 1000), 'сек');
+                    }
+                }
+            }
+        } catch(e) {
+            console.warn('⚠️ Ошибка загрузки activeRobberies при запуске:', e);
+        }
+    }
+    
+    // Инициализируем контейнер
     initializeRobberyCounterContainer();
     
-    window._robberyCounterInterval = setInterval(function() {
-        updateAllRobberyCountersAuto();
-    }, 1000);
+    // Инициализируем объект элементов
+    if (typeof window.robberyCounterElements === 'undefined') {
+        window.robberyCounterElements = {};
+    }
     
+    // Первое обновление сразу
     setTimeout(function() {
         updateAllRobberyCountersAuto();
     }, 100);
+    
+    // Запускаем интервал обновления
+    window._robberyCounterInterval = setInterval(function() {
+        updateAllRobberyCountersAuto();
+    }, 1000);
     
     console.log('✅ Счётчики ВОРОВСТВА запущены');
 }
@@ -27075,6 +27311,286 @@ window.forceUpdateRobberyCounters = forceUpdateRobberyCounters;
 console.log('✅ ВОРОВСТВО: блок полностью загружен');
 console.log('🎯 ВОРОВСТВО: все функции готовы к использованию!');
 console.log('✅ СХОДКА: весь блок полностью загружен');
+
+// ============================================================
+// 23.25.14.1. МОДАЛЬНОЕ ОКНО УСКОРЕНИЯ ВОРОВСТВА
+// ============================================================
+
+function showRobberySpeedUpModal(counterId, robbery) {
+    console.log('🚀 showRobberySpeedUpModal вызвана:', counterId, robbery);
+    
+    // Удаляем старое модальное окно если есть
+    var existing = document.getElementById('speedUpModal');
+    if (existing) existing.remove();
+    
+    // Закрываем старый таймер если есть
+    if (window.speedUpModalTimerInterval) {
+        clearInterval(window.speedUpModalTimerInterval);
+        window.speedUpModalTimerInterval = null;
+    }
+    
+    if (!robbery || !robbery.endTime) {
+        showToast('❌ Данные грабежа не найдены', 'error');
+        return;
+    }
+    
+    var remaining = Math.max(0, robbery.endTime - Date.now());
+    
+    function formatExactTime(ms) {
+        if (ms <= 0) return '0 сек';
+        var totalSeconds = Math.floor(ms / 1000);
+        var minutes = Math.floor(totalSeconds / 60);
+        var seconds = totalSeconds % 60;
+        if (minutes > 0) {
+            return minutes + ' мин ' + seconds + ' сек';
+        }
+        return seconds + ' сек';
+    }
+    
+    var timeStr = formatExactTime(remaining);
+    
+    var processName = '🦹 ВОРОВСТВО: ' + (robbery.resourceIcon || '📦') + ' ' + (robbery.resourceName || 'Грабёж');
+    
+    // Формируем кнопки ускорения с проверкой доступности
+    var speedOptions = [
+        { minutes: 1, cost: 3, label: '+1 мин' },
+        { minutes: 5, cost: 15, label: '+5 мин' },
+        { minutes: 15, cost: 45, label: '+15 мин' },
+        { minutes: 30, cost: 90, label: '+30 мин' },
+        { minutes: 60, cost: 180, label: '+60 мин' }
+    ];
+    
+    var buttonsHtml = '';
+    for (var i = 0; i < speedOptions.length; i++) {
+        var opt = speedOptions[i];
+        var canSpeedUp = (opt.minutes * 60000) <= remaining;
+        var disabledAttr = canSpeedUp ? '' : 'disabled';
+        var opacityStyle = canSpeedUp ? '1' : '0.4';
+        var cursorStyle = canSpeedUp ? 'pointer' : 'not-allowed';
+        var hoverEffect = canSpeedUp ? "this.style.background='rgba(255,255,255,0.12)'" : '';
+        var hoverOut = canSpeedUp ? "this.style.background='rgba(255,255,255,0.05)'" : '';
+        
+        buttonsHtml += `
+            <button onclick="window.speedUpRobberyProcess('${counterId}', ${opt.minutes})" 
+                    style="
+                        display: flex; 
+                        justify-content: space-between; 
+                        align-items: center;
+                        padding: 12px 16px;
+                        background: rgba(255,255,255,0.05);
+                        border: 1px solid rgba(255,255,255,0.1);
+                        border-radius: 12px;
+                        color: #fff;
+                        cursor: ${cursorStyle};
+                        transition: all 0.2s;
+                        font-size: 14px;
+                        font-weight: 600;
+                        width: 100%;
+                        opacity: ${opacityStyle};
+                    " 
+                    ${disabledAttr}
+                    onmouseover="${hoverEffect}" 
+                    onmouseout="${hoverOut}">
+                <span>⏱ ${opt.label}</span>
+                <span style="color: #ffd966;">${opt.cost} 💰</span>
+            </button>
+        `;
+    }
+    
+    var modalHtml = `
+        <div id="speedUpModal" style="
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.85);
+            z-index: 99999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: modalFadeIn 0.3s ease;
+            padding: 20px;
+        ">
+            <div style="
+                background: linear-gradient(145deg, #1a1a2e, #0d0d1a);
+                border-radius: 24px;
+                padding: 30px 24px 24px;
+                max-width: 400px;
+                width: 100%;
+                border: 2px solid #c9a03d;
+                box-shadow: 0 20px 60px rgba(0,0,0,0.9), 0 0 40px rgba(201,160,61,0.2);
+                position: relative;
+                overflow: hidden;
+            ">
+                <div style="
+                    position: absolute; top: -50%; right: -50%; 
+                    width: 200%; height: 200%;
+                    background: radial-gradient(circle at 70% 30%, rgba(201,160,61,0.05), transparent 60%);
+                    pointer-events: none;
+                "></div>
+                
+                <div style="text-align: center; margin-bottom: 16px; position: relative;">
+                    <div style="font-size: 32px; margin-bottom: 4px;">⏳</div>
+                    <div style="font-size: 18px; font-weight: 700; color: #ffd966; letter-spacing: 1px;">
+                        УСКОРИТЬ ГРАБЁЖ
+                    </div>
+                    <div style="font-size: 12px; color: #aaa; margin-top: 4px;">${processName}</div>
+                    <div style="font-size: 14px; color: #ff9800; margin-top: 4px;">
+                        ⏱ Осталось: <span id="speedUpModalTimer">${timeStr}</span>
+                    </div>
+                    <div style="font-size: 12px; color: #888; margin-top: 2px;">💰 Баланс: ${currentPlayer?.rubles || 0} руб.</div>
+                    <div style="width: 60px; height: 2px; background: linear-gradient(90deg, transparent, #c9a03d, transparent); margin: 10px auto;"></div>
+                </div>
+                
+                <div style="display: flex; flex-direction: column; gap: 8px; position: relative;">
+                    ${buttonsHtml}
+                </div>
+                
+                <button onclick="window.closeSpeedUpModal()" style="
+                    width: 100%;
+                    padding: 12px;
+                    margin-top: 12px;
+                    background: rgba(255,255,255,0.05);
+                    border: 1px solid rgba(255,255,255,0.1);
+                    border-radius: 12px;
+                    color: #888;
+                    font-size: 14px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                " onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">
+                    ❌ ОТМЕНА
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    // Запускаем обновление времени в модальном окне
+    var startTime = Date.now();
+    var initialRemaining = remaining;
+    
+    window.speedUpModalTimerInterval = setInterval(function() {
+        var elapsed = Date.now() - startTime;
+        var newRemaining = Math.max(0, initialRemaining - elapsed);
+        var timerEl = document.getElementById('speedUpModalTimer');
+        if (timerEl) {
+            var totalSeconds = Math.floor(newRemaining / 1000);
+            var minutes = Math.floor(totalSeconds / 60);
+            var seconds = totalSeconds % 60;
+            var timeStr;
+            if (minutes > 0) {
+                timeStr = minutes + ' мин ' + seconds + ' сек';
+            } else {
+                timeStr = seconds + ' сек';
+            }
+            timerEl.textContent = timeStr;
+        }
+        if (newRemaining <= 0) {
+            clearInterval(window.speedUpModalTimerInterval);
+            window.speedUpModalTimerInterval = null;
+        }
+    }, 1000);
+    
+    console.log('✅ Модальное окно ускорения ВОРОВСТВА создано');
+}
+
+// Функция ускорения грабежа
+window.speedUpRobberyProcess = function(counterId, minutes) {
+    console.log('🚀 speedUpRobberyProcess вызвана:', counterId, minutes);
+    
+    var speed = minutes * 60 * 1000;
+    var cost = 0;
+    
+    if (minutes === 1) cost = 3;
+    else if (minutes === 5) cost = 15;
+    else if (minutes === 15) cost = 45;
+    else if (minutes === 30) cost = 90;
+    else if (minutes === 60) cost = 180;
+    else {
+        showToast('❌ Некорректное значение ускорения', 'error');
+        return;
+    }
+    
+    // Находим активный грабеж по ID
+    var robberyIndex = -1;
+    var robbery = null;
+    for (var i = 0; i < window.activeRobberies.length; i++) {
+        if (window.activeRobberies[i].id === counterId) {
+            robberyIndex = i;
+            robbery = window.activeRobberies[i];
+            break;
+        }
+    }
+    
+    if (!robbery) {
+        showToast('❌ Активный грабеж не найден!', 'error');
+        return;
+    }
+    
+    var currentRemaining = Math.max(0, robbery.endTime - Date.now());
+    if (currentRemaining <= 0) {
+        showToast('❌ Грабеж уже завершён!', 'error');
+        return;
+    }
+    
+    // Проверяем, можно ли ускорить (не больше оставшегося времени)
+    if (speed > currentRemaining) {
+        showToast('❌ Нельзя ускорить больше оставшегося времени!', 'warning');
+        return;
+    }
+    
+    // Проверяем достаточно ли рублей
+    if (!currentPlayer || (currentPlayer.rubles || 0) < cost) {
+        showToast('❌ Не хватает ' + (cost - (currentPlayer.rubles || 0)) + ' 💰!', 'error');
+        return;
+    }
+    
+    // Уменьшаем количество рублей
+    currentPlayer.rubles -= cost;
+    
+    // УМЕНЬШАЕМ время грабежа (переносим endTime ВПЕРЕД - уменьшаем оставшееся время)
+    var newEndTime = robbery.endTime - speed;
+    robbery.endTime = newEndTime;
+    
+    // Обновляем в localStorage
+    if (currentPlayer && currentPlayer.id) {
+        try {
+            localStorage.setItem('activeRobberies_' + currentPlayer.id, JSON.stringify(window.activeRobberies));
+        } catch(e) {}
+    }
+    
+    // Обновляем в Firebase (если есть)
+    var playerRef = getDBRef('players/' + currentPlayer.id);
+    if (playerRef) {
+        playerRef.update({ rubles: currentPlayer.rubles });
+    }
+    
+    // Закрываем модальное окно
+    window.closeSpeedUpModal();
+    
+    showToast('⏱ Грабеж ускорен на ' + minutes + ' мин! -' + cost + ' 💰', 'success');
+    
+    // Обновляем UI
+    setTimeout(function() {
+        updateAllRobberyCountersAuto();
+        updateTopBarResources();
+        renderRobberyContent();
+        
+        // Обновляем детали активного грабежа если открыты
+        var detailsModal = document.getElementById('robberyDetailsModal');
+        if (detailsModal) {
+            var timerSpan = document.getElementById('robberyTimerValue');
+            if (timerSpan) {
+                var remaining = Math.max(0, robbery.endTime - Date.now());
+                timerSpan.textContent = formatBattleTime(remaining);
+            }
+            var progressFill = document.getElementById('robberyProgressFill');
+            if (progressFill) {
+                var percent = Math.min(100, ((Date.now() - robbery.startTime) / robbery.duration) * 100);
+                progressFill.style.width = percent + '%';
+            }
+        }
+    }, 200);
+};
 
 // ============================================================
 // 23.26. ИНТЕГРАЦИЯ И ЗАВЕРШЕНИЕ БЛОКА СХОДКА
@@ -27487,6 +28003,8 @@ window.clearAttackData = clearAttackData;
 window.testPvPSystem = testPvPSystem;
 window.testRobberySystem = testRobberySystem;
 window.fixBattleRecovery = fixBattleRecovery;
+window.showRobberySpeedUpModal = showRobberySpeedUpModal;
+window.speedUpRobberyProcess = speedUpRobberyProcess;
 
 console.log('✅ СХОДКА: ВСЕ СИСТЕМЫ ПОЛНОСТЬЮ ЗАГРУЖЕНЫ');
 console.log('========================================');
@@ -32930,6 +33448,8 @@ window.finishCardGame = async function(roomId, winnerId) {
         status: 'finished'
     });
     console.log('✅ Статус комнаты обновлен на finished');
+    // После завершения игры, обновляем прогресс
+    updateDailyQuestProgress('cards');
 
     console.log('📊📊📊 Показываем модальное окно 📊📊📊');
     console.log('  winner:', winner);
@@ -33455,9 +33975,9 @@ function renderLobby(content) {
                 <div class="game-card-title">🆕 СОЗДАТЬ КОМНАТУ</div>
                 <div class="game-card-desc" style="margin: 6px 0;">
                     <select id="gameTypeSelect" style="background: rgba(0,0,0,0.5); border: 1px solid #8B4513; border-radius: 30px; padding: 6px 12px; color: white; width: 100%; margin-bottom: 6px;">
-                        <option value="durak">ДУРАК</option>
+                        <!--<option value="durak">ДУРАК</option>--!>
                         <option value="twentyone">ОЧКО</option>
-                        <option value="tictactoe">❌ КРЕСТИКИ-НОЛИКИ ⭕</option>
+                        <option value="tictactoe">КРЕСТИКИ-НОЛИКИ</option>
                     </select>
                     <div style="display: flex; gap: 8px;">
                         <input type="number" id="betCigarettes" placeholder="🚬 ставка" style="flex:1; width: 100%; background: rgba(0,0,0,0.5); border: 1px solid #8B4513; border-radius: 30px; padding: 6px 12px; color: white;" min="0" value="10">
