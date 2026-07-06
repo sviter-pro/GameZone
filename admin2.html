@@ -1,0 +1,1724 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Admin Panel</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f2f5;
+            overflow-x: hidden;
+        }
+
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 260px;
+            height: 100vh;
+            background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+            color: #fff;
+            z-index: 1000;
+            overflow-y: auto;
+            box-shadow: 2px 0 20px rgba(0, 0, 0, 0.3);
+            transition: transform 0.3s ease;
+        }
+        .sidebar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .sidebar::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+        .sidebar::-webkit-scrollbar-thumb {
+            background: #4a9eff;
+            border-radius: 4px;
+        }
+
+        .sidebar-header {
+            padding: 25px 20px;
+            text-align: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(0, 0, 0, 0.2);
+        }
+        .sidebar-header h4 {
+            font-weight: 700;
+            font-size: 1.3rem;
+            letter-spacing: 0.5px;
+        }
+        .sidebar-header h4 i {
+            color: #4a9eff;
+        }
+        .sidebar-header small {
+            display: block;
+            font-size: 0.7rem;
+            color: rgba(255, 255, 255, 0.5);
+            margin-top: 5px;
+        }
+
+        .sidebar-menu {
+            padding: 15px 0;
+        }
+        .sidebar-menu a {
+            color: #ecf0f1;
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            transition: 0.2s;
+            border-left: 3px solid transparent;
+            font-size: 0.95rem;
+            cursor: pointer;
+        }
+        .sidebar-menu a:hover {
+            background: #34495e;
+            border-left-color: #4a9eff;
+        }
+        .sidebar-menu a.active {
+            background: #34495e;
+            border-left-color: #4a9eff;
+        }
+        .sidebar-menu a i {
+            width: 20px;
+            text-align: center;
+            font-size: 1.1rem;
+        }
+        .sidebar-menu .logout {
+            margin-top: 30px;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            padding-top: 15px;
+            color: #e94560 !important;
+        }
+        .sidebar-menu .logout:hover {
+            background: rgba(233, 69, 96, 0.15);
+            border-left-color: #e94560;
+        }
+
+        .sidebar .badge-count {
+            margin-left: auto;
+            background: #e94560;
+            color: #fff;
+            border-radius: 50%;
+            padding: 0 8px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            min-width: 20px;
+            text-align: center;
+        }
+
+        .main-content {
+            margin-left: 260px;
+            padding: 30px;
+            min-height: 100vh;
+        }
+
+        #loginScreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+        #loginScreen.hidden {
+            display: none;
+        }
+        .login-box {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            padding: 40px 35px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5);
+        }
+        .login-box h2 {
+            color: #fff;
+            text-align: center;
+            margin-bottom: 30px;
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+        .login-box h2 i {
+            color: #4a9eff;
+        }
+        .login-box .form-control {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #fff;
+            border-radius: 12px;
+            padding: 14px 18px;
+            font-size: 1rem;
+            transition: 0.3s;
+            width: 100%;
+        }
+        .login-box .form-control:focus {
+            background: rgba(255, 255, 255, 0.12);
+            border-color: #4a9eff;
+            box-shadow: 0 0 0 3px rgba(74, 158, 255, 0.2);
+            color: #fff;
+            outline: none;
+        }
+        .login-box .form-control::placeholder {
+            color: rgba(255, 255, 255, 0.4);
+        }
+        .login-box .btn-login {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #4a9eff, #2563eb);
+            border: none;
+            border-radius: 12px;
+            color: #fff;
+            font-size: 1.05rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.3s;
+            margin-top: 10px;
+        }
+        .login-box .btn-login:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(74, 158, 255, 0.3);
+        }
+        .login-box .btn-login:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .login-box .btn-login:active {
+            transform: scale(0.97);
+        }
+        .login-box .error-msg {
+            color: #e94560;
+            font-size: 0.9rem;
+            text-align: center;
+            margin-top: 12px;
+            min-height: 24px;
+        }
+        .login-box .session-info {
+            color: rgba(255, 255, 255, 0.3);
+            font-size: 0.75rem;
+            text-align: center;
+            margin-top: 15px;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        .page-header h2 {
+            font-weight: 700;
+            color: #1a1a2e;
+        }
+        .page-header h2 i {
+            color: #4a9eff;
+        }
+
+        .view-toggle .btn {
+            border-radius: 30px;
+            padding: 8px 20px;
+            font-weight: 600;
+            transition: 0.3s;
+        }
+        .view-toggle .btn.active {
+            background: #4a9eff;
+            color: #fff;
+            border-color: #4a9eff;
+        }
+        .view-toggle .btn:not(.active) {
+            background: transparent;
+            color: #6c757d;
+            border-color: #dee2e6;
+        }
+        .view-toggle .btn:not(.active):hover {
+            background: #e9ecef;
+        }
+
+        .user-card {
+            background: #fff;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
+            transition: 0.3s;
+            height: 100%;
+            border: 1px solid #e9ecef;
+            position: relative;
+        }
+        .user-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+        }
+        .user-card .avatar {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid #e9ecef;
+            margin: 0 auto 12px;
+            display: block;
+        }
+        .user-card .username {
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: #1a1a2e;
+            text-align: center;
+        }
+        .user-card .level {
+            font-size: 0.85rem;
+            color: #6c757d;
+            text-align: center;
+        }
+        .user-card .status-badge {
+            display: inline-block;
+            font-size: 0.7rem;
+            font-weight: 600;
+            padding: 3px 12px;
+            border-radius: 30px;
+            margin: 8px 0;
+        }
+        .user-card .status-badge.active {
+            background: #d4edda;
+            color: #155724;
+        }
+        .user-card .status-badge.banned {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .user-card .stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4px 12px;
+            font-size: 0.8rem;
+            color: #495057;
+            margin: 10px 0;
+        }
+        .user-card .stats span {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .user-card .btn-manage {
+            width: 100%;
+            border-radius: 30px;
+            padding: 8px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            background: #4a9eff;
+            color: #fff;
+            border: none;
+            transition: 0.3s;
+        }
+        .user-card .btn-manage:hover {
+            background: #2563eb;
+        }
+
+        .table-users {
+            background: #fff;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
+        }
+        .table-users thead {
+            background: #f8f9fa;
+        }
+        .table-users th {
+            font-weight: 600;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #495057;
+            border-bottom: 2px solid #dee2e6;
+        }
+        .table-users td {
+            vertical-align: middle;
+            font-size: 0.9rem;
+        }
+        .table-users .avatar-sm {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+        .table-users .btn-sm-action {
+            padding: 4px 10px;
+            font-size: 0.75rem;
+            border-radius: 20px;
+        }
+
+        .modal-user-detail .modal-content {
+            border-radius: 20px;
+            border: none;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        .modal-user-detail .modal-header {
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            color: #fff;
+            border-radius: 20px 20px 0 0;
+            border-bottom: none;
+            padding: 20px 25px;
+        }
+        .modal-user-detail .modal-header .btn-close {
+            filter: brightness(0) invert(1);
+        }
+        .modal-user-detail .modal-body {
+            padding: 25px;
+        }
+        .modal-user-detail .avatar-lg {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 4px solid #e9ecef;
+        }
+        .modal-user-detail .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin: 15px 0;
+        }
+        .modal-user-detail .stat-grid .stat-item {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 10px;
+            text-align: center;
+        }
+        .modal-user-detail .stat-grid .stat-item .label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            color: #6c757d;
+            letter-spacing: 0.5px;
+        }
+        .modal-user-detail .stat-grid .stat-item .value {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #1a1a2e;
+        }
+        .modal-user-detail .action-section {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #e9ecef;
+        }
+        .modal-user-detail .action-section .btn {
+            border-radius: 30px;
+            padding: 8px 18px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            margin: 4px;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                width: 280px;
+            }
+            .sidebar.open {
+                transform: translateX(0);
+            }
+            .main-content {
+                margin-left: 0;
+                padding: 20px 15px;
+            }
+            .sidebar-toggle {
+                display: flex !important;
+            }
+            .modal-user-detail .stat-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        @media (min-width: 769px) {
+            .sidebar-toggle {
+                display: none !important;
+            }
+            .sidebar-overlay {
+                display: none !important;
+            }
+        }
+
+        .sidebar-toggle {
+            position: fixed;
+            top: 15px;
+            left: 15px;
+            z-index: 1001;
+            background: #1a1a2e;
+            color: #fff;
+            border: none;
+            border-radius: 12px;
+            padding: 10px 14px;
+            font-size: 1.3rem;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        .sidebar-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+            display: none;
+        }
+        .sidebar-overlay.show {
+            display: block;
+        }
+
+        .toast-container-custom {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-width: 400px;
+        }
+        .toast-custom {
+            background: #1a1a2e;
+            color: #fff;
+            padding: 14px 20px;
+            border-radius: 12px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+            animation: slideIn 0.3s ease;
+            font-size: 0.95rem;
+            border-left: 4px solid #4a9eff;
+        }
+        .toast-custom.success {
+            border-left-color: #28a745;
+        }
+        .toast-custom.error {
+            border-left-color: #dc3545;
+        }
+        .toast-custom.warning {
+            border-left-color: #ffc107;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(8px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        }
+        .loading-overlay.show {
+            display: flex;
+        }
+        .loading-overlay .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-top-color: #4a9eff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+        .loading-overlay .text {
+            color: #fff;
+            margin-top: 15px;
+            font-size: 1rem;
+            font-weight: 500;
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #c1c7cd;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #a8b0b8;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ===== LOADING ===== -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div style="display:flex;flex-direction:column;align-items:center;">
+            <div class="spinner"></div>
+            <div class="text" id="loadingText">Загрузка...</div>
+        </div>
+    </div>
+
+    <!-- ===== TOAST CONTAINER ===== -->
+    <div class="toast-container-custom" id="toastContainer"></div>
+
+    <!-- ===== LOGIN SCREEN ===== -->
+    <div id="loginScreen">
+        <div class="login-box">
+            <h2><i class="bi bi-shield-lock"></i> Game Admin</h2>
+            <div class="mb-3">
+                <input type="password" class="form-control" id="passwordInput" placeholder="Введите пароль" autofocus>
+            </div>
+            <button class="btn-login" id="loginBtn">Войти</button>
+            <div class="error-msg" id="loginError"></div>
+            <div class="session-info">Сессия активна 15 минут</div>
+        </div>
+    </div>
+
+    <!-- ===== SIDEBAR ===== -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    <button class="sidebar-toggle" id="sidebarToggle"><i class="bi bi-list"></i></button>
+
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h4><i class="bi bi-shield-lock"></i> Game Admin</h4>
+            <small>Сессия: <span id="sessionTimer">15:00</span></small>
+        </div>
+        <div class="sidebar-menu">
+            <a class="active" data-page="dashboard" id="menuDashboard">
+                <i class="bi bi-grid"></i> Дашборд
+            </a>
+            <a data-page="users" id="menuUsers">
+                <i class="bi bi-people"></i> Пользователи
+                <span class="badge-count" id="usersBadge">0</span>
+            </a>
+            <a class="logout" id="menuLogout">
+                <i class="bi bi-box-arrow-right"></i> Выйти
+            </a>
+        </div>
+    </div>
+
+    <!-- ===== MAIN CONTENT ===== -->
+    <div class="main-content" id="mainContent">
+        <div id="pageContent">
+            <!-- Содержимое страниц -->
+        </div>
+    </div>
+
+    <!-- ===== USER DETAIL MODAL ===== -->
+    <div class="modal fade modal-user-detail" id="userDetailModal" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-person-circle"></i> <span id="detailUsername">Пользователь</span></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="detailContent"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== FIREBASE SDK ===== -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+
+    <!-- ===== SCRIPTS ===== -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // ============================================================
+        // 0. FIREBASE КОНФИГУРАЦИЯ И ИНИЦИАЛИЗАЦИЯ
+        // ============================================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyCAHzMos_d5EjUrePFnWAnoVB4sMTcpX2g",
+            authDomain: "gamezona-34ece.firebaseapp.com",
+            databaseURL: "https://gamezona-34ece-default-rtdb.firebaseio.com",
+            projectId: "gamezona-34ece",
+            storageBucket: "gamezona-34ece.firebasestorage.app",
+            messagingSenderId: "259235549072",
+            appId: "1:259235549072:web:d60b8315665d77fbe56d15",
+            measurementId: "G-T2WVGTWZRG"
+        };
+
+        // Инициализируем Firebase ДО использования db
+        let db = null;
+        try {
+            firebase.initializeApp(firebaseConfig);
+            db = firebase.database();
+            console.log('✅ Firebase инициализирован');
+            console.log('✅ База данных подключена');
+        } catch (e) {
+            console.error('❌ Ошибка инициализации Firebase:', e);
+            db = null;
+        }
+
+        // ============================================================
+        // 1. ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
+        // ============================================================
+        const ADMIN_PASSWORD = 'admin-admin';
+        const SESSION_DURATION = 15 * 60;
+
+        let users = [];
+        let sessionTimer = SESSION_DURATION;
+        let sessionInterval = null;
+        let isAuthenticated = false;
+        let currentView = 'cards';
+        let selectedUserId = null;
+
+        // ============================================================
+        // 2. РАБОТА С FIREBASE
+        // ============================================================
+
+        function isDBReady() {
+            return db !== null && typeof db !== 'undefined';
+        }
+
+        window.loadUsersFromFirebase = async function() {
+            if (!isDBReady()) {
+                console.warn('⚠️ Firebase не инициализирован');
+                showToast('⚠️ База данных не доступна', 'error');
+                return false;
+            }
+
+            showLoading(true, 'Загрузка пользователей из Firebase...');
+
+            try {
+                const snapshot = await db.ref('players').once('value');
+                const usersList = [];
+
+                if (snapshot.exists()) {
+                    const data = snapshot.val();
+                    for (const key in data) {
+                        if (data.hasOwnProperty(key)) {
+                            const player = data[key];
+                            if (player.isAdmin) continue;
+
+                            usersList.push({
+                                id: key,
+                                username: player.username || 'Неизвестный',
+                                level: player.level || 1,
+                                isBanned: player.isBanned || false,
+                                banReason: player.banReason || null,
+                                banUntil: player.banUntil || null,
+                                avatar: player.avatar || 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png',
+                                stats: {
+                                    strength: player.strength || player.stats?.strength || 10,
+                                    defense: player.defense || player.stats?.defense || 5,
+                                    energy: player.energy || player.stats?.energy || 5,
+                                    power: player.power || player.stats?.power || 52,
+                                    authority: player.authority || player.stats?.authority || 0,
+                                    cigarettes: player.cigarettes || player.stats?.cigarettes || 50,
+                                    rubles: player.rubles || player.stats?.rubles || 0,
+                                    clan: player.clan || player.stats?.clan || '—'
+                                },
+                                createdAt: player.createdAt || Date.now()
+                            });
+                        }
+                    }
+                }
+
+                users = usersList;
+                console.log(`✅ Загружено ${users.length} пользователей из Firebase`);
+                showLoading(false);
+                updateUsersBadge();
+                refreshCurrentView();
+                return true;
+
+            } catch (e) {
+                console.error('❌ Ошибка загрузки пользователей из Firebase:', e);
+                showToast('❌ Ошибка загрузки данных: ' + e.message, 'error');
+                showLoading(false);
+                return false;
+            }
+        };
+
+        window.saveUserToFirebase = async function(userId, userData) {
+            if (!isDBReady()) {
+                showToast('⚠️ База данных не доступна', 'error');
+                return false;
+            }
+
+            try {
+                const updates = {};
+                const path = 'players/' + userId;
+
+                if (userData.isBanned !== undefined) updates.isBanned = userData.isBanned;
+                if (userData.banReason !== undefined) updates.banReason = userData.banReason;
+                if (userData.banUntil !== undefined) updates.banUntil = userData.banUntil;
+                if (userData.level !== undefined) updates.level = userData.level;
+                if (userData.username !== undefined) updates.username = userData.username;
+                if (userData.avatar !== undefined) updates.avatar = userData.avatar;
+
+                if (userData.stats) {
+                    if (userData.stats.strength !== undefined) updates.strength = userData.stats.strength;
+                    if (userData.stats.defense !== undefined) updates.defense = userData.stats.defense;
+                    if (userData.stats.energy !== undefined) updates.energy = userData.stats.energy;
+                    if (userData.stats.power !== undefined) updates.power = userData.stats.power;
+                    if (userData.stats.authority !== undefined) updates.authority = userData.stats.authority;
+                    if (userData.stats.cigarettes !== undefined) updates.cigarettes = userData.stats.cigarettes;
+                    if (userData.stats.rubles !== undefined) updates.rubles = userData.stats.rubles;
+                    if (userData.stats.clan !== undefined) updates.clan = userData.stats.clan;
+                }
+
+                await db.ref(path).update(updates);
+                console.log(`✅ Пользователь ${userId} сохранен в Firebase`);
+                return true;
+
+            } catch (e) {
+                console.error('❌ Ошибка сохранения пользователя:', e);
+                showToast('❌ Ошибка сохранения: ' + e.message, 'error');
+                return false;
+            }
+        };
+
+        window.deleteUserFromFirebase = async function(userId) {
+            if (!isDBReady()) {
+                showToast('⚠️ База данных не доступна', 'error');
+                return false;
+            }
+
+            if (!confirm(`УДАЛИТЬ игрока навсегда из Firebase? Восстановление невозможно!`)) return false;
+
+            try {
+                await db.ref('players/' + userId).remove();
+                console.log(`✅ Пользователь ${userId} удален из Firebase`);
+                return true;
+            } catch (e) {
+                console.error('❌ Ошибка удаления пользователя:', e);
+                showToast('❌ Ошибка удаления: ' + e.message, 'error');
+                return false;
+            }
+        };
+
+        // ============================================================
+        // 3. TOAST
+        // ============================================================
+        function showToast(message, type = 'info', duration = 4000) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast-custom ${type}`;
+            toast.textContent = message;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transition = 'opacity 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, duration);
+        }
+
+        // ============================================================
+        // 4. LOADING
+        // ============================================================
+        function showLoading(show, text = 'Загрузка...') {
+            const overlay = document.getElementById('loadingOverlay');
+            const textEl = document.getElementById('loadingText');
+            if (show) {
+                overlay.classList.add('show');
+                if (textEl) textEl.textContent = text;
+            } else {
+                overlay.classList.remove('show');
+            }
+        }
+
+        // ============================================================
+        // 5. АВТОРИЗАЦИЯ
+        // ============================================================
+        function checkAuth() {
+            const saved = localStorage.getItem('admin_auth');
+            const savedTime = localStorage.getItem('admin_auth_time');
+            if (saved === 'true' && savedTime) {
+                const elapsed = (Date.now() - parseInt(savedTime)) / 1000;
+                if (elapsed < SESSION_DURATION) {
+                    isAuthenticated = true;
+                    sessionTimer = Math.floor(SESSION_DURATION - elapsed);
+                    return true;
+                } else {
+                    logout();
+                }
+            }
+            return false;
+        }
+
+        function login(password) {
+            if (password === ADMIN_PASSWORD) {
+                isAuthenticated = true;
+                sessionTimer = SESSION_DURATION;
+                localStorage.setItem('admin_auth', 'true');
+                localStorage.setItem('admin_auth_time', Date.now().toString());
+
+                document.getElementById('loginScreen').classList.add('hidden');
+                document.getElementById('loginError').textContent = '';
+
+                initApp();
+                startSessionTimer();
+                showToast('✅ Добро пожаловать в панель администратора!', 'success');
+                return true;
+            } else {
+                document.getElementById('loginError').textContent = '❌ Неверный пароль!';
+                return false;
+            }
+        }
+
+        function logout() {
+            isAuthenticated = false;
+            localStorage.removeItem('admin_auth');
+            localStorage.removeItem('admin_auth_time');
+            document.getElementById('loginScreen').classList.remove('hidden');
+            document.getElementById('passwordInput').value = '';
+            document.getElementById('loginError').textContent = '';
+            if (sessionInterval) {
+                clearInterval(sessionInterval);
+                sessionInterval = null;
+            }
+            showToast('👋 Вы вышли из системы', 'info');
+        }
+
+        function startSessionTimer() {
+            if (sessionInterval) clearInterval(sessionInterval);
+            sessionInterval = setInterval(() => {
+                sessionTimer--;
+                updateSessionTimerDisplay();
+                if (sessionTimer <= 0) {
+                    logout();
+                    showToast('⏰ Сессия истекла! Войдите заново.', 'warning');
+                }
+            }, 1000);
+        }
+
+        function updateSessionTimerDisplay() {
+            const el = document.getElementById('sessionTimer');
+            if (el) {
+                const mins = Math.floor(sessionTimer / 60);
+                const secs = sessionTimer % 60;
+                el.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+            }
+        }
+
+        // ============================================================
+        // 6. ИНИЦИАЛИЗАЦИЯ
+        // ============================================================
+        async function initApp() {
+            await loadUsersFromFirebase();
+            updateUsersBadge();
+            navigateTo('dashboard');
+            setupEventListeners();
+        }
+
+        // ============================================================
+        // 7. НАВИГАЦИЯ
+        // ============================================================
+        function navigateTo(page) {
+            document.querySelectorAll('.sidebar-menu a[data-page]').forEach(a => a.classList.remove('active'));
+            const menuMap = {
+                'dashboard': 'menuDashboard',
+                'users': 'menuUsers'
+            };
+            const menuId = menuMap[page];
+            if (menuId) {
+                const el = document.getElementById(menuId);
+                if (el) el.classList.add('active');
+            }
+
+            closeSidebar();
+
+            const content = document.getElementById('pageContent');
+            switch (page) {
+                case 'dashboard':
+                    renderDashboard(content);
+                    break;
+                case 'users':
+                    renderUsers(content);
+                    break;
+                default:
+                    content.innerHTML = '<h3>Страница не найдена</h3>';
+            }
+        }
+
+        // ============================================================
+        // 8. SIDEBAR
+        // ============================================================
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+            document.getElementById('sidebarOverlay').classList.toggle('show');
+        }
+
+        function closeSidebar() {
+            document.getElementById('sidebar').classList.remove('open');
+            document.getElementById('sidebarOverlay').classList.remove('show');
+        }
+
+        // ============================================================
+        // 9. ДАШБОРД
+        // ============================================================
+        function renderDashboard(container) {
+            const total = users.length;
+            const banned = users.filter(u => u.isBanned).length;
+            const active = total - banned;
+            const totalAuthority = users.reduce((sum, u) => sum + (u.stats.authority || 0), 0);
+            const totalRubles = users.reduce((sum, u) => sum + (u.stats.rubles || 0), 0);
+
+            container.innerHTML = `
+                <div class="page-header">
+                    <h2><i class="bi bi-grid"></i> Дашборд</h2>
+                    <button class="btn btn-outline-primary btn-sm" onclick="loadUsersFromFirebase()">
+                        <i class="bi bi-arrow-repeat"></i> Обновить
+                    </button>
+                </div>
+                <div class="row g-4">
+                    <div class="col-md-3 col-6">
+                        <div class="card shadow-sm border-0 h-100">
+                            <div class="card-body text-center">
+                                <h3 class="text-primary">${total}</h3>
+                                <p class="text-muted mb-0">Всего игроков</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-6">
+                        <div class="card shadow-sm border-0 h-100">
+                            <div class="card-body text-center">
+                                <h3 class="text-success">${active}</h3>
+                                <p class="text-muted mb-0">Активных</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-6">
+                        <div class="card shadow-sm border-0 h-100">
+                            <div class="card-body text-center">
+                                <h3 class="text-danger">${banned}</h3>
+                                <p class="text-muted mb-0">Забаненных</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-6">
+                        <div class="card shadow-sm border-0 h-100">
+                            <div class="card-body text-center">
+                                <h3 class="text-warning">${totalRubles.toLocaleString()}</h3>
+                                <p class="text-muted mb-0">Всего рублей</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row mt-4">
+                    <div class="col-md-6">
+                        <div class="card shadow-sm border-0">
+                            <div class="card-body">
+                                <h5 class="card-title"><i class="bi bi-trophy"></i> Топ по авторитету</h5>
+                                <ul class="list-group list-group-flush">
+                                    ${users.filter(u => !u.isBanned).sort((a,b) => (b.stats.authority||0) - (a.stats.authority||0)).slice(0,5).map((u, i) => `
+                                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                                            <span>${i+1}. ${u.username}</span>
+                                            <span class="badge bg-warning text-dark">${u.stats.authority || 0}</span>
+                                        </li>
+                                    `).join('')}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card shadow-sm border-0">
+                            <div class="card-body">
+                                <h5 class="card-title"><i class="bi bi-coin"></i> Топ по деньгам</h5>
+                                <ul class="list-group list-group-flush">
+                                    ${users.filter(u => !u.isBanned).sort((a,b) => (b.stats.rubles||0) - (a.stats.rubles||0)).slice(0,5).map((u, i) => `
+                                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                                            <span>${i+1}. ${u.username}</span>
+                                            <span class="badge bg-success">${(u.stats.rubles||0).toLocaleString()} 💰</span>
+                                        </li>
+                                    `).join('')}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row mt-4">
+                    <div class="col-12">
+                        <div class="card shadow-sm border-0">
+                            <div class="card-body">
+                                <h5 class="card-title"><i class="bi bi-clock-history"></i> Бан-лист</h5>
+                                ${banned > 0 ? `
+                                    <div class="table-responsive">
+                                        <table class="table table-sm">
+                                            <thead>
+                                                <tr>
+                                                    <th>Игрок</th>
+                                                    <th>Причина</th>
+                                                    <th>До</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                ${users.filter(u => u.isBanned).map(u => `
+                                                    <tr>
+                                                        <td>${u.username}</td>
+                                                        <td>${u.banReason || 'Без причины'}</td>
+                                                        <td>${u.banUntil ? new Date(u.banUntil).toLocaleString() : 'Навсегда'}</td>
+                                                    </tr>
+                                                `).join('')}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                ` : `<p class="text-muted">Нет забаненных игроков</p>`}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // ============================================================
+        // 10. ПОЛЬЗОВАТЕЛИ
+        // ============================================================
+        function renderUsers(container) {
+            container.innerHTML = `
+                <div class="page-header">
+                    <h2><i class="bi bi-people"></i> Пользователи <span class="badge bg-secondary">${users.length}</span></h2>
+                    <div class="d-flex gap-2 flex-wrap">
+                        <div class="view-toggle">
+                            <button class="btn ${currentView === 'cards' ? 'active' : ''}" onclick="setView('cards')">
+                                <i class="bi bi-grid"></i> Карточки
+                            </button>
+                            <button class="btn ${currentView === 'list' ? 'active' : ''}" onclick="setView('list')">
+                                <i class="bi bi-list"></i> Список
+                            </button>
+                        </div>
+                        <button class="btn btn-outline-primary btn-sm" onclick="loadUsersFromFirebase()">
+                            <i class="bi bi-arrow-repeat"></i>
+                        </button>
+                    </div>
+                </div>
+                ${currentView === 'cards' ? renderCardsView() : renderListView()}
+            `;
+        }
+
+        function setView(view) {
+            currentView = view;
+            const content = document.getElementById('pageContent');
+            renderUsers(content);
+        }
+
+        function renderCardsView() {
+            if (users.length === 0) {
+                return `<div class="text-center py-5">
+                    <i class="bi bi-people fs-1 text-muted"></i>
+                    <p class="text-muted mt-3">Нет пользователей в базе данных</p>
+                    <button class="btn btn-primary" onclick="loadUsersFromFirebase()">
+                        <i class="bi bi-arrow-repeat"></i> Загрузить
+                    </button>
+                </div>`;
+            }
+
+            return `
+                <div class="row g-4">
+                    ${users.map(u => `
+                        <div class="col-xl-3 col-lg-4 col-md-6">
+                            <div class="user-card">
+                                <img src="${u.avatar || 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png'}" 
+                                     class="avatar" alt="${u.username}" 
+                                     onerror="this.src='https://cdn-icons-png.flaticon.com/512/3135/3135715.png'">
+                                <div class="username">${u.username}</div>
+                                <div class="level">⭐ Уровень ${u.level}</div>
+                                <div style="text-align:center;">
+                                    <span class="status-badge ${u.isBanned ? 'banned' : 'active'}">
+                                        ${u.isBanned ? '🔒 Забанен' : '🟢 Активен'}
+                                    </span>
+                                </div>
+                                <div class="stats">
+                                    <span>💪 ${u.stats.strength}</span>
+                                    <span>🛡️ ${u.stats.defense}</span>
+                                    <span>⚡ ${u.stats.energy}%</span>
+                                    <span>⚔️ ${u.stats.power}</span>
+                                    <span>🏆 ${u.stats.authority}</span>
+                                    <span>🚬 ${u.stats.cigarettes}</span>
+                                    <span>💰 ${u.stats.rubles}</span>
+                                    <span>🏰 ${u.stats.clan || '—'}</span>
+                                </div>
+                                <button class="btn-manage" onclick="openUserDetail('${u.id}')">
+                                    <i class="bi bi-pencil"></i> Управлять
+                                </button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        function renderListView() {
+            if (users.length === 0) {
+                return `<div class="text-center py-5">
+                    <i class="bi bi-people fs-1 text-muted"></i>
+                    <p class="text-muted mt-3">Нет пользователей в базе данных</p>
+                    <button class="btn btn-primary" onclick="loadUsersFromFirebase()">
+                        <i class="bi bi-arrow-repeat"></i> Загрузить
+                    </button>
+                </div>`;
+            }
+
+            return `
+                <div class="table-users">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Аватар</th>
+                                    <th>Имя</th>
+                                    <th>Уровень</th>
+                                    <th>Статус</th>
+                                    <th>💪</th>
+                                    <th>🛡️</th>
+                                    <th>⚡</th>
+                                    <th>⚔️</th>
+                                    <th>🏆</th>
+                                    <th>🚬</th>
+                                    <th>💰</th>
+                                    <th>🏰</th>
+                                    <th>Действия</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${users.map(u => `
+                                    <tr>
+                                        <td><span class="text-muted small">${u.id.substring(0, 8)}...</span></td>
+                                        <td>
+                                            <img src="${u.avatar || 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png'}" 
+                                                 class="avatar-sm" alt="${u.username}"
+                                                 onerror="this.src='https://cdn-icons-png.flaticon.com/512/3135/3135715.png'">
+                                        </td>
+                                        <td><strong>${u.username}</strong></td>
+                                        <td>${u.level}</td>
+                                        <td>
+                                            <span class="badge ${u.isBanned ? 'bg-danger' : 'bg-success'}">
+                                                ${u.isBanned ? 'Забанен' : 'Активен'}
+                                            </span>
+                                        </td>
+                                        <td>${u.stats.strength}</td>
+                                        <td>${u.stats.defense}</td>
+                                        <td>${u.stats.energy}%</td>
+                                        <td>${u.stats.power}</td>
+                                        <td>${u.stats.authority}</td>
+                                        <td>${u.stats.cigarettes}</td>
+                                        <td>${u.stats.rubles}</td>
+                                        <td>${u.stats.clan || '—'}</td>
+                                        <td>
+                                            <button class="btn btn-primary btn-sm btn-sm-action" onclick="openUserDetail('${u.id}')">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+
+        // ============================================================
+        // 11. ДЕТАЛЬНЫЙ ПРОФИЛЬ
+        // ============================================================
+        window.openUserDetail = function(userId) {
+            const user = users.find(u => u.id === userId);
+            if (!user) {
+                showToast('Пользователь не найден', 'error');
+                return;
+            }
+            selectedUserId = userId;
+
+            const modal = new bootstrap.Modal(document.getElementById('userDetailModal'));
+            const content = document.getElementById('detailContent');
+            document.getElementById('detailUsername').textContent = user.username;
+
+            const banInfo = user.isBanned ?
+                `До: ${user.banUntil ? new Date(user.banUntil).toLocaleString() : 'Навсегда'}<br>Причина: ${user.banReason || '—'}` :
+                'Не забанен';
+
+            content.innerHTML = `
+                <div class="row">
+                    <div class="col-md-4 text-center">
+                        <img src="${user.avatar || 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png'}" 
+                             class="avatar-lg" alt="${user.username}"
+                             onerror="this.src='https://cdn-icons-png.flaticon.com/512/3135/3135715.png'">
+                        <h5 class="mt-2">${user.username}</h5>
+                        <span class="badge ${user.isBanned ? 'bg-danger' : 'bg-success'}">
+                            ${user.isBanned ? '🔒 Забанен' : '🟢 Активен'}
+                        </span>
+                        <p class="text-muted small mt-1">ID: ${user.id}</p>
+                        <p class="text-muted small">Создан: ${new Date(user.createdAt).toLocaleDateString()}</p>
+                    </div>
+                    <div class="col-md-8">
+                        <div class="stat-grid">
+                            <div class="stat-item">
+                                <div class="label">Уровень</div>
+                                <div class="value">
+                                    <span id="detailLevelDisplay">${user.level}</span>
+                                    <button class="btn btn-sm btn-outline-primary ms-1" onclick="editLevel('${user.id}')" title="Изменить уровень">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="stat-item"><div class="label">Мощь</div><div class="value">${user.stats.power}</div></div>
+                            <div class="stat-item"><div class="label">Авторитет</div><div class="value">${user.stats.authority}</div></div>
+                            <div class="stat-item"><div class="label">Сила</div><div class="value">💪 ${user.stats.strength}</div></div>
+                            <div class="stat-item"><div class="label">Защита</div><div class="value">🛡️ ${user.stats.defense}</div></div>
+                            <div class="stat-item"><div class="label">Энергия</div><div class="value">⚡ ${user.stats.energy}%</div></div>
+                            <div class="stat-item"><div class="label">Сигареты</div><div class="value">🚬 ${user.stats.cigarettes}</div></div>
+                            <div class="stat-item"><div class="label">Рубли</div><div class="value">💰 ${user.stats.rubles}</div></div>
+                            <div class="stat-item"><div class="label">Клан</div><div class="value">🏰 ${user.stats.clan || '—'}</div></div>
+                        </div>
+                        <div class="mt-2 p-2 bg-light rounded">
+                            <strong>Статус бана:</strong> ${banInfo}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="action-section">
+                    <h6 class="fw-bold"><i class="bi bi-tools"></i> Управление</h6>
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <div class="card card-body bg-light p-2">
+                                <div class="d-flex flex-wrap gap-1">
+                                    <select id="banDuration" class="form-select form-select-sm" style="flex:1;min-width:100px;">
+                                        <option value="1h">1 час</option>
+                                        <option value="2h">2 часа</option>
+                                        <option value="5h">5 часов</option>
+                                        <option value="1d">1 день</option>
+                                        <option value="2d">2 дня</option>
+                                        <option value="5d">5 дней</option>
+                                        <option value="1w">1 неделя</option>
+                                        <option value="1m">1 месяц</option>
+                                    </select>
+                                    <input type="text" id="banReasonInput" class="form-control form-control-sm" placeholder="Причина" style="flex:1;min-width:120px;">
+                                    <button class="btn btn-danger btn-sm" onclick="banUser('${user.id}')"><i class="bi bi-lock"></i> Забанить</button>
+                                </div>
+                                <button class="btn btn-success btn-sm mt-1" onclick="unbanUser('${user.id}')"><i class="bi bi-unlock"></i> Разбанить</button>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card card-body bg-light p-2">
+                                <div class="d-flex flex-wrap gap-1">
+                                    <select id="resourceType" class="form-select form-select-sm" style="flex:1;min-width:90px;">
+                                        <option value="strength">💪 Сила</option>
+                                        <option value="defense">🛡️ Защита</option>
+                                        <option value="energy">⚡ Энергия</option>
+                                        <option value="power">⚔️ Мощь</option>
+                                        <option value="authority">🏆 Авторитет</option>
+                                        <option value="cigarettes">🚬 Сигареты</option>
+                                        <option value="rubles">💰 Рубли</option>
+                                    </select>
+                                    <input type="number" id="resourceAmount" class="form-control form-control-sm" placeholder="Кол-во" style="width:70px;" value="10">
+                                    <button class="btn btn-warning btn-sm" onclick="addResource('${user.id}')"><i class="bi bi-plus-circle"></i> Начислить</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="d-flex flex-wrap gap-2 mt-1">
+                                <button class="btn btn-warning btn-sm" onclick="resetUser('${user.id}')"><i class="bi bi-arrow-counterclockwise"></i> Обнулить</button>
+                                <button class="btn btn-danger btn-sm" onclick="deleteUser('${user.id}')"><i class="bi bi-trash"></i> Удалить</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            modal.show();
+        };
+
+        // ============================================================
+        // 12. РЕДАКТИРОВАНИЕ УРОВНЯ
+        // ============================================================
+        window.editLevel = async function(userId) {
+            const user = users.find(u => u.id === userId);
+            if (!user) {
+                showToast('Пользователь не найден', 'error');
+                return;
+            }
+
+            const currentLevel = user.level || 1;
+            const newLevel = prompt(`Введите новый уровень для ${user.username}:`, currentLevel);
+
+            if (newLevel === null) return;
+
+            const levelNum = parseInt(newLevel);
+            if (isNaN(levelNum) || levelNum < 1) {
+                showToast('❌ Введите корректное число (минимум 1)', 'error');
+                return;
+            }
+
+            if (levelNum === currentLevel) {
+                showToast('Уровень не изменился', 'info');
+                return;
+            }
+
+            user.level = levelNum;
+
+            showLoading(true, 'Сохранение уровня...');
+            const success = await saveUserToFirebase(userId, { level: levelNum });
+            showLoading(false);
+
+            if (success) {
+                showToast(`✅ Уровень ${user.username} изменен на ${levelNum}`, 'success');
+                refreshCurrentView();
+                const display = document.getElementById('detailLevelDisplay');
+                if (display) display.textContent = levelNum;
+            }
+        };
+
+        // ============================================================
+        // 13. ДЕЙСТВИЯ С ПОЛЬЗОВАТЕЛЯМИ
+        // ============================================================
+
+        window.banUser = async function(userId) {
+            const user = users.find(u => u.id === userId);
+            if (!user) {
+                showToast('Пользователь не найден', 'error');
+                return;
+            }
+
+            const duration = document.getElementById('banDuration').value;
+            const reason = document.getElementById('banReasonInput').value.trim() || 'Без причины';
+
+            const durationMap = {
+                '1h': 3600,
+                '2h': 7200,
+                '5h': 18000,
+                '1d': 86400,
+                '2d': 172800,
+                '5d': 432000,
+                '1w': 604800,
+                '1m': 2592000
+            };
+
+            const seconds = durationMap[duration] || 3600;
+            const banUntil = Date.now() + seconds * 1000;
+
+            user.isBanned = true;
+            user.banReason = reason;
+            user.banUntil = banUntil;
+
+            showLoading(true, 'Блокировка пользователя...');
+            const success = await saveUserToFirebase(userId, {
+                isBanned: true,
+                banReason: reason,
+                banUntil: banUntil
+            });
+            showLoading(false);
+
+            if (success) {
+                showToast(`🔒 ${user.username} забанен до ${new Date(banUntil).toLocaleString()}`, 'warning');
+                refreshCurrentView();
+            }
+        };
+
+        window.unbanUser = async function(userId) {
+            const user = users.find(u => u.id === userId);
+            if (!user) {
+                showToast('Пользователь не найден', 'error');
+                return;
+            }
+
+            user.isBanned = false;
+            user.banReason = null;
+            user.banUntil = null;
+
+            showLoading(true, 'Разблокировка...');
+            const success = await saveUserToFirebase(userId, {
+                isBanned: false,
+                banReason: null,
+                banUntil: null
+            });
+            showLoading(false);
+
+            if (success) {
+                showToast(`✅ ${user.username} разбанен`, 'success');
+                refreshCurrentView();
+            }
+        };
+
+        window.addResource = async function(userId) {
+            const user = users.find(u => u.id === userId);
+            if (!user) {
+                showToast('Пользователь не найден', 'error');
+                return;
+            }
+
+            const type = document.getElementById('resourceType').value;
+            const amount = parseInt(document.getElementById('resourceAmount').value) || 0;
+
+            if (amount <= 0) {
+                showToast('Введите корректное количество', 'error');
+                return;
+            }
+
+            const fieldMap = {
+                'strength': 'strength',
+                'defense': 'defense',
+                'energy': 'energy',
+                'power': 'power',
+                'authority': 'authority',
+                'cigarettes': 'cigarettes',
+                'rubles': 'rubles'
+            };
+
+            const field = fieldMap[type];
+            if (!field) {
+                showToast('Неверный тип ресурса', 'error');
+                return;
+            }
+
+            const oldValue = user.stats[field] || 0;
+            user.stats[field] = oldValue + amount;
+
+            const updateData = { stats: user.stats };
+
+            if (field === 'strength') updateData.strength = user.stats.strength;
+            if (field === 'defense') updateData.defense = user.stats.defense;
+            if (field === 'energy') updateData.energy = user.stats.energy;
+            if (field === 'power') updateData.power = user.stats.power;
+            if (field === 'authority') updateData.authority = user.stats.authority;
+            if (field === 'cigarettes') updateData.cigarettes = user.stats.cigarettes;
+            if (field === 'rubles') updateData.rubles = user.stats.rubles;
+
+            showLoading(true, 'Начисление ресурсов...');
+            const success = await saveUserToFirebase(userId, updateData);
+            showLoading(false);
+
+            if (success) {
+                showToast(`💰 Начислено ${amount} ${type} для ${user.username}`, 'success');
+                refreshCurrentView();
+            }
+        };
+
+        window.resetUser = async function(userId) {
+            const user = users.find(u => u.id === userId);
+            if (!user) return;
+
+            if (!confirm(`Обнулить все данные игрока ${user.username}?`)) return;
+
+            user.level = 1;
+            user.stats = {
+                strength: 10,
+                defense: 5,
+                energy: 5,
+                power: 52,
+                authority: 0,
+                cigarettes: 50,
+                rubles: 0,
+                clan: '—'
+            };
+
+            showLoading(true, 'Обнуление данных...');
+            const success = await saveUserToFirebase(userId, {
+                level: 1,
+                stats: user.stats,
+                strength: 10,
+                defense: 5,
+                energy: 5,
+                power: 52,
+                authority: 0,
+                cigarettes: 50,
+                rubles: 0,
+                clan: '—'
+            });
+            showLoading(false);
+
+            if (success) {
+                showToast(`🔄 ${user.username} обнулен`, 'warning');
+                refreshCurrentView();
+            }
+        };
+
+        window.deleteUser = async function(userId) {
+            const user = users.find(u => u.id === userId);
+            if (!user) return;
+
+            const success = await deleteUserFromFirebase(userId);
+            if (success) {
+                showToast(`🗑️ ${user.username} удален из Firebase`, 'error');
+                users = users.filter(u => u.id !== userId);
+                updateUsersBadge();
+                refreshCurrentView();
+
+                const modal = bootstrap.Modal.getInstance(document.getElementById('userDetailModal'));
+                if (modal) modal.hide();
+            }
+        };
+
+        function refreshCurrentView() {
+            const activeMenu = document.querySelector('.sidebar-menu a.active');
+            const page = activeMenu ? activeMenu.dataset.page : 'dashboard';
+            navigateTo(page);
+        }
+
+        function updateUsersBadge() {
+            const badge = document.getElementById('usersBadge');
+            if (badge) {
+                badge.textContent = users.length;
+            }
+        }
+
+        // ============================================================
+        // 14. СОБЫТИЯ (ИСПРАВЛЕННАЯ ВЕРСИЯ)
+        // ============================================================
+        function setupEventListeners() {
+            // === КНОПКА ВХОДА - ПРОВЕРЯЕМ СУЩЕСТВОВАНИЕ ===
+            const loginBtn = document.getElementById('loginBtn');
+            
+            if (!loginBtn) {
+                console.error('❌ Кнопка loginBtn не найдена в DOM!');
+                console.log('⚠️ Создаем кнопку программно...');
+                
+                // Создаем кнопку если её нет
+                const loginBox = document.querySelector('.login-box');
+                if (loginBox) {
+                    const newBtn = document.createElement('button');
+                    newBtn.className = 'btn-login';
+                    newBtn.id = 'loginBtn';
+                    newBtn.textContent = 'Войти';
+                    loginBox.appendChild(newBtn);
+                    
+                    // Привязываем обработчик к новой кнопке
+                    newBtn.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        handleLogin(this);
+                    });
+                    console.log('✅ Кнопка loginBtn создана программно');
+                }
+            } else {
+                // Привязываем обработчик к существующей кнопке
+                loginBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    handleLogin(this);
+                });
+                console.log('✅ Кнопка loginBtn найдена и инициализирована');
+            }
+
+            // ENTER на поле пароля
+            const passwordInput = document.getElementById('passwordInput');
+            if (passwordInput) {
+                passwordInput.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        const btn = document.getElementById('loginBtn');
+                        if (btn) {
+                            btn.click();
+                        }
+                    }
+                });
+            }
+
+            // Меню
+            document.querySelectorAll('.sidebar-menu a[data-page]').forEach(a => {
+                a.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    navigateTo(this.dataset.page);
+                });
+            });
+
+            // Выход
+            document.getElementById('menuLogout').addEventListener('click', function(e) {
+                e.preventDefault();
+                logout();
+            });
+
+            // Sidebar
+            document.getElementById('sidebarToggle').addEventListener('click', toggleSidebar);
+            document.getElementById('sidebarOverlay').addEventListener('click', closeSidebar);
+
+            // ESC
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') closeSidebar();
+            });
+        }
+
+        // Функция обработки логина
+        function handleLogin(btn) {
+            const password = document.getElementById('passwordInput').value;
+            btn.disabled = true;
+            btn.textContent = '⏳ Вход...';
+
+            setTimeout(() => {
+                login(password);
+                btn.disabled = false;
+                btn.textContent = 'Войти';
+            }, 300);
+        }
+
+        // ============================================================
+        // 15. ЗАПУСК
+        // ============================================================
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('📄 DOM полностью загружен');
+            
+            // Проверяем наличие кнопки
+            const btn = document.getElementById('loginBtn');
+            console.log('🔍 Кнопка loginBtn найдена?', btn ? '✅ Да' : '❌ Нет');
+            
+            if (!btn) {
+                console.log('⚠️ Кнопка не найдена, создаем...');
+                const loginBox = document.querySelector('.login-box');
+                if (loginBox) {
+                    const newBtn = document.createElement('button');
+                    newBtn.className = 'btn-login';
+                    newBtn.id = 'loginBtn';
+                    newBtn.textContent = 'Войти';
+                    loginBox.appendChild(newBtn);
+                    console.log('✅ Кнопка создана');
+                }
+            }
+
+            if (checkAuth()) {
+                document.getElementById('loginScreen').classList.add('hidden');
+                initApp();
+                startSessionTimer();
+            } else {
+                document.getElementById('loginScreen').classList.remove('hidden');
+                document.getElementById('passwordInput').focus();
+            }
+
+            document.addEventListener('visibilitychange', function() {
+                if (!document.hidden && isAuthenticated) {
+                    const savedTime = localStorage.getItem('admin_auth_time');
+                    if (savedTime) {
+                        const elapsed = (Date.now() - parseInt(savedTime)) / 1000;
+                        if (elapsed < SESSION_DURATION) {
+                            sessionTimer = Math.floor(SESSION_DURATION - elapsed);
+                            updateSessionTimerDisplay();
+                        } else {
+                            logout();
+                        }
+                    }
+                }
+            });
+        });
+
+        console.log('✅ Game Admin Panel с Firebase загружена!');
+        console.log('📊 Подключение к Firebase:', isDBReady() ? '✅' : '❌');
+        console.log('🔑 Пароль: admin-admin');
+        console.log('📋 Пользователей:', users.length);
+		initApp();
+    </script>
+</body>
+</html>
