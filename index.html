@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>GameZona - 1.0.1.074</title>
+    <title>GameZona - 1.0.1.075</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -8716,7 +8716,7 @@ window.openSettingsModal = function() {
                     <div style="font-size: 36px; margin-bottom: 10px;">⚙️</div>
                     <div style="font-size: 16px; font-weight: 700; color: #ffd966;">${escapeHtml(window.currentPlayer.username)}</div>
                     <div style="font-size: 12px; color: #888; margin-top: 4px;">🆔 ${window.playerId}</div>
-                    <div style="font-size: 11px; color: #666; margin-top: 8px;">Версия - 1.0.1.074</div>
+                    <div style="font-size: 11px; color: #666; margin-top: 8px;">Версия - 1.0.1.075</div>
                     <div class="settings-status-info" style="font-size: 10px; color: ${window._settingsHasInternet ? '#4caf50' : '#e94560'}; margin-top: 6px;">
                         ${window._settingsHasInternet ? '🟢 Онлайн' : '🔴 Офлайн'}
                     </div>
@@ -11581,12 +11581,192 @@ function updateQuestsUI() {
 // 18.1. СЮЖЕТНЫЕ ЗАДАНИЯ
 // ============================================================
 function getStoryQuests() {
+    var player = window.currentPlayer || {};
+    var level = player.level || 1;
+    var authority = player.authority || 0;
+    var clanId = player.clanId || null;
+    
+    // Данные для улучшений
+    var minePaperLevel = player.mine?.paperLevel || 1;
+    var mineMakhorkaLevel = player.mine?.makhorkaLevel || 1;
+    var lumberLevel = player.lumber?.level || 1;
+    var quarryLevel = player.quarry?.level || 1;
+    var shopLevel = window.shopLevel || 1;
+    var hospitalLevel = window.hospitalLevel || 1;
+    var gangBlatsLevel = player.gang?.blats?.level || 1;
+    var gangMuzhiksLevel = player.gang?.muzhiks?.level || 1;
+    var gangFraersLevel = player.gang?.fraers?.level || 1;
+    
     return [
-        { id: 'story_1', title: 'Первые шаги', description: 'Достигните 5 уровня', requirement: 5, current: window.currentPlayer?.level || 1, reward: 500, type: 'cigarettes', icon: '⭐' },
-        { id: 'story_2', title: 'Сила духа', description: 'Накопите 1000 авторитета', requirement: 1000, current: window.currentPlayer?.authority || 0, reward: 1000, type: 'cigarettes', icon: '💪' },
-        { id: 'story_3', title: 'Верный друг', description: 'Вступите в клан', requirement: 1, current: window.currentPlayer?.clanId ? 1 : 0, reward: 2000, type: 'cigarettes', icon: '🏰' },
-        { id: 'story_4', title: 'Мастер шахты', description: 'Улучшите шахту до 3 уровня', requirement: 3, current: window.currentPlayer?.mine?.paperLevel || 1, reward: 1500, type: 'rubles', icon: '⛏️' },
-        { id: 'story_5', title: 'Легенда зоны', description: 'Достигните 10 уровня', requirement: 10, current: window.currentPlayer?.level || 1, reward: 3000, type: 'rubles', icon: '👑' }
+        // ===== ДОСТИЖЕНИЕ УРОВНЕЙ =====
+        { id: 'story_level_5', title: 'Уровень 5', description: 'Достигните 5 уровня', requirement: 5, current: Math.min(5, level), reward: 500, type: 'cigarettes', icon: '⭐' },
+        { id: 'story_level_10', title: 'Уровень 10', description: 'Достигните 10 уровня', requirement: 10, current: Math.min(10, level), reward: 1000, type: 'cigarettes', icon: '⭐' },
+        { id: 'story_level_15', title: 'Уровень 15', description: 'Достигните 15 уровня', requirement: 15, current: Math.min(15, level), reward: 1500, type: 'cigarettes', icon: '⭐' },
+        { id: 'story_level_20', title: 'Уровень 20', description: 'Достигните 20 уровня', requirement: 20, current: Math.min(20, level), reward: 2000, type: 'cigarettes', icon: '⭐' },
+        { id: 'story_level_25', title: 'Уровень 25', description: 'Достигните 25 уровня', requirement: 25, current: Math.min(25, level), reward: 2500, type: 'cigarettes', icon: '⭐' },
+        { id: 'story_level_30', title: 'Уровень 30', description: 'Достигните 30 уровня', requirement: 30, current: Math.min(30, level), reward: 3000, type: 'cigarettes', icon: '⭐' },
+        { id: 'story_level_35', title: 'Уровень 35', description: 'Достигните 35 уровня', requirement: 35, current: Math.min(35, level), reward: 3500, type: 'cigarettes', icon: '⭐' },
+        { id: 'story_level_40', title: 'Уровень 40', description: 'Достигните 40 уровня', requirement: 40, current: Math.min(40, level), reward: 4000, type: 'cigarettes', icon: '⭐' },
+        { id: 'story_level_45', title: 'Уровень 45', description: 'Достигните 45 уровня', requirement: 45, current: Math.min(45, level), reward: 4500, type: 'cigarettes', icon: '⭐' },
+        { id: 'story_level_50', title: 'Уровень 50', description: 'Достигните 50 уровня', requirement: 50, current: Math.min(50, level), reward: 5000, type: 'cigarettes', icon: '⭐' },
+        
+        // ===== ШАХТА (ПРОКАЧКА БУМАГИ) =====
+        { id: 'story_mine_paper_5', title: 'Шахта 5', description: 'Улучшите шахту (бумага) до 5 уровня', requirement: 5, current: Math.min(5, minePaperLevel), reward: 1000, type: 'cigarettes', icon: '⛏️' },
+        { id: 'story_mine_paper_10', title: 'Шахта 10', description: 'Улучшите шахту (бумага) до 10 уровня', requirement: 10, current: Math.min(10, minePaperLevel), reward: 2000, type: 'cigarettes', icon: '⛏️' },
+        { id: 'story_mine_paper_15', title: 'Шахта 15', description: 'Улучшите шахту (бумага) до 15 уровня', requirement: 15, current: Math.min(15, minePaperLevel), reward: 3000, type: 'cigarettes', icon: '⛏️' },
+        { id: 'story_mine_paper_20', title: 'Шахта 20', description: 'Улучшите шахту (бумага) до 20 уровня', requirement: 20, current: Math.min(20, minePaperLevel), reward: 4000, type: 'cigarettes', icon: '⛏️' },
+        { id: 'story_mine_paper_25', title: 'Шахта 25', description: 'Улучшите шахту (бумага) до 25 уровня', requirement: 25, current: Math.min(25, minePaperLevel), reward: 5000, type: 'cigarettes', icon: '⛏️' },
+        { id: 'story_mine_paper_30', title: 'Шахта 30', description: 'Улучшите шахту (бумага) до 30 уровня', requirement: 30, current: Math.min(30, minePaperLevel), reward: 6000, type: 'cigarettes', icon: '⛏️' },
+        { id: 'story_mine_paper_35', title: 'Шахта 35', description: 'Улучшите шахту (бумага) до 35 уровня', requirement: 35, current: Math.min(35, minePaperLevel), reward: 7000, type: 'cigarettes', icon: '⛏️' },
+        { id: 'story_mine_paper_40', title: 'Шахта 40', description: 'Улучшите шахту (бумага) до 40 уровня', requirement: 40, current: Math.min(40, minePaperLevel), reward: 8000, type: 'cigarettes', icon: '⛏️' },
+        { id: 'story_mine_paper_45', title: 'Шахта 45', description: 'Улучшите шахту (бумага) до 45 уровня', requirement: 45, current: Math.min(45, minePaperLevel), reward: 9000, type: 'cigarettes', icon: '⛏️' },
+        { id: 'story_mine_paper_50', title: 'Шахта 50', description: 'Улучшите шахту (бумага) до 50 уровня', requirement: 50, current: Math.min(50, minePaperLevel), reward: 10000, type: 'cigarettes', icon: '⛏️' },
+        
+        // ===== ЛЕСОПОВАЛ =====
+        { id: 'story_lumber_5', title: 'Лесоповал 5', description: 'Улучшите лесоповал до 5 уровня', requirement: 5, current: Math.min(5, lumberLevel), reward: 1000, type: 'cigarettes', icon: '🪓' },
+        { id: 'story_lumber_10', title: 'Лесоповал 10', description: 'Улучшите лесоповал до 10 уровня', requirement: 10, current: Math.min(10, lumberLevel), reward: 2000, type: 'cigarettes', icon: '🪓' },
+        { id: 'story_lumber_15', title: 'Лесоповал 15', description: 'Улучшите лесоповал до 15 уровня', requirement: 15, current: Math.min(15, lumberLevel), reward: 3000, type: 'cigarettes', icon: '🪓' },
+        { id: 'story_lumber_20', title: 'Лесоповал 20', description: 'Улучшите лесоповал до 20 уровня', requirement: 20, current: Math.min(20, lumberLevel), reward: 4000, type: 'cigarettes', icon: '🪓' },
+        { id: 'story_lumber_25', title: 'Лесоповал 25', description: 'Улучшите лесоповал до 25 уровня', requirement: 25, current: Math.min(25, lumberLevel), reward: 5000, type: 'cigarettes', icon: '🪓' },
+        { id: 'story_lumber_30', title: 'Лесоповал 30', description: 'Улучшите лесоповал до 30 уровня', requirement: 30, current: Math.min(30, lumberLevel), reward: 6000, type: 'cigarettes', icon: '🪓' },
+        { id: 'story_lumber_35', title: 'Лесоповал 35', description: 'Улучшите лесоповал до 35 уровня', requirement: 35, current: Math.min(35, lumberLevel), reward: 7000, type: 'cigarettes', icon: '🪓' },
+        { id: 'story_lumber_40', title: 'Лесоповал 40', description: 'Улучшите лесоповал до 40 уровня', requirement: 40, current: Math.min(40, lumberLevel), reward: 8000, type: 'cigarettes', icon: '🪓' },
+        { id: 'story_lumber_45', title: 'Лесоповал 45', description: 'Улучшите лесоповал до 45 уровня', requirement: 45, current: Math.min(45, lumberLevel), reward: 9000, type: 'cigarettes', icon: '🪓' },
+        { id: 'story_lumber_50', title: 'Лесоповал 50', description: 'Улучшите лесоповал до 50 уровня', requirement: 50, current: Math.min(50, lumberLevel), reward: 10000, type: 'cigarettes', icon: '🪓' },
+        
+        // ===== КАМЕНОЛОМНЯ =====
+        { id: 'story_quarry_5', title: 'Каменоломня 5', description: 'Улучшите каменоломню до 5 уровня', requirement: 5, current: Math.min(5, quarryLevel), reward: 1000, type: 'cigarettes', icon: '🪨' },
+        { id: 'story_quarry_10', title: 'Каменоломня 10', description: 'Улучшите каменоломню до 10 уровня', requirement: 10, current: Math.min(10, quarryLevel), reward: 2000, type: 'cigarettes', icon: '🪨' },
+        { id: 'story_quarry_15', title: 'Каменоломня 15', description: 'Улучшите каменоломню до 15 уровня', requirement: 15, current: Math.min(15, quarryLevel), reward: 3000, type: 'cigarettes', icon: '🪨' },
+        { id: 'story_quarry_20', title: 'Каменоломня 20', description: 'Улучшите каменоломню до 20 уровня', requirement: 20, current: Math.min(20, quarryLevel), reward: 4000, type: 'cigarettes', icon: '🪨' },
+        { id: 'story_quarry_25', title: 'Каменоломня 25', description: 'Улучшите каменоломню до 25 уровня', requirement: 25, current: Math.min(25, quarryLevel), reward: 5000, type: 'cigarettes', icon: '🪨' },
+        { id: 'story_quarry_30', title: 'Каменоломня 30', description: 'Улучшите каменоломню до 30 уровня', requirement: 30, current: Math.min(30, quarryLevel), reward: 6000, type: 'cigarettes', icon: '🪨' },
+        { id: 'story_quarry_35', title: 'Каменоломня 35', description: 'Улучшите каменоломню до 35 уровня', requirement: 35, current: Math.min(35, quarryLevel), reward: 7000, type: 'cigarettes', icon: '🪨' },
+        { id: 'story_quarry_40', title: 'Каменоломня 40', description: 'Улучшите каменоломню до 40 уровня', requirement: 40, current: Math.min(40, quarryLevel), reward: 8000, type: 'cigarettes', icon: '🪨' },
+        { id: 'story_quarry_45', title: 'Каменоломня 45', description: 'Улучшите каменоломню до 45 уровня', requirement: 45, current: Math.min(45, quarryLevel), reward: 9000, type: 'cigarettes', icon: '🪨' },
+        { id: 'story_quarry_50', title: 'Каменоломня 50', description: 'Улучшите каменоломню до 50 уровня', requirement: 50, current: Math.min(50, quarryLevel), reward: 10000, type: 'cigarettes', icon: '🪨' },
+        
+        // ===== МАГАЗИН =====
+        { id: 'story_shop_5', title: 'Магазин 5', description: 'Улучшите магазин до 5 уровня', requirement: 5, current: Math.min(5, shopLevel), reward: 1000, type: 'cigarettes', icon: '🏪' },
+        { id: 'story_shop_10', title: 'Магазин 10', description: 'Улучшите магазин до 10 уровня', requirement: 10, current: Math.min(10, shopLevel), reward: 2000, type: 'cigarettes', icon: '🏪' },
+        { id: 'story_shop_15', title: 'Магазин 15', description: 'Улучшите магазин до 15 уровня', requirement: 15, current: Math.min(15, shopLevel), reward: 3000, type: 'cigarettes', icon: '🏪' },
+        { id: 'story_shop_20', title: 'Магазин 20', description: 'Улучшите магазин до 20 уровня', requirement: 20, current: Math.min(20, shopLevel), reward: 4000, type: 'cigarettes', icon: '🏪' },
+        { id: 'story_shop_25', title: 'Магазин 25', description: 'Улучшите магазин до 25 уровня', requirement: 25, current: Math.min(25, shopLevel), reward: 5000, type: 'cigarettes', icon: '🏪' },
+        { id: 'story_shop_30', title: 'Магазин 30', description: 'Улучшите магазин до 30 уровня', requirement: 30, current: Math.min(30, shopLevel), reward: 6000, type: 'cigarettes', icon: '🏪' },
+        { id: 'story_shop_35', title: 'Магазин 35', description: 'Улучшите магазин до 35 уровня', requirement: 35, current: Math.min(35, shopLevel), reward: 7000, type: 'cigarettes', icon: '🏪' },
+        { id: 'story_shop_40', title: 'Магазин 40', description: 'Улучшите магазин до 40 уровня', requirement: 40, current: Math.min(40, shopLevel), reward: 8000, type: 'cigarettes', icon: '🏪' },
+        { id: 'story_shop_45', title: 'Магазин 45', description: 'Улучшите магазин до 45 уровня', requirement: 45, current: Math.min(45, shopLevel), reward: 9000, type: 'cigarettes', icon: '🏪' },
+        { id: 'story_shop_50', title: 'Магазин 50', description: 'Улучшите магазин до 50 уровня', requirement: 50, current: Math.min(50, shopLevel), reward: 10000, type: 'cigarettes', icon: '🏪' },
+        
+        // ===== БОЛЬНИЦА =====
+        { id: 'story_hospital_5', title: 'Больница 5', description: 'Улучшите больницу до 5 уровня', requirement: 5, current: Math.min(5, hospitalLevel), reward: 1000, type: 'cigarettes', icon: '🏥' },
+        { id: 'story_hospital_10', title: 'Больница 10', description: 'Улучшите больницу до 10 уровня', requirement: 10, current: Math.min(10, hospitalLevel), reward: 2000, type: 'cigarettes', icon: '🏥' },
+        { id: 'story_hospital_15', title: 'Больница 15', description: 'Улучшите больницу до 15 уровня', requirement: 15, current: Math.min(15, hospitalLevel), reward: 3000, type: 'cigarettes', icon: '🏥' },
+        { id: 'story_hospital_20', title: 'Больница 20', description: 'Улучшите больницу до 20 уровня', requirement: 20, current: Math.min(20, hospitalLevel), reward: 4000, type: 'cigarettes', icon: '🏥' },
+        { id: 'story_hospital_25', title: 'Больница 25', description: 'Улучшите больницу до 25 уровня', requirement: 25, current: Math.min(25, hospitalLevel), reward: 5000, type: 'cigarettes', icon: '🏥' },
+        { id: 'story_hospital_30', title: 'Больница 30', description: 'Улучшите больницу до 30 уровня', requirement: 30, current: Math.min(30, hospitalLevel), reward: 6000, type: 'cigarettes', icon: '🏥' },
+        { id: 'story_hospital_35', title: 'Больница 35', description: 'Улучшите больницу до 35 уровня', requirement: 35, current: Math.min(35, hospitalLevel), reward: 7000, type: 'cigarettes', icon: '🏥' },
+        { id: 'story_hospital_40', title: 'Больница 40', description: 'Улучшите больницу до 40 уровня', requirement: 40, current: Math.min(40, hospitalLevel), reward: 8000, type: 'cigarettes', icon: '🏥' },
+        { id: 'story_hospital_45', title: 'Больница 45', description: 'Улучшите больницу до 45 уровня', requirement: 45, current: Math.min(45, hospitalLevel), reward: 9000, type: 'cigarettes', icon: '🏥' },
+        { id: 'story_hospital_50', title: 'Больница 50', description: 'Улучшите больницу до 50 уровня', requirement: 50, current: Math.min(50, hospitalLevel), reward: 10000, type: 'cigarettes', icon: '🏥' },
+        
+        // ===== СИЗО - БЛАТНЫЕ =====
+        { id: 'story_gang_blats_5', title: 'Блатные 5', description: 'Улучшите блатных в СИЗО до 5 уровня', requirement: 5, current: Math.min(5, gangBlatsLevel), reward: 1000, type: 'cigarettes', icon: '👑' },
+        { id: 'story_gang_blats_10', title: 'Блатные 10', description: 'Улучшите блатных в СИЗО до 10 уровня', requirement: 10, current: Math.min(10, gangBlatsLevel), reward: 2000, type: 'cigarettes', icon: '👑' },
+        { id: 'story_gang_blats_15', title: 'Блатные 15', description: 'Улучшите блатных в СИЗО до 15 уровня', requirement: 15, current: Math.min(15, gangBlatsLevel), reward: 3000, type: 'cigarettes', icon: '👑' },
+        { id: 'story_gang_blats_20', title: 'Блатные 20', description: 'Улучшите блатных в СИЗО до 20 уровня', requirement: 20, current: Math.min(20, gangBlatsLevel), reward: 4000, type: 'cigarettes', icon: '👑' },
+        { id: 'story_gang_blats_25', title: 'Блатные 25', description: 'Улучшите блатных в СИЗО до 25 уровня', requirement: 25, current: Math.min(25, gangBlatsLevel), reward: 5000, type: 'cigarettes', icon: '👑' },
+        { id: 'story_gang_blats_30', title: 'Блатные 30', description: 'Улучшите блатных в СИЗО до 30 уровня', requirement: 30, current: Math.min(30, gangBlatsLevel), reward: 6000, type: 'cigarettes', icon: '👑' },
+        { id: 'story_gang_blats_35', title: 'Блатные 35', description: 'Улучшите блатных в СИЗО до 35 уровня', requirement: 35, current: Math.min(35, gangBlatsLevel), reward: 7000, type: 'cigarettes', icon: '👑' },
+        { id: 'story_gang_blats_40', title: 'Блатные 40', description: 'Улучшите блатных в СИЗО до 40 уровня', requirement: 40, current: Math.min(40, gangBlatsLevel), reward: 8000, type: 'cigarettes', icon: '👑' },
+        { id: 'story_gang_blats_45', title: 'Блатные 45', description: 'Улучшите блатных в СИЗО до 45 уровня', requirement: 45, current: Math.min(45, gangBlatsLevel), reward: 9000, type: 'cigarettes', icon: '👑' },
+        { id: 'story_gang_blats_50', title: 'Блатные 50', description: 'Улучшите блатных в СИЗО до 50 уровня', requirement: 50, current: Math.min(50, gangBlatsLevel), reward: 10000, type: 'cigarettes', icon: '👑' },
+        
+        // ===== СИЗО - МУЖИКИ =====
+        { id: 'story_gang_muzhiks_5', title: 'Мужики 5', description: 'Улучшите мужиков в СИЗО до 5 уровня', requirement: 5, current: Math.min(5, gangMuzhiksLevel), reward: 1000, type: 'cigarettes', icon: '🔨' },
+        { id: 'story_gang_muzhiks_10', title: 'Мужики 10', description: 'Улучшите мужиков в СИЗО до 10 уровня', requirement: 10, current: Math.min(10, gangMuzhiksLevel), reward: 2000, type: 'cigarettes', icon: '🔨' },
+        { id: 'story_gang_muzhiks_15', title: 'Мужики 15', description: 'Улучшите мужиков в СИЗО до 15 уровня', requirement: 15, current: Math.min(15, gangMuzhiksLevel), reward: 3000, type: 'cigarettes', icon: '🔨' },
+        { id: 'story_gang_muzhiks_20', title: 'Мужики 20', description: 'Улучшите мужиков в СИЗО до 20 уровня', requirement: 20, current: Math.min(20, gangMuzhiksLevel), reward: 4000, type: 'cigarettes', icon: '🔨' },
+        { id: 'story_gang_muzhiks_25', title: 'Мужики 25', description: 'Улучшите мужиков в СИЗО до 25 уровня', requirement: 25, current: Math.min(25, gangMuzhiksLevel), reward: 5000, type: 'cigarettes', icon: '🔨' },
+        { id: 'story_gang_muzhiks_30', title: 'Мужики 30', description: 'Улучшите мужиков в СИЗО до 30 уровня', requirement: 30, current: Math.min(30, gangMuzhiksLevel), reward: 6000, type: 'cigarettes', icon: '🔨' },
+        { id: 'story_gang_muzhiks_35', title: 'Мужики 35', description: 'Улучшите мужиков в СИЗО до 35 уровня', requirement: 35, current: Math.min(35, gangMuzhiksLevel), reward: 7000, type: 'cigarettes', icon: '🔨' },
+        { id: 'story_gang_muzhiks_40', title: 'Мужики 40', description: 'Улучшите мужиков в СИЗО до 40 уровня', requirement: 40, current: Math.min(40, gangMuzhiksLevel), reward: 8000, type: 'cigarettes', icon: '🔨' },
+        { id: 'story_gang_muzhiks_45', title: 'Мужики 45', description: 'Улучшите мужиков в СИЗО до 45 уровня', requirement: 45, current: Math.min(45, gangMuzhiksLevel), reward: 9000, type: 'cigarettes', icon: '🔨' },
+        { id: 'story_gang_muzhiks_50', title: 'Мужики 50', description: 'Улучшите мужиков в СИЗО до 50 уровня', requirement: 50, current: Math.min(50, gangMuzhiksLevel), reward: 10000, type: 'cigarettes', icon: '🔨' },
+        
+        // ===== СИЗО - ФРАЕРА =====
+        { id: 'story_gang_fraers_5', title: 'Фраера 5', description: 'Улучшите фраеров в СИЗО до 5 уровня', requirement: 5, current: Math.min(5, gangFraersLevel), reward: 1000, type: 'cigarettes', icon: '🐑' },
+        { id: 'story_gang_fraers_10', title: 'Фраера 10', description: 'Улучшите фраеров в СИЗО до 10 уровня', requirement: 10, current: Math.min(10, gangFraersLevel), reward: 2000, type: 'cigarettes', icon: '🐑' },
+        { id: 'story_gang_fraers_15', title: 'Фраера 15', description: 'Улучшите фраеров в СИЗО до 15 уровня', requirement: 15, current: Math.min(15, gangFraersLevel), reward: 3000, type: 'cigarettes', icon: '🐑' },
+        { id: 'story_gang_fraers_20', title: 'Фраера 20', description: 'Улучшите фраеров в СИЗО до 20 уровня', requirement: 20, current: Math.min(20, gangFraersLevel), reward: 4000, type: 'cigarettes', icon: '🐑' },
+        { id: 'story_gang_fraers_25', title: 'Фраера 25', description: 'Улучшите фраеров в СИЗО до 25 уровня', requirement: 25, current: Math.min(25, gangFraersLevel), reward: 5000, type: 'cigarettes', icon: '🐑' },
+        { id: 'story_gang_fraers_30', title: 'Фраера 30', description: 'Улучшите фраеров в СИЗО до 30 уровня', requirement: 30, current: Math.min(30, gangFraersLevel), reward: 6000, type: 'cigarettes', icon: '🐑' },
+        { id: 'story_gang_fraers_35', title: 'Фраера 35', description: 'Улучшите фраеров в СИЗО до 35 уровня', requirement: 35, current: Math.min(35, gangFraersLevel), reward: 7000, type: 'cigarettes', icon: '🐑' },
+        { id: 'story_gang_fraers_40', title: 'Фраера 40', description: 'Улучшите фраеров в СИЗО до 40 уровня', requirement: 40, current: Math.min(40, gangFraersLevel), reward: 8000, type: 'cigarettes', icon: '🐑' },
+        { id: 'story_gang_fraers_45', title: 'Фраера 45', description: 'Улучшите фраеров в СИЗО до 45 уровня', requirement: 45, current: Math.min(45, gangFraersLevel), reward: 9000, type: 'cigarettes', icon: '🐑' },
+        { id: 'story_gang_fraers_50', title: 'Фраера 50', description: 'Улучшите фраеров в СИЗО до 50 уровня', requirement: 50, current: Math.min(50, gangFraersLevel), reward: 10000, type: 'cigarettes', icon: '🐑' },
+        
+        // ===== ОСОБЫЕ ЗАДАНИЯ =====
+        {
+            id: 'story_clan_1',
+            title: 'Верный друг',
+            description: 'Вступите в клан',
+            requirement: 1,
+            current: clanId ? 1 : 0,
+            reward: 2000,
+            type: 'cigarettes',
+            icon: '🏰'
+        },
+        {
+            id: 'story_authority_100',
+            title: 'Авторитет 100',
+            description: 'Накопите 100 авторитета',
+            requirement: 100,
+            current: Math.min(100, authority),
+            reward: 500,
+            type: 'cigarettes',
+            icon: '💪'
+        },
+        {
+            id: 'story_authority_500',
+            title: 'Авторитет 500',
+            description: 'Накопите 500 авторитета',
+            requirement: 500,
+            current: Math.min(500, authority),
+            reward: 1000,
+            type: 'cigarettes',
+            icon: '💪'
+        },
+        {
+            id: 'story_authority_1000',
+            title: 'Авторитет 1000',
+            description: 'Накопите 1000 авторитета',
+            requirement: 1000,
+            current: Math.min(1000, authority),
+            reward: 1500,
+            type: 'cigarettes',
+            icon: '💪'
+        },
+        {
+            id: 'story_authority_2500',
+            title: 'Авторитет 2500',
+            description: 'Накопите 2500 авторитета',
+            requirement: 2500,
+            current: Math.min(2500, authority),
+            reward: 2000,
+            type: 'cigarettes',
+            icon: '💪'
+        },
+        {
+            id: 'story_authority_5000',
+            title: 'Авторитет 5000',
+            description: 'Накопите 5000 авторитета',
+            requirement: 5000,
+            current: Math.min(5000, authority),
+            reward: 3000,
+            type: 'cigarettes',
+            icon: '💪'
+        }
     ];
 }
 
@@ -11594,10 +11774,158 @@ function getStoryQuests() {
 // 18.2. ЕЖЕДНЕВНЫЕ ЗАДАНИЯ
 // ============================================================
 function getDailyQuests() {
+    // Получаем текущий прогресс
+    var progress = window.dailyQuestsProgress || {};
+    
+    // Счетчики для заданий
+    var mineWorkCount = progress.mineWorkCount || 0;
+    var lumberWorkCount = progress.lumberWorkCount || 0;
+    var quarryWorkCount = progress.quarryWorkCount || 0;
+    var gangBlatsCount = progress.gangBlatsCount || 0;
+    var gangMuzhiksCount = progress.gangMuzhiksCount || 0;
+    var gangFraersCount = progress.gangFraersCount || 0;
+    var cardGameCount = progress.cardGameCount || 0;
+    
     return [
-        { id: 'daily_1', title: 'Добытчик', description: 'Добудьте ресурсы в шахте 3 раза', requirement: 3, current: window.currentPlayer?.mine?.lastMineTime ? Math.min(3, Math.floor((Date.now() - (window.currentPlayer.mine.lastMineTime || 0)) / 3600000) + 1) : 0, reward: 100, type: 'cigarettes', icon: '⛏️' },
-        { id: 'daily_2', title: 'Игрок', description: 'Сыграйте в карты', requirement: 1, current: (window.cardGameActive || (window.cardGameCooldownUntil > 0)) ? 1 : 0, reward: 150, type: 'cigarettes', icon: '🎴' },
-        { id: 'daily_3', title: 'Торговец', description: 'Купите что-то в магазине', requirement: 1, current: Object.keys(window.purchasedItemsCount || {}).length > 0 ? 1 : 0, reward: 100, type: 'cigarettes', icon: '🏪' }
+        // ===== ШАХТА =====
+        {
+            id: 'daily_mine_5',
+            title: 'Шахтёр 1',
+            description: 'Добудьте ресурсы в шахте 5 раз',
+            requirement: 5,
+            current: Math.min(5, mineWorkCount),
+            reward: 100,
+            type: 'cigarettes',
+            icon: '⛏️'
+        },
+        {
+            id: 'daily_mine_10',
+            title: 'Шахтёр 2',
+            description: 'Добудьте ресурсы в шахте 10 раз',
+            requirement: 10,
+            current: Math.min(10, mineWorkCount),
+            reward: 250,
+            type: 'cigarettes',
+            icon: '⛏️'
+        },
+        {
+            id: 'daily_mine_15',
+            title: 'Шахтёр 3',
+            description: 'Добудьте ресурсы в шахте 15 раз',
+            requirement: 15,
+            current: Math.min(15, mineWorkCount),
+            reward: 500,
+            type: 'cigarettes',
+            icon: '⛏️'
+        },
+        
+        // ===== ЛЕСОПОВАЛ =====
+        {
+            id: 'daily_lumber_5',
+            title: 'Лесоруб 1',
+            description: 'Добудьте ресурсы в лесоповале 5 раз',
+            requirement: 5,
+            current: Math.min(5, lumberWorkCount),
+            reward: 100,
+            type: 'cigarettes',
+            icon: '🪓'
+        },
+        {
+            id: 'daily_lumber_10',
+            title: 'Лесоруб 2',
+            description: 'Добудьте ресурсы в лесоповале 10 раз',
+            requirement: 10,
+            current: Math.min(10, lumberWorkCount),
+            reward: 250,
+            type: 'cigarettes',
+            icon: '🪓'
+        },
+        {
+            id: 'daily_lumber_15',
+            title: 'Лесоруб 3',
+            description: 'Добудьте ресурсы в лесоповале 15 раз',
+            requirement: 15,
+            current: Math.min(15, lumberWorkCount),
+            reward: 500,
+            type: 'cigarettes',
+            icon: '🪓'
+        },
+        
+        // ===== КАМЕНОЛОМНЯ =====
+        {
+            id: 'daily_quarry_5',
+            title: 'Каменотёс 1',
+            description: 'Добудьте ресурсы в каменоломне 5 раз',
+            requirement: 5,
+            current: Math.min(5, quarryWorkCount),
+            reward: 100,
+            type: 'cigarettes',
+            icon: '🪨'
+        },
+        {
+            id: 'daily_quarry_10',
+            title: 'Каменотёс 2',
+            description: 'Добудьте ресурсы в каменоломне 10 раз',
+            requirement: 10,
+            current: Math.min(10, quarryWorkCount),
+            reward: 250,
+            type: 'cigarettes',
+            icon: '🪨'
+        },
+        {
+            id: 'daily_quarry_15',
+            title: 'Каменотёс 3',
+            description: 'Добудьте ресурсы в каменоломне 15 раз',
+            requirement: 15,
+            current: Math.min(15, quarryWorkCount),
+            reward: 500,
+            type: 'cigarettes',
+            icon: '🪨'
+        },
+        
+        // ===== СИЗО (БАНДА) =====
+        {
+            id: 'daily_gang_blats_5',
+            title: 'Вербовщик блатных',
+            description: 'Завербуйте блатных из СИЗО 5 раз',
+            requirement: 5,
+            current: Math.min(5, gangBlatsCount),
+            reward: 150,
+            type: 'cigarettes',
+            icon: '👑'
+        },
+        {
+            id: 'daily_gang_muzhiks_5',
+            title: 'Вербовщик мужиков',
+            description: 'Завербуйте мужиков из СИЗО 5 раз',
+            requirement: 5,
+            current: Math.min(5, gangMuzhiksCount),
+            reward: 150,
+            type: 'cigarettes',
+            icon: '🔨'
+        },
+        {
+            id: 'daily_gang_fraers_5',
+            title: 'Вербовщик фраеров',
+            description: 'Завербуйте фраеров из СИЗО 5 раз',
+            requirement: 5,
+            current: Math.min(5, gangFraersCount),
+            reward: 150,
+            type: 'cigarettes',
+            icon: '🐑'
+        },
+        
+        // ===== КАРТЫ =====
+        {
+            id: 'daily_cards_1',
+            title: 'Картёжник',
+            description: 'Сыграйте в карты 1 раз',
+            requirement: 1,
+            current: Math.min(1, cardGameCount),
+            reward: 200,
+            type: 'cigarettes',
+            icon: '🎴'
+        }
     ];
 }
 
@@ -11605,12 +11933,210 @@ function getDailyQuests() {
 // 18.3. ПРЕМИУМ ЗАДАНИЯ
 // ============================================================
 function getPremiumQuests() {
+    var player = window.currentPlayer || {};
+    var level = player.level || 1;
+    var tattoos = player.tattoos || [];
+    var clanId = player.clanId || null;
+    var clanLeader = player.clanLeader || null;
+    var username = player.username || null;
+    
+    // Счетчики для премиум заданий
+    var progress = window.premiumQuestsProgress || {};
+    var robberyCount = progress.robberyCount || 0;
+    var pvpWinsCount = progress.pvpWinsCount || 0;
+    var healCount = progress.healCount || 0;
+    
+    // Проверка покупок в магазине
+    var purchasedItems = window.purchasedItemsCount || {};
+    var hasBodyArmor = purchasedItems['armor_3'] > 0 || purchasedItems['armor_4'] > 0 || purchasedItems['armor_5'] > 0 || purchasedItems['armor_6'] > 0 || purchasedItems['armor_7'] > 0;
+    var hasKnife = purchasedItems['weapon_2'] > 0 || purchasedItems['weapon_3'] > 0 || purchasedItems['weapon_4'] > 0;
+    var hasHat = purchasedItems['accessory_1'] > 0 || purchasedItems['accessory_2'] > 0;
+    var hasTea = purchasedItems['consumable_1'] > 0 || purchasedItems['consumable_2'] > 0;
+    var hasMilk = purchasedItems['consumable_3'] > 0 || purchasedItems['consumable_4'] > 0;
+    
+    // Войны кланов (из истории)
+    var warWins = 0;
+    if (window.warHistory && clanId) {
+        warWins = window.warHistory.filter(function(w) {
+            return (w.attackerClanId === clanId && w.attackerWon) || 
+                   (w.defenderClanId === clanId && !w.attackerWon);
+        }).length;
+    }
+    
     return [
-        { id: 'premium_1', title: 'Мастер шахты', description: 'Улучшите шахту до 5 уровня', requirement: 5, current: window.currentPlayer?.mine?.paperLevel || 1, reward: 500, type: 'rubles', icon: '⛏️' },
-        { id: 'premium_2', title: 'Легенда зоны', description: 'Достигните 10 уровня', requirement: 10, current: window.currentPlayer?.level || 1, reward: 1000, type: 'rubles', icon: '👑' },
-        { id: 'premium_3', title: 'Влиятельный', description: 'Вступите в клан и станьте главой', requirement: 1, current: (window.currentPlayer?.clanId && window.currentPlayer?.username === window.currentPlayer?.clanLeader) ? 1 : 0, reward: 750, type: 'rubles', icon: '🏰' },
-        { id: 'premium_4', title: 'Наколки', description: 'Соберите 3 наколки', requirement: 3, current: window.currentPlayer?.tattoos?.length || 0, reward: 800, type: 'rubles', icon: '💉' },
-        { id: 'premium_5', title: 'Победитель', description: 'Победите в войне кланов', requirement: 1, current: window.warHistory ? window.warHistory.filter(function(w) { return (w.attackerClanId === window.currentPlayer?.clanId && w.attackerWon) || (w.defenderClanId === window.currentPlayer?.clanId && !w.attackerWon); }).length : 0, reward: 2000, type: 'rubles', icon: '⚔️' }
+        // ===== ВОРОВСТВО =====
+        {
+            id: 'premium_robbery_5',
+            title: 'Вор 1',
+            description: 'Воровать 5 раз',
+            requirement: 5,
+            current: Math.min(5, robberyCount),
+            reward: 100,
+            type: 'rubles',
+            icon: '🦹'
+        },
+        {
+            id: 'premium_robbery_10',
+            title: 'Вор 2',
+            description: 'Воровать 10 раз',
+            requirement: 10,
+            current: Math.min(10, robberyCount),
+            reward: 250,
+            type: 'rubles',
+            icon: '🦹'
+        },
+        
+        // ===== ВОЙНЫ КЛАНОВ =====
+        {
+            id: 'premium_war_1',
+            title: 'Победитель войн',
+            description: 'Победите в войне кланов',
+            requirement: 1,
+            current: Math.min(1, warWins),
+            reward: 200,
+            type: 'rubles',
+            icon: '⚔️'
+        },
+        
+        // ===== КЛАН =====
+        {
+            id: 'premium_clan_leader',
+            title: 'Глава клана',
+            description: 'Создайте клан и станьте главой',
+            requirement: 1,
+            current: (clanId && clanLeader === username) ? 1 : 0,
+            reward: 300,
+            type: 'rubles',
+            icon: '🏰'
+        },
+        
+        // ===== PVP БИТВЫ =====
+        {
+            id: 'premium_pvp_5',
+            title: 'Боец 1',
+            description: 'Победите в PVP битве 5 раз',
+            requirement: 5,
+            current: Math.min(5, pvpWinsCount),
+            reward: 150,
+            type: 'rubles',
+            icon: '⚔️'
+        },
+        {
+            id: 'premium_pvp_10',
+            title: 'Боец 2',
+            description: 'Победите в PVP битве 10 раз',
+            requirement: 10,
+            current: Math.min(10, pvpWinsCount),
+            reward: 350,
+            type: 'rubles',
+            icon: '⚔️'
+        },
+        
+        // ===== ЛЕЧЕНИЕ ВОЙСК =====
+        {
+            id: 'premium_heal_5',
+            title: 'Доктор 1',
+            description: 'Лечить войска 5 раз',
+            requirement: 5,
+            current: Math.min(5, healCount),
+            reward: 100,
+            type: 'rubles',
+            icon: '🏥'
+        },
+        {
+            id: 'premium_heal_10',
+            title: 'Доктор 2',
+            description: 'Лечить войска 10 раз',
+            requirement: 10,
+            current: Math.min(10, healCount),
+            reward: 250,
+            type: 'rubles',
+            icon: '🏥'
+        },
+        
+        // ===== НАКОЛКИ =====
+        {
+            id: 'premium_tattoo_2',
+            title: 'Коллекционер 1',
+            description: 'Соберите 2 наколки',
+            requirement: 2,
+            current: Math.min(2, tattoos.length),
+            reward: 150,
+            type: 'rubles',
+            icon: '💉'
+        },
+        {
+            id: 'premium_tattoo_5',
+            title: 'Коллекционер 2',
+            description: 'Соберите 5 наколок',
+            requirement: 5,
+            current: Math.min(5, tattoos.length),
+            reward: 300,
+            type: 'rubles',
+            icon: '💉'
+        },
+        {
+            id: 'premium_tattoo_10',
+            title: 'Коллекционер 3',
+            description: 'Соберите 10 наколок',
+            requirement: 10,
+            current: Math.min(10, tattoos.length),
+            reward: 500,
+            type: 'rubles',
+            icon: '💉'
+        },
+        
+        // ===== ПОКУПКИ В МАГАЗИНЕ =====
+        {
+            id: 'premium_buy_armor',
+            title: 'Защитник',
+            description: 'Купите бронежилет',
+            requirement: 1,
+            current: hasBodyArmor ? 1 : 0,
+            reward: 100,
+            type: 'rubles',
+            icon: '🛡️'
+        },
+        {
+            id: 'premium_buy_knife',
+            title: 'Оружейник',
+            description: 'Купите заточку',
+            requirement: 1,
+            current: hasKnife ? 1 : 0,
+            reward: 100,
+            type: 'rubles',
+            icon: '🔪'
+        },
+        {
+            id: 'premium_buy_hat',
+            title: 'Модник',
+            description: 'Купите шапку',
+            requirement: 1,
+            current: hasHat ? 1 : 0,
+            reward: 100,
+            type: 'rubles',
+            icon: '🧢'
+        },
+        {
+            id: 'premium_buy_tea',
+            title: 'Чаепитие',
+            description: 'Купите чай',
+            requirement: 1,
+            current: hasTea ? 1 : 0,
+            reward: 100,
+            type: 'rubles',
+            icon: '🍵'
+        },
+        {
+            id: 'premium_buy_milk',
+            title: 'Молочник',
+            description: 'Купите молоко',
+            requirement: 1,
+            current: hasMilk ? 1 : 0,
+            reward: 100,
+            type: 'rubles',
+            icon: '🥛'
+        }
     ];
 }
 
@@ -12046,6 +12572,23 @@ function renderStoryPage() {
     if (!container) return;
 
     var storyQuests = getStoryQuests();
+    
+    // СОРТИРУЕМ ЗАДАНИЯ: сначала готовые к выдаче, потом остальные
+    storyQuests.sort(function(a, b) {
+        var aReady = (a.current >= a.requirement && !window.completedQuests.includes(a.id));
+        var bReady = (b.current >= b.requirement && !window.completedQuests.includes(b.id));
+        var aClaimed = window.completedQuests.includes(a.id);
+        var bClaimed = window.completedQuests.includes(b.id);
+        
+        // Сначала готовые к выдаче (не выполненные и не полученные)
+        if (aReady && !bReady) return -1;
+        if (!aReady && bReady) return 1;
+        // Потом уже полученные
+        if (aClaimed && !bClaimed) return 1;
+        if (!aClaimed && bClaimed) return -1;
+        // Остальные по порядку
+        return 0;
+    });
 
     var html = `
         <div style="
@@ -12098,6 +12641,10 @@ function renderStoryPage() {
         var rewardText = quest.type === 'cigarettes' ? quest.reward + ' 🚬' : quest.reward + ' 💰';
         var isClaimed = window.completedQuests.includes(quest.id);
         var canClaim = isCompleted && !isClaimed && window._questHasInternet;
+        
+        // Подсветка для готовых к выдаче
+        var isReady = isCompleted && !isClaimed;
+        var glowStyle = isReady ? 'box-shadow: 0 0 20px rgba(201,160,61,0.2); border: 1px solid #c9a03d;' : '';
 
         html += `
             <div style="
@@ -12106,11 +12653,14 @@ function renderStoryPage() {
                 padding: 12px;
                 margin-bottom: 10px;
                 border-left: 3px solid ${isClaimed ? '#4caf50' : (isCompleted ? '#ff9800' : '#8B4513')};
+                ${glowStyle}
+                transition: all 0.3s ease;
             ">
                 <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 6px;">
                     <div style="display: flex; align-items: center; gap: 8px;">
                         <span style="font-size: 20px;">${quest.icon}</span>
                         <span style="font-size: 14px; font-weight: 700; color: #ffd966;">${quest.title}</span>
+                        ${isReady ? '<span style="font-size: 10px; background: #ff9800; color: #000; padding: 1px 8px; border-radius: 10px; font-weight: 700;">ГОТОВО!</span>' : ''}
                     </div>
                     <div style="font-size: 13px; font-weight: 600; color: #ffd966;">🎁 ${rewardText}</div>
                 </div>
@@ -12126,7 +12676,7 @@ function renderStoryPage() {
                     <div style="
                         width: ${progressPercent}%;
                         height: 100%;
-                        background: linear-gradient(90deg, #8B4513, #c9a03d);
+                        background: ${isReady ? 'linear-gradient(90deg, #ff9800, #c9a03d)' : 'linear-gradient(90deg, #8B4513, #c9a03d)'};
                         border-radius: 10px;
                     "></div>
                 </div>
@@ -12136,16 +12686,17 @@ function renderStoryPage() {
                         '<span style="color: #4caf50; font-size: 12px; font-weight: 600;">✅ НАГРАДА ПОЛУЧЕНА</span>' : 
                         (isCompleted ? 
                             `<button class="quest-claim-btn" onclick="claimStoryQuest('${quest.id}', ${quest.reward}, '${quest.type}')" style="
-                                background: ${canClaim ? 'linear-gradient(135deg, #8B4513, #5a2d0a)' : '#444'};
+                                background: ${canClaim ? 'linear-gradient(135deg, #c9a03d, #8B6914)' : '#444'};
                                 border: 1px solid ${canClaim ? '#c9a03d' : '#666'};
                                 border-radius: 30px;
                                 padding: 6px 16px;
                                 font-size: 12px;
                                 font-weight: 700;
-                                color: ${canClaim ? '#ffd966' : '#888'};
+                                color: ${canClaim ? '#1a1a1a' : '#888'};
                                 cursor: ${canClaim ? 'pointer' : 'not-allowed'};
                                 transition: all 0.2s;
                                 ${!canClaim ? 'opacity: 0.6;' : ''}
+                                ${canClaim ? 'animation: pulse 1.5s infinite;' : ''}
                             " ${!canClaim ? 'disabled' : ''}>
                                 ${!window._questHasInternet ? '📡 ОЖИДАНИЕ ИНТЕРНЕТА' : '🎁 ЗАБРАТЬ'}
                             </button>` : 
@@ -12166,6 +12717,21 @@ function renderDailyPage() {
     if (!container) return;
 
     var dailyQuests = getDailyQuests();
+    
+    // СОРТИРУЕМ ЗАДАНИЯ: сначала готовые к выдаче, потом остальные
+    dailyQuests.sort(function(a, b) {
+        var aReady = (a.current >= a.requirement && !window.completedQuests.includes(a.id));
+        var bReady = (b.current >= b.requirement && !window.completedQuests.includes(b.id));
+        var aClaimed = window.completedQuests.includes(a.id);
+        var bClaimed = window.completedQuests.includes(b.id);
+        
+        if (aReady && !bReady) return -1;
+        if (!aReady && bReady) return 1;
+        if (aClaimed && !bClaimed) return 1;
+        if (!aClaimed && bClaimed) return -1;
+        return 0;
+    });
+    
     var nextBonusTime = getNextBonusTime();
     var canClaim = nextBonusTime <= 0 && (window.dailyBonus.lastClaimDay || 0) < 30 && window._questHasInternet;
     var currentDay = getNextBonusDay();
@@ -12211,14 +12777,15 @@ function renderDailyPage() {
                     width: 100%;
                     margin-top: 10px;
                     padding: 12px;
-                    background: linear-gradient(135deg, #8B4513, #5a2d0a);
+                    background: linear-gradient(135deg, #c9a03d, #8B6914);
                     border: 1px solid #c9a03d;
                     border-radius: 40px;
                     font-size: 14px;
                     font-weight: 700;
-                    color: #ffd966;
+                    color: #1a1a1a;
                     cursor: pointer;
                     transition: all 0.2s;
+                    animation: pulse 1.5s infinite;
                 ">🎁 ЗАБРАТЬ БОНУС</button>` : 
                 `<button disabled style="
                     display: block;
@@ -12287,6 +12854,9 @@ function renderDailyPage() {
         var rewardText = quest.type === 'cigarettes' ? quest.reward + ' 🚬' : quest.reward + ' 💰';
         var isClaimed = window.completedQuests.includes(quest.id);
         var canClaim = isCompleted && !isClaimed && window._questHasInternet;
+        
+        var isReady = isCompleted && !isClaimed;
+        var glowStyle = isReady ? 'box-shadow: 0 0 20px rgba(201,160,61,0.2); border: 1px solid #c9a03d;' : '';
 
         html += `
             <div style="
@@ -12295,11 +12865,14 @@ function renderDailyPage() {
                 padding: 12px;
                 margin-bottom: 10px;
                 border-left: 3px solid ${isClaimed ? '#4caf50' : (isCompleted ? '#ff9800' : '#8B4513')};
+                ${glowStyle}
+                transition: all 0.3s ease;
             ">
                 <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 6px;">
                     <div style="display: flex; align-items: center; gap: 8px;">
                         <span style="font-size: 20px;">${quest.icon}</span>
                         <span style="font-size: 14px; font-weight: 700; color: #ffd966;">${quest.title}</span>
+                        ${isReady ? '<span style="font-size: 10px; background: #ff9800; color: #000; padding: 1px 8px; border-radius: 10px; font-weight: 700;">ГОТОВО!</span>' : ''}
                     </div>
                     <div style="font-size: 13px; font-weight: 600; color: #ffd966;">🎁 ${rewardText}</div>
                 </div>
@@ -12315,7 +12888,7 @@ function renderDailyPage() {
                     <div style="
                         width: ${progressPercent}%;
                         height: 100%;
-                        background: linear-gradient(90deg, #8B4513, #c9a03d);
+                        background: ${isReady ? 'linear-gradient(90deg, #ff9800, #c9a03d)' : 'linear-gradient(90deg, #8B4513, #c9a03d)'};
                         border-radius: 10px;
                     "></div>
                 </div>
@@ -12325,16 +12898,17 @@ function renderDailyPage() {
                         '<span style="color: #4caf50; font-size: 12px; font-weight: 600;">✅ НАГРАДА ПОЛУЧЕНА</span>' : 
                         (isCompleted ? 
                             `<button class="quest-claim-btn" onclick="claimDailyQuest('${quest.id}', ${quest.reward}, '${quest.type}')" style="
-                                background: ${canClaim ? 'linear-gradient(135deg, #8B4513, #5a2d0a)' : '#444'};
+                                background: ${canClaim ? 'linear-gradient(135deg, #c9a03d, #8B6914)' : '#444'};
                                 border: 1px solid ${canClaim ? '#c9a03d' : '#666'};
                                 border-radius: 30px;
                                 padding: 6px 16px;
                                 font-size: 12px;
                                 font-weight: 700;
-                                color: ${canClaim ? '#ffd966' : '#888'};
+                                color: ${canClaim ? '#1a1a1a' : '#888'};
                                 cursor: ${canClaim ? 'pointer' : 'not-allowed'};
                                 transition: all 0.2s;
                                 ${!canClaim ? 'opacity: 0.6;' : ''}
+                                ${canClaim ? 'animation: pulse 1.5s infinite;' : ''}
                             " ${!canClaim ? 'disabled' : ''}>
                                 ${!window._questHasInternet ? '📡 ОЖИДАНИЕ ИНТЕРНЕТА' : '🎁 ЗАБРАТЬ'}
                             </button>` : 
@@ -12355,6 +12929,20 @@ function renderPremiumPage() {
     if (!container) return;
 
     var premiumQuests = getPremiumQuests();
+    
+    // СОРТИРУЕМ ЗАДАНИЯ: сначала готовые к выдаче, потом остальные
+    premiumQuests.sort(function(a, b) {
+        var aReady = (a.current >= a.requirement && !window.completedQuests.includes(a.id));
+        var bReady = (b.current >= b.requirement && !window.completedQuests.includes(b.id));
+        var aClaimed = window.completedQuests.includes(a.id);
+        var bClaimed = window.completedQuests.includes(b.id);
+        
+        if (aReady && !bReady) return -1;
+        if (!aReady && bReady) return 1;
+        if (aClaimed && !bClaimed) return 1;
+        if (!aClaimed && bClaimed) return -1;
+        return 0;
+    });
 
     var html = `
         <div style="
@@ -12407,6 +12995,9 @@ function renderPremiumPage() {
         var rewardText = quest.type === 'cigarettes' ? quest.reward + ' 🚬' : quest.reward + ' 💰';
         var isClaimed = window.completedQuests.includes(quest.id);
         var canClaim = isCompleted && !isClaimed && window._questHasInternet;
+        
+        var isReady = isCompleted && !isClaimed;
+        var glowStyle = isReady ? 'box-shadow: 0 0 20px rgba(201,160,61,0.2); border: 1px solid #c9a03d;' : '';
 
         html += `
             <div style="
@@ -12415,11 +13006,14 @@ function renderPremiumPage() {
                 padding: 12px;
                 margin-bottom: 10px;
                 border-left: 3px solid ${isClaimed ? '#4caf50' : (isCompleted ? '#ff9800' : '#8B4513')};
+                ${glowStyle}
+                transition: all 0.3s ease;
             ">
                 <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 6px;">
                     <div style="display: flex; align-items: center; gap: 8px;">
                         <span style="font-size: 20px;">${quest.icon}</span>
                         <span style="font-size: 14px; font-weight: 700; color: #ffd966;">${quest.title}</span>
+                        ${isReady ? '<span style="font-size: 10px; background: #ff9800; color: #000; padding: 1px 8px; border-radius: 10px; font-weight: 700;">ГОТОВО!</span>' : ''}
                     </div>
                     <div style="font-size: 13px; font-weight: 600; color: #ffd966;">🎁 ${rewardText}</div>
                 </div>
@@ -12435,7 +13029,7 @@ function renderPremiumPage() {
                     <div style="
                         width: ${progressPercent}%;
                         height: 100%;
-                        background: linear-gradient(90deg, #8B4513, #c9a03d);
+                        background: ${isReady ? 'linear-gradient(90deg, #ff9800, #c9a03d)' : 'linear-gradient(90deg, #8B4513, #c9a03d)'};
                         border-radius: 10px;
                     "></div>
                 </div>
@@ -12445,16 +13039,17 @@ function renderPremiumPage() {
                         '<span style="color: #4caf50; font-size: 12px; font-weight: 600;">✅ НАГРАДА ПОЛУЧЕНА</span>' : 
                         (isCompleted ? 
                             `<button class="quest-claim-btn" onclick="claimPremiumQuest('${quest.id}', ${quest.reward}, '${quest.type}')" style="
-                                background: ${canClaim ? 'linear-gradient(135deg, #8B4513, #5a2d0a)' : '#444'};
+                                background: ${canClaim ? 'linear-gradient(135deg, #c9a03d, #8B6914)' : '#444'};
                                 border: 1px solid ${canClaim ? '#c9a03d' : '#666'};
                                 border-radius: 30px;
                                 padding: 6px 16px;
                                 font-size: 12px;
                                 font-weight: 700;
-                                color: ${canClaim ? '#ffd966' : '#888'};
+                                color: ${canClaim ? '#1a1a1a' : '#888'};
                                 cursor: ${canClaim ? 'pointer' : 'not-allowed'};
                                 transition: all 0.2s;
                                 ${!canClaim ? 'opacity: 0.6;' : ''}
+                                ${canClaim ? 'animation: pulse 1.5s infinite;' : ''}
                             " ${!canClaim ? 'disabled' : ''}>
                                 ${!window._questHasInternet ? '📡 ОЖИДАНИЕ ИНТЕРНЕТА' : '🎁 ЗАБРАТЬ'}
                             </button>` : 
@@ -31423,7 +32018,7 @@ console.log('✅ Все функции войны кланов готовы к �
 console.log('✅ Счетчики ВОЙНЫ КЛАНОВ работают полностью автономно на building b6!');
 
 // ============================================================
-// 26. ИГРОВАЯ (КАРТЫ) - ИСПРАВЛЕННАЯ ВЕРСИЯ
+// 26. ИГРОВАЯ (КАРТЫ + КРЕСТИКИ-НОЛИКИ) - ИСПРАВЛЕННАЯ ВЕРСИЯ
 // ============================================================
 
 // ============================================================
@@ -31546,40 +32141,6 @@ function getCardStrength(card, trumpSuit) {
 // ============================================================
 // 26.2. РАБОТА С FIREBASE (ИГРОВАЯ)
 // ============================================================
-async function updateCardGameRoom(roomId, data) {
-    if (!getCardGameRef()) return false;
-    if (!roomId) return false;
-    if (!window._cardGameRoomExists) {
-        console.log('⚠️ Комната не существует, обновление отменено');
-        return false;
-    }
-    try {
-        const ref = getCardGameRef();
-        if (!ref) return false;
-        const cleanData = {};
-        for (const key in data) {
-            if (data[key] !== undefined && data[key] !== null) {
-                cleanData[key] = data[key];
-            }
-        }
-        if (Object.keys(cleanData).length === 0) {
-            return true;
-        }
-        
-        // ЛОГИРУЕМ ИЗМЕНЕНИЯ
-        if (cleanData.status) {
-            console.log('📝 updateCardGameRoom: статус меняется на', cleanData.status);
-            console.trace('  Кто меняет статус:');
-        }
-        
-        await ref.child(roomId).update(cleanData);
-        return true;
-    } catch (e) {
-        console.error('❌ Ошибка обновления комнаты:', e);
-        return false;
-    }
-}
-
 function getCardGameRef() {
     if (typeof db === 'undefined' || db === null) return null;
     try {
@@ -31612,7 +32173,9 @@ async function createCardGameRoom(roomData) {
                     score: 0,
                     isActive: true,
                     isDealer: false,
-                    betPaid: false
+                    betPaid: false,
+                    stand: false,
+                    bust: false
                 }
             ],
             currentTurn: currentPlayer.id,
@@ -31630,7 +32193,13 @@ async function createCardGameRoom(roomData) {
             isPlayerTurn: false,
             attackPhase: true,
             lastAttacker: null,
-            isFirstAttack: true
+            isFirstAttack: true,
+            // Параметры для Крестики-нолики
+            tttBoard: ['', '', '', '', '', '', '', '', ''],
+            tttCurrentPlayer: 'X',
+            tttMoveCount: 0,
+            tttGameOver: false,
+            tttWinner: null
         };
         const newRef = ref.push();
         await newRef.set(newRoom);
@@ -31734,6 +32303,13 @@ async function updateCardGameRoom(roomId, data) {
         if (Object.keys(cleanData).length === 0) {
             return true;
         }
+        
+        // ЛОГИРУЕМ ИЗМЕНЕНИЯ
+        if (cleanData.status) {
+            console.log('📝 updateCardGameRoom: статус меняется на', cleanData.status);
+            console.trace('  Кто меняет статус:');
+        }
+        
         await ref.child(roomId).update(cleanData);
         return true;
     } catch (e) {
@@ -31758,7 +32334,7 @@ async function deleteCardGameRoom(roomId) {
 }
 
 // ============================================================
-// 26.3. ЛОГИКА ИГРЫ ДУРАК (2 игрока, 36 карт) - ПОЛНОСТЬЮ ОБНОВЛЕНА
+// 26.3. ЛОГИКА ИГРЫ ДУРАК (2 игрока, 36 карт)
 // ============================================================
 
 function canBeatCardDurak(attackCard, defendCard, trumpSuit) {
@@ -31926,7 +32502,6 @@ async function makeDurakMoveFull(room, playerId, cardIndex, action) {
         const card = player.cards[cardIndex];
         if (!card) return null;
         
-        // Проверка: если не первая атака, можно атаковать только картами того же ранга
         if (!room.isFirstAttack && table.length > 0) {
             const attackRanks = getAttackRanksOnTableDurak(table);
             if (!attackRanks.includes(card.rank)) {
@@ -31935,19 +32510,16 @@ async function makeDurakMoveFull(room, playerId, cardIndex, action) {
             }
         }
         
-        // Проверка: если на столе есть незащищенные карты, нельзя атаковать
         if (hasUnprotectedDurak(table)) {
             showToast('Сначала защититесь или заберите карты!', 'warning');
             return null;
         }
         
-        // Проверка: не превышает ли количество карт на столе 6
         if (table.length >= 6) {
             showToast('Нельзя положить больше 6 карт!', 'warning');
             return null;
         }
         
-        // Убираем карту из руки
         player.cards.splice(cardIndex, 1);
         room.table.push({ attack: card, defend: null });
         room.lastAttacker = 'player';
@@ -31984,7 +32556,6 @@ async function makeDurakMoveFull(room, playerId, cardIndex, action) {
             return null;
         }
         
-        // Находим первую незащищенную карту
         let unprotectedIndex = -1;
         for (let i = 0; i < table.length; i++) {
             if (table[i] && table[i].defend === null) {
@@ -32007,7 +32578,6 @@ async function makeDurakMoveFull(room, playerId, cardIndex, action) {
             return null;
         }
         
-        // Убираем карту из руки
         player.cards.splice(cardIndex, 1);
         table[unprotectedIndex].defend = defendCard;
         
@@ -32015,7 +32585,6 @@ async function makeDurakMoveFull(room, playerId, cardIndex, action) {
             updateCardGameUI();
         }, 50);
         
-        // Проверяем, все ли карты защищены
         if (!hasUnprotectedDurak(table)) {
             room.attackPhase = true;
             room.isPlayerTurn = true;
@@ -32046,13 +32615,11 @@ async function makeDurakMoveFull(room, playerId, cardIndex, action) {
             return null;
         }
         
-        // Если есть незащищенные карты - забираем их
         if (hasUnprotectedDurak(table)) {
             const playerId2 = room.players.find(p => p && p.id !== playerId)?.id;
             if (playerId2) {
                 const isComp = room.players.find(p => p && p.id === playerId2)?.name === 'Компьютер';
                 if (isComp) {
-                    // Компьютер забирает - передаем ход игроку
                     takeCardsToComputerDurak(room, playerId2);
                     await updateCardGameRoom(room.id, {
                         players: room.players,
@@ -32065,7 +32632,6 @@ async function makeDurakMoveFull(room, playerId, cardIndex, action) {
                     });
                     return { success: true };
                 } else {
-                    // Игрок забирает
                     takeCardsToPlayerDurak(room, playerId);
                     await updateCardGameRoom(room.id, {
                         players: room.players,
@@ -32081,7 +32647,6 @@ async function makeDurakMoveFull(room, playerId, cardIndex, action) {
             }
         }
         
-        // Если все карты защищены - отбой
         if (!hasUnprotectedDurak(table)) {
             finishTurnDurak(room);
             await updateCardGameRoom(room.id, {
@@ -32146,7 +32711,6 @@ function getNextPlayerTwentyOne(room, currentPlayerId) {
     return players[nextIndex] ? players[nextIndex].id : currentPlayerId;
 }
 
-
 function checkTwentyOneWinnerFull(room) {
     console.log('🔍🔍🔍 checkTwentyOneWinnerFull ВЫЗВАНА! 🔍🔍🔍');
     if (!room || !room.players || !Array.isArray(room.players)) {
@@ -32154,7 +32718,6 @@ function checkTwentyOneWinnerFull(room) {
         return null;
     }
     
-    // Проверяем, все ли игроки сделали stand или bust
     const allFinished = room.players.every(p => p && (p.stand === true || p.bust === true));
     console.log('📊 Все игроки завершили ход (stand или bust)?', allFinished);
     console.log('  Статусы игроков:');
@@ -32197,13 +32760,11 @@ function checkTwentyOneWinnerFull(room) {
             console.log('  room.id:', room.id);
             console.log('  winner:', winner);
             
-            // ПРОВЕРЯЕМ НАЛИЧИЕ ФУНКЦИИ
             if (typeof window.finishCardGame === 'function') {
                 console.log('✅ window.finishCardGame найдена, вызываем...');
                 window.finishCardGame(room.id, winner);
             } else {
                 console.log('❌❌❌ window.finishCardGame НЕ НАЙДЕНА! ❌❌❌');
-                // ПРЯМОЙ ВЫЗОВ finishCardGame
                 if (typeof finishCardGame === 'function') {
                     console.log('✅ finishCardGame (локальная) найдена, вызываем...');
                     finishCardGame(room.id, winner);
@@ -32276,7 +32837,6 @@ async function makeTwentyOneMoveFull(room, playerId, action) {
             currentTurn: room.currentTurn
         });
         
-        // ПРОВЕРЯЕМ ПОБЕДИТЕЛЯ ПОСЛЕ ХОДА
         console.log('🔍 Проверяем победителя после hit...');
         const winner = checkTwentyOneWinnerFull(room);
         if (winner) {
@@ -32298,7 +32858,6 @@ async function makeTwentyOneMoveFull(room, playerId, action) {
             currentTurn: room.currentTurn
         });
         
-        // ПРОВЕРЯЕМ ПОБЕДИТЕЛЯ ПОСЛЕ ХОДА
         console.log('🔍 Проверяем победителя после stand...');
         const winner = checkTwentyOneWinnerFull(room);
         if (winner) {
@@ -32334,7 +32893,6 @@ window.finishCardGame = async function(roomId, winnerId) {
     }
     console.log('  Победитель найден:', winner.name);
 
-    // Запоминаем время начала игры (если не сохранено, ставим текущее)
     if (!room.gameStartTime) {
         room.gameStartTime = Date.now();
     }
@@ -32379,13 +32937,11 @@ window.finishCardGame = async function(roomId, winnerId) {
     console.log('  bet:', bet);
     console.log('  gameDuration:', gameDuration);
     
-    // ПОКАЗЫВАЕМ МОДАЛЬНОЕ ОКНО
     if (typeof window.showGameResultModal === 'function') {
         window.showGameResultModal(winner, room.players, bet, gameDuration);
         console.log('✅ showGameResultModal вызвана');
     } else {
         console.log('❌❌❌ Функция showGameResultModal НЕ НАЙДЕНА! ❌❌❌');
-        // Запасной вариант - показать toast
         showToast(`🏆 ${winner.name} победил! Выигрыш: ${totalCigarettes}🚬 ${totalRubles}💰`, 'success');
     }
     
@@ -32402,23 +32958,19 @@ window.showGameResultModal = function(winner, players, bet, duration) {
     console.log('  Ставка:', bet);
     console.log('  Длительность:', duration);
     
-    // Удаляем старое модальное окно если есть
     const existing = document.getElementById('gameResultModal');
     if (existing) {
         existing.remove();
         console.log('🗑️ Старое модальное окно удалено');
     }
 
-    // Определяем проигравших
     const loser = players ? players.find(p => p && p.id !== winner.id) : null;
     const winnerName = winner.name || 'Игрок';
     const loserName = loser ? loser.name : 'Неизвестно';
 
-    // Подсчет выигрыша
     const totalCigarettes = bet.cigarettes * (players ? players.length - 1 : 0);
     const totalRubles = bet.rubles * (players ? players.length - 1 : 0);
 
-    // Форматируем время
     const minutes = Math.floor(duration / 60);
     const seconds = duration % 60;
     const timeStr = minutes > 0 ? `${minutes} мин ${seconds} сек` : `${seconds} сек`;
@@ -32429,7 +32981,6 @@ window.showGameResultModal = function(winner, players, bet, duration) {
     console.log('  Время:', timeStr);
     console.log('  Выигрыш:', totalCigarettes, '🚬', totalRubles, '💰');
 
-    // Создаем модальное окно
     const modalHtml = `
         <div id="gameResultModal" style="
             position: fixed; top: 0; left: 0; right: 0; bottom: 0;
@@ -32480,16 +33031,16 @@ window.showGameResultModal = function(winner, players, bet, duration) {
                     <div style="font-size: 13px; color: #888; margin-top: 2px;">против ${loserName}</div>
                 </div>
 
-                <div style="grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; position: relative;">
-                     <!--<div style="
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; position: relative;">
+                    <div style="
                         background: rgba(255,255,255,0.04);
                         border-radius: 12px;
                         padding: 12px 8px;
                         text-align: center;
                     ">
-                       <div style="font-size: 11px; color: #888;">⏱ ВРЕМЯ</div>
+                        <div style="font-size: 11px; color: #888;">⏱ ВРЕМЯ</div>
                         <div style="font-size: 18px; font-weight: 700; color: #ddd;">${timeStr}</div>
-                    </div>--!>
+                    </div>
                     <div style="
                         background: rgba(255,255,255,0.04);
                         border-radius: 12px;
@@ -32617,25 +33168,6 @@ window.openCardGameModal = function() {
 };
 
 function renderCardGameModal() {
-    // Добавьте эти стили в глобальный CSS или в начало файла
-if (!document.getElementById('workCounterStyles')) {
-    var style = document.createElement('style');
-    style.id = 'workCounterStyles';
-    style.textContent = `
-        @keyframes counterSlideIn {
-            from { opacity: 0; transform: translateY(-10px) scale(0.9); }
-            to { opacity: 1; transform: translateY(0) scale(1); }
-        }
-        @keyframes counterPulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.7; }
-        }
-        .work-counter-item:hover {
-            background: rgba(255,255,255,0.15) !important;
-        }
-    `;
-    document.head.appendChild(style);
-}
     const existing = document.getElementById('cardGameFullscreen');
     if (existing) existing.remove();
 
@@ -32677,7 +33209,6 @@ if (!document.getElementById('workCounterStyles')) {
                         color: #8e8ea0; font-size: 11px; font-weight: 500; min-width: auto;
                     ">
                         <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_6.png" height="70px" width="55px" draggable="false">
-                      
                     </button>
                     <button onclick="showCardGameLobby()" style="
                         background: linear-gradient(135deg, #8B4513, #5a2d0a) !important;
@@ -32687,7 +33218,6 @@ if (!document.getElementById('workCounterStyles')) {
                         cursor: pointer; font-size: 11px; transition: all 0.2s; min-width: auto;
                     ">
                         <img src="https://sviter-pro.github.io/GameZone/src/test/Untitled_11.png" height="70px" width="55px" draggable="false">
-                       
                     </button>
                 </div>
             </div>
@@ -32698,8 +33228,6 @@ if (!document.getElementById('workCounterStyles')) {
     if (window.tg) window.tg.BackButton.show();
     
     startCardGameAutoUpdate();
-
-
 }
 
 // ============================================================
@@ -32827,6 +33355,18 @@ function updateCardGameUI() {
                 const playerName = room.players ? room.players.find(p => p && p.id === room.currentTurn)?.name || '...' : '...';
                 turnInfo.textContent = `⏳ ХОД: ${playerName}`;
             }
+        } else if (room.gameType === 'tictactoe') {
+            const isMyTurn = room.currentTurn === window.currentPlayer.id;
+            const currentSymbol = room.tttCurrentPlayer || 'X';
+            const playerSymbol = room.players ? (room.players.indexOf(room.players.find(p => p && p.id === window.currentPlayer.id)) === 0 ? 'X' : 'O') : '?';
+            if (room.gameOver) {
+                turnInfo.textContent = '🏁 ИГРА ЗАВЕРШЕНА';
+            } else if (isMyTurn) {
+                turnInfo.textContent = `🎯 ВАШ ХОД (${playerSymbol})`;
+            } else {
+                const playerName = room.players ? room.players.find(p => p && p.id === room.currentTurn)?.name || '...' : '...';
+                turnInfo.textContent = `⏳ ХОД: ${playerName} (${currentSymbol})`;
+            }
         }
     }
 }
@@ -32894,7 +33434,7 @@ function renderLobby(content) {
                     return `
                         <div class="game-lobby-item" style="border-left-color: #ff9800;">
                             <div>
-                                <div class="lobby-name">${room.gameType === 'durak' ? '🃏' : '🎯'} ${room.gameType === 'durak' ? 'Дурак' : '21'} ${room.status === 'playing' ? '🟡 ИДЕТ' : '🟢 ЛОББИ'}</div>
+                                <div class="lobby-name">${room.gameType === 'durak' ? '🃏' : room.gameType === 'twentyone' ? '🎯' : '❌⭕'} ${room.gameType === 'durak' ? 'Дурак' : room.gameType === 'twentyone' ? '21' : 'Крестики-нолики'} ${room.status === 'playing' ? '🟡 ИДЕТ' : '🟢 ЛОББИ'}</div>
                                 <div class="lobby-info">👤 ${room.players ? room.players.length : 0}/${room.maxPlayers || 2} | 🚬${room.bet?.cigarettes || 0} 💰${room.bet?.rubles || 0}</div>
                                 <div class="lobby-info">Создал: ${room.createdByName || 'Игрок'}</div>
                                 <div class="lobby-info">Колода: 36 карт</div>
@@ -32915,12 +33455,13 @@ function renderLobby(content) {
                 <div class="game-card-title">🆕 СОЗДАТЬ КОМНАТУ</div>
                 <div class="game-card-desc" style="margin: 6px 0;">
                     <select id="gameTypeSelect" style="background: rgba(0,0,0,0.5); border: 1px solid #8B4513; border-radius: 30px; padding: 6px 12px; color: white; width: 100%; margin-bottom: 6px;">
-                        <!--<option value="durak">ДУРАК</option>--!>
+                        <option value="durak">ДУРАК</option>
                         <option value="twentyone">ОЧКО</option>
+                        <option value="tictactoe">❌ КРЕСТИКИ-НОЛИКИ ⭕</option>
                     </select>
                     <div style="display: flex; gap: 8px;">
-                        <input type="number" id="betCigarettes" placeholder="🚬 ставка" style="flex:1; width: 100%; background: rgba(0,0,0,0.5); border: 1px solid #8B4513; border-radius: 30px; padding: 6px 12px; color: white;" min="0" value="🚬 10">
-                        <input type="number" id="betRubles" placeholder="💰 ставка" style="flex:1; width: 100%; background: rgba(0,0,0,0.5); border: 1px solid #8B4513; border-radius: 30px; padding: 6px 12px; color: white;" min="0" value="💰 5">
+                        <input type="number" id="betCigarettes" placeholder="🚬 ставка" style="flex:1; width: 100%; background: rgba(0,0,0,0.5); border: 1px solid #8B4513; border-radius: 30px; padding: 6px 12px; color: white;" min="0" value="10">
+                        <input type="number" id="betRubles" placeholder="💰 ставка" style="flex:1; width: 100%; background: rgba(0,0,0,0.5); border: 1px solid #8B4513; border-radius: 30px; padding: 6px 12px; color: white;" min="0" value="5">
                     </div>
                 </div>
                 <button onclick="createCardGameRoomFromUI()" class="btn-game-primary" style="width: 100%; padding: 10px;">🚀 СОЗДАТЬ КОМНАТУ</button>
@@ -32942,7 +33483,7 @@ function renderLobby(content) {
                     return `
                         <div class="game-lobby-item">
                             <div>
-                                <div class="lobby-name">${room.gameType === 'durak' ? '🃏' : '🎯'} ${room.gameType === 'durak' ? 'Дурак' : '21'}</div>
+                                <div class="lobby-name">${room.gameType === 'durak' ? '🃏' : room.gameType === 'twentyone' ? '🎯' : '❌⭕'} ${room.gameType === 'durak' ? 'Дурак' : room.gameType === 'twentyone' ? '21' : 'Крестики-нолики'}</div>
                                 <div class="lobby-info">👤 ${room.players ? room.players.length : 0}/${room.maxPlayers || 2} | 🚬${room.bet?.cigarettes || 0} 💰${room.bet?.rubles || 0}</div>
                                 <div class="lobby-info">Создал: ${room.createdByName || 'Игрок'}</div>
                                 <div class="lobby-info">Колода: 36 карт</div>
@@ -33112,7 +33653,7 @@ window.joinCardGameRoom = async function(roomId) {
 };
 
 // ============================================================
-// 26.10. ОТОБРАЖЕНИЕ КОМНАТЫ
+// 26.10. ОТОБРАЖЕНИЕ КОМНАТЫ (С КРЕСТИКИ-НОЛИКИ)
 // ============================================================
 function showCardGameRoom() {
     const content = document.getElementById('cardGameContent');
@@ -33142,9 +33683,25 @@ function showCardGameRoom() {
     const isMyTurn = room.currentTurn === window.currentPlayer.id;
     const isMyTurnDurak = room.isPlayerTurn && room.currentTurn === window.currentPlayer.id;
 
+    let gameTypeDisplay = '';
+    let gameTypeIcon = '';
+    if (room.gameType === 'durak') {
+        gameTypeDisplay = '🃏 ДУРАК';
+        gameTypeIcon = '🃏';
+    } else if (room.gameType === 'twentyone') {
+        gameTypeDisplay = '🎯 21';
+        gameTypeIcon = '🎯';
+    } else if (room.gameType === 'tictactoe') {
+        gameTypeDisplay = '❌ КРЕСТИКИ-НОЛИКИ ⭕';
+        gameTypeIcon = '❌⭕';
+    } else {
+        gameTypeDisplay = '🎴 ИГРА';
+        gameTypeIcon = '🎴';
+    }
+
     let html = `
         <div style="text-align: center; margin-bottom: 12px;">
-            <div style="font-size: 18px; font-weight: 700; color: #ffd966;">${room.gameType === 'durak' ? '🃏 ДУРАК' : '🎯 21'}</div>
+            <div style="font-size: 18px; font-weight: 700; color: #ffd966;">${gameTypeDisplay}</div>
             <div style="font-size: 12px; color: #888;">👥 ${room.players ? room.players.length : 0}/${room.maxPlayers || 2} | 🚬${room.bet?.cigarettes || 0} 💰${room.bet?.rubles || 0}</div>
             <div style="font-size: 11px; color: #aaa;">Статус: ${room.status === 'lobby' ? '🟢 Лобби' : room.status === 'playing' ? '🟡 Игра идет' : '🔴 Завершена'}</div>
             ${room.trumpSuit ? `<div style="font-size: 12px; color: #c9a03d;">Козырь: ${room.trumpSuit}</div>` : ''}
@@ -33152,7 +33709,10 @@ function showCardGameRoom() {
                 ${room.status === 'playing' ? 
                     (room.gameType === 'durak' ? 
                         (isMyTurnDurak ? `🎯 ВАШ ХОД (${room.attackPhase ? 'АТАКА' : 'ЗАЩИТА'})` : `⏳ ХОД: ${currentTurnPlayer ? currentTurnPlayer.name : '...'} (${room.attackPhase ? 'АТАКА' : 'ЗАЩИТА'})`) :
-                        (isMyTurn ? '🎯 ВАШ ХОД' : `⏳ ХОД: ${currentTurnPlayer ? currentTurnPlayer.name : '...'}`)
+                        (room.gameType === 'tictactoe' ?
+                            (isMyTurn ? `🎯 ВАШ ХОД (${room.tttCurrentPlayer || 'X'})` : `⏳ ХОД: ${currentTurnPlayer ? currentTurnPlayer.name : '...'} (${room.tttCurrentPlayer || 'X'})`) :
+                            (isMyTurn ? '🎯 ВАШ ХОД' : `⏳ ХОД: ${currentTurnPlayer ? currentTurnPlayer.name : '...'}`)
+                        )
                     ) : 
                     room.status === 'lobby' ? '🟢 Ожидание начала' : '🔴 Игра завершена'
                 }
@@ -33165,9 +33725,10 @@ function showCardGameRoom() {
                 const isCurrentTurn = p.id === room.currentTurn;
                 const isCurrentTurnDurak = room.isPlayerTurn && p.id === room.currentTurn;
                 const highlight = room.gameType === 'durak' ? isCurrentTurnDurak : isCurrentTurn;
+                const tttSymbol = room.gameType === 'tictactoe' ? (room.players.indexOf(p) === 0 ? ' ❌' : ' ⭕') : '';
                 return `
                     <div class="game-player-slot ${p.ready ? 'ready' : 'not-ready'}" style="${highlight && room.status === 'playing' ? 'border: 2px solid #c9a03d; background: rgba(201,160,61,0.15);' : ''}">
-                        <span class="player-name">${p.id === currentPlayer.id ? '👉 ' : ''} ${escapeHtml(p.name)} ${p.isDealer ? '👑' : ''} ${!p.isActive ? ' (вышел)' : ''} ${highlight && room.status === 'playing' ? ' 🎯' : ''}</span>
+                        <span class="player-name">${p.id === currentPlayer.id ? '👉 ' : ''} ${escapeHtml(p.name)} ${p.isDealer ? '👑' : ''} ${!p.isActive ? ' (вышел)' : ''} ${highlight && room.status === 'playing' ? ' 🎯' : ''}${tttSymbol}</span>
                         <span class="player-status">${p.ready ? '✅ Готов' : '⏳ Ожидает'}</span>
                         ${p.cards ? `<span style="font-size: 10px; color: #888;">${p.cards.length} карт</span>` : ''}
                     </div>
@@ -33204,13 +33765,17 @@ function showCardGameRoom() {
             html += renderDurakGameFull(room, currentPlayerObj, isMyTurnDurak, isBeatMode);
         } else if (room.gameType === 'twentyone') {
             html += renderTwentyOneGameFull(room, currentPlayerObj, isMyTurn);
+        } else if (room.gameType === 'tictactoe') {
+            // ВСТАВЛЯЕМ РЕНДЕР КРЕСТИКИ-НОЛИКИ
+            html += renderTicTacToeGame(room, currentPlayerObj, isMyTurn);
         }
 
         if (room.gameOver) {
             const winner = room.players ? room.players.find(p => p && p.id === room.winner) : null;
+            const isDraw = room.gameType === 'tictactoe' && room.tttWinner === 'draw';
             html += `
                 <div style="text-align: center; margin-top: 12px; padding: 12px; background: rgba(201,160,61,0.2); border-radius: 12px; border: 1px solid #c9a03d;">
-                    <div style="font-size: 18px; font-weight: 700; color: #ffd966;">🏆 ПОБЕДИЛ: ${winner ? winner.name : 'Неизвестный'}</div>
+                    <div style="font-size: 18px; font-weight: 700; color: #ffd966;">${isDraw ? '🤝 НИЧЬЯ!' : `🏆 ПОБЕДИЛ: ${winner ? winner.name : 'Неизвестный'}`}</div>
                     <button onclick="closeCardGameModal(); setTimeout(() => openCardGameModal(), 300);" class="btn-game-primary" style="margin-top: 8px;">🔄 ВЕРНУТЬСЯ В ЛОББИ</button>
                 </div>
             `;
@@ -33277,7 +33842,7 @@ function showCardGameRoom() {
 }
 
 // ============================================================
-// 26.11. РЕНДЕР ИГРЫ ДУРАК (ОБНОВЛЕН)
+// 26.11. РЕНДЕР ИГРЫ ДУРАК
 // ============================================================
 function renderDurakGameFull(room, currentPlayerObj, isMyTurn, isBeatMode) {
     let html = `
@@ -33356,11 +33921,9 @@ function renderDurakGameFull(room, currentPlayerObj, isMyTurn, isBeatMode) {
 }
 
 // ============================================================
-// 26.12. РЕНДЕР ИГРЫ 21 (ОБНОВЛЕН)
+// 26.12. РЕНДЕР ИГРЫ 21
 // ============================================================
 function renderTwentyOneGameFull(room, currentPlayerObj, isMyTurn) {
-    // isMyTurn должно быть true только для того игрока, чей сейчас ход
-    // и только если этот игрок - текущий пользователь
     let html = `
         <div style="background: rgba(0,0,0,0.3); border-radius: 16px; padding: 12px; border: 1px solid #8B4513; margin-top: 8px;">
             <div style="font-size: 12px; color: #c9a03d; text-align: center; margin-bottom: 8px;">
@@ -33397,9 +33960,324 @@ function renderTwentyOneGameFull(room, currentPlayerObj, isMyTurn) {
 }
 
 // ============================================================
+// 26.12.1. ЛОГИКА ИГРЫ КРЕСТИКИ-НОЛИКИ
+// ============================================================
+function initTicTacToeBoard() {
+    return ['', '', '', '', '', '', '', '', ''];
+}
+
+function checkTicTacToeWinner(board) {
+    const winPatterns = [
+        [0, 1, 2], [3, 4, 5], [6, 7, 8],
+        [0, 3, 6], [1, 4, 7], [2, 5, 8],
+        [0, 4, 8], [2, 4, 6]
+    ];
+    
+    for (let pattern of winPatterns) {
+        const [a, b, c] = pattern;
+        if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+            return board[a];
+        }
+    }
+    
+    if (board.every(cell => cell !== '')) {
+        return 'draw';
+    }
+    
+    return null;
+}
+
+async function makeTicTacToeMove(room, playerId, cellIndex) {
+    console.log('🎯 makeTicTacToeMove вызвана, cellIndex:', cellIndex);
+    
+    if (!room || !room.players || !Array.isArray(room.players)) {
+        console.log('❌ Некорректные данные комнаты');
+        return null;
+    }
+    if (!window._cardGameRoomExists) {
+        showToast('❌ Комната была удалена', 'error');
+        return null;
+    }
+    
+    const player = room.players.find(p => p && p.id === playerId);
+    if (!player) {
+        console.log('❌ Игрок не найден');
+        return null;
+    }
+    
+    if (room.gameOver) {
+        showToast('❌ Игра уже завершена!', 'warning');
+        return null;
+    }
+    
+    if (room.currentTurn !== playerId) {
+        showToast('⏳ Сейчас не ваш ход!', 'warning');
+        return null;
+    }
+    
+    if (!room.tttBoard) {
+        room.tttBoard = initTicTacToeBoard();
+        room.tttCurrentPlayer = 'X';
+        room.tttMoveCount = 0;
+        room.tttGameOver = false;
+        room.tttWinner = null;
+    }
+    
+    if (room.tttBoard[cellIndex] !== '') {
+        showToast('❌ Эта клетка уже занята!', 'warning');
+        return null;
+    }
+    
+    const playerSymbol = room.players.indexOf(player) === 0 ? 'X' : 'O';
+    
+    if (room.tttCurrentPlayer !== playerSymbol) {
+        showToast('⏳ Сейчас ход другого игрока!', 'warning');
+        return null;
+    }
+    
+    room.tttBoard[cellIndex] = playerSymbol;
+    room.tttMoveCount++;
+    
+    const winner = checkTicTacToeWinner(room.tttBoard);
+    
+    if (winner) {
+        room.tttGameOver = true;
+        room.gameOver = true;
+        
+        if (winner === 'draw') {
+            room.winner = null;
+            showToast('🤝 Ничья!', 'info');
+        } else {
+            const winnerPlayer = room.players.find(p => {
+                const symbol = room.players.indexOf(p) === 0 ? 'X' : 'O';
+                return symbol === winner;
+            });
+            room.winner = winnerPlayer ? winnerPlayer.id : null;
+            showToast(`🏆 ${winnerPlayer ? winnerPlayer.name : 'Игрок'} победил!`, 'success');
+        }
+        
+        room.status = 'finished';
+        
+        await updateCardGameRoom(room.id, {
+            players: room.players,
+            tttBoard: room.tttBoard,
+            tttCurrentPlayer: room.tttCurrentPlayer,
+            tttMoveCount: room.tttMoveCount,
+            tttGameOver: room.tttGameOver,
+            tttWinner: room.tttWinner,
+            gameOver: room.gameOver,
+            winner: room.winner,
+            status: room.status
+        });
+        
+        if (winner !== 'draw') {
+            const bet = room.bet || { cigarettes: 0, rubles: 0 };
+            const duration = Math.floor((Date.now() - (room.gameStartTime || Date.now())) / 1000);
+            const winnerPlayer = room.players.find(p => p && p.id === room.winner);
+            if (winnerPlayer && typeof window.showGameResultModal === 'function') {
+                window.showGameResultModal(winnerPlayer, room.players, bet, duration);
+            }
+        } else {
+            const bet = room.bet || { cigarettes: 0, rubles: 0 };
+            for (let p of room.players) {
+                if (p && p.id !== currentPlayer.id) {
+                    try {
+                        const playerRef = db.ref('players/' + p.id);
+                        const snapshot = await playerRef.once('value');
+                        if (snapshot.exists()) {
+                            const data = snapshot.val();
+                            const newCigarettes = (data.cigarettes || 0) + bet.cigarettes;
+                            const newRubles = (data.rubles || 0) + bet.rubles;
+                            await playerRef.update({ cigarettes: newCigarettes, rubles: newRubles });
+                        }
+                    } catch(e) {
+                        console.error('Ошибка возврата ставки:', e);
+                    }
+                }
+            }
+            showToast('🔄 Ничья! Ставки возвращены.', 'info');
+            setTimeout(() => {
+                closeCardGameModal();
+                setTimeout(() => openCardGameModal(), 300);
+            }, 2000);
+        }
+        
+        return { success: true, gameOver: true, winner: winner };
+    }
+    
+    room.tttCurrentPlayer = room.tttCurrentPlayer === 'X' ? 'O' : 'X';
+    room.currentTurn = room.players.find(p => {
+        const symbol = room.players.indexOf(p) === 0 ? 'X' : 'O';
+        return symbol === room.tttCurrentPlayer;
+    })?.id || room.players[0]?.id;
+    
+    await updateCardGameRoom(room.id, {
+        players: room.players,
+        tttBoard: room.tttBoard,
+        tttCurrentPlayer: room.tttCurrentPlayer,
+        tttMoveCount: room.tttMoveCount,
+        tttGameOver: room.tttGameOver,
+        tttWinner: room.tttWinner,
+        currentTurn: room.currentTurn
+    });
+    
+    return { success: true };
+}
+
+// ============================================================
+// 26.12.2. РЕНДЕР ИГРЫ КРЕСТИКИ-НОЛИКИ
+// ============================================================
+function renderTicTacToeGame(room, currentPlayerObj, isMyTurn) {
+    if (!room.tttBoard) {
+        room.tttBoard = initTicTacToeBoard();
+        room.tttCurrentPlayer = 'X';
+        room.tttMoveCount = 0;
+        room.tttGameOver = false;
+        room.tttWinner = null;
+    }
+    
+    const board = room.tttBoard;
+    const currentSymbol = room.tttCurrentPlayer || 'X';
+    const playerSymbol = currentPlayerObj ? (room.players.indexOf(currentPlayerObj) === 0 ? 'X' : 'O') : null;
+    const isGameOver = room.tttGameOver || room.gameOver;
+    const isDraw = isGameOver && room.tttWinner === 'draw';
+    
+    let html = `
+        <div style="background: rgba(0,0,0,0.3); border-radius: 16px; padding: 12px; border: 1px solid #8B4513; margin-top: 8px;">
+            <div style="font-size: 12px; color: #c9a03d; text-align: center; margin-bottom: 8px;">
+                ${isGameOver ? 
+                    (isDraw ? '🤝 НИЧЬЯ!' : `🏆 ПОБЕДИЛ: ${room.tttWinner === 'X' ? (room.players[0]?.name || 'Игрок 1') : (room.players[1]?.name || 'Игрок 2')}`) :
+                    `🎯 ХОД: ${currentSymbol === 'X' ? (room.players[0]?.name || 'Игрок 1') : (room.players[1]?.name || 'Игрок 2')} (${currentSymbol})`
+                }
+                ${!isGameOver && isMyTurn ? `<br><span style="font-size: 10px; color: #888;">👆 Нажмите на клетку для хода</span>` : ''}
+                ${!isGameOver && !isMyTurn ? `<br><span style="font-size: 10px; color: #888;">⏳ Ожидание хода соперника...</span>` : ''}
+                <div style="font-size: 10px; color: #666; margin-top: 4px;">
+                    Ходов: ${room.tttMoveCount || 0}/9
+                    ${currentPlayerObj ? ` | Вы: ${playerSymbol}` : ''}
+                </div>
+            </div>
+            
+            <div style="
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 6px;
+                max-width: 300px;
+                margin: 0 auto;
+                background: rgba(0,0,0,0.2);
+                padding: 10px;
+                border-radius: 12px;
+            ">
+    `;
+    
+    for (let i = 0; i < 9; i++) {
+        const cellValue = board[i] || '';
+        const isCellEmpty = cellValue === '';
+        const canClick = isMyTurn && isCellEmpty && !isGameOver && !room.tttGameOver;
+        const cellColor = cellValue === 'X' ? '#4caf50' : (cellValue === 'O' ? '#ff9800' : '');
+        const isWinCell = isGameOver && room.tttWinner && room.tttWinner !== 'draw';
+        
+        let isWinningCell = false;
+        if (isWinCell && room.tttBoard) {
+            const winPatterns = [
+                [0, 1, 2], [3, 4, 5], [6, 7, 8],
+                [0, 3, 6], [1, 4, 7], [2, 5, 8],
+                [0, 4, 8], [2, 4, 6]
+            ];
+            for (let pattern of winPatterns) {
+                if (board[pattern[0]] === room.tttWinner && 
+                    board[pattern[1]] === room.tttWinner && 
+                    board[pattern[2]] === room.tttWinner) {
+                    if (pattern.includes(i)) {
+                        isWinningCell = true;
+                        break;
+                    }
+                }
+            }
+        }
+        
+        html += `
+            <div id="ttt_cell_${i}" 
+                 onclick="${canClick ? `window.makeTicTacToeMoveHandler(${i})` : ''}"
+                 style="
+                    aspect-ratio: 1;
+                    background: ${isWinningCell ? 'rgba(76,175,80,0.3)' : 'rgba(0,0,0,0.4)'};
+                    border: 2px solid ${isWinningCell ? '#4caf50' : '#8B4513'};
+                    border-radius: 8px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 48px;
+                    font-weight: 700;
+                    color: ${cellColor};
+                    cursor: ${canClick ? 'pointer' : 'default'};
+                    transition: all 0.2s;
+                    user-select: none;
+                    min-height: 60px;
+                "
+                ${canClick ? `onmouseover="this.style.background='rgba(255,255,255,0.15)'; this.style.transform='scale(1.02)'"` : ''}
+                ${canClick ? `onmouseout="this.style.background='rgba(0,0,0,0.4)'; this.style.transform='scale(1)'"` : ''}
+            >
+                ${cellValue}
+            </div>
+        `;
+    }
+    
+    html += `
+            </div>
+            
+            ${isGameOver ? `
+                <div style="text-align: center; margin-top: 12px;">
+                    <button onclick="closeCardGameModal(); setTimeout(() => openCardGameModal(), 300);" class="btn-game-primary" style="padding: 8px 20px;">🔄 ВЕРНУТЬСЯ В ЛОББИ</button>
+                </div>
+            ` : ''}
+            
+            ${isDraw ? `
+                <div style="text-align: center; margin-top: 8px; padding: 8px; background: rgba(255,152,0,0.15); border-radius: 8px; border: 1px solid #ff9800;">
+                    <span style="color: #ffd966;">🤝 Ничья! Ставки возвращены.</span>
+                </div>
+            ` : ''}
+        </div>
+    `;
+    
+    return html;
+}
+
+window.makeTicTacToeMoveHandler = function(cellIndex) {
+    console.log('🖱️ Клик по клетке:', cellIndex);
+    const room = window.cardGameCurrentRoom;
+    if (!room) {
+        showToast('❌ Нет активной игры', 'error');
+        return;
+    }
+    if (room.gameType !== 'tictactoe') {
+        console.log('❌ Не та игра');
+        return;
+    }
+    if (room.currentTurn !== currentPlayer.id) {
+        showToast('⏳ Сейчас не ваш ход', 'warning');
+        return;
+    }
+    if (window._isProcessingMove) {
+        showToast('⏳ Уже выполняется ход', 'warning');
+        return;
+    }
+    if (!window._cardGameRoomExists) {
+        showToast('❌ Комната была удалена', 'error');
+        return;
+    }
+    
+    window._isProcessingMove = true;
+    makeTicTacToeMove(room, currentPlayer.id, cellIndex).then(() => {
+        window._isProcessingMove = false;
+        updateCardGameUI();
+    }).catch(() => {
+        window._isProcessingMove = false;
+    });
+};
+
+// ============================================================
 // 26.13. ОБРАБОТЧИКИ ДОЛГОГО ТАПА
 // ============================================================
-
 window.onCardClick = function(cardIndex) {
     console.log('🃏 Одиночный клик по карте:', cardIndex);
     const room = window.cardGameCurrentRoom;
@@ -33433,7 +34311,6 @@ window.startLongPress = function(cardIndex) {
         return;
     }
     
-    // Проверка хода для дурака
     if (room.gameType === 'durak') {
         if (!room.isPlayerTurn || room.currentTurn !== currentPlayer.id) {
             console.log('⏳ Не ваш ход');
@@ -33571,7 +34448,6 @@ function executeCardAction(cardIndex) {
         return;
     }
     
-    // Проверка хода для дурака
     if (room.gameType === 'durak') {
         if (!room.isPlayerTurn || room.currentTurn !== currentPlayer.id) {
             showToast('⏳ Сейчас не ваш ход', 'warning');
@@ -33602,11 +34478,9 @@ function executeCardAction(cardIndex) {
         const isBeatMode = hasTableCards && hasUnprotectedDurak(room.table);
         
         if (isBeatMode && !room.attackPhase) {
-            // Режим защиты - бьем карту
             console.log('⚔️ Бить карту через долгий тап');
             makeDurakMoveFull(room, currentPlayer.id, cardIndex, 'beat');
         } else if (room.attackPhase && room.isPlayerTurn) {
-            // Режим атаки - кладем карту
             console.log('🎯 Положить карту через долгий тап');
             makeDurakMoveFull(room, currentPlayer.id, cardIndex, 'move');
         } else {
@@ -33616,6 +34490,11 @@ function executeCardAction(cardIndex) {
         }
     } else if (room.gameType === 'twentyone') {
         makeTwentyOneMoveFull(room, currentPlayer.id, 'hit');
+    } else if (room.gameType === 'tictactoe') {
+        // Для крестиков-ноликов долгий тап не используется
+        showToast('⏳ Используйте клик по клетке для хода', 'info');
+        window._isProcessingMove = false;
+        return;
     }
     
     document.querySelectorAll('#playerCards .game-card').forEach(el => {
@@ -33713,7 +34592,6 @@ window.cardGameTwentyOneHit = async function() {
         return;
     }
     
-    // ПРОВЕРКА: если игрок уже сделал stand - нельзя брать карту
     const player = room.players.find(p => p && p.id === currentPlayer.id);
     if (player && player.stand) {
         showToast('⏳ Вы уже остановились!', 'warning');
@@ -33749,7 +34627,6 @@ window.cardGameTwentyOneStand = async function() {
         return;
     }
     
-    // ПРОВЕРКА: если игрок уже сделал stand - нельзя повторно нажать СТОП
     const player = room.players.find(p => p && p.id === currentPlayer.id);
     if (player && player.stand) {
         showToast('⏳ Вы уже остановились!', 'warning');
@@ -33815,21 +34692,24 @@ window.startCardGame = async function() {
     let trumpSuit = null;
     let trumpCard = null;
 
-    const cardsPerPlayer = room.gameType === 'durak' ? 6 : 2;
+    const cardsPerPlayer = room.gameType === 'durak' ? 6 : (room.gameType === 'twentyone' ? 2 : 0);
+    
     for (let player of room.players) {
-    if (!player) continue;
-    player.cards = [];
-    player.stand = false;
-    player.bust = false;
-    player.isActive = true;
-    for (let i = 0; i < cardsPerPlayer; i++) {
-        if (deck.length > 0) {
-            player.cards.push(deck.pop());
+        if (!player) continue;
+        player.cards = [];
+        player.stand = false;
+        player.bust = false;
+        player.isActive = true;
+        for (let i = 0; i < cardsPerPlayer; i++) {
+            if (deck.length > 0) {
+                player.cards.push(deck.pop());
+            }
+        }
+        player.ready = false;
+        if (room.gameType === 'durak' || room.gameType === 'twentyone') {
+            sortHandDurak(player.cards);
         }
     }
-    player.ready = false;
-    sortHandDurak(player.cards);
-}
 
     if (room.gameType === 'durak') {
         if (deck.length > 0) {
@@ -33838,7 +34718,6 @@ window.startCardGame = async function() {
             deck.unshift(trumpCard);
         }
         
-        // Определяем первого ходящего по младшему козырю
         let playerTrump = null;
         let compTrump = null;
         
@@ -33878,6 +34757,16 @@ window.startCardGame = async function() {
         room.attackPhase = true;
         room.isFirstAttack = true;
         room.currentTurn = room.isPlayerTurn ? currentPlayer.id : room.players.find(p => p && p.id !== currentPlayer.id)?.id || currentPlayer.id;
+    } else if (room.gameType === 'tictactoe') {
+        room.tttBoard = ['', '', '', '', '', '', '', '', ''];
+        room.tttCurrentPlayer = 'X';
+        room.tttMoveCount = 0;
+        room.tttGameOver = false;
+        room.tttWinner = null;
+        room.currentTurn = room.players[0]?.id || currentPlayer.id;
+        room.isPlayerTurn = true;
+        room.attackPhase = true;
+        room.isFirstAttack = true;
     } else {
         let firstPlayerId = room.players[0] ? room.players[0].id : currentPlayer.id;
         room.currentTurn = firstPlayerId;
@@ -33894,8 +34783,9 @@ window.startCardGame = async function() {
     room.status = 'playing';
     room.gameOver = false;
     room.winner = null;
+    room.gameStartTime = Date.now();
 
-    await updateCardGameRoom(room.id, {
+    const updateData = {
         deck: room.deck,
         trumpSuit: room.trumpSuit,
         trumpCard: room.trumpCard,
@@ -33909,8 +34799,19 @@ window.startCardGame = async function() {
         isPlayerTurn: room.isPlayerTurn,
         attackPhase: room.attackPhase,
         lastAttacker: room.lastAttacker,
-        isFirstAttack: room.isFirstAttack
-    });
+        isFirstAttack: room.isFirstAttack,
+        gameStartTime: room.gameStartTime
+    };
+
+    if (room.gameType === 'tictactoe') {
+        updateData.tttBoard = room.tttBoard;
+        updateData.tttCurrentPlayer = room.tttCurrentPlayer;
+        updateData.tttMoveCount = room.tttMoveCount;
+        updateData.tttGameOver = room.tttGameOver;
+        updateData.tttWinner = room.tttWinner;
+    }
+
+    await updateCardGameRoom(room.id, updateData);
 
     showLoading(false);
     showToast('🎴 Игра началась!', 'success');
@@ -33960,7 +34861,6 @@ document.addEventListener('DOMContentLoaded', function() {
 // ============================================================
 // 26.18. ФУНКЦИИ СБРОСА ИГРЫ
 // ============================================================
-
 window.resetCurrentCardGame = async function() {
     console.log('🔄 === СБРОС ТЕКУЩЕЙ КОМНАТЫ ===');
     
@@ -34194,15 +35094,16 @@ window.cardGameDurakPass = cardGameDurakPass;
 window.cardGameDurakFinishTurn = cardGameDurakFinishTurn;
 window.cardGameTwentyOneHit = cardGameTwentyOneHit;
 window.cardGameTwentyOneStand = cardGameTwentyOneStand;
+window.makeTicTacToeMoveHandler = window.makeTicTacToeMoveHandler;
 window.initCardGameSystem = initCardGameSystem;
 window.resetCardGame = resetCardGame;
 window.resetCurrentCardGame = resetCurrentCardGame;
 window.leaveCardGame = leaveCardGame;
 
-console.log('✅ Блок ИГРОВАЯ (КАРТЫ) полностью загружен!');
+console.log('✅ Блок ИГРОВАЯ (КАРТЫ + КРЕСТИКИ-НОЛИКИ) полностью загружен!');
 console.log('🃏 Игра ведется колодой 36 карт');
 console.log('👥 Игроки: 2 человека');
-console.log('🎯 Доступны игры: Дурак и 21 (Блэкджек)');
+console.log('🎯 Доступны игры: Дурак, 21 (Блэкджек) и Крестики-нолики');
 console.log('👆 Долгий тап для хода, одиночный клик для выделения');
 console.log('🎯 Показывается кто ходит и фаза (атака/защита)');
 console.log('🔄 Карта переносится из playerCards в tableDropZone');
@@ -34219,7 +35120,7 @@ if (typeof currentPlayer !== 'undefined' && currentPlayer) {
 }
 
         // ============================================================
-        // 24. ЗАКРЫТИЕ МОДАЛЬНЫХ ОКОН
+        // 27. ЗАКРЫТИЕ МОДАЛЬНЫХ ОКОН
         // ============================================================
         window.closeModal = function(id) {
             const modal = document.getElementById(id);
@@ -34234,7 +35135,7 @@ if (typeof currentPlayer !== 'undefined' && currentPlayer) {
         };
 
         // ============================================================
-        // 25. ВЫХОД ИЗ АККАУНТА
+        // 28. ВЫХОД ИЗ АККАУНТА
         // ============================================================
         window.logoutAccount = function() {
             if (confirm('Вы уверены, что хотите выйти?')) {
@@ -34283,7 +35184,7 @@ if (typeof currentPlayer !== 'undefined' && currentPlayer) {
         };
 
         // ============================================================
-        // 26. ПЕРЕКЛЮЧЕНИЕ ВКЛАДОК
+        // 29. ПЕРЕКЛЮЧЕНИЕ ВКЛАДОК
         // ============================================================
         window.switchBottomTab = function(tab) {
             window.currentBottomTab = tab;
@@ -34301,7 +35202,7 @@ if (typeof currentPlayer !== 'undefined' && currentPlayer) {
         };
 
         // ============================================================
-        // 27. ЗАЩИТА ОТ КОНТЕКСТНОГО МЕНЮ
+        // 30. ЗАЩИТА ОТ КОНТЕКСТНОГО МЕНЮ
         // ============================================================
         document.addEventListener('contextmenu', (e) => {
             e.preventDefault();
