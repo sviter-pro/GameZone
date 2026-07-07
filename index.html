@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>GameZona - 1.0.1.076</title>
+    <title>GameZona - 1.0.1.077</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -2517,19 +2517,19 @@ window.openShopModal = function() {
                     <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;">
                         <div style="display: flex; align-items: center; gap: 4px; background: rgba(0,0,0,0.3); padding: 4px 12px; border-radius: 30px; border-left: 2px solid #8B4513;">
                             <span style="font-size: 12px;">🚬</span>
-                            <span id="shopCigarettesValue" style="font-size: 11px; font-weight: 600; color: #ffd966;">${formatNumberShort(window.currentPlayer.cigarettes || 0)}</span>
+                            <span id="shopCigarettesValue" style="font-size: 11px; font-weight: 600; color: #ffd966;" onclick="toggleResourceMenu('cigarettes')" >${formatNumberShort(window.currentPlayer.cigarettes || 0)}</span>
                         </div>
                         <div style="display: flex; align-items: center; gap: 4px; background: rgba(0,0,0,0.3); padding: 4px 12px; border-radius: 30px; border-left: 2px solid #8B4513;">
                             <span style="font-size: 12px;">💰</span>
-                            <span id="shopRublesValue" style="font-size: 11px; font-weight: 600; color: #ffd966;">${formatNumberShort(window.currentPlayer.rubles || 0)}</span>
+                            <span id="shopRublesValue" style="font-size: 11px; font-weight: 600; color: #ffd966;" onclick="toggleResourceMenu('rubles')">${formatNumberShort(window.currentPlayer.rubles || 0)}</span>
                         </div>
                         <div style="display: flex; align-items: center; gap: 4px; background: rgba(0,0,0,0.3); padding: 4px 12px; border-radius: 30px; border-left: 2px solid #8B4513;">
                             <span style="font-size: 12px;">🪵</span>
-                            <span id="shopWoodValue" style="font-size: 11px; font-weight: 600; color: #ffd966;">${formatNumberShort(window.currentPlayer.lumber?.wood || 0)}</span>
+                            <span id="shopWoodValue" style="font-size: 11px; font-weight: 600; color: #ffd966;" onclick="toggleResourceMenu('wood')">${formatNumberShort(window.currentPlayer.lumber?.wood || 0)}</span>
                         </div>
                         <div style="display: flex; align-items: center; gap: 4px; background: rgba(0,0,0,0.3); padding: 4px 12px; border-radius: 30px; border-left: 2px solid #8B4513;">
                             <span style="font-size: 12px;">🪨</span>
-                            <span id="shopStoneValue" style="font-size: 11px; font-weight: 600; color: #ffd966;">${formatNumberShort(window.currentPlayer.quarry?.stone || 0)}</span>
+                            <span id="shopStoneValue" style="font-size: 11px; font-weight: 600; color: #ffd966;" onclick="toggleResourceMenu('stone')">${formatNumberShort(window.currentPlayer.quarry?.stone || 0)}</span>
                         </div>
                     </div>
                 </div>
@@ -8716,7 +8716,7 @@ window.openSettingsModal = function() {
                     <div style="font-size: 36px; margin-bottom: 10px;">⚙️</div>
                     <div style="font-size: 16px; font-weight: 700; color: #ffd966;">${escapeHtml(window.currentPlayer.username)}</div>
                     <div style="font-size: 12px; color: #888; margin-top: 4px;">🆔 ${window.playerId}</div>
-                    <div style="font-size: 11px; color: #666; margin-top: 8px;">Версия - 1.0.1.076</div>
+                    <div style="font-size: 11px; color: #666; margin-top: 8px;">Версия - 1.0.1.077</div>
                     <div class="settings-status-info" style="font-size: 10px; color: ${window._settingsHasInternet ? '#4caf50' : '#e94560'}; margin-top: 6px;">
                         ${window._settingsHasInternet ? '🟢 Онлайн' : '🔴 Офлайн'}
                     </div>
@@ -14695,19 +14695,19 @@ window.openGangModal = function() {
                     <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;">
                         <div style="display: flex; align-items: center; gap: 4px; background: rgba(0,0,0,0.3); padding: 4px 12px; border-radius: 30px; border-left: 2px solid #8B4513;">
                             <span style="font-size: 12px;">🚬</span>
-                            <span id="shopCigarettesValue" style="font-size: 11px; font-weight: 600; color: #ffd966;">${formatNumberShort(window.currentPlayer.cigarettes || 0)}</span>
+                            <span id="shopCigarettesValue" onclick="toggleResourceMenu('cigarettes')" style="font-size: 11px; font-weight: 600; color: #ffd966;">${formatNumberShort(window.currentPlayer.cigarettes || 0)}</span>
                         </div>
                         <div style="display: flex; align-items: center; gap: 4px; background: rgba(0,0,0,0.3); padding: 4px 12px; border-radius: 30px; border-left: 2px solid #8B4513;">
                             <span style="font-size: 12px;">💰</span>
-                            <span id="shopRublesValue" style="font-size: 11px; font-weight: 600; color: #ffd966;">${formatNumberShort(window.currentPlayer.rubles || 0)}</span>
+                            <span id="shopRublesValue" onclick="toggleResourceMenu('rubles')" style="font-size: 11px; font-weight: 600; color: #ffd966;">${formatNumberShort(window.currentPlayer.rubles || 0)}</span>
                         </div>
                         <div style="display: flex; align-items: center; gap: 4px; background: rgba(0,0,0,0.3); padding: 4px 12px; border-radius: 30px; border-left: 2px solid #8B4513;">
                             <span style="font-size: 12px;">🪵</span>
-                            <span id="shopWoodValue" style="font-size: 11px; font-weight: 600; color: #ffd966;">${formatNumberShort(window.currentPlayer.lumber?.wood || 0)}</span>
+                            <span id="shopWoodValue" onclick="toggleResourceMenu('wood')"style="font-size: 11px; font-weight: 600; color: #ffd966;">${formatNumberShort(window.currentPlayer.lumber?.wood || 0)}</span>
                         </div>
                         <div style="display: flex; align-items: center; gap: 4px; background: rgba(0,0,0,0.3); padding: 4px 12px; border-radius: 30px; border-left: 2px solid #8B4513;">
                             <span style="font-size: 12px;">🪨</span>
-                            <span id="shopStoneValue" style="font-size: 11px; font-weight: 600; color: #ffd966;">${formatNumberShort(window.currentPlayer.quarry?.stone || 0)}</span>
+                            <span id="shopStoneValue" onclick="toggleResourceMenu('stone')" style="font-size: 11px; font-weight: 600; color: #ffd966;">${formatNumberShort(window.currentPlayer.quarry?.stone || 0)}</span>
                         </div>
                     </div>
                 </div>
@@ -21604,23 +21604,23 @@ function renderMineContent() {
             <div style="display: flex; gap: 1px; align-items: center; flex-wrap: wrap;">
                 <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
                     <span style="font-size: 11px;">🚬</span>
-                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.cigarettes || 0)}</span>
+                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;" onclick="toggleResourceMenu('cigarettes')">${formatNumberShort(currentPlayer.cigarettes || 0)}</span>
                 </div>
                 <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
                     <span style="font-size: 11px;">📄</span>
-                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.mine?.paper || 0)}</span>
+                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;" onclick="toggleResourceMenu('paper')">${formatNumberShort(currentPlayer.mine?.paper || 0)}</span>
                 </div>
                 <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
                     <span style="font-size: 11px;">🌿</span>
-                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.mine?.makhorka || 0)}</span>
+                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;" onclick="toggleResourceMenu('makhorka')">${formatNumberShort(currentPlayer.mine?.makhorka || 0)}</span>
                 </div>
                 <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
                     <span style="font-size: 11px;">🪵</span>
-                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.lumber?.wood || 0)}</span>
+                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;" onclick="toggleResourceMenu('wood')">${formatNumberShort(currentPlayer.lumber?.wood || 0)}</span>
                 </div>
                 <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
                     <span style="font-size: 11px;">🪨</span>
-                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.quarry?.stone || 0)}</span>
+                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;" onclick="toggleResourceMenu('stone')">${formatNumberShort(currentPlayer.quarry?.stone || 0)}</span>
                 </div>
             </div>
         </div>
@@ -21758,23 +21758,23 @@ function renderLumberContent() {
             <div style="display: flex; gap: 1px; align-items: center; flex-wrap: wrap;">
                 <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
                     <span style="font-size: 11px;">🚬</span>
-                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.cigarettes || 0)}</span>
+                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;" onclick="toggleResourceMenu('cigarettes')">${formatNumberShort(currentPlayer.cigarettes || 0)}</span>
                 </div>
                 <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
                     <span style="font-size: 11px;">📄</span>
-                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.mine?.paper || 0)}</span>
+                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;" onclick="toggleResourceMenu('paper')">${formatNumberShort(currentPlayer.mine?.paper || 0)}</span>
                 </div>
                 <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
                     <span style="font-size: 11px;">🌿</span>
-                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.mine?.makhorka || 0)}</span>
+                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;" onclick="toggleResourceMenu('makhorka')">${formatNumberShort(currentPlayer.mine?.makhorka || 0)}</span>
                 </div>
                 <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
                     <span style="font-size: 11px;">🪵</span>
-                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.lumber?.wood || 0)}</span>
+                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;" onclick="toggleResourceMenu('wood')">${formatNumberShort(currentPlayer.lumber?.wood || 0)}</span>
                 </div>
                 <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
                     <span style="font-size: 11px;">🪨</span>
-                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.quarry?.stone || 0)}</span>
+                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;" onclick="toggleResourceMenu('stone')">${formatNumberShort(currentPlayer.quarry?.stone || 0)}</span>
                 </div>
             </div>
         </div>
@@ -21877,23 +21877,23 @@ function renderQuarryContent() {
             <div style="display: flex; gap: 1px; align-items: center; flex-wrap: wrap;">
                 <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
                     <span style="font-size: 11px;">🚬</span>
-                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.cigarettes || 0)}</span>
+                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;" onclick="toggleResourceMenu('cigarettes')">${formatNumberShort(currentPlayer.cigarettes || 0)}</span>
                 </div>
                 <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
                     <span style="font-size: 11px;">📄</span>
-                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.mine?.paper || 0)}</span>
+                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;" onclick="toggleResourceMenu('paper')">${formatNumberShort(currentPlayer.mine?.paper || 0)}</span>
                 </div>
                 <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
                     <span style="font-size: 11px;">🌿</span>
-                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.mine?.makhorka || 0)}</span>
+                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;" onclick="toggleResourceMenu('makhorka')">${formatNumberShort(currentPlayer.mine?.makhorka || 0)}</span>
                 </div>
                 <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
                     <span style="font-size: 11px;">🪵</span>
-                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.lumber?.wood || 0)}</span>
+                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;" onclick="toggleResourceMenu('wood')">${formatNumberShort(currentPlayer.lumber?.wood || 0)}</span>
                 </div>
                 <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
                     <span style="font-size: 11px;">🪨</span>
-                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.quarry?.stone || 0)}</span>
+                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;" onclick="toggleResourceMenu('stone')">${formatNumberShort(currentPlayer.quarry?.stone || 0)}</span>
                 </div>
             </div>
         </div>
@@ -25286,25 +25286,25 @@ function openAttackModal() {
                 </div>
                 <div style="background: linear-gradient(135deg, #1a1a2a, #0d0d15); border-radius: 1px; padding: 5px 20px; margin: 9px -15px; border: 1px solid #8B4513; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
             <div style="display: flex; gap: 1px; align-items: center; flex-wrap: wrap;">
-                <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                <div style="display: flex;align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
                     <span style="font-size: 11px;">🚬</span>
-                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.cigarettes || 0)}</span>
+                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;" onclick="toggleResourceMenu('cigarettes')" >${formatNumberShort(currentPlayer.cigarettes || 0)}</span>
                 </div>
                 <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
                     <span style="font-size: 11px;">📄</span>
-                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.mine?.paper || 0)}</span>
+                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;" onclick="toggleResourceMenu('paper')" >${formatNumberShort(currentPlayer.mine?.paper || 0)}</span>
                 </div>
                 <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
                     <span style="font-size: 11px;">🌿</span>
-                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.mine?.makhorka || 0)}</span>
+                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;" onclick="toggleResourceMenu('makhorka')">${formatNumberShort(currentPlayer.mine?.makhorka || 0)}</span>
                 </div>
-                <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
+                <div style="display: flex;  align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
                     <span style="font-size: 11px;">🪵</span>
-                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.lumber?.wood || 0)}</span>
+                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;" onclick="toggleResourceMenu('wood')">${formatNumberShort(currentPlayer.lumber?.wood || 0)}</span>
                 </div>
                 <div style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.4); padding: 4px 12px; border-radius: 30px;">
                     <span style="font-size: 11px;">🪨</span>
-                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;">${formatNumberShort(currentPlayer.quarry?.stone || 0)}</span>
+                    <span style="font-size: 9px; font-weight: bold; color: #ffd966;" onclick="toggleResourceMenu('stone')" >${formatNumberShort(currentPlayer.quarry?.stone || 0)}</span>
                 </div>
             </div>
         </div>
@@ -29177,11 +29177,11 @@ window.openHospitalModal = function() {
                         <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;">
                             <div style="display: flex; align-items: center; gap: 4px; background: rgba(0,0,0,0.3); padding: 4px 12px; border-radius: 30px; border-left: 2px solid #8B4513;">
                                 <span style="font-size: 12px;">🚬</span>
-                                <span id="hospitalCigarettesValue" style="font-size: 11px; font-weight: 600; color: #ffd966;">${formatNumberShort(window.currentPlayer.cigarettes || 0)}</span>
+                                <span id="hospitalCigarettesValue" style="font-size: 11px; font-weight: 600; color: #ffd966;" onclick="toggleResourceMenu('cigarettes')">${formatNumberShort(window.currentPlayer.cigarettes || 0)}</span>
                             </div>
                             <div style="display: flex; align-items: center; gap: 4px; background: rgba(0,0,0,0.3); padding: 4px 12px; border-radius: 30px; border-left: 2px solid #8B4513;">
                                 <span style="font-size: 12px;">💰</span>
-                                <span id="hospitalRublesValue" style="font-size: 11px; font-weight: 600; color: #ffd966;">${formatNumberShort(window.currentPlayer.rubles || 0)}</span>
+                                <span id="hospitalRublesValue" style="font-size: 11px; font-weight: 600; color: #ffd966;" onclick="toggleResourceMenu('rubles')">${formatNumberShort(window.currentPlayer.rubles || 0)}</span>
                             </div>
                             <div style="display: flex; align-items: center; gap: 4px; background: rgba(0,0,0,0.3); padding: 4px 12px; border-radius: 30px; border-left: 2px solid #8B4513;">
                                 <span style="font-size: 12px;">⭐</span>
