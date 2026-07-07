@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>GameZona - 1.0.1.077</title>
+    <title>GameZona - 1.0.1.078</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -1527,7 +1527,21 @@
             height: 3px;
             background: linear-gradient(90deg, #8B4513, #c9a03d, #8B4513);
         }
-                .btn-primary {
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #e94560, #c73e54);
+            border: none;
+            padding: 10px 16px;
+            border-radius: 40px;
+			margin-top: 7px;
+            font-size: 13px;
+            font-weight: 600;
+            color: white;
+            cursor: pointer;
+            transition: 0.1s;
+        }
+
+        .btn-primary {
             background: linear-gradient(135deg, #e94560, #c73e54);
             border: none;
             padding: 10px 16px;
@@ -8716,7 +8730,7 @@ window.openSettingsModal = function() {
                     <div style="font-size: 36px; margin-bottom: 10px;">⚙️</div>
                     <div style="font-size: 16px; font-weight: 700; color: #ffd966;">${escapeHtml(window.currentPlayer.username)}</div>
                     <div style="font-size: 12px; color: #888; margin-top: 4px;">🆔 ${window.playerId}</div>
-                    <div style="font-size: 11px; color: #666; margin-top: 8px;">Версия - 1.0.1.077</div>
+                    <div style="font-size: 11px; color: #666; margin-top: 8px;">Версия - 1.0.1.078</div>
                     <div class="settings-status-info" style="font-size: 10px; color: ${window._settingsHasInternet ? '#4caf50' : '#e94560'}; margin-top: 6px;">
                         ${window._settingsHasInternet ? '🟢 Онлайн' : '🔴 Офлайн'}
                     </div>
@@ -11356,6 +11370,31 @@ if (typeof window.questTouchEndX === 'undefined') {
     window.questTouchEndX = 0;
 }
 
+// === ИНИЦИАЛИЗАЦИЯ ДЛЯ ЕЖЕДНЕВНЫХ ЗАДАНИЙ ===
+if (typeof window.dailyQuestsProgress === 'undefined') {
+    window.dailyQuestsProgress = {};
+}
+if (typeof window.dailyQuestsCompleted === 'undefined') {
+    window.dailyQuestsCompleted = {};
+}
+if (typeof window.dailyQuestsClaimed === 'undefined') {
+    window.dailyQuestsClaimed = {};
+}
+if (typeof window.dailyQuestsLastReset === 'undefined') {
+    window.dailyQuestsLastReset = 0;
+}
+
+// === ИНИЦИАЛИЗАЦИЯ ДЛЯ ПРЕМИУМ ЗАДАНИЙ ===
+if (typeof window.premiumQuestsProgress === 'undefined') {
+    window.premiumQuestsProgress = {};
+}
+if (typeof window.premiumQuestsCompleted === 'undefined') {
+    window.premiumQuestsCompleted = {};
+}
+if (typeof window.premiumQuestsClaimed === 'undefined') {
+    window.premiumQuestsClaimed = {};
+}
+
 // Переменные для проверки интернета
 if (typeof window._questHasInternet === 'undefined') {
     window._questHasInternet = navigator.onLine !== false;
@@ -11386,11 +11425,9 @@ function updateQuestInternetStatus() {
         console.log('🔄 ЗАДАНИЯ: статус интернета изменен:', window._questHasInternet, '->', newStatus);
         window._questHasInternet = newStatus;
         
-        // Обновляем UI
         updateQuestsUI();
         
         if (window._questHasInternet) {
-            // Если интернет появился - выполняем ожидающие операции
             processPendingQuestOperations();
             showToast('🌐 Интернет восстановлен!', 'success');
         } else {
@@ -11465,7 +11502,6 @@ async function processPendingQuestOperations() {
 // 18.0.3. ИНДИКАТОР ЗАГРУЗКИ ДЛЯ ЗАДАНИЙ
 // ============================================================
 function showQuestLoading(show, text) {
-    // Используем общий индикатор загрузки, если он есть
     if (typeof showLoading === 'function') {
         showLoading(show, text || '⏳ Загрузка...');
         return;
@@ -11510,14 +11546,12 @@ function showQuestLoading(show, text) {
 function updateQuestsUI() {
     console.log('🔵 ЗАДАНИЯ: updateQuestsUI, интернет =', window._questHasInternet);
     
-    // Обновляем статус в окне заданий
     var statusEl = document.getElementById('questConnectionStatus');
     if (statusEl) {
         statusEl.textContent = window._questHasInternet ? '🟢' : '🔴';
         statusEl.style.color = window._questHasInternet ? '#4caf50' : '#e94560';
     }
     
-    // Обновляем все кнопки "ЗАБРАТЬ" в окне заданий
     var claimButtons = document.querySelectorAll('#questsFullscreen .quest-claim-btn, #questsFullscreen button[onclick*="claim"]');
     claimButtons.forEach(function(btn) {
         if (!window._questHasInternet) {
@@ -11545,7 +11579,6 @@ function updateQuestsUI() {
         }
     });
     
-    // Обновляем кнопку ежедневного бонуса
     var bonusBtn = document.querySelector('#questsDailyPage button[onclick*="claimDailyBonusFromModal"]');
     if (bonusBtn) {
         if (!window._questHasInternet) {
@@ -11573,7 +11606,6 @@ function updateQuestsUI() {
         }
     }
     
-    // Обновляем бейдж
     updateQuestsBadge();
 }
 
@@ -11586,7 +11618,6 @@ function getStoryQuests() {
     var authority = player.authority || 0;
     var clanId = player.clanId || null;
     
-    // Данные для улучшений
     var minePaperLevel = player.mine?.paperLevel || 1;
     var mineMakhorkaLevel = player.mine?.makhorkaLevel || 1;
     var lumberLevel = player.lumber?.level || 1;
@@ -11598,7 +11629,6 @@ function getStoryQuests() {
     var gangFraersLevel = player.gang?.fraers?.level || 1;
     
     return [
-        // ===== ДОСТИЖЕНИЕ УРОВНЕЙ =====
         { id: 'story_level_5', title: 'Уровень 5', description: 'Достигните 5 уровня', requirement: 5, current: Math.min(5, level), reward: 500, type: 'cigarettes', icon: '⭐' },
         { id: 'story_level_10', title: 'Уровень 10', description: 'Достигните 10 уровня', requirement: 10, current: Math.min(10, level), reward: 1000, type: 'cigarettes', icon: '⭐' },
         { id: 'story_level_15', title: 'Уровень 15', description: 'Достигните 15 уровня', requirement: 15, current: Math.min(15, level), reward: 1500, type: 'cigarettes', icon: '⭐' },
@@ -11609,8 +11639,6 @@ function getStoryQuests() {
         { id: 'story_level_40', title: 'Уровень 40', description: 'Достигните 40 уровня', requirement: 40, current: Math.min(40, level), reward: 4000, type: 'cigarettes', icon: '⭐' },
         { id: 'story_level_45', title: 'Уровень 45', description: 'Достигните 45 уровня', requirement: 45, current: Math.min(45, level), reward: 4500, type: 'cigarettes', icon: '⭐' },
         { id: 'story_level_50', title: 'Уровень 50', description: 'Достигните 50 уровня', requirement: 50, current: Math.min(50, level), reward: 5000, type: 'cigarettes', icon: '⭐' },
-        
-        // ===== ШАХТА (ПРОКАЧКА БУМАГИ) =====
         { id: 'story_mine_paper_5', title: 'Шахта 5', description: 'Улучшите шахту (бумага) до 5 уровня', requirement: 5, current: Math.min(5, minePaperLevel), reward: 1000, type: 'cigarettes', icon: '⛏️' },
         { id: 'story_mine_paper_10', title: 'Шахта 10', description: 'Улучшите шахту (бумага) до 10 уровня', requirement: 10, current: Math.min(10, minePaperLevel), reward: 2000, type: 'cigarettes', icon: '⛏️' },
         { id: 'story_mine_paper_15', title: 'Шахта 15', description: 'Улучшите шахту (бумага) до 15 уровня', requirement: 15, current: Math.min(15, minePaperLevel), reward: 3000, type: 'cigarettes', icon: '⛏️' },
@@ -11621,8 +11649,6 @@ function getStoryQuests() {
         { id: 'story_mine_paper_40', title: 'Шахта 40', description: 'Улучшите шахту (бумага) до 40 уровня', requirement: 40, current: Math.min(40, minePaperLevel), reward: 8000, type: 'cigarettes', icon: '⛏️' },
         { id: 'story_mine_paper_45', title: 'Шахта 45', description: 'Улучшите шахту (бумага) до 45 уровня', requirement: 45, current: Math.min(45, minePaperLevel), reward: 9000, type: 'cigarettes', icon: '⛏️' },
         { id: 'story_mine_paper_50', title: 'Шахта 50', description: 'Улучшите шахту (бумага) до 50 уровня', requirement: 50, current: Math.min(50, minePaperLevel), reward: 10000, type: 'cigarettes', icon: '⛏️' },
-        
-        // ===== ЛЕСОПОВАЛ =====
         { id: 'story_lumber_5', title: 'Лесоповал 5', description: 'Улучшите лесоповал до 5 уровня', requirement: 5, current: Math.min(5, lumberLevel), reward: 1000, type: 'cigarettes', icon: '🪓' },
         { id: 'story_lumber_10', title: 'Лесоповал 10', description: 'Улучшите лесоповал до 10 уровня', requirement: 10, current: Math.min(10, lumberLevel), reward: 2000, type: 'cigarettes', icon: '🪓' },
         { id: 'story_lumber_15', title: 'Лесоповал 15', description: 'Улучшите лесоповал до 15 уровня', requirement: 15, current: Math.min(15, lumberLevel), reward: 3000, type: 'cigarettes', icon: '🪓' },
@@ -11633,8 +11659,6 @@ function getStoryQuests() {
         { id: 'story_lumber_40', title: 'Лесоповал 40', description: 'Улучшите лесоповал до 40 уровня', requirement: 40, current: Math.min(40, lumberLevel), reward: 8000, type: 'cigarettes', icon: '🪓' },
         { id: 'story_lumber_45', title: 'Лесоповал 45', description: 'Улучшите лесоповал до 45 уровня', requirement: 45, current: Math.min(45, lumberLevel), reward: 9000, type: 'cigarettes', icon: '🪓' },
         { id: 'story_lumber_50', title: 'Лесоповал 50', description: 'Улучшите лесоповал до 50 уровня', requirement: 50, current: Math.min(50, lumberLevel), reward: 10000, type: 'cigarettes', icon: '🪓' },
-        
-        // ===== КАМЕНОЛОМНЯ =====
         { id: 'story_quarry_5', title: 'Каменоломня 5', description: 'Улучшите каменоломню до 5 уровня', requirement: 5, current: Math.min(5, quarryLevel), reward: 1000, type: 'cigarettes', icon: '🪨' },
         { id: 'story_quarry_10', title: 'Каменоломня 10', description: 'Улучшите каменоломню до 10 уровня', requirement: 10, current: Math.min(10, quarryLevel), reward: 2000, type: 'cigarettes', icon: '🪨' },
         { id: 'story_quarry_15', title: 'Каменоломня 15', description: 'Улучшите каменоломню до 15 уровня', requirement: 15, current: Math.min(15, quarryLevel), reward: 3000, type: 'cigarettes', icon: '🪨' },
@@ -11645,8 +11669,6 @@ function getStoryQuests() {
         { id: 'story_quarry_40', title: 'Каменоломня 40', description: 'Улучшите каменоломню до 40 уровня', requirement: 40, current: Math.min(40, quarryLevel), reward: 8000, type: 'cigarettes', icon: '🪨' },
         { id: 'story_quarry_45', title: 'Каменоломня 45', description: 'Улучшите каменоломню до 45 уровня', requirement: 45, current: Math.min(45, quarryLevel), reward: 9000, type: 'cigarettes', icon: '🪨' },
         { id: 'story_quarry_50', title: 'Каменоломня 50', description: 'Улучшите каменоломню до 50 уровня', requirement: 50, current: Math.min(50, quarryLevel), reward: 10000, type: 'cigarettes', icon: '🪨' },
-        
-        // ===== МАГАЗИН =====
         { id: 'story_shop_5', title: 'Магазин 5', description: 'Улучшите магазин до 5 уровня', requirement: 5, current: Math.min(5, shopLevel), reward: 1000, type: 'cigarettes', icon: '🏪' },
         { id: 'story_shop_10', title: 'Магазин 10', description: 'Улучшите магазин до 10 уровня', requirement: 10, current: Math.min(10, shopLevel), reward: 2000, type: 'cigarettes', icon: '🏪' },
         { id: 'story_shop_15', title: 'Магазин 15', description: 'Улучшите магазин до 15 уровня', requirement: 15, current: Math.min(15, shopLevel), reward: 3000, type: 'cigarettes', icon: '🏪' },
@@ -11657,8 +11679,6 @@ function getStoryQuests() {
         { id: 'story_shop_40', title: 'Магазин 40', description: 'Улучшите магазин до 40 уровня', requirement: 40, current: Math.min(40, shopLevel), reward: 8000, type: 'cigarettes', icon: '🏪' },
         { id: 'story_shop_45', title: 'Магазин 45', description: 'Улучшите магазин до 45 уровня', requirement: 45, current: Math.min(45, shopLevel), reward: 9000, type: 'cigarettes', icon: '🏪' },
         { id: 'story_shop_50', title: 'Магазин 50', description: 'Улучшите магазин до 50 уровня', requirement: 50, current: Math.min(50, shopLevel), reward: 10000, type: 'cigarettes', icon: '🏪' },
-        
-        // ===== БОЛЬНИЦА =====
         { id: 'story_hospital_5', title: 'Больница 5', description: 'Улучшите больницу до 5 уровня', requirement: 5, current: Math.min(5, hospitalLevel), reward: 1000, type: 'cigarettes', icon: '🏥' },
         { id: 'story_hospital_10', title: 'Больница 10', description: 'Улучшите больницу до 10 уровня', requirement: 10, current: Math.min(10, hospitalLevel), reward: 2000, type: 'cigarettes', icon: '🏥' },
         { id: 'story_hospital_15', title: 'Больница 15', description: 'Улучшите больницу до 15 уровня', requirement: 15, current: Math.min(15, hospitalLevel), reward: 3000, type: 'cigarettes', icon: '🏥' },
@@ -11669,8 +11689,6 @@ function getStoryQuests() {
         { id: 'story_hospital_40', title: 'Больница 40', description: 'Улучшите больницу до 40 уровня', requirement: 40, current: Math.min(40, hospitalLevel), reward: 8000, type: 'cigarettes', icon: '🏥' },
         { id: 'story_hospital_45', title: 'Больница 45', description: 'Улучшите больницу до 45 уровня', requirement: 45, current: Math.min(45, hospitalLevel), reward: 9000, type: 'cigarettes', icon: '🏥' },
         { id: 'story_hospital_50', title: 'Больница 50', description: 'Улучшите больницу до 50 уровня', requirement: 50, current: Math.min(50, hospitalLevel), reward: 10000, type: 'cigarettes', icon: '🏥' },
-        
-        // ===== СИЗО - БЛАТНЫЕ =====
         { id: 'story_gang_blats_5', title: 'Блатные 5', description: 'Улучшите блатных в СИЗО до 5 уровня', requirement: 5, current: Math.min(5, gangBlatsLevel), reward: 1000, type: 'cigarettes', icon: '👑' },
         { id: 'story_gang_blats_10', title: 'Блатные 10', description: 'Улучшите блатных в СИЗО до 10 уровня', requirement: 10, current: Math.min(10, gangBlatsLevel), reward: 2000, type: 'cigarettes', icon: '👑' },
         { id: 'story_gang_blats_15', title: 'Блатные 15', description: 'Улучшите блатных в СИЗО до 15 уровня', requirement: 15, current: Math.min(15, gangBlatsLevel), reward: 3000, type: 'cigarettes', icon: '👑' },
@@ -11681,8 +11699,6 @@ function getStoryQuests() {
         { id: 'story_gang_blats_40', title: 'Блатные 40', description: 'Улучшите блатных в СИЗО до 40 уровня', requirement: 40, current: Math.min(40, gangBlatsLevel), reward: 8000, type: 'cigarettes', icon: '👑' },
         { id: 'story_gang_blats_45', title: 'Блатные 45', description: 'Улучшите блатных в СИЗО до 45 уровня', requirement: 45, current: Math.min(45, gangBlatsLevel), reward: 9000, type: 'cigarettes', icon: '👑' },
         { id: 'story_gang_blats_50', title: 'Блатные 50', description: 'Улучшите блатных в СИЗО до 50 уровня', requirement: 50, current: Math.min(50, gangBlatsLevel), reward: 10000, type: 'cigarettes', icon: '👑' },
-        
-        // ===== СИЗО - МУЖИКИ =====
         { id: 'story_gang_muzhiks_5', title: 'Мужики 5', description: 'Улучшите мужиков в СИЗО до 5 уровня', requirement: 5, current: Math.min(5, gangMuzhiksLevel), reward: 1000, type: 'cigarettes', icon: '🔨' },
         { id: 'story_gang_muzhiks_10', title: 'Мужики 10', description: 'Улучшите мужиков в СИЗО до 10 уровня', requirement: 10, current: Math.min(10, gangMuzhiksLevel), reward: 2000, type: 'cigarettes', icon: '🔨' },
         { id: 'story_gang_muzhiks_15', title: 'Мужики 15', description: 'Улучшите мужиков в СИЗО до 15 уровня', requirement: 15, current: Math.min(15, gangMuzhiksLevel), reward: 3000, type: 'cigarettes', icon: '🔨' },
@@ -11693,8 +11709,6 @@ function getStoryQuests() {
         { id: 'story_gang_muzhiks_40', title: 'Мужики 40', description: 'Улучшите мужиков в СИЗО до 40 уровня', requirement: 40, current: Math.min(40, gangMuzhiksLevel), reward: 8000, type: 'cigarettes', icon: '🔨' },
         { id: 'story_gang_muzhiks_45', title: 'Мужики 45', description: 'Улучшите мужиков в СИЗО до 45 уровня', requirement: 45, current: Math.min(45, gangMuzhiksLevel), reward: 9000, type: 'cigarettes', icon: '🔨' },
         { id: 'story_gang_muzhiks_50', title: 'Мужики 50', description: 'Улучшите мужиков в СИЗО до 50 уровня', requirement: 50, current: Math.min(50, gangMuzhiksLevel), reward: 10000, type: 'cigarettes', icon: '🔨' },
-        
-        // ===== СИЗО - ФРАЕРА =====
         { id: 'story_gang_fraers_5', title: 'Фраера 5', description: 'Улучшите фраеров в СИЗО до 5 уровня', requirement: 5, current: Math.min(5, gangFraersLevel), reward: 1000, type: 'cigarettes', icon: '🐑' },
         { id: 'story_gang_fraers_10', title: 'Фраера 10', description: 'Улучшите фраеров в СИЗО до 10 уровня', requirement: 10, current: Math.min(10, gangFraersLevel), reward: 2000, type: 'cigarettes', icon: '🐑' },
         { id: 'story_gang_fraers_15', title: 'Фраера 15', description: 'Улучшите фраеров в СИЗО до 15 уровня', requirement: 15, current: Math.min(15, gangFraersLevel), reward: 3000, type: 'cigarettes', icon: '🐑' },
@@ -11705,68 +11719,12 @@ function getStoryQuests() {
         { id: 'story_gang_fraers_40', title: 'Фраера 40', description: 'Улучшите фраеров в СИЗО до 40 уровня', requirement: 40, current: Math.min(40, gangFraersLevel), reward: 8000, type: 'cigarettes', icon: '🐑' },
         { id: 'story_gang_fraers_45', title: 'Фраера 45', description: 'Улучшите фраеров в СИЗО до 45 уровня', requirement: 45, current: Math.min(45, gangFraersLevel), reward: 9000, type: 'cigarettes', icon: '🐑' },
         { id: 'story_gang_fraers_50', title: 'Фраера 50', description: 'Улучшите фраеров в СИЗО до 50 уровня', requirement: 50, current: Math.min(50, gangFraersLevel), reward: 10000, type: 'cigarettes', icon: '🐑' },
-        
-        // ===== ОСОБЫЕ ЗАДАНИЯ =====
-        {
-            id: 'story_clan_1',
-            title: 'Верный друг',
-            description: 'Вступите в клан',
-            requirement: 1,
-            current: clanId ? 1 : 0,
-            reward: 2000,
-            type: 'cigarettes',
-            icon: '🏰'
-        },
-        {
-            id: 'story_authority_100',
-            title: 'Авторитет 100',
-            description: 'Накопите 100 авторитета',
-            requirement: 100,
-            current: Math.min(100, authority),
-            reward: 500,
-            type: 'cigarettes',
-            icon: '💪'
-        },
-        {
-            id: 'story_authority_500',
-            title: 'Авторитет 500',
-            description: 'Накопите 500 авторитета',
-            requirement: 500,
-            current: Math.min(500, authority),
-            reward: 1000,
-            type: 'cigarettes',
-            icon: '💪'
-        },
-        {
-            id: 'story_authority_1000',
-            title: 'Авторитет 1000',
-            description: 'Накопите 1000 авторитета',
-            requirement: 1000,
-            current: Math.min(1000, authority),
-            reward: 1500,
-            type: 'cigarettes',
-            icon: '💪'
-        },
-        {
-            id: 'story_authority_2500',
-            title: 'Авторитет 2500',
-            description: 'Накопите 2500 авторитета',
-            requirement: 2500,
-            current: Math.min(2500, authority),
-            reward: 2000,
-            type: 'cigarettes',
-            icon: '💪'
-        },
-        {
-            id: 'story_authority_5000',
-            title: 'Авторитет 5000',
-            description: 'Накопите 5000 авторитета',
-            requirement: 5000,
-            current: Math.min(5000, authority),
-            reward: 3000,
-            type: 'cigarettes',
-            icon: '💪'
-        }
+        { id: 'story_clan_1', title: 'Верный друг', description: 'Вступите в клан', requirement: 1, current: clanId ? 1 : 0, reward: 2000, type: 'cigarettes', icon: '🏰' },
+        { id: 'story_authority_100', title: 'Авторитет 100', description: 'Накопите 100 авторитета', requirement: 100, current: Math.min(100, authority), reward: 500, type: 'cigarettes', icon: '💪' },
+        { id: 'story_authority_500', title: 'Авторитет 500', description: 'Накопите 500 авторитета', requirement: 500, current: Math.min(500, authority), reward: 1000, type: 'cigarettes', icon: '💪' },
+        { id: 'story_authority_1000', title: 'Авторитет 1000', description: 'Накопите 1000 авторитета', requirement: 1000, current: Math.min(1000, authority), reward: 1500, type: 'cigarettes', icon: '💪' },
+        { id: 'story_authority_2500', title: 'Авторитет 2500', description: 'Накопите 2500 авторитета', requirement: 2500, current: Math.min(2500, authority), reward: 2000, type: 'cigarettes', icon: '💪' },
+        { id: 'story_authority_5000', title: 'Авторитет 5000', description: 'Накопите 5000 авторитета', requirement: 5000, current: Math.min(5000, authority), reward: 3000, type: 'cigarettes', icon: '💪' }
     ];
 }
 
@@ -11774,10 +11732,10 @@ function getStoryQuests() {
 // 18.2. ЕЖЕДНЕВНЫЕ ЗАДАНИЯ
 // ============================================================
 function getDailyQuests() {
-    // Получаем текущий прогресс
     var progress = window.dailyQuestsProgress || {};
+    var completed = window.dailyQuestsCompleted || {};
+    var claimed = window.dailyQuestsClaimed || {};
     
-    // Счетчики для заданий
     var mineWorkCount = progress.mineWorkCount || 0;
     var lumberWorkCount = progress.lumberWorkCount || 0;
     var quarryWorkCount = progress.quarryWorkCount || 0;
@@ -11786,179 +11744,22 @@ function getDailyQuests() {
     var gangFraersCount = progress.gangFraersCount || 0;
     var cardGameCount = progress.cardGameCount || 0;
     
-    // Проверяем выполненные задания
-    var completed = window.dailyQuestsCompleted || {};
-    var claimed = window.dailyQuestsClaimed || {};
-    
     return [
-        // ===== ШАХТА =====
-        {
-            id: 'daily_mine_5',
-            title: 'Шахтёр 1',
-            description: 'Добудьте ресурсы в шахте 5 раз',
-            requirement: 5,
-            current: Math.min(5, mineWorkCount),
-            reward: 100,
-            type: 'cigarettes',
-            icon: '⛏️',
-            completed: completed['daily_mine_5'] || false,
-            claimed: claimed['daily_mine_5'] || false
-        },
-        {
-            id: 'daily_mine_10',
-            title: 'Шахтёр 2',
-            description: 'Добудьте ресурсы в шахте 10 раз',
-            requirement: 10,
-            current: Math.min(10, mineWorkCount),
-            reward: 250,
-            type: 'cigarettes',
-            icon: '⛏️',
-            completed: completed['daily_mine_10'] || false,
-            claimed: claimed['daily_mine_10'] || false
-        },
-        {
-            id: 'daily_mine_15',
-            title: 'Шахтёр 3',
-            description: 'Добудьте ресурсы в шахте 15 раз',
-            requirement: 15,
-            current: Math.min(15, mineWorkCount),
-            reward: 500,
-            type: 'cigarettes',
-            icon: '⛏️',
-            completed: completed['daily_mine_15'] || false,
-            claimed: claimed['daily_mine_15'] || false
-        },
-        
-        // ===== ЛЕСОПОВАЛ =====
-        {
-            id: 'daily_lumber_5',
-            title: 'Лесоруб 1',
-            description: 'Добудьте ресурсы в лесоповале 5 раз',
-            requirement: 5,
-            current: Math.min(5, lumberWorkCount),
-            reward: 100,
-            type: 'cigarettes',
-            icon: '🪓',
-            completed: completed['daily_lumber_5'] || false,
-            claimed: claimed['daily_lumber_5'] || false
-        },
-        {
-            id: 'daily_lumber_10',
-            title: 'Лесоруб 2',
-            description: 'Добудьте ресурсы в лесоповале 10 раз',
-            requirement: 10,
-            current: Math.min(10, lumberWorkCount),
-            reward: 250,
-            type: 'cigarettes',
-            icon: '🪓',
-            completed: completed['daily_lumber_10'] || false,
-            claimed: claimed['daily_lumber_10'] || false
-        },
-        {
-            id: 'daily_lumber_15',
-            title: 'Лесоруб 3',
-            description: 'Добудьте ресурсы в лесоповале 15 раз',
-            requirement: 15,
-            current: Math.min(15, lumberWorkCount),
-            reward: 500,
-            type: 'cigarettes',
-            icon: '🪓',
-            completed: completed['daily_lumber_15'] || false,
-            claimed: claimed['daily_lumber_15'] || false
-        },
-        
-        // ===== КАМЕНОЛОМНЯ =====
-        {
-            id: 'daily_quarry_5',
-            title: 'Каменотёс 1',
-            description: 'Добудьте ресурсы в каменоломне 5 раз',
-            requirement: 5,
-            current: Math.min(5, quarryWorkCount),
-            reward: 100,
-            type: 'cigarettes',
-            icon: '🪨',
-            completed: completed['daily_quarry_5'] || false,
-            claimed: claimed['daily_quarry_5'] || false
-        },
-        {
-            id: 'daily_quarry_10',
-            title: 'Каменотёс 2',
-            description: 'Добудьте ресурсы в каменоломне 10 раз',
-            requirement: 10,
-            current: Math.min(10, quarryWorkCount),
-            reward: 250,
-            type: 'cigarettes',
-            icon: '🪨',
-            completed: completed['daily_quarry_10'] || false,
-            claimed: claimed['daily_quarry_10'] || false
-        },
-        {
-            id: 'daily_quarry_15',
-            title: 'Каменотёс 3',
-            description: 'Добудьте ресурсы в каменоломне 15 раз',
-            requirement: 15,
-            current: Math.min(15, quarryWorkCount),
-            reward: 500,
-            type: 'cigarettes',
-            icon: '🪨',
-            completed: completed['daily_quarry_15'] || false,
-            claimed: claimed['daily_quarry_15'] || false
-        },
-        
-        // ===== СИЗО (БАНДА) =====
-        {
-            id: 'daily_gang_blats_5',
-            title: 'Вербовщик блатных',
-            description: 'Завербуйте блатных из СИЗО 5 раз',
-            requirement: 5,
-            current: Math.min(5, gangBlatsCount),
-            reward: 150,
-            type: 'cigarettes',
-            icon: '👑',
-            completed: completed['daily_gang_blats_5'] || false,
-            claimed: claimed['daily_gang_blats_5'] || false
-        },
-        {
-            id: 'daily_gang_muzhiks_5',
-            title: 'Вербовщик мужиков',
-            description: 'Завербуйте мужиков из СИЗО 5 раз',
-            requirement: 5,
-            current: Math.min(5, gangMuzhiksCount),
-            reward: 150,
-            type: 'cigarettes',
-            icon: '🔨',
-            completed: completed['daily_gang_muzhiks_5'] || false,
-            claimed: claimed['daily_gang_muzhiks_5'] || false
-        },
-        {
-            id: 'daily_gang_fraers_5',
-            title: 'Вербовщик фраеров',
-            description: 'Завербуйте фраеров из СИЗО 5 раз',
-            requirement: 5,
-            current: Math.min(5, gangFraersCount),
-            reward: 150,
-            type: 'cigarettes',
-            icon: '🐑',
-            completed: completed['daily_gang_fraers_5'] || false,
-            claimed: claimed['daily_gang_fraers_5'] || false
-        },
-        
-        // ===== КАРТЫ =====
-        {
-            id: 'daily_cards_1',
-            title: 'Картёжник',
-            description: 'Сыграйте в карты 1 раз',
-            requirement: 1,
-            current: Math.min(1, cardGameCount),
-            reward: 200,
-            type: 'cigarettes',
-            icon: '🎴',
-            completed: completed['daily_cards_1'] || false,
-            claimed: claimed['daily_cards_1'] || false
-        }
+        { id: 'daily_mine_5', title: 'Шахтёр 1', description: 'Добудьте ресурсы в шахте 5 раз', requirement: 5, current: Math.min(5, mineWorkCount), reward: 100, type: 'cigarettes', icon: '⛏️', completed: completed['daily_mine_5'] || false, claimed: claimed['daily_mine_5'] || false },
+        { id: 'daily_mine_10', title: 'Шахтёр 2', description: 'Добудьте ресурсы в шахте 10 раз', requirement: 10, current: Math.min(10, mineWorkCount), reward: 250, type: 'cigarettes', icon: '⛏️', completed: completed['daily_mine_10'] || false, claimed: claimed['daily_mine_10'] || false },
+        { id: 'daily_mine_15', title: 'Шахтёр 3', description: 'Добудьте ресурсы в шахте 15 раз', requirement: 15, current: Math.min(15, mineWorkCount), reward: 500, type: 'cigarettes', icon: '⛏️', completed: completed['daily_mine_15'] || false, claimed: claimed['daily_mine_15'] || false },
+        { id: 'daily_lumber_5', title: 'Лесоруб 1', description: 'Добудьте ресурсы в лесоповале 5 раз', requirement: 5, current: Math.min(5, lumberWorkCount), reward: 100, type: 'cigarettes', icon: '🪓', completed: completed['daily_lumber_5'] || false, claimed: claimed['daily_lumber_5'] || false },
+        { id: 'daily_lumber_10', title: 'Лесоруб 2', description: 'Добудьте ресурсы в лесоповале 10 раз', requirement: 10, current: Math.min(10, lumberWorkCount), reward: 250, type: 'cigarettes', icon: '🪓', completed: completed['daily_lumber_10'] || false, claimed: claimed['daily_lumber_10'] || false },
+        { id: 'daily_lumber_15', title: 'Лесоруб 3', description: 'Добудьте ресурсы в лесоповале 15 раз', requirement: 15, current: Math.min(15, lumberWorkCount), reward: 500, type: 'cigarettes', icon: '🪓', completed: completed['daily_lumber_15'] || false, claimed: claimed['daily_lumber_15'] || false },
+        { id: 'daily_quarry_5', title: 'Каменотёс 1', description: 'Добудьте ресурсы в каменоломне 5 раз', requirement: 5, current: Math.min(5, quarryWorkCount), reward: 100, type: 'cigarettes', icon: '🪨', completed: completed['daily_quarry_5'] || false, claimed: claimed['daily_quarry_5'] || false },
+        { id: 'daily_quarry_10', title: 'Каменотёс 2', description: 'Добудьте ресурсы в каменоломне 10 раз', requirement: 10, current: Math.min(10, quarryWorkCount), reward: 250, type: 'cigarettes', icon: '🪨', completed: completed['daily_quarry_10'] || false, claimed: claimed['daily_quarry_10'] || false },
+        { id: 'daily_quarry_15', title: 'Каменотёс 3', description: 'Добудьте ресурсы в каменоломне 15 раз', requirement: 15, current: Math.min(15, quarryWorkCount), reward: 500, type: 'cigarettes', icon: '🪨', completed: completed['daily_quarry_15'] || false, claimed: claimed['daily_quarry_15'] || false },
+        { id: 'daily_gang_blats_5', title: 'Вербовщик блатных', description: 'Завербуйте блатных из СИЗО 5 раз', requirement: 5, current: Math.min(5, gangBlatsCount), reward: 150, type: 'cigarettes', icon: '👑', completed: completed['daily_gang_blats_5'] || false, claimed: claimed['daily_gang_blats_5'] || false },
+        { id: 'daily_gang_muzhiks_5', title: 'Вербовщик мужиков', description: 'Завербуйте мужиков из СИЗО 5 раз', requirement: 5, current: Math.min(5, gangMuzhiksCount), reward: 150, type: 'cigarettes', icon: '🔨', completed: completed['daily_gang_muzhiks_5'] || false, claimed: claimed['daily_gang_muzhiks_5'] || false },
+        { id: 'daily_gang_fraers_5', title: 'Вербовщик фраеров', description: 'Завербуйте фраеров из СИЗО 5 раз', requirement: 5, current: Math.min(5, gangFraersCount), reward: 150, type: 'cigarettes', icon: '🐑', completed: completed['daily_gang_fraers_5'] || false, claimed: claimed['daily_gang_fraers_5'] || false },
+        { id: 'daily_cards_1', title: 'Картёжник', description: 'Сыграйте в карты 1 раз', requirement: 1, current: Math.min(1, cardGameCount), reward: 200, type: 'cigarettes', icon: '🎴', completed: completed['daily_cards_1'] || false, claimed: claimed['daily_cards_1'] || false }
     ];
 }
-
 
 // ============================================================
 // 18.3. ПРЕМИУМ ЗАДАНИЯ
@@ -11971,13 +11772,11 @@ function getPremiumQuests() {
     var clanLeader = player.clanLeader || null;
     var username = player.username || null;
     
-    // Счетчики для премиум заданий
     var progress = window.premiumQuestsProgress || {};
     var robberyCount = progress.robberyCount || 0;
     var pvpWinsCount = progress.pvpWinsCount || 0;
     var healCount = progress.healCount || 0;
     
-    // Проверка покупок в магазине
     var purchasedItems = window.purchasedItemsCount || {};
     var hasBodyArmor = purchasedItems['armor_3'] > 0 || purchasedItems['armor_4'] > 0 || purchasedItems['armor_5'] > 0 || purchasedItems['armor_6'] > 0 || purchasedItems['armor_7'] > 0;
     var hasKnife = purchasedItems['weapon_2'] > 0 || purchasedItems['weapon_3'] > 0 || purchasedItems['weapon_4'] > 0;
@@ -11985,7 +11784,6 @@ function getPremiumQuests() {
     var hasTea = purchasedItems['consumable_1'] > 0 || purchasedItems['consumable_2'] > 0;
     var hasMilk = purchasedItems['consumable_3'] > 0 || purchasedItems['consumable_4'] > 0;
     
-    // Войны кланов (из истории)
     var warWins = 0;
     if (window.warHistory && clanId) {
         warWins = window.warHistory.filter(function(w) {
@@ -11995,179 +11793,22 @@ function getPremiumQuests() {
     }
     
     return [
-        // ===== ВОРОВСТВО =====
-        {
-            id: 'premium_robbery_5',
-            title: 'Вор 1',
-            description: 'Воровать 5 раз',
-            requirement: 5,
-            current: Math.min(5, robberyCount),
-            reward: 100,
-            type: 'rubles',
-            icon: '🦹'
-        },
-        {
-            id: 'premium_robbery_10',
-            title: 'Вор 2',
-            description: 'Воровать 10 раз',
-            requirement: 10,
-            current: Math.min(10, robberyCount),
-            reward: 250,
-            type: 'rubles',
-            icon: '🦹'
-        },
-        
-        // ===== ВОЙНЫ КЛАНОВ =====
-        {
-            id: 'premium_war_1',
-            title: 'Победитель войн',
-            description: 'Победите в войне кланов',
-            requirement: 1,
-            current: Math.min(1, warWins),
-            reward: 200,
-            type: 'rubles',
-            icon: '⚔️'
-        },
-        
-        // ===== КЛАН =====
-        {
-            id: 'premium_clan_leader',
-            title: 'Глава клана',
-            description: 'Создайте клан и станьте главой',
-            requirement: 1,
-            current: (clanId && clanLeader === username) ? 1 : 0,
-            reward: 300,
-            type: 'rubles',
-            icon: '🏰'
-        },
-        
-        // ===== PVP БИТВЫ =====
-        {
-            id: 'premium_pvp_5',
-            title: 'Боец 1',
-            description: 'Победите в PVP битве 5 раз',
-            requirement: 5,
-            current: Math.min(5, pvpWinsCount),
-            reward: 150,
-            type: 'rubles',
-            icon: '⚔️'
-        },
-        {
-            id: 'premium_pvp_10',
-            title: 'Боец 2',
-            description: 'Победите в PVP битве 10 раз',
-            requirement: 10,
-            current: Math.min(10, pvpWinsCount),
-            reward: 350,
-            type: 'rubles',
-            icon: '⚔️'
-        },
-        
-        // ===== ЛЕЧЕНИЕ ВОЙСК =====
-        {
-            id: 'premium_heal_5',
-            title: 'Доктор 1',
-            description: 'Лечить войска 5 раз',
-            requirement: 5,
-            current: Math.min(5, healCount),
-            reward: 100,
-            type: 'rubles',
-            icon: '🏥'
-        },
-        {
-            id: 'premium_heal_10',
-            title: 'Доктор 2',
-            description: 'Лечить войска 10 раз',
-            requirement: 10,
-            current: Math.min(10, healCount),
-            reward: 250,
-            type: 'rubles',
-            icon: '🏥'
-        },
-        
-        // ===== НАКОЛКИ =====
-        {
-            id: 'premium_tattoo_2',
-            title: 'Коллекционер 1',
-            description: 'Соберите 2 наколки',
-            requirement: 2,
-            current: Math.min(2, tattoos.length),
-            reward: 150,
-            type: 'rubles',
-            icon: '💉'
-        },
-        {
-            id: 'premium_tattoo_5',
-            title: 'Коллекционер 2',
-            description: 'Соберите 5 наколок',
-            requirement: 5,
-            current: Math.min(5, tattoos.length),
-            reward: 300,
-            type: 'rubles',
-            icon: '💉'
-        },
-        {
-            id: 'premium_tattoo_10',
-            title: 'Коллекционер 3',
-            description: 'Соберите 10 наколок',
-            requirement: 10,
-            current: Math.min(10, tattoos.length),
-            reward: 500,
-            type: 'rubles',
-            icon: '💉'
-        },
-        
-        // ===== ПОКУПКИ В МАГАЗИНЕ =====
-        {
-            id: 'premium_buy_armor',
-            title: 'Защитник',
-            description: 'Купите бронежилет',
-            requirement: 1,
-            current: hasBodyArmor ? 1 : 0,
-            reward: 100,
-            type: 'rubles',
-            icon: '🛡️'
-        },
-        {
-            id: 'premium_buy_knife',
-            title: 'Оружейник',
-            description: 'Купите заточку',
-            requirement: 1,
-            current: hasKnife ? 1 : 0,
-            reward: 100,
-            type: 'rubles',
-            icon: '🔪'
-        },
-        {
-            id: 'premium_buy_hat',
-            title: 'Модник',
-            description: 'Купите шапку',
-            requirement: 1,
-            current: hasHat ? 1 : 0,
-            reward: 100,
-            type: 'rubles',
-            icon: '🧢'
-        },
-        {
-            id: 'premium_buy_tea',
-            title: 'Чаепитие',
-            description: 'Купите чай',
-            requirement: 1,
-            current: hasTea ? 1 : 0,
-            reward: 100,
-            type: 'rubles',
-            icon: '🍵'
-        },
-        {
-            id: 'premium_buy_milk',
-            title: 'Молочник',
-            description: 'Купите молоко',
-            requirement: 1,
-            current: hasMilk ? 1 : 0,
-            reward: 100,
-            type: 'rubles',
-            icon: '🥛'
-        }
+        { id: 'premium_robbery_5', title: 'Вор 1', description: 'Воровать 5 раз', requirement: 5, current: Math.min(5, robberyCount), reward: 100, type: 'rubles', icon: '🦹' },
+        { id: 'premium_robbery_10', title: 'Вор 2', description: 'Воровать 10 раз', requirement: 10, current: Math.min(10, robberyCount), reward: 250, type: 'rubles', icon: '🦹' },
+        { id: 'premium_war_1', title: 'Победитель войн', description: 'Победите в войне кланов', requirement: 1, current: Math.min(1, warWins), reward: 200, type: 'rubles', icon: '⚔️' },
+        { id: 'premium_clan_leader', title: 'Глава клана', description: 'Создайте клан и станьте главой', requirement: 1, current: (clanId && clanLeader === username) ? 1 : 0, reward: 300, type: 'rubles', icon: '🏰' },
+        { id: 'premium_pvp_5', title: 'Боец 1', description: 'Победите в PVP битве 5 раз', requirement: 5, current: Math.min(5, pvpWinsCount), reward: 150, type: 'rubles', icon: '⚔️' },
+        { id: 'premium_pvp_10', title: 'Боец 2', description: 'Победите в PVP битве 10 раз', requirement: 10, current: Math.min(10, pvpWinsCount), reward: 350, type: 'rubles', icon: '⚔️' },
+        { id: 'premium_heal_5', title: 'Доктор 1', description: 'Лечить войска 5 раз', requirement: 5, current: Math.min(5, healCount), reward: 100, type: 'rubles', icon: '🏥' },
+        { id: 'premium_heal_10', title: 'Доктор 2', description: 'Лечить войска 10 раз', requirement: 10, current: Math.min(10, healCount), reward: 250, type: 'rubles', icon: '🏥' },
+        { id: 'premium_tattoo_2', title: 'Коллекционер 1', description: 'Соберите 2 наколки', requirement: 2, current: Math.min(2, tattoos.length), reward: 150, type: 'rubles', icon: '💉' },
+        { id: 'premium_tattoo_5', title: 'Коллекционер 2', description: 'Соберите 5 наколок', requirement: 5, current: Math.min(5, tattoos.length), reward: 300, type: 'rubles', icon: '💉' },
+        { id: 'premium_tattoo_10', title: 'Коллекционер 3', description: 'Соберите 10 наколок', requirement: 10, current: Math.min(10, tattoos.length), reward: 500, type: 'rubles', icon: '💉' },
+        { id: 'premium_buy_armor', title: 'Защитник', description: 'Купите бронежилет', requirement: 1, current: hasBodyArmor ? 1 : 0, reward: 100, type: 'rubles', icon: '🛡️' },
+        { id: 'premium_buy_knife', title: 'Оружейник', description: 'Купите заточку', requirement: 1, current: hasKnife ? 1 : 0, reward: 100, type: 'rubles', icon: '🔪' },
+        { id: 'premium_buy_hat', title: 'Модник', description: 'Купите шапку', requirement: 1, current: hasHat ? 1 : 0, reward: 100, type: 'rubles', icon: '🧢' },
+        { id: 'premium_buy_tea', title: 'Чаепитие', description: 'Купите чай', requirement: 1, current: hasTea ? 1 : 0, reward: 100, type: 'rubles', icon: '🍵' },
+        { id: 'premium_buy_milk', title: 'Молочник', description: 'Купите молоко', requirement: 1, current: hasMilk ? 1 : 0, reward: 100, type: 'rubles', icon: '🥛' }
     ];
 }
 
@@ -12206,7 +11847,7 @@ function checkQuestsCompletion() {
     var dailyQuests = getDailyQuests();
     for (var i = 0; i < dailyQuests.length; i++) {
         var quest = dailyQuests[i];
-        if (quest.current >= quest.requirement && !window.completedQuests.includes(quest.id)) {
+        if (quest.current >= quest.requirement && !window.completedQuests.includes(quest.id) && !quest.claimed) {
             newCount++;
         }
     }
@@ -12226,7 +11867,10 @@ function checkQuestsCompletion() {
 // 18.5.1. ОБНОВЛЕНИЕ ПРОГРЕССА ЕЖЕДНЕВНЫХ ЗАДАНИЙ
 // ============================================================
 function updateDailyQuestProgress(type, amount) {
-    if (!currentPlayer) return;
+    if (!currentPlayer) {
+        console.log('❌ updateDailyQuestProgress: нет игрока');
+        return;
+    }
     if (!window.dailyQuestsProgress) window.dailyQuestsProgress = {};
     
     var key = '';
@@ -12241,10 +11885,36 @@ function updateDailyQuestProgress(type, amount) {
         default: return;
     }
     
-    window.dailyQuestsProgress[key] = (window.dailyQuestsProgress[key] || 0) + (amount || 1);
+    var oldValue = window.dailyQuestsProgress[key] || 0;
+    window.dailyQuestsProgress[key] = oldValue + (amount || 1);
+    
+    console.log('📊 updateDailyQuestProgress:', type, oldValue, '->', window.dailyQuestsProgress[key]);
+    
     saveDailyQuestsProgress();
+    checkDailyQuestsCompletion();
     updateDailyQuestsUI();
     updateQuestsBadge();
+}
+
+function checkDailyQuestsCompletion() {
+    var dailyQuests = getDailyQuests();
+    var completed = window.dailyQuestsCompleted || {};
+    var changed = false;
+    
+    for (var i = 0; i < dailyQuests.length; i++) {
+        var quest = dailyQuests[i];
+        if (quest.current >= quest.requirement && !completed[quest.id]) {
+            completed[quest.id] = true;
+            changed = true;
+            console.log('✅ Задание выполнено:', quest.title);
+            showToast('✅ Выполнено задание: ' + quest.title + '! Награда: ' + quest.reward + ' 🚬', 'success');
+        }
+    }
+    
+    if (changed) {
+        window.dailyQuestsCompleted = completed;
+        saveDailyQuestsProgress();
+    }
 }
 
 function updateDailyQuestsUI() {
@@ -12255,7 +11925,6 @@ function updateDailyQuestsUI() {
     updateQuestsBadge();
 }
 
-// Сохранение прогресса
 function saveDailyQuestsProgress() {
     if (!currentPlayer) return;
     
@@ -12267,9 +11936,52 @@ function saveDailyQuestsProgress() {
             lastReset: window.dailyQuestsLastReset || Date.now()
         };
         localStorage.setItem('dailyQuests_' + currentPlayer.id, JSON.stringify(data));
+        console.log('💾 Ежедневные задания сохранены');
     } catch (e) {
         console.warn('⚠️ Ошибка сохранения ежедневных заданий:', e);
     }
+}
+
+function loadDailyQuestsProgress() {
+    if (!currentPlayer) return;
+    
+    try {
+        var saved = localStorage.getItem('dailyQuests_' + currentPlayer.id);
+        if (saved) {
+            var data = JSON.parse(saved);
+            window.dailyQuestsProgress = data.progress || {};
+            window.dailyQuestsCompleted = data.completed || {};
+            window.dailyQuestsClaimed = data.claimed || {};
+            window.dailyQuestsLastReset = data.lastReset || Date.now();
+            console.log('📂 Ежедневные задания загружены:', window.dailyQuestsProgress);
+        }
+    } catch (e) {
+        console.warn('⚠️ Ошибка загрузки ежедневных заданий:', e);
+    }
+}
+
+// ============================================================
+// 18.5.2. ОБНОВЛЕНИЕ ПРОГРЕССА ПРЕМИУМ ЗАДАНИЙ
+// ============================================================
+function updatePremiumQuestProgress(type, amount) {
+    if (!currentPlayer) return;
+    if (!window.premiumQuestsProgress) window.premiumQuestsProgress = {};
+    
+    var key = '';
+    switch(type) {
+        case 'robbery': key = 'robberyCount'; break;
+        case 'pvp_win': key = 'pvpWinsCount'; break;
+        case 'heal': key = 'healCount'; break;
+        default: return;
+    }
+    
+    window.premiumQuestsProgress[key] = (window.premiumQuestsProgress[key] || 0) + (amount || 1);
+    
+    try {
+        localStorage.setItem('premiumQuests_' + currentPlayer.id, JSON.stringify(window.premiumQuestsProgress));
+    } catch(e) {}
+    
+    updateQuestsBadge();
 }
 
 // ============================================================
@@ -12284,6 +11996,8 @@ function updateQuestsBadge() {
     if (existingBadge) {
         existingBadge.remove();
     }
+    
+    window.questNotificationCount = checkQuestsCompletion();
     
     if (window.questNotificationCount > 0) {
         var badge = document.createElement('span');
@@ -12318,7 +12032,7 @@ function updateQuestsBadge() {
 }
 
 // ============================================================
-// 18.7. ОТКРЫТИЕ ОКНА ЗАДАНИЙ (С ПРОВЕРКОЙ ИНТЕРНЕТА)
+// 18.7. ОТКРЫТИЕ ОКНА ЗАДАНИЙ
 // ============================================================
 window.openQuestsModal = function() {
     if (window._questOpeningModal) { 
@@ -12332,23 +12046,18 @@ window.openQuestsModal = function() {
         return; 
     }
     
-    // Обновляем статус интернета
     updateQuestInternetStatus();
     
-    // Проверяем интернет
     if (!window._questHasInternet) {
         showToast('📡 Нет интернета, данные могут быть неактуальны', 'warning');
         addToPendingQuestOperations('openModal');
-        // Все равно открываем окно, но с блокировкой кнопок
         renderQuestsModal();
         window._questOpeningModal = false;
         return;
     }
     
-    // Показываем индикатор загрузки
     showQuestLoading(true, '⏳ Загрузка заданий...');
     
-    // Загружаем данные перед открытием
     loadQuestsData();
     
     window.questNotificationCount = checkQuestsCompletion();
@@ -12361,7 +12070,7 @@ window.openQuestsModal = function() {
 };
 
 // ============================================================
-// 18.7.1. ОТРИСОВКА ОКНА ЗАДАНИЙ (ВЫНЕСЕНО В ОТДЕЛЬНУЮ ФУНКЦИЮ)
+// 18.7.1. ОТРИСОВКА ОКНА ЗАДАНИЙ
 // ============================================================
 function renderQuestsModal() {
     var modalHtml = `
@@ -12383,7 +12092,6 @@ function renderQuestsModal() {
             height: 100vh;
             max-height: 100vh;
         ">
-            <!-- ТЮРЕМНАЯ ШАПКА -->
             <div class="quests-header-bar" style="
                 background: linear-gradient(135deg, #1a1a2a 0%, #0d0d15 100%);
                 border-bottom: 2px solid #8B4513;
@@ -12399,7 +12107,6 @@ function renderQuestsModal() {
             ">
                 <div style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); font-size: 24px; opacity: 0.3; pointer-events: none;">⛓️</div>
                 <div style="position: absolute; right: 16px; top: 50%; transform: translateY(-50%); font-size: 24px; opacity: 0.3; pointer-events: none;">⛓️</div>
-                
                 <div class="quests-header-title" style="
                     font-size: 20px;
                     font-weight: 800;
@@ -12407,23 +12114,14 @@ function renderQuestsModal() {
                     -webkit-background-clip: text;
                     background-clip: text;
                     color: transparent;
-                    text-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
                     letter-spacing: 2px;
-                    display: flex;
-                    align-items: center;
-                    gap: 10px;
                 ">
-                    <span></span> ЗАДАНИЯ
-                    <!--<span id="questConnectionStatus" style="font-size: 14px; color: ${window._questHasInternet ? '#4caf50' : '#e94560'};">
-                        ${window._questHasInternet ? '🟢' : '🔴'}
-                    </span>--!>
+                    ЗАДАНИЯ
                 </div>
             </div>
             
-            <!-- КОНТЕНТ -->
             <div style="flex: 1; overflow-y: auto; overflow-x: hidden; padding: 4px 2px; margin-bottom: 4px;" ontouchstart="handleQuestsTouchStart(event)" ontouchend="handleQuestsTouchEnd(event)">
                 
-                <!-- ВКЛАДКИ -->
                 <div style="
                     display: flex;
                     background: rgba(10,14,26,0.9);
@@ -12479,7 +12177,6 @@ function renderQuestsModal() {
                     </button>
                 </div>
                 
-                <!-- СЛАЙДЕР -->
                 <div class="quests-slider" style="
                     display: flex;
                     width: 100%;
@@ -12492,7 +12189,6 @@ function renderQuestsModal() {
                 </div>
             </div>
             
-            <!-- НИЖНЯЯ ПАНЕЛЬ -->
             <div class="quests-bottom-nav" style="
                 position: fixed;
                 bottom: 0;
@@ -12546,7 +12242,6 @@ function renderQuestsModal() {
     renderDailyPage();
     renderPremiumPage();
     
-    // Обновляем UI с учетом статуса интернета
     setTimeout(function() {
         updateQuestsUI();
     }, 100);
@@ -12571,7 +12266,6 @@ function renderQuestsModal() {
         renderStoryPage();
         renderDailyPage();
         renderPremiumPage();
-        // Обновляем статус интернета в UI
         updateQuestInternetStatus();
     }, 5000);
 }
@@ -12639,14 +12333,13 @@ window.switchQuestsTab = function(index) {
     else if (index === 2) renderDailyPage();
     else if (index === 3) renderPremiumPage();
     
-    // Обновляем UI после переключения
     setTimeout(function() {
         updateQuestsUI();
     }, 100);
 };
 
 // ============================================================
-// 18.10-18.12. ОТРИСОВКА СТРАНИЦ (С БЛОКИРОВКОЙ КНОПОК)
+// 18.10-18.12. ОТРИСОВКА СТРАНИЦ
 // ============================================================
 function renderStoryPage() {
     var container = document.getElementById('questsStoryPage');
@@ -12654,20 +12347,16 @@ function renderStoryPage() {
 
     var storyQuests = getStoryQuests();
     
-    // СОРТИРУЕМ ЗАДАНИЯ: сначала готовые к выдаче, потом остальные
     storyQuests.sort(function(a, b) {
         var aReady = (a.current >= a.requirement && !window.completedQuests.includes(a.id));
         var bReady = (b.current >= b.requirement && !window.completedQuests.includes(b.id));
         var aClaimed = window.completedQuests.includes(a.id);
         var bClaimed = window.completedQuests.includes(b.id);
         
-        // Сначала готовые к выдаче (не выполненные и не полученные)
         if (aReady && !bReady) return -1;
         if (!aReady && bReady) return 1;
-        // Потом уже полученные
         if (aClaimed && !bClaimed) return 1;
         if (!aClaimed && bClaimed) return -1;
-        // Остальные по порядку
         return 0;
     });
 
@@ -12723,7 +12412,6 @@ function renderStoryPage() {
         var isClaimed = window.completedQuests.includes(quest.id);
         var canClaim = isCompleted && !isClaimed && window._questHasInternet;
         
-        // Подсветка для готовых к выдаче
         var isReady = isCompleted && !isClaimed;
         var glowStyle = isReady ? 'box-shadow: 0 0 20px rgba(201,160,61,0.2); border: 1px solid #c9a03d;' : '';
 
@@ -12799,17 +12487,14 @@ function renderDailyPage() {
 
     var dailyQuests = getDailyQuests();
     
-    // СОРТИРУЕМ ЗАДАНИЯ: сначала готовые к выдаче, потом остальные
     dailyQuests.sort(function(a, b) {
-        var aReady = (a.current >= a.requirement && !window.completedQuests.includes(a.id));
-        var bReady = (b.current >= b.requirement && !window.completedQuests.includes(b.id));
-        var aClaimed = window.completedQuests.includes(a.id);
-        var bClaimed = window.completedQuests.includes(b.id);
+        var aReady = (a.current >= a.requirement && !a.claimed && !a.completed);
+        var bReady = (b.current >= b.requirement && !b.claimed && !b.completed);
         
         if (aReady && !bReady) return -1;
         if (!aReady && bReady) return 1;
-        if (aClaimed && !bClaimed) return 1;
-        if (!aClaimed && bClaimed) return -1;
+        if (a.completed && !b.completed) return 1;
+        if (!a.completed && b.completed) return -1;
         return 0;
     });
     
@@ -12933,7 +12618,8 @@ function renderDailyPage() {
         var isCompleted = (quest.current >= quest.requirement);
         var progressPercent = Math.min(100, (quest.current / quest.requirement) * 100);
         var rewardText = quest.type === 'cigarettes' ? quest.reward + ' 🚬' : quest.reward + ' 💰';
-        var isClaimed = window.completedQuests.includes(quest.id);
+        var isClaimed = quest.claimed || window.dailyQuestsClaimed[quest.id] || false;
+        var isCompletedFlag = quest.completed || window.dailyQuestsCompleted[quest.id] || false;
         var canClaim = isCompleted && !isClaimed && window._questHasInternet;
         
         var isReady = isCompleted && !isClaimed;
@@ -13011,7 +12697,6 @@ function renderPremiumPage() {
 
     var premiumQuests = getPremiumQuests();
     
-    // СОРТИРУЕМ ЗАДАНИЯ: сначала готовые к выдаче, потом остальные
     premiumQuests.sort(function(a, b) {
         var aReady = (a.current >= a.requirement && !window.completedQuests.includes(a.id));
         var bReady = (b.current >= b.requirement && !window.completedQuests.includes(b.id));
@@ -13167,10 +12852,9 @@ window.handleQuestsTouchEnd = function(e) {
 };
 
 // ============================================================
-// 18.14. ПОЛУЧЕНИЕ НАГРАДЫ ЗА ЗАДАНИЯ (С ПРОВЕРКОЙ ИНТЕРНЕТА)
+// 18.14. ПОЛУЧЕНИЕ НАГРАДЫ ЗА ЗАДАНИЯ
 // ============================================================
 async function claimStoryQuest(questId, reward, type) {
-    // Проверяем интернет
     if (!window._questHasInternet) {
         showToast('📡 Нет интернета, операция добавлена в очередь', 'warning');
         addToPendingQuestOperations('claimStory', { questId: questId, reward: reward, type: type });
@@ -13182,7 +12866,6 @@ async function claimStoryQuest(questId, reward, type) {
         return; 
     }
     
-    // Показываем индикатор загрузки
     showQuestLoading(true, '⏳ Получение награды...');
     
     try {
@@ -13201,12 +12884,10 @@ async function claimStoryQuest(questId, reward, type) {
         console.warn('⚠️ Ошибка проверки БД:', e);
     }
     
-    // Выполняем получение
     await claimStoryQuestDirect(questId, reward, type);
     showQuestLoading(false);
 }
 
-// Прямая функция для получения сюжетной награды (для очереди)
 async function claimStoryQuestDirect(questId, reward, type) {
     window.completedQuests.push(questId);
     await dbUpdate('players/' + window.playerId, { completedQuests: window.completedQuests });
@@ -13228,7 +12909,7 @@ async function claimStoryQuestDirect(questId, reward, type) {
 }
 
 // ============================================================
-// 18.14.1. ПОЛУЧЕНИЕ ЕЖЕДНЕВНОЙ НАГРАДЫ (С ПРОВЕРКОЙ ИНТЕРНЕТА)
+// 18.14.1. ПОЛУЧЕНИЕ ЕЖЕДНЕВНОЙ НАГРАДЫ
 // ============================================================
 async function claimDailyQuest(questId, reward, type) {
     if (!window._questHasInternet) {
@@ -13237,7 +12918,7 @@ async function claimDailyQuest(questId, reward, type) {
         return;
     }
     
-    if (window.completedQuests.includes(questId)) { 
+    if (window.dailyQuestsClaimed[questId]) { 
         showToast('Награда уже получена!', 'warning'); 
         return; 
     }
@@ -13245,12 +12926,12 @@ async function claimDailyQuest(questId, reward, type) {
     showQuestLoading(true, '⏳ Получение награды...');
     
     try {
-        var snapshot = await db.ref('players/' + window.playerId + '/completedQuests').once('value');
+        var snapshot = await db.ref('players/' + window.playerId + '/dailyQuestsClaimed').once('value');
         if (snapshot.exists()) {
-            var dbCompleted = snapshot.val();
-            if (dbCompleted && Array.isArray(dbCompleted) && dbCompleted.includes(questId)) {
-                window.completedQuests = dbCompleted;
-                localStorage.setItem('completedQuests_' + window.currentPlayer.id, JSON.stringify(window.completedQuests));
+            var dbClaimed = snapshot.val();
+            if (dbClaimed && dbClaimed[questId]) {
+                window.dailyQuestsClaimed[questId] = true;
+                localStorage.setItem('dailyQuestsClaimed_' + window.currentPlayer.id, JSON.stringify(window.dailyQuestsClaimed));
                 showToast('Награда уже получена!', 'warning');
                 showQuestLoading(false);
                 return;
@@ -13265,9 +12946,9 @@ async function claimDailyQuest(questId, reward, type) {
 }
 
 async function claimDailyQuestDirect(questId, reward, type) {
-    window.completedQuests.push(questId);
-    await dbUpdate('players/' + window.playerId, { completedQuests: window.completedQuests });
-    localStorage.setItem('completedQuests_' + window.currentPlayer.id, JSON.stringify(window.completedQuests));
+    window.dailyQuestsClaimed[questId] = true;
+    await dbUpdate('players/' + window.playerId, { dailyQuestsClaimed: window.dailyQuestsClaimed });
+    localStorage.setItem('dailyQuestsClaimed_' + window.currentPlayer.id, JSON.stringify(window.dailyQuestsClaimed));
     
     if (type === 'cigarettes') {
         window.currentPlayer.cigarettes += reward;
@@ -13285,7 +12966,7 @@ async function claimDailyQuestDirect(questId, reward, type) {
 }
 
 // ============================================================
-// 18.14.2. ПОЛУЧЕНИЕ ПРЕМИУМ НАГРАДЫ (С ПРОВЕРКОЙ ИНТЕРНЕТА)
+// 18.14.2. ПОЛУЧЕНИЕ ПРЕМИУМ НАГРАДЫ
 // ============================================================
 async function claimPremiumQuest(questId, reward, type) {
     if (!window._questHasInternet) {
@@ -13342,7 +13023,7 @@ async function claimPremiumQuestDirect(questId, reward, type) {
 }
 
 // ============================================================
-// 18.15. ПОЛУЧЕНИЕ ЕЖЕДНЕВНОГО БОНУСА (С ПРОВЕРКОЙ ИНТЕРНЕТА)
+// 18.15. ПОЛУЧЕНИЕ ЕЖЕДНЕВНОГО БОНУСА
 // ============================================================
 async function claimDailyBonusFromModal() {
     if (!window._questHasInternet) {
@@ -13404,6 +13085,17 @@ function loadQuestsData() {
     
     console.log('📋 Загрузка данных заданий...');
     
+    // Загружаем ежедневные задания
+    loadDailyQuestsProgress();
+    
+    // Загружаем премиум прогресс
+    try {
+        var savedPremium = localStorage.getItem('premiumQuests_' + window.currentPlayer.id);
+        if (savedPremium) {
+            window.premiumQuestsProgress = JSON.parse(savedPremium);
+        }
+    } catch(e) {}
+    
     if (db && window.playerId) {
         db.ref('players/' + window.playerId + '/completedQuests').once('value', function(snapshot) {
             if (snapshot.exists()) {
@@ -13417,14 +13109,21 @@ function loadQuestsData() {
         }).catch(function(e) {
             console.warn('⚠️ Ошибка загрузки completedQuests из БД:', e);
         });
+        
+        // Загружаем ежедневные задания из БД
+        db.ref('players/' + window.playerId + '/dailyQuestsClaimed').once('value', function(snapshot) {
+            if (snapshot.exists()) {
+                var data = snapshot.val();
+                if (data) {
+                    window.dailyQuestsClaimed = data;
+                    localStorage.setItem('dailyQuestsClaimed_' + window.currentPlayer.id, JSON.stringify(data));
+                    console.log('✅ Загружено dailyQuestsClaimed из БД');
+                }
+            }
+        }).catch(function(e) {
+            console.warn('⚠️ Ошибка загрузки dailyQuestsClaimed из БД:', e);
+        });
     }
-    
-    try {
-        var savedProgress = localStorage.getItem('questsProgress_' + window.currentPlayer.id);
-        if (savedProgress) {
-            window.questsProgress = JSON.parse(savedProgress);
-        }
-    } catch(e) {}
     
     try {
         var savedCompleted = localStorage.getItem('completedQuests_' + window.currentPlayer.id);
@@ -13462,33 +13161,11 @@ function initQuests() {
         return;
     }
     
-    // Устанавливаем начальный статус интернета
     window._questHasInternet = checkQuestInternetConnection();
     console.log('🌐 Статус интернета (Задания):', window._questHasInternet ? 'онлайн' : 'офлайн');
     
-    if (db && window.playerId) {
-        db.ref('players/' + window.playerId + '/completedQuests').once('value', function(snapshot) {
-            if (snapshot.exists()) {
-                var data = snapshot.val();
-                if (data && Array.isArray(data)) {
-                    window.completedQuests = data;
-                    localStorage.setItem('completedQuests_' + window.currentPlayer.id, JSON.stringify(data));
-                    console.log('✅ Загружено completedQuests из БД:', window.completedQuests.length);
-                }
-            }
-            window.questNotificationCount = checkQuestsCompletion();
-            updateQuestsBadge();
-        }).catch(function(e) {
-            console.warn('⚠️ Ошибка загрузки completedQuests из БД:', e);
-            loadQuestsData();
-        });
-    }
-    
     loadQuestsData();
-    window.questNotificationCount = checkQuestsCompletion();
-    updateQuestsBadge();
     
-    // Запускаем периодическую проверку интернета (каждые 5 секунд)
     if (window._questCheckInterval) {
         clearInterval(window._questCheckInterval);
     }
@@ -13500,11 +13177,9 @@ function initQuests() {
             console.log('🔄 ЗАДАНИЯ: статус интернета изменился:', oldStatus, '->', newStatus);
             window._questHasInternet = newStatus;
             
-            // Обновляем UI
             var modal = document.getElementById('questsFullscreen');
             if (modal) {
                 updateQuestsUI();
-                // Перерисовываем страницы для обновления кнопок
                 if (window.currentQuestsTab === 1) renderStoryPage();
                 else if (window.currentQuestsTab === 2) renderDailyPage();
                 else if (window.currentQuestsTab === 3) renderPremiumPage();
@@ -13518,7 +13193,6 @@ function initQuests() {
             }
         }
         
-        // Также проверяем новые выполненные задания
         if (!window.currentPlayer) {
             if (window._questCheckInterval) {
                 clearInterval(window._questCheckInterval);
@@ -13560,8 +13234,11 @@ window.claimPremiumQuest = claimPremiumQuest;
 window.claimDailyBonusFromModal = claimDailyBonusFromModal;
 window.loadQuestsData = loadQuestsData;
 window.initQuests = initQuests;
+window.updateDailyQuestProgress = updateDailyQuestProgress;
+window.updatePremiumQuestProgress = updatePremiumQuestProgress;
+window.loadDailyQuestsProgress = loadDailyQuestsProgress;
+window.saveDailyQuestsProgress = saveDailyQuestsProgress;
 
-// Экспорт функций проверки интернета
 window.checkQuestInternetConnection = checkQuestInternetConnection;
 window.updateQuestInternetStatus = updateQuestInternetStatus;
 window.addToPendingQuestOperations = addToPendingQuestOperations;
@@ -17682,9 +17359,7 @@ function renderClanQuestsHTML(clanLevel) {
 
     var html = `
         <div style="text-align: center; margin-bottom: 20px;">
-            <div style="display: inline-block; background: linear-gradient(135deg, #8B4513, #5a2d0a); padding: 8px 20px; border-radius: 30px;">
-                <span style="font-size: 18px;">🔓 ТЮРЕМНЫЕ РАБОТЫ 🔓</span>
-            </div>
+            
             <p style="font-size: 12px; color: #c9a03d; margin-top: 10px;">⚡ Выполняй задания — получай ресурсы! ⚡</p>
         </div>
         <div style="display: flex; flex-direction: column; gap: 12px; max-height: 500px; overflow-y: auto; padding-right: 8px;">
@@ -17749,7 +17424,7 @@ function renderClanQuestsHTML(clanLevel) {
         var hourIcon = hourIcons[quest.hours] || '⚡';
 
         html += `
-            <div class="clan-quest-card" style="opacity: ${isActive ? 1 : 0.5}; filter: ${isActive ? 'none' : 'grayscale(0.4)'}; padding: 16px;">
+            <div class="clan-quest-card" style="opacity: ${isActive ? 1 : 0.5}; filter: ${isActive ? 'none' : 'grayscale(0.4)'}; border: 1px solid #8B4513; padding: 16px;">
                 <div class="clan-quest-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
                     <div class="clan-quest-title" style="display: flex; align-items: center; gap: 10px;">
                         <span style="font-size: 24px;">${hourIcon}</span>
@@ -18447,17 +18122,17 @@ function renderMembersHTML() {
                 <div id="${memberId}" style="display: none; padding: 8px 12px 12px; border-top: 1px solid rgba(139,69,19,0.2);">
                     <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:8px;">
                         <div style="background:rgba(0,0,0,0.3); border-radius:10px; padding:8px; text-align:center;">
-                            <div style="font-size:20px;">👑</div>
+                            <div style="font-size:20px;"><img src="https://sviter-pro.github.io/GameZone/src/photo/blat.png" width="50" height="44" draggable="false" style="display: block; margin: 0 auto;"></div>
                             <div style="font-size:10px; color:#c9a03d;">БЛАТНЫЕ</div>
                             <div style="font-size:16px; font-weight:700; color:#ffd966;">${blats}</div>
                         </div>
                         <div style="background:rgba(0,0,0,0.3); border-radius:10px; padding:8px; text-align:center;">
-                            <div style="font-size:20px;">🔨</div>
+                            <div style="font-size:20px;"><img src="https://sviter-pro.github.io/GameZone/src/photo/muzh.png" width="50" height="44" draggable="false" style="display: block; margin: 0 auto;"></div>
                             <div style="font-size:10px; color:#c9a03d;">МУЖИКИ</div>
                             <div style="font-size:16px; font-weight:700; color:#ffd966;">${muzhiks}</div>
                         </div>
                         <div style="background:rgba(0,0,0,0.3); border-radius:10px; padding:8px; text-align:center;">
-                            <div style="font-size:20px;">🐑</div>
+                            <div style="font-size:20px;"><img src="https://sviter-pro.github.io/GameZone/src/photo/phra.png" width="50" height="44" draggable="false" style="display: block; margin: 0 auto;"></div>
                             <div style="font-size:10px; color:#c9a03d;">ФРАЕРА</div>
                             <div style="font-size:16px; font-weight:700; color:#ffd966;">${fraers}</div>
                         </div>
@@ -20842,16 +20517,8 @@ async function completeWorkSafe(type) {
         var successMessage = '';
         var updateData = {};
 
-        // После добавления ресурсов, обновляем прогресс ежедневных заданий
         if (type === 'mine') {
-            updateDailyQuestProgress('mine');
-        } else if (type === 'lumber') {
-            updateDailyQuestProgress('lumber');
-        } else if (type === 'quarry') {
-            updateDailyQuestProgress('quarry');
-        }
-        
-        if (type === 'mine') {
+             updateDailyQuestProgress('mine');
             if (isMineUpgradeActive('paper') || isMineUpgradeActive('makhorka')) {
                 console.log('⚠️ Прокачка активна, работа отменена');
                 window.workPendingCompletion[type] = false;
@@ -20880,6 +20547,7 @@ async function completeWorkSafe(type) {
             successMessage = '⛏️ Работа в шахте завершена! +' + paperGain + '📄, +' + makhorkaGain + '🌿, +' + workExp + '⭐ опыта';
             
         } else if (type === 'lumber') {
+            updateDailyQuestProgress('lumber');
             if (isLumberUpgradeActive()) {
                 console.log('⚠️ Прокачка активна, работа отменена');
                 window.workPendingCompletion[type] = false;
@@ -20899,6 +20567,7 @@ async function completeWorkSafe(type) {
             successMessage = '🪓 Работа на лесоповале завершена! +' + woodGain + '🪵 дерева, +' + workExp + '⭐ опыта';
             
         } else if (type === 'quarry') {
+            updateDailyQuestProgress('quarry');
             if (isQuarryUpgradeActive()) {
                 console.log('⚠️ Прокачка активна, работа отменена');
                 window.workPendingCompletion[type] = false;
@@ -24704,7 +24373,9 @@ function updateBattleCounter() {
         }
         
         var hasActive = window.activeBattleData && window.activeBattleEndTime > Date.now();
-        var newHTML = '';
+        
+        // Ищем существующий контейнер
+        var existingContainer = b6Element.querySelector('.battle-counters');
         
         if (hasActive) {
             var remaining = window.activeBattleEndTime - Date.now();
@@ -24713,86 +24384,75 @@ function updateBattleCounter() {
             var seconds = totalSeconds % 60;
             var timerText = minutes > 0 ? minutes + 'м ' + seconds + 'с' : seconds + 'с';
             
-            newHTML = `
-                <div class="battle-counters" style="position:absolute; bottom:50px; left:50%; transform:translateX(-50%); width:92%; z-index:10; display:flex; flex-direction:column; gap:3px; pointer-events:none;">
-                    <div id="battle-counter-element" data-remaining="${remaining}" onclick="showBattleSpeedUpModal('battle-counter', ${remaining})" style="
-                        background:rgba(0,0,0,0.85); 
-                        border:1px solid rgba(0,0,0,0.9); 
-                        border-left:3px solid #ff9800; 
-                        border-radius:6px; 
-                        padding:4px 10px; 
-                        font-size:10px; 
-                        font-weight:600; 
-                        color:#ffffff; 
-                        text-shadow:0 1px 4px rgba(0,0,0,0.9); 
-                        display:flex; 
-                        align-items:center; 
-                        justify-content:center; 
-                        gap:6px; 
-                        backdrop-filter:blur(8px); 
-                        box-shadow:0 2px 8px rgba(0,0,0,0.6); 
-                        font-family:'Courier New',monospace; 
-                        pointer-events:auto; 
-                        min-height:22px; 
-                        animation:counterSlideIn 0.3s ease forwards;
-                        cursor:pointer;
-                        transition: background 0.2s ease, transform 0.2s ease;
-                    " 
-                    onmouseover="this.style.background='rgba(255,255,255,0.12)'; this.style.transform='scale(1.02)'" 
-                    onmouseout="this.style.background='rgba(0,0,0,0.85)'; this.style.transform='scale(1)'">
-                        ⚔️ <span style="font-weight:700; font-size:11px; min-width:45px; text-align:center; color:#FFA726;">${timerText}</span>
+            if (!existingContainer) {
+                // Создаем новый контейнер только если его нет
+                var newHTML = `
+                    <div class="battle-counters" style="position:absolute; bottom:50px; left:50%; transform:translateX(-50%); width:92%; z-index:10; display:flex; flex-direction:column; gap:3px; pointer-events:none;">
+                        <div id="battle-counter-element" data-remaining="${remaining}" onclick="showBattleSpeedUpModal('battle-counter', ${remaining})" style="
+                            background:rgba(0,0,0,0.85); 
+                            border:1px solid rgba(0,0,0,0.9); 
+                            border-left:3px solid #ff9800; 
+                            border-radius:6px; 
+                            padding:4px 10px; 
+                            font-size:10px; 
+                            font-weight:600; 
+                            color:#ffffff; 
+                            text-shadow:0 1px 4px rgba(0,0,0,0.9); 
+                            display:flex; 
+                            align-items:center; 
+                            justify-content:center; 
+                            gap:6px; 
+                            backdrop-filter:blur(8px); 
+                            box-shadow:0 2px 8px rgba(0,0,0,0.6); 
+                            font-family:'Courier New',monospace; 
+                            pointer-events:auto; 
+                            min-height:22px; 
+                            animation:counterSlideIn 0.3s ease forwards;
+                            cursor:pointer;
+                            transition: background 0.2s ease, transform 0.2s ease;
+                        " 
+                        onmouseover="this.style.background='rgba(255,255,255,0.12)'; this.style.transform='scale(1.02)'" 
+                        onmouseout="this.style.background='rgba(0,0,0,0.85)'; this.style.transform='scale(1)'">
+                            ⚔️ <span style="font-weight:700; font-size:11px; min-width:45px; text-align:center; color:#FFA726;">${timerText}</span>
+                        </div>
                     </div>
-                </div>
-            `;
-        }
-        
-        if (window._lastBattleCounterHTML !== newHTML) {
-            var oldContainer = b6Element.querySelector('.battle-counters');
-            if (oldContainer) {
-                oldContainer.style.transition = 'opacity 0.3s ease';
-                oldContainer.style.opacity = '0';
-                setTimeout(function() {
-                    if (oldContainer && oldContainer.parentNode) {
-                        oldContainer.remove();
-                    }
-                }, 300);
-            }
-            
-            if (hasActive) {
-                setTimeout(function() {
-                    b6Element.insertAdjacentHTML('beforeend', newHTML);
-                    var newContainer = b6Element.querySelector('.battle-counters');
-                    if (newContainer) {
-                        newContainer.style.opacity = '0';
-                        newContainer.style.transition = 'opacity 0.3s ease';
-                        setTimeout(function() {
-                            newContainer.style.opacity = '1';
-                        }, 50);
-                    }
-                }, 350);
-            }
-            
-            window._lastBattleCounterHTML = newHTML;
-        } else if (hasActive && newHTML) {
-            var container = b6Element.querySelector('.battle-counters');
-            if (container) {
-                var timeSpan = container.querySelector('.battle-counters span:last-child');
+                `;
+                b6Element.insertAdjacentHTML('beforeend', newHTML);
+                window._lastBattleCounterHTML = newHTML;
+            } else {
+                // Обновляем существующий счетчик
+                var timeSpan = existingContainer.querySelector('.battle-counters span:last-child');
                 if (timeSpan) {
-                    var remaining = window.activeBattleEndTime - Date.now();
-                    var totalSeconds = Math.floor(remaining / 1000);
-                    var minutes = Math.floor(totalSeconds / 60);
-                    var seconds = totalSeconds % 60;
-                    var timerText = minutes > 0 ? minutes + 'м ' + seconds + 'с' : seconds + 'с';
                     if (timeSpan.textContent !== timerText) {
                         timeSpan.textContent = timerText;
                     }
                 }
                 // Обновляем data-remaining
-                var remaining = window.activeBattleEndTime - Date.now();
-                container.querySelector('#battle-counter-element')?.setAttribute('data-remaining', remaining);
+                var counterElement = existingContainer.querySelector('#battle-counter-element');
+                if (counterElement) {
+                    counterElement.setAttribute('data-remaining', remaining);
+                    // Обновляем onclick
+                    counterElement.setAttribute('onclick', "showBattleSpeedUpModal('battle-counter', " + remaining + ")");
+                }
+                // Проверяем видимость
+                existingContainer.style.display = 'flex';
+            }
+        } else {
+            // Если нет активного боя - удаляем счетчик
+            if (existingContainer) {
+                existingContainer.style.transition = 'opacity 0.3s ease';
+                existingContainer.style.opacity = '0';
+                setTimeout(function() {
+                    if (existingContainer && existingContainer.parentNode) {
+                        existingContainer.remove();
+                    }
+                }, 300);
+                window._lastBattleCounterHTML = '';
             }
         }
-    } catch (e) {}
+    } catch (e) {
+        console.warn('⚠️ Ошибка обновления счетчика боя:', e);
+    }
     
     window._isBattleCounterUpdating = false;
 }
@@ -25282,7 +24942,7 @@ function openAttackModal() {
                 ">
                     <div style="position:absolute; left:16px; top:50%; transform:translateY(-50%); font-size:24px; opacity:0.3; pointer-events:none;">⛓️</div>
                     <div style="position:absolute; right:16px; top:50%; transform:translateY(-50%); font-size:24px; opacity:0.3; pointer-events:none;">⛓️</div>
-                    <div class="attack-header-title" style="font-size:20px; font-weight:800; background:linear-gradient(135deg,#c9a03d,#8B6914); -webkit-background-clip:text; background-clip:text; color:transparent; letter-spacing:2px;">⚔️ СХОДКА</div>
+                    <div class="attack-header-title" style="font-size:20px; font-weight:800; background:linear-gradient(135deg,#c9a03d,#8B6914); -webkit-background-clip:text; background-clip:text; color:transparent; letter-spacing:2px;">СХОДКА</div>
                 </div>
                 <div style="background: linear-gradient(135deg, #1a1a2a, #0d0d15); border-radius: 1px; padding: 5px 20px; margin: 9px -15px; border: 1px solid #8B4513; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
             <div style="display: flex; gap: 1px; align-items: center; flex-wrap: wrap;">
@@ -25309,7 +24969,7 @@ function openAttackModal() {
             </div>
         </div>
                 
-                <div style="flex:1; overflow-y:auto; overflow-x:hidden; padding:5px; padding-bottom:40px;">
+                <div style="flex:1; overflow-y:auto; overflow-x:hidden; padding:5px; padding-bottom:100px;">
                     <div id="pvpContainer" style="display:block;">
                         <div style="display:flex; background:rgba(10,14,26,0.9); border-radius:40px; margin-bottom:15px; padding:3px; border:1px solid rgba(139,69,19,0.15);">
                             <button id="pvpFightsTabBtn" class="attack-sub-tab active" style="flex:1; background:transparent; border:none; padding:8px 0; border-radius:30px; font-size:11px; font-weight:600; cursor:pointer; transition:all 0.2s; color:#c9a03d; background:rgba(139,69,19,0.3);">⚔️ БОИ</button>
@@ -25325,12 +24985,12 @@ function openAttackModal() {
                                     <div><button class="btn-primary" onclick="event.stopPropagation(); openActiveBattleWindow()" style="background:linear-gradient(135deg,#ff9800,#e68a00); border:none; border-radius:30px; padding:6px 16px; font-weight:700; color:white; cursor:pointer; font-size:12px;">🔗 ВЕРНУТЬСЯ</button></div>
                                 </div>
                             </div>
-                            <div id="playersListContainer" style="max-height:${window.activeBattleData && window.activeBattleEndTime > Date.now() ? '40vh' : '50vh'}; overflow-y:auto; padding-right:5px;">${playersListHtml}</div>
+                            <div id="playersListContainer" style="max-height:${window.activeBattleData && window.activeBattleEndTime > Date.now() ? '40vh' : '60vh'}; overflow-y:auto; padding-right:5px;">${playersListHtml}</div>
                             <div id="battleInfoContainer" style="display:none;"></div>
                         </div>
                         
                         <div id="pvpHistoryContainer" style="display:none;">
-                            <div id="historyListContainer" style="max-height:50vh; overflow-y:auto; padding-right:5px;">${historyHtml || '<div style="text-align:center; padding:40px; color:#888;">📭 Нет истории боёв</div>'}</div>
+                            <div id="historyListContainer" style="max-height:60vh; overflow-y:auto; padding-right:5px;">${historyHtml || '<div style="text-align:center; padding:40px; color:#888;">📭 Нет истории боёв</div>'}</div>
                         </div>
                     </div>
                     
@@ -25858,7 +25518,7 @@ function renderHistoryContent() {
         
         return `
             <div class="clan-card-item" style="background:rgba(20,20,30,0.9); border:1px solid #8B4513; border-radius:12px; margin-bottom:10px; padding:12px; cursor:pointer; transition:all 0.2s; position:relative; overflow:hidden;" onclick="toggleHistoryDetails(this)">
-                <div style="position:absolute; top:0; left:0; right:0; height:3px; background:linear-gradient(90deg,${resultClass},#c9a03d);"></div>
+                <!--<div style="position:absolute; top:0; left:0; right:0; height:3px; background:linear-gradient(90deg,${resultClass},#c9a03d);"></div>--!>
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:4px;">
                     <div>
                         <span style="color:${resultClass}; font-weight:bold; font-size:14px;">${resultText}</span>
@@ -26767,7 +26427,7 @@ async function renderRobberyHistoryContent() {
         }
         
         return '<div class="clan-card-item" style="background:rgba(20,20,30,0.9); border:1px solid #8B4513; border-radius:12px; margin-bottom:8px; padding:10px; cursor:pointer;" onclick="toggleHistoryDetails(this)">' +
-            '<div style="position:absolute; top:0; left:0; right:0; height:3px; background:linear-gradient(90deg,#4caf50,#c9a03d);"></div>' +
+            <!--'<div style="position:absolute; top:0; left:0; right:0; height:3px; background:linear-gradient(90deg,#4caf50,#c9a03d);"></div>' + --!>
             '<div style="display:flex; justify-content:space-between; align-items:center;">' +
             '<div><span style="color:#4caf50;">✅ УСПЕХ</span> ' + (record.resourceIcon || '📦') + ' ' + (record.resourceName || 'Грабёж') + '</div>' +
             '<div style="font-size:10px; color:#888;">' + date + '</div>' +
@@ -27025,7 +26685,6 @@ function createRobberyCounterAuto(robbery) {
     // Иконка
     var iconSpan = document.createElement('span');
     iconSpan.className = 'counter-icon';
-    iconSpan.textContent = robbery.resourceIcon || '🦹';
     iconSpan.style.cssText = 'font-size: 12px; line-height: 1; flex-shrink: 0;';
     
     // Название
