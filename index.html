@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>GameZona - 1.0.1.080</title>
+    <title>GameZona - 1.0.1.081</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -551,7 +551,7 @@
             opacity: 1;
             top: -46px;
         }
-
+		.b0 { top: 2%; left: 1%; width: 98%; height: 3%; }
         .b1 { top: 3%; left: 31%; width: 38%; height: 15%; }
         .b2 { top: 18%; left: 3%; width: 38%; height: 18%; }
         .b3 { top: 19%; right: 3%; width: 38%; height: 18%; }
@@ -5100,6 +5100,7 @@ function formatNumberShort(num) {
                 <div class="game-container">
                     <div class="map-wrapper">
                         <img class="map-image" src="https://sviter-pro.github.io/GameZone/src/test/123.png" alt="Карта зоны" draggable="false">
+						<div class="building b0"><div class="building-label"></div></div>
                         <div class="building b1" onclick="openInventoryModal()"><div class="building-label">Камера</div></div>
                         <div class="building b2" onclick="openMineModal()"><div class="building-label">Работа</div></div>
                         <div class="building b3" onclick="openCardGameModal()"><div class="building-label">Игровая</div></div>
@@ -8742,7 +8743,7 @@ window.openSettingsModal = function() {
                     <div style="font-size: 36px; margin-bottom: 10px;">⚙️</div>
                     <div style="font-size: 16px; font-weight: 700; color: #ffd966;">${escapeHtml(window.currentPlayer.username)}</div>
                     <div style="font-size: 12px; color: #888; margin-top: 4px;">🆔 ${window.playerId}</div>
-                    <div style="font-size: 11px; color: #666; margin-top: 8px;">Версия - 1.0.1.080</div>
+                    <div style="font-size: 11px; color: #666; margin-top: 8px;">Версия - 1.0.1.081</div>
                     <div class="settings-status-info" style="font-size: 10px; color: ${window._settingsHasInternet ? '#4caf50' : '#e94560'}; margin-top: 6px;">
                         ${window._settingsHasInternet ? '🟢 Онлайн' : '🔴 Офлайн'}
                     </div>
@@ -30486,11 +30487,23 @@ function openSendTroopsModal() {
         showToast('❌ Игрок не найден!', 'error');
         return;
     }
-    if (window.currentPlayer.clanId !== window.warAttackerClanId && 
-        window.currentPlayer.clanId !== window.warDefenderClanId) {
-        showToast('❌ Вы не участвуете в этой войне!', 'warning');
+    // ========== ИЗМЕНЕНИЕ: ВСЕ УЧАСТНИКИ КЛАНА МОГУТ ОТПРАВЛЯТЬ ВОЙСКА ==========
+    // Проверяем, состоит ли игрок в одном из кланов, участвующих в войне
+    var playerClan = window.allClans?.find(function(c) { 
+        return c.id === window.currentPlayer.clanId; 
+    });
+    
+    if (!playerClan) {
+        showToast('❌ Вы не в клане!', 'warning');
         return;
     }
+    
+    if (playerClan.id !== window.warAttackerClanId && 
+        playerClan.id !== window.warDefenderClanId) {
+        showToast('❌ Ваш клан не участвует в этой войне!', 'warning');
+        return;
+    }
+    // ========================================================================
     
     var availableTroops = getPlayerTroops(window.currentPlayer);
     if (availableTroops === 0) {
@@ -30540,6 +30553,9 @@ function openSendTroopsModal() {
                     </div>
                     <div style="font-size: 12px; color: #888; margin-top: 4px;">
                         Доступно войск: <span style="color: #ffd966; font-weight: 700;">${formatNumberShort(availableTroops)}</span>
+                    </div>
+                    <div style="font-size: 11px; color: #888; margin-top: 2px;">
+                        🏴 ${playerClan.name} ${playerClan.id === window.warAttackerClanId ? '⚔️ Атакует' : '🛡️ Защищается'}
                     </div>
                 </div>
                 
@@ -30655,11 +30671,24 @@ async function sendTroopsToWar(troopsCount) {
         showToast('❌ Игрок не найден!', 'error');
         return;
     }
-    if (window.currentPlayer.clanId !== window.warAttackerClanId && 
-        window.currentPlayer.clanId !== window.warDefenderClanId) {
-        showToast('❌ Вы не участвуете в этой войне!', 'warning');
+    
+    // ========== ИЗМЕНЕНИЕ: ВСЕ УЧАСТНИКИ КЛАНА МОГУТ ОТПРАВЛЯТЬ ВОЙСКА ==========
+    var playerClan = window.allClans?.find(function(c) { 
+        return c.id === window.currentPlayer.clanId; 
+    });
+    
+    if (!playerClan) {
+        showToast('❌ Вы не в клане!', 'warning');
         return;
     }
+    
+    if (playerClan.id !== window.warAttackerClanId && 
+        playerClan.id !== window.warDefenderClanId) {
+        showToast('❌ Ваш клан не участвует в этой войне!', 'warning');
+        return;
+    }
+    // ========================================================================
+    
     if (!troopsCount || troopsCount < 1) {
         showToast('❌ Укажите количество войск для отправки!', 'warning');
         return;
@@ -30674,12 +30703,14 @@ async function sendTroopsToWar(troopsCount) {
     try {
         showLoading(true, 'Отправка войск...');
         
-        var isAttacker = window.currentPlayer.clanId === window.warAttackerClanId;
+        var isAttacker = playerClan.id === window.warAttackerClanId;
         var playerId = window.currentPlayer.id;
         
+        // Списываем войска у игрока
         window.currentPlayer.troops = (window.currentPlayer.troops || 0) - troopsCount;
         await dbUpdate('players/' + playerId, { troops: window.currentPlayer.troops });
         
+        // Добавляем в общий пул
         if (isAttacker) {
             window.warAttackerTroops += troopsCount;
             if (!window.warAttackerTroopsHistory[playerId]) {
@@ -30696,7 +30727,7 @@ async function sendTroopsToWar(troopsCount) {
         
         await saveWarData();
         
-        var clanRef = getDBRef('clans/' + window.currentPlayer.clanId);
+        var clanRef = getDBRef('clans/' + playerClan.id);
         if (clanRef) {
             if (isAttacker) {
                 await clanRef.update({ warAttackerTroops: window.warAttackerTroops });
@@ -31136,8 +31167,11 @@ function updateWarModalUI() {
         if (warActive) {
             var remaining = window.warDuration - (Date.now() - window.warStartTime);
             var progress = Math.min(100, ((Date.now() - window.warStartTime) / window.warDuration) * 100);
+            
+            // ========== ИЗМЕНЕНИЕ: ВСЕ УЧАСТНИКИ КЛАНА ВИДЯТ ВОЙНУ ==========
             var isParticipant = hasClan && (window.currentPlayer.clanId === window.warAttackerClanId || 
                                            window.currentPlayer.clanId === window.warDefenderClanId);
+            // =================================================================
             
             warStatus.innerHTML = `
                 <div style="background: rgba(255,152,0,0.15); border: 1px solid #ff9800; border-radius: 12px; padding: 12px; margin: 10px 0; text-align: center;">
@@ -31545,19 +31579,24 @@ async function loadAllPlayersDataForce() {
 }
 
 // ============================================================
-// 25.12. СЧЕТЧИКИ НА КАРТЕ
+// 25.12. СЧЕТЧИКИ НА КАРТЕ (НА BUILDING B0)
 // ============================================================
 function initializeWarCounterContainer() {
     try {
-        var b6Element = document.querySelector('.building.b6');
-        if (!b6Element) {
+        // ========== ИЗМЕНЕНИЕ: ПЕРЕНЕСЛИ НА BUILDING B0 ==========
+        var b0Element = document.querySelector('.building.b0');
+        if (!b0Element) {
+            console.log('⚠️ Building b0 не найден, пробуем позже...');
             setTimeout(function() { initializeWarCounterContainer(); }, 1000);
             return false;
         }
-        if (getComputedStyle(b6Element).position === 'static') {
-            b6Element.style.position = 'relative';
+        // ============================================================
+        
+        if (getComputedStyle(b0Element).position === 'static') {
+            b0Element.style.position = 'relative';
         }
-        window.warCountersContainer = b6Element.querySelector('.war-counters-container');
+        
+        window.warCountersContainer = b0Element.querySelector('.war-counters-container');
         if (!window.warCountersContainer) {
             window.warCountersContainer = document.createElement('div');
             window.warCountersContainer.className = 'war-counters-container';
@@ -31573,8 +31612,8 @@ function initializeWarCounterContainer() {
                 gap: 3px;
                 pointer-events: none;
             `;
-            b6Element.appendChild(window.warCountersContainer);
-            console.log('✅ Создан контейнер для счетчиков ВОЙНЫ КЛАНОВ');
+            b0Element.appendChild(window.warCountersContainer);
+            console.log('✅ Создан контейнер для счетчиков ВОЙНЫ КЛАНОВ на building b0');
         }
         return true;
     } catch (e) {
@@ -31686,7 +31725,7 @@ function createWarCounterAuto(process) {
     counterDiv.appendChild(timeSpan);
     window.warCountersContainer.appendChild(counterDiv);
     window.warCounterElements[counterId] = counterDiv;
-    console.log('✅ Создан счетчик ВОЙНЫ КЛАНОВ:', counterId);
+    console.log('✅ Создан счетчик ВОЙНЫ КЛАНОВ на b0:', counterId);
 }
 
 function updateWarCounterTimeAuto(counterId, remaining) {
@@ -31795,7 +31834,7 @@ function startWarCountersOnMap() {
         updateAllWarCountersAuto();
     }, 1000);
     setTimeout(function() { updateAllWarCountersAuto(); }, 100);
-    console.log('✅ Счетчики ВОЙНЫ КЛАНОВ запущены');
+    console.log('✅ Счетчики ВОЙНЫ КЛАНОВ запущены на building b0');
 }
 
 function stopWarCountersOnMap() {
@@ -31879,22 +31918,18 @@ window.switchWarTab = function(tab) {
     var modal = document.getElementById('warFullscreen');
     if (!modal) return;
     
-    // Контейнеры
     var attackContainer = document.getElementById('warAttackContainer');
     var historyContainer = document.getElementById('warHistoryContainer');
     var rankingContainer = document.getElementById('warRankingContainer');
     
-    // Кнопки
     var attackBtn = document.getElementById('warTabAttackBtn');
     var historyBtn = document.getElementById('warTabHistoryBtn');
     var rankingBtn = document.getElementById('warTabRankingBtn');
     
-    // Скрываем все
     if (attackContainer) attackContainer.style.display = 'none';
     if (historyContainer) historyContainer.style.display = 'none';
     if (rankingContainer) rankingContainer.style.display = 'none';
     
-    // Сбрасываем стили кнопок
     if (attackBtn) {
         attackBtn.style.color = '#8e8ea0';
         attackBtn.style.background = 'transparent';
@@ -31908,7 +31943,6 @@ window.switchWarTab = function(tab) {
         rankingBtn.style.background = 'transparent';
     }
     
-    // Показываем выбранную вкладку
     if (tab === 'attack') {
         if (attackContainer) attackContainer.style.display = 'block';
         if (attackBtn) {
@@ -32086,7 +32120,6 @@ function createWarModalWindow() {
             </div>
             
             <div style="flex: 1; overflow-y: auto; overflow-x: hidden; padding: 4px 2px; margin-bottom: 4px;">
-                <!-- ВЕРХНЯЯ ПАНЕЛЬ -->
                 <div class="war-info-container" style="
                     background: rgba(20, 20, 30, 0.9); 
                     backdrop-filter: blur(10px); 
@@ -32119,7 +32152,6 @@ function createWarModalWindow() {
                     </div>
                 </div>
                 
-                <!-- 3 ВКЛАДКИ -->
                 <div style="display: flex; background: rgba(10,14,26,0.9); border-radius: 40px; margin: 8px 0 12px 0; padding: 3px; border: 1px solid rgba(139,69,19,0.2);">
                     <button id="warTabAttackBtn" onclick="switchWarTab('attack')" style="
                         flex: 1;
@@ -32168,7 +32200,6 @@ function createWarModalWindow() {
                     </button>
                 </div>
                 
-                <!-- ВКЛАДКА АТАКА -->
                 <div id="warAttackContainer" style="display: ${window.currentWarTab === 'attack' ? 'block' : 'none'};">
                     <div id="warStatus"></div>
                     <div id="warDefenseSection" style="margin: 10px 0;">
@@ -32180,20 +32211,18 @@ function createWarModalWindow() {
                     </div>
                 </div>
                 
-                <!-- ВКЛАДКА ИСТОРИЯ -->
                 <div id="warHistoryContainer" style="display: ${window.currentWarTab === 'history' ? 'block' : 'none'};">
                     <div style="font-size: 14px; font-weight: 700; color: #c9a03d; margin-bottom: 10px;">📜 ИСТОРИЯ ВОЙН (${window.warHistory.length})</div>
                     <div id="warHistoryList"></div>
                 </div>
                 
-                <!-- ВКЛАДКА РЕЙТИНГ -->
                 <div id="warRankingContainer" style="display: ${window.currentWarTab === 'ranking' ? 'block' : 'none'};">
                     <div style="font-size: 14px; font-weight: 700; color: #c9a03d; margin-bottom: 10px;">🏆 РЕЙТИНГ КЛАНОВ</div>
                     <div id="warRankingList"></div>
                 </div>
             </div>
             
-            <!-- НИЖНЯЯ ПАНЕЛЬ -->
+            	<!-- НИЖНЯЯ ПАНЕЛЬ -->
             <div class="war-bottom-nav" style="
                 position: fixed; bottom: 0; left: 0; right: 0;
                 background: rgba(10, 14, 26, 0.95);
@@ -32405,548 +32434,8 @@ console.log('  1. ⚔️ АТАКА - список доступных клано
 console.log('  2. 📜 ИСТОРИЯ - прошедшие войны');
 console.log('  3. 🏆 РЕЙТИНГ - топ кланов');
 console.log('🔙 Нижняя панель - только кнопка НАЗАД');
-
-// ============================================================
-// 25.18. ИСПРАВЛЕНИЕ ЗАГРУЗКИ КЛАНОВ И ОТОБРАЖЕНИЯ СПИСКА
-// ============================================================
-
-// ============================================================
-// 25.18.1. ПРИНУДИТЕЛЬНАЯ ЗАГРУЗКА КЛАНОВ
-// ============================================================
-async function forceLoadClans() {
-    console.log('🔄 ПРИНУДИТЕЛЬНАЯ ЗАГРУЗКА КЛАНОВ...');
-    
-    if (!isDBReady()) {
-        console.error('❌ База данных не доступна');
-        showToast('❌ База данных не доступна', 'error');
-        return;
-    }
-    
-    try {
-        var snapshot = await db.ref('clans').once('value');
-        if (snapshot.exists()) {
-            var clansData = snapshot.val();
-            window.allClans = [];
-            
-            for (var clanId in clansData) {
-                if (clansData.hasOwnProperty(clanId)) {
-                    var clan = clansData[clanId];
-                    clan.id = clanId;
-                    
-                    // Убеждаемся, что warInProgress - boolean
-                    if (clan.warInProgress === undefined) {
-                        clan.warInProgress = false;
-                    }
-                    
-                    window.allClans.push(clan);
-                }
-            }
-            
-            console.log('✅ Загружено кланов:', window.allClans.length);
-            console.log('📋 Список кланов:');
-            window.allClans.forEach(function(c, idx) {
-                console.log(`  ${idx + 1}. ${c.name} (ID: ${c.id}) - warInProgress: ${c.warInProgress}`);
-            });
-            
-            // Проверяем, есть ли клан игрока
-            if (window.currentPlayer && window.currentPlayer.clanId) {
-                var playerClan = window.allClans.find(function(c) { 
-                    return c.id === window.currentPlayer.clanId; 
-                });
-                if (playerClan) {
-                    console.log(`👑 Клан игрока: ${playerClan.name}`);
-                } else {
-                    console.warn('⚠️ Клан игрока не найден в списке!');
-                }
-            }
-            
-            // Обновляем UI
-            renderClanList();
-            updateWarModalUI();
-            
-            showToast('✅ Загружено ' + window.allClans.length + ' кланов', 'success');
-            
-        } else {
-            console.warn('⚠️ Кланы не найдены в БД');
-            window.allClans = [];
-            showToast('⚠️ Кланы не найдены в БД', 'warning');
-        }
-    } catch (e) {
-        console.error('❌ Ошибка загрузки кланов:', e);
-        showToast('❌ Ошибка загрузки кланов: ' + e.message, 'error');
-    }
-}
-
-// ============================================================
-// 25.18.2. ДИАГНОСТИКА ПРОБЛЕМЫ
-// ============================================================
-function diagnoseClansIssue() {
-    console.log('🔍 ДИАГНОСТИКА ПРОБЛЕМЫ С КЛАНАМИ:');
-    console.log('=========================================');
-    
-    console.log('1. Проверка window.allClans:');
-    console.log('   - allClans существует?', typeof window.allClans !== 'undefined');
-    console.log('   - Длина allClans:', window.allClans ? window.allClans.length : 0);
-    
-    if (window.allClans && window.allClans.length > 0) {
-        console.log('   - Список кланов:');
-        window.allClans.forEach(function(c, idx) {
-            console.log(`     ${idx + 1}. ${c.name} (ID: ${c.id})`);
-            console.log(`        - warInProgress: ${c.warInProgress}`);
-            console.log(`        - defenseUntil: ${c.defenseUntil}`);
-            console.log(`        - members: ${(c.membersIds || []).length}`);
-        });
-    } else {
-        console.log('   ❌ Кланы не загружены!');
-    }
-    
-    console.log('2. Проверка текущего игрока:');
-    console.log('   - currentPlayer существует?', typeof window.currentPlayer !== 'undefined');
-    if (window.currentPlayer) {
-        console.log('   - ID игрока:', window.currentPlayer.id);
-        console.log('   - Клан игрока:', window.currentPlayer.clanId);
-        console.log('   - Имя игрока:', window.currentPlayer.username);
-        console.log('   - Глава клана?', window.currentPlayer.username === window.currentPlayer.clanLeader);
-    } else {
-        console.log('   ❌ Текущий игрок не найден!');
-    }
-    
-    console.log('3. Проверка доступных кланов для атаки:');
-    if (window.allClans && window.currentPlayer) {
-        var playerClanId = window.currentPlayer.clanId;
-        var available = window.allClans.filter(function(c) {
-            if (c.id === playerClanId) return false;
-            if (c.warInProgress === true) return false;
-            if (c.defenseUntil && c.defenseUntil > Date.now()) return false;
-            return true;
-        });
-        console.log('   - Доступно для атаки:', available.length);
-        available.forEach(function(c) {
-            console.log(`     - ${c.name} (ID: ${c.id})`);
-        });
-    }
-    
-    console.log('=========================================');
-    console.log('🔧 Рекомендации:');
-    console.log('1. Выполните: forceLoadClans() - принудительная загрузка кланов');
-    console.log('2. Выполните: fixClanWarStatus() - исправление статуса кланов');
-    console.log('3. Выполните: renderClanList() - принудительное обновление списка');
-}
-
-// ============================================================
-// 25.18.3. ИСПРАВЛЕНИЕ СТАТУСА КЛАНОВ
-// ============================================================
-async function fixClanWarStatus() {
-    console.log('🔧 ИСПРАВЛЕНИЕ СТАТУСА КЛАНОВ...');
-    
-    if (!isDBReady()) {
-        console.error('❌ База данных не доступна');
-        return;
-    }
-    
-    try {
-        var snapshot = await db.ref('clans').once('value');
-        if (!snapshot.exists()) {
-            console.log('❌ Кланы не найдены');
-            return;
-        }
-        
-        var clansData = snapshot.val();
-        var updates = {};
-        var fixed = 0;
-        
-        for (var clanId in clansData) {
-            if (clansData.hasOwnProperty(clanId)) {
-                var clan = clansData[clanId];
-                
-                // Проверяем, что warInProgress - это boolean
-                if (clan.warInProgress === true) {
-                    console.log(`⚠️ Клан "${clan.name}" (${clanId}) имеет warInProgress = true`);
-                    
-                    // Проверяем, есть ли реальная война
-                    var warTime = clan.warStartTime || 0;
-                    var warDuration = clan.warDuration || 0;
-                    var now = Date.now();
-                    
-                    // Если война истекла или нет времени начала - сбрасываем
-                    if (warTime === 0 || warDuration === 0 || (now - warTime) > warDuration) {
-                        console.log(`🔄 Сбрасываем статус клана "${clan.name}"`);
-                        updates[clanId + '/warInProgress'] = false;
-                        updates[clanId + '/warStartTime'] = 0;
-                        updates[clanId + '/warDuration'] = 0;
-                        updates[clanId + '/warAttackerClanId'] = null;
-                        updates[clanId + '/warDefenderClanId'] = null;
-                        updates[clanId + '/warAttackerName'] = null;
-                        updates[clanId + '/warDefenderName'] = null;
-                        updates[clanId + '/warAttackerTroops'] = 0;
-                        updates[clanId + '/warDefenderTroops'] = 0;
-                        fixed++;
-                    }
-                }
-            }
-        }
-        
-        if (fixed > 0) {
-            console.log(`🔄 Применяем изменения для ${fixed} кланов...`);
-            await db.ref('clans').update(updates);
-            console.log('✅ Статус кланов исправлен!');
-            
-            // Перезагружаем данные
-            await forceLoadClans();
-            await loadWarData();
-            
-            // Обновляем UI
-            renderClanList();
-            updateWarModalUI();
-            showToast(`✅ Исправлено ${fixed} кланов`, 'success');
-        } else {
-            console.log('✅ Все кланы в правильном состоянии');
-            showToast('✅ Все кланы в порядке', 'success');
-        }
-        
-        return fixed;
-        
-    } catch (e) {
-        console.error('❌ Ошибка исправления:', e);
-        showToast('❌ Ошибка исправления: ' + e.message, 'error');
-    }
-}
-
-// ============================================================
-// 25.18.4. ОБНОВЛЕННАЯ ФУНКЦИЯ renderClanList (С ДЕБАГОМ)
-// ============================================================
-// Переопределяем функцию renderClanList с дополнительным дебагом
-var originalRenderClanList = window.renderClanList || function() {};
-
-window.renderClanList = function() {
-    console.log('🔄 РЕНДЕРИНГ СПИСКА КЛАНОВ...');
-    
-    var clanList = document.getElementById('warClanList');
-    if (!clanList) {
-        console.warn('⚠️ Элемент warClanList не найден');
-        return;
-    }
-    
-    // Проверяем, загружены ли кланы
-    if (!window.allClans || window.allClans.length === 0) {
-        console.warn('⚠️ Кланы не загружены!');
-        clanList.innerHTML = `
-            <div style="text-align:center; padding:20px; color:#ff9800;">
-                <div style="font-size: 32px; margin-bottom: 10px;">⏳</div>
-                <div>Загрузка кланов...</div>
-                <button onclick="forceLoadClans()" style="
-                    margin-top: 10px;
-                    padding: 8px 20px;
-                    background: rgba(139,69,19,0.3);
-                    border: 1px solid #8B4513;
-                    border-radius: 20px;
-                    color: #ffd966;
-                    cursor: pointer;
-                    font-size: 12px;
-                ">
-                    🔄 ЗАГРУЗИТЬ КЛАНЫ
-                </button>
-            </div>
-        `;
-        // Пробуем загрузить кланы
-        forceLoadClans();
-        return;
-    }
-    
-    var warActive = window.warInProgress;
-    if (warActive) {
-        clanList.innerHTML = `
-            <div style="text-align:center; padding:20px; color:#ff9800;">
-                ⚔️ Война уже идет! Дождитесь завершения.
-            </div>
-        `;
-        return;
-    }
-    
-    // Проверяем, есть ли игрок
-    if (!window.currentPlayer) {
-        clanList.innerHTML = `
-            <div style="text-align:center; padding:20px; color:#888;">
-                ❌ Игрок не найден
-            </div>
-        `;
-        return;
-    }
-    
-    var playerClanId = window.currentPlayer.clanId;
-    console.log('👑 ID клана игрока:', playerClanId);
-    
-    // Фильтруем кланы
-    var attackableClans = window.allClans.filter(function(c) {
-        // Не свой клан
-        if (c.id === playerClanId) {
-            console.log(`⏭️ Пропускаем свой клан: ${c.name}`);
-            return false;
-        }
-        // Не в войне
-        if (c.warInProgress === true) {
-            console.log(`⏭️ Клан в войне: ${c.name} (warInProgress: ${c.warInProgress})`);
-            return false;
-        }
-        // Не под защитой
-        if (c.defenseUntil && c.defenseUntil > Date.now()) {
-            console.log(`⏭️ Клан под защитой: ${c.name} (до ${new Date(c.defenseUntil).toLocaleString()})`);
-            return false;
-        }
-        return true;
-    });
-    
-    console.log(`✅ Найдено кланов для атаки: ${attackableClans.length}`);
-    attackableClans.forEach(function(c) {
-        console.log(`  - ${c.name} (ID: ${c.id})`);
-    });
-    
-    if (attackableClans.length === 0) {
-        // Проверяем, есть ли вообще другие кланы
-        var otherClans = window.allClans.filter(function(c) { 
-            return c.id !== playerClanId; 
-        });
-        
-        console.log(`📊 Всего других кланов: ${otherClans.length}`);
-        otherClans.forEach(function(c) {
-            console.log(`  - ${c.name}: warInProgress=${c.warInProgress}, defenseUntil=${c.defenseUntil}`);
-        });
-        
-        clanList.innerHTML = `
-            <div style="text-align:center; padding:20px; color:#888;">
-                <div style="font-size: 32px; margin-bottom: 10px;">🔍</div>
-                <div>Нет доступных кланов для атаки</div>
-                <div style="font-size: 11px; margin-top: 5px; color: #666;">
-                    ${otherClans.length === 0 ? '❌ Нет других кланов в игре' : 
-                    '⚠️ Все кланы либо в войне, либо под защитой'}
-                </div>
-                <!--<div style="margin-top: 10px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
-                    <button onclick="forceLoadClans()" style="
-                        padding: 6px 16px;
-                        background: rgba(139,69,19,0.3);
-                        border: 1px solid #8B4513;
-                        border-radius: 20px;
-                        color: #ffd966;
-                        cursor: pointer;
-                        font-size: 12px;
-                    ">
-                        🔄 ЗАГРУЗИТЬ
-                    </button>
-                    <button onclick="fixClanWarStatus()" style="
-                        padding: 6px 16px;
-                        background: rgba(76,175,80,0.2);
-                        border: 1px solid #4caf50;
-                        border-radius: 20px;
-                        color: #4caf50;
-                        cursor: pointer;
-                        font-size: 12px;
-                    ">
-                        🔧 ИСПРАВИТЬ
-                    </button>
-                    <button onclick="diagnoseClansIssue()" style="
-                        padding: 6px 16px;
-                        background: rgba(255,152,0,0.2);
-                        border: 1px solid #ff9800;
-                        border-radius: 20px;
-                        color: #ff9800;
-                        cursor: pointer;
-                        font-size: 12px;
-                    ">
-                        🔍 ДИАГНОСТИКА
-                    </button> 
-                </div>--!>
-            </div>
-        `;
-        return;
-    }
-    
-    var isLeader = window.currentPlayer && window.currentPlayer.username === window.currentPlayer?.clanLeader;
-    var hasClan = window.currentPlayer && window.currentPlayer.clanId;
-    var cooldownRemaining = getWarCooldownRemaining();
-    var isCooldown = cooldownRemaining > 0;
-    
-    clanList.innerHTML = attackableClans.map(function(c) {
-        var attackCooldown = getAttackCooldown(c.id);
-        var canAttack = canAttackClan(c.id) && !attackCooldown && isLeader && hasClan && !isCooldown;
-        var defenseActive = c.defenseUntil && c.defenseUntil > Date.now();
-        var defenseTimeLeft = defenseActive ? formatWarTime(c.defenseUntil - Date.now()) : '';
-        var totalTroops = getClanTotalTroops(c);
-        
-        var defenseStyle = defenseActive ? 'border: 2px solid #4caf50; background: rgba(76,175,80,0.1);' : '';
-        
-        var attackButton = '';
-        var reason = '';
-        
-        if (defenseActive) {
-            reason = '🛡️ ПОД ЗАЩИТОЙ';
-            attackButton = `
-                <button style="padding:6px 16px; background:#444; border:1px solid #4caf50; border-radius:30px; color:#4caf50; font-size:11px; font-weight:600; cursor:not-allowed; opacity:0.8;" disabled>
-                    ${reason}
-                </button>
-            `;
-        } else if (attackCooldown > 0) {
-            reason = '⏳ КУЛДАУН';
-            attackButton = `
-                <button style="padding:6px 16px; background:#444; border:1px solid #666; border-radius:30px; color:#888; font-size:11px; font-weight:600; cursor:not-allowed; opacity:0.6;" disabled>
-                    ${reason} (${formatWarTime(attackCooldown)})
-                </button>
-            `;
-        } else if (isCooldown) {
-            reason = '⏳ КУЛДАУН ВОЙНЫ';
-            attackButton = `
-                <button style="padding:6px 16px; background:#444; border:1px solid #666; border-radius:30px; color:#888; font-size:11px; font-weight:600; cursor:not-allowed; opacity:0.6;" disabled>
-                    ${reason} (${formatWarTime(cooldownRemaining)})
-                </button>
-            `;
-        } else if (!hasClan) {
-            reason = '❌ НЕТ КЛАНА';
-            attackButton = `
-                <button style="padding:6px 16px; background:#444; border:1px solid #666; border-radius:30px; color:#888; font-size:11px; font-weight:600; cursor:not-allowed; opacity:0.6;" disabled>
-                    ${reason}
-                </button>
-            `;
-        } else if (!isLeader) {
-            reason = '👑 ТОЛЬКО ГЛАВАРЬ';
-            attackButton = `
-                <button style="padding:6px 16px; background:#444; border:1px solid #666; border-radius:30px; color:#888; font-size:11px; font-weight:600; cursor:not-allowed; opacity:0.6;" disabled>
-                    ${reason}
-                </button>
-            `;
-        } else if (canAttack) {
-            attackButton = `
-                <button onclick="startClanWar('${c.id}')" style="
-                    padding:6px 16px; 
-                    background:linear-gradient(135deg,#8B4513,#5a2d0a); 
-                    border:1px solid #c9a03d; 
-                    border-radius:30px; 
-                    color:#ffd966; 
-                    font-size:11px; 
-                    font-weight:600; 
-                    cursor:pointer;
-                    transition: all 0.2s;
-                    box-shadow: 0 0 15px rgba(139,69,19,0.3);
-                ">
-                    ⚔️ АТАКОВАТЬ
-                </button>
-            `;
-        } else {
-            reason = '🔒 НЕДОСТУПНО';
-            attackButton = `
-                <button style="padding:6px 16px; background:#444; border:1px solid #666; border-radius:30px; color:#888; font-size:11px; font-weight:600; cursor:not-allowed; opacity:0.6;" disabled>
-                    ${reason}
-                </button>
-            `;
-        }
-        
-        return `
-            <div style="background:rgba(30,36,64,0.6); border-radius:16px; padding:12px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; ${defenseStyle} border: 1px solid rgba(139,69,19,0.15);">
-                <div style="flex: 1; min-width: 150px;">
-                    <strong style="color:#ffd966; font-size: 14px;">${escapeHtml(c.name)}</strong>
-                    ${defenseActive ? `<span style="font-size: 11px; color: #4caf50; font-weight: 700; margin-left: 8px;">🛡️ ЗАЩИТА</span>` : ''}
-                    <br>
-                    <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 3px;">
-                        <small style="color:#888;">👑 ${escapeHtml(c.leader || 'Нет')}</small>
-                        <small style="color:#888;">👥 ${(c.membersIds || []).length || 0} уч.</small>
-                        <small style="color:#888;">📈 ур.${c.level || 1}</small>
-                        <small style="color: #ffd966; font-weight: 700; font-size: 13px; background: rgba(0,0,0,0.3); padding: 2px 8px; border-radius: 10px;">
-                            ⚔️ ${formatNumberShort(totalTroops)} бойцов
-                        </small>
-                    </div>
-                    ${defenseActive ? `
-                        <div style="font-size: 11px; color: #4caf50; margin-top: 4px; font-weight: 600;">
-                            🛡️ Защита активна! Осталось: ${defenseTimeLeft}
-                        </div>
-                    ` : ''}
-                    ${attackCooldown > 0 && !defenseActive ? `
-                        <div style="font-size: 11px; color: #ff9800; margin-top: 4px; font-weight: 600;">
-                            ⏳ Кулдаун атаки: ${formatWarTime(attackCooldown)}
-                        </div>
-                    ` : ''}
-                </div>
-                <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                    ${attackButton}
-                </div>
-            </div>
-        `;
-    }).join('');
-    
-    console.log('✅ Список кланов обновлен');
-};
-
-// ============================================================
-// 25.18.5. АВТОМАТИЧЕСКОЕ ОБНОВЛЕНИЕ ПРИ ОТКРЫТИИ
-// ============================================================
-// Переопределяем openWarModal для автоматической загрузки
-var originalOpenWarModal = window.openWarModal || function() {};
-
-window.openWarModal = function() {
-    if (window._opening_war_modal) { 
-        return; 
-    }
-    window._opening_war_modal = true;
-    if (!window.currentPlayer) { 
-        window._opening_war_modal = false; 
-        return; 
-    }
-    
-    console.log('🚀 ОТКРЫТИЕ ОКНА ВОЙНЫ С ПРИНУДИТЕЛЬНОЙ ЗАГРУЗКОЙ');
-    
-    var loadData = async function() {
-        try {
-            // Сначала загружаем кланы
-            if (!window.allClans || window.allClans.length === 0) {
-                console.log('🔄 Загружаем кланы...');
-                await forceLoadClans();
-            } else {
-                console.log('✅ Кланы уже загружены:', window.allClans.length);
-            }
-            
-            // Загружаем игроков
-            console.log('🔄 Загружаем игроков...');
-            await loadAllPlayersDataForce();
-            
-            // Загружаем данные войны
-            console.log('🔄 Загружаем данные войны...');
-            await loadWarData();
-            
-            console.log('✅ Все данные загружены');
-        } catch (e) {
-            console.error('❌ Ошибка загрузки:', e);
-        }
-    };
-    
-    loadData().then(function() {
-        var existingModal = document.getElementById('warFullscreen');
-        if (existingModal) {
-            existingModal.style.display = 'flex';
-            if (window.tg) window.tg.BackButton.show();
-            updateWarModalUI();
-            renderClanList();
-            if (window.currentWarTab === 'history') {
-                renderHistoryList();
-            }
-            if (window.currentWarTab === 'ranking') {
-                renderRankingList();
-            }
-            window._opening_war_modal = false;
-            return;
-        }
-        
-        createWarModalWindow();
-        window._opening_war_modal = false;
-    }).catch(function(err) {
-        console.error('❌ Ошибка загрузки данных для войны:', err);
-        window._opening_war_modal = false;
-        showToast('❌ Ошибка загрузки данных: ' + err.message, 'error');
-    });
-};
-
-console.log('✅ ИСПРАВЛЕНИЯ ЗАГРУЖЕНЫ!');
-console.log('📋 Команды для диагностики:');
-console.log('  forceLoadClans() - принудительная загрузка кланов');
-console.log('  diagnoseClansIssue() - диагностика проблемы');
-console.log('  fixClanWarStatus() - исправление статуса кланов');
-console.log('  renderClanList() - принудительное обновление списка');
+console.log('👥 Все участники клана могут отправлять войска');
+console.log('🏠 Счетчики войны на building b0');
 
 // ============================================================
 // 26. ИГРОВАЯ (КАРТЫ + КРЕСТИКИ-НОЛИКИ) - ИСПРАВЛЕННАЯ ВЕРСИЯ
