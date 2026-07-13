@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>GameZona - 1.0.1.082</title>
+    <title>GameZona - 1.0.1.083</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -8743,7 +8743,7 @@ window.openSettingsModal = function() {
                     <div style="font-size: 36px; margin-bottom: 10px;">⚙️</div>
                     <div style="font-size: 16px; font-weight: 700; color: #ffd966;">${escapeHtml(window.currentPlayer.username)}</div>
                     <div style="font-size: 12px; color: #888; margin-top: 4px;">🆔 ${window.playerId}</div>
-                    <div style="font-size: 11px; color: #666; margin-top: 8px;">Версия - 1.0.1.082</div>
+                    <div style="font-size: 11px; color: #666; margin-top: 8px;">Версия - 1.0.1.083</div>
                     <div class="settings-status-info" style="font-size: 10px; color: ${window._settingsHasInternet ? '#4caf50' : '#e94560'}; margin-top: 6px;">
                         ${window._settingsHasInternet ? '🟢 Онлайн' : '🔴 Офлайн'}
                     </div>
@@ -29972,13 +29972,55 @@ if (typeof window.warLastCounterUpdate === 'undefined') {
 }
 
 // ============================================================
-// 25.0.1. БАЗОВЫЕ ФУНКЦИИ
+// 25.0.1. НАСТРОЙКИ ВОЙНЫ (ДЛЯ ТЕСТИРОВАНИЯ)
+// ============================================================
+window.WAR_SETTINGS = {
+    // === ДЛИТЕЛЬНОСТЬ ВОЙНЫ ===
+    // 1 минута
+    //duration: 1 * 60 * 1000,        // 1 минута
+    
+    // 5 минут
+     duration: 5 * 60 * 1000,     // 5 минут
+    
+    // 10 минут
+    // duration: 10 * 60 * 1000,    // 10 минут
+    
+    // 15 минут
+    // duration: 15 * 60 * 1000,    // 15 минут
+    
+    // 30 минут
+    // duration: 30 * 60 * 1000,    // 30 минут
+    
+    // 1 час (60 минут)
+    // duration: 60 * 60 * 1000,    // 1 час
+    
+    // 2 часа (120 минут)
+    // duration: 120 * 60 * 1000,   // 2 часа
+    
+    // 6 часов (360 минут)
+    // duration: 360 * 60 * 1000,   // 6 часов
+    
+    // 12 часов (720 минут)
+    // duration: 720 * 60 * 1000,   // 12 часов
+    
+    // === КУЛДАУН ПОСЛЕ ВОЙНЫ ===
+    cooldown: 5 * 60 * 1000,       // 1 час (можно менять так же)/ было 60 * 60 * 1000
+    
+    // === КУЛДАУН НА АТАКУ КОНКРЕТНОГО КЛАНА ===
+    attackCooldown: 5 * 60 * 1000, // 1 час (можно менять так же) / было 60 * 60 * 1000
+    
+    // Минимальная сила для атаки (в процентах)
+    minAttackPower: 60
+};
+
+// ============================================================
+// 25.0.2. БАЗОВЫЕ ФУНКЦИИ
 // ============================================================
 
 function getWarCooldownRemaining() {
     var lastWar = window.warCooldowns?.lastWarTime || 0;
     if (lastWar === 0) return 0;
-    var cooldownMs = 12 * 60 * 60 * 1000;
+    var cooldownMs = window.WAR_SETTINGS?.cooldown || (12 * 60 * 60 * 1000);
     return Math.max(0, cooldownMs - (Date.now() - lastWar));
 }
 
@@ -29996,7 +30038,7 @@ function getAttackCooldown(targetClanId) {
     var cooldowns = window.warCooldowns?.attackCooldowns || {};
     var lastAttack = cooldowns[targetClanId] || 0;
     if (lastAttack === 0) return 0;
-    var cooldownMs = 12 * 60 * 60 * 1000;
+    var cooldownMs = window.WAR_SETTINGS?.attackCooldown || (12 * 60 * 60 * 1000);
     return Math.max(0, cooldownMs - (Date.now() - lastAttack));
 }
 
@@ -30232,273 +30274,124 @@ if (typeof showLoading === 'undefined') {
 }
 
 // ============================================================
-// 25.1. ЗАГРУЗКА ДАННЫХ ВОЙНЫ
+// 25.1. ЗАГРУЗКА ДАННЫХ ВОЙНЫ ИЗ FIREBASE (ClanWars и HistoryWars)
 // ============================================================
 async function loadWarData() {
     if (!window.currentPlayer || !window.playerId) return;
     try {
-        console.log('🔄 Загрузка данных войны кланов из БД...');
-        var snapshot = await db.ref('players/' + window.playerId).once('value');
-        if (snapshot.exists()) {
-            var data = snapshot.val();
-            if (data.warHistory) window.warHistory = data.warHistory || [];
-            if (data.warCooldowns) window.warCooldowns = data.warCooldowns || { lastWarTime: 0, attackCooldowns: {} };
-            if (data.warInProgress !== undefined) window.warInProgress = data.warInProgress || false;
-            if (data.warStartTime) window.warStartTime = data.warStartTime || 0;
-            if (data.warDuration) window.warDuration = data.warDuration || 0;
-            if (data.warAttackerClanId) window.warAttackerClanId = data.warAttackerClanId || null;
-            if (data.warDefenderClanId) window.warDefenderClanId = data.warDefenderClanId || null;
-            if (data.warAttackerPower) window.warAttackerPower = data.warAttackerPower || 0;
-            if (data.warDefenderPower) window.warDefenderPower = data.warDefenderPower || 0;
-            if (data.warAttackerName) window.warAttackerName = data.warAttackerName || '';
-            if (data.warDefenderName) window.warDefenderName = data.warDefenderName || '';
-            if (data.warBattles) window.warBattles = data.warBattles || [];
-            if (data.warBattleLog) window.warBattleLog = data.warBattleLog || [];
-            if (data.warClanDefenseActive !== undefined) window.warClanDefenseActive = data.warClanDefenseActive || false;
-            if (data.warClanDefenseUntil) window.warClanDefenseUntil = data.warClanDefenseUntil || 0;
-            if (data.warAttackerTroops !== undefined) window.warAttackerTroops = data.warAttackerTroops || 0;
-            if (data.warDefenderTroops !== undefined) window.warDefenderTroops = data.warDefenderTroops || 0;
-            if (data.warAttackerTroopsHistory) window.warAttackerTroopsHistory = data.warAttackerTroopsHistory || {};
-            if (data.warDefenderTroopsHistory) window.warDefenderTroopsHistory = data.warDefenderTroopsHistory || {};
-            if (data.warNotificationsSent) window.warNotificationsSent = data.warNotificationsSent || { '3h': false, '1h': false, 'end': false };
-            console.log('✅ Данные войны кланов загружены, война активна:', window.warInProgress);
-        }
-    } catch (e) {
-        console.warn('⚠️ Ошибка загрузки данных войны из БД:', e);
-    }
-}
-// ============================================================
-// 25.1.1. ЗАГРУЗКА ДАННЫХ ВОЙНЫ ИЗ КЛАНА (ДЛЯ ЗАЩИТНИКОВ)
-// ============================================================
-async function loadWarDataFromClan() {
-    if (!window.currentPlayer || !window.currentPlayer.clanId) return;
-    try {
-        console.log('🔄 Загрузка данных войны из клана...');
-        var snapshot = await db.ref('clans/' + window.currentPlayer.clanId).once('value');
-        if (snapshot.exists()) {
-            var clanData = snapshot.val();
-            
-            // Если у клана есть активная война, обновляем глобальные переменные
-            if (clanData.warInProgress === true) {
-                console.log('⚔️ Найдена активная война в клане:', clanData.warAttackerName, 'vs', clanData.warDefenderName);
-                
-                // ========== ОБНОВЛЯЕМ ВСЕ ПЕРЕМЕННЫЕ ==========
-                window.warInProgress = clanData.warInProgress;
-                window.warStartTime = clanData.warStartTime || 0;
-                window.warDuration = clanData.warDuration || 0;
-                window.warAttackerClanId = clanData.warAttackerClanId || null;
-                window.warDefenderClanId = clanData.warDefenderClanId || null;
-                window.warAttackerPower = clanData.warAttackerPower || 0;
-                window.warDefenderPower = clanData.warDefenderPower || 0;
-                window.warAttackerName = clanData.warAttackerName || 'Неизвестный';
-                window.warDefenderName = clanData.warDefenderName || 'Неизвестный';
-                window.warAttackerTroops = clanData.warAttackerTroops || 0;
-                window.warDefenderTroops = clanData.warDefenderTroops || 0;
-                // ===============================================
-                
-                console.log('📊 Данные войны после загрузки из клана:');
-                console.log('  - Атакующий клан ID:', window.warAttackerClanId);
-                console.log('  - Защитник клан ID:', window.warDefenderClanId);
-                console.log('  - Атакующий:', window.warAttackerName);
-                console.log('  - Защитник:', window.warDefenderName);
-                console.log('  - Войска атакующего:', window.warAttackerTroops);
-                console.log('  - Войска защитника:', window.warDefenderTroops);
-                
-                // Сохраняем в БД игрока
-                await saveWarData();
-                console.log('✅ Данные войны сохранены в БД игрока');
-                
-                // ========== ПРИНУДИТЕЛЬНО ОБНОВЛЯЕМ UI ==========
-                // Обновляем UI модального окна
-                updateWarModalUI();
-                renderClanList();
-                
-                // Обновляем счетчики на карте
-                updateWarCountersOnMap();
-                updateAllWarCountersAuto();
-                
-                // Обновляем бейдж
-                updateWarButtonBadge();
-                
-                // Запускаем таймеры если нужно
-                if (!window.warTimerInterval) {
-                    startWarTimers();
-                }
-                // ===============================================
-                
-                console.log('✅ UI принудительно обновлен после загрузки данных из клана');
-                return true;
-            }
-        }
-        return false;
-    } catch (e) {
-        console.warn('⚠️ Ошибка загрузки данных войны из клана:', e);
-        return false;
-    }
-}
-// ============================================================
-// 25.1.3. ПРИНУДИТЕЛЬНАЯ СИНХРОНИЗАЦИЯ ДАННЫХ ВОЙНЫ
-// ============================================================
-async function forceSyncWarData() {
-    console.log('🔄 ПРИНУДИТЕЛЬНАЯ СИНХРОНИЗАЦИЯ ДАННЫХ ВОЙНЫ...');
-    
-    if (!window.currentPlayer || !window.currentPlayer.clanId) {
-        console.log('❌ Нет игрока или клана');
-        return;
-    }
-    
-    try {
-        // Загружаем данные из клана игрока
-        var snapshot = await db.ref('clans/' + window.currentPlayer.clanId).once('value');
-        if (snapshot.exists()) {
-            var clanData = snapshot.val();
-            
-            if (clanData.warInProgress === true) {
-                console.log('⚔️ Найдена активная война в клане');
-                
-                // Обновляем все переменные
+        console.log('🔄 Загрузка данных войны кланов из Firebase...');
+        
+        // Загружаем активную войну из ClanWars
+        var warSnapshot = await db.ref('ClanWars/active').once('value');
+        if (warSnapshot.exists()) {
+            var warData = warSnapshot.val();
+            if (warData.warInProgress === true) {
                 window.warInProgress = true;
-                window.warStartTime = clanData.warStartTime || 0;
-                window.warDuration = clanData.warDuration || 0;
-                window.warAttackerClanId = clanData.warAttackerClanId || null;
-                window.warDefenderClanId = clanData.warDefenderClanId || null;
-                window.warAttackerName = clanData.warAttackerName || 'Неизвестный';
-                window.warDefenderName = clanData.warDefenderName || 'Неизвестный';
-                window.warAttackerTroops = clanData.warAttackerTroops || 0;
-                window.warDefenderTroops = clanData.warDefenderTroops || 0;
-                window.warAttackerPower = clanData.warAttackerPower || 0;
-                window.warDefenderPower = clanData.warDefenderPower || 0;
-                
-                console.log('📊 Обновленные данные:');
-                console.log('  - Атакующий:', window.warAttackerName);
-                console.log('  - Защитник:', window.warDefenderName);
-                console.log('  - Атакующий клан ID:', window.warAttackerClanId);
-                console.log('  - Защитник клан ID:', window.warDefenderClanId);
-                
-                // Сохраняем в БД игрока
-                await saveWarData();
-                
-                // Обновляем UI
-                updateWarModalUI();
-                renderClanList();
-                updateWarCountersOnMap();
-                updateAllWarCountersAuto();
-                updateWarButtonBadge();
-                
-                // Запускаем таймеры
-                if (!window.warTimerInterval) {
-                    startWarTimers();
-                }
-                
-                console.log('✅ Данные войны синхронизированы');
-                showToast('✅ Данные войны синхронизированы', 'success');
-                
-            } else {
-                console.log('ℹ️ Нет активной войны в клане');
-                
-                // Если войны нет, сбрасываем состояние
-                if (window.warInProgress) {
-                    window.warInProgress = false;
-                    window.warAttackerClanId = null;
-                    window.warDefenderClanId = null;
-                    window.warAttackerName = '';
-                    window.warDefenderName = '';
-                    await saveWarData();
-                    updateWarModalUI();
-                    updateWarCountersOnMap();
-                    updateWarButtonBadge();
-                    console.log('✅ Состояние войны сброшено');
-                }
+                window.warStartTime = warData.warStartTime || 0;
+                window.warDuration = warData.warDuration || 0;
+                window.warAttackerClanId = warData.warAttackerClanId || null;
+                window.warDefenderClanId = warData.warDefenderClanId || null;
+                window.warAttackerPower = warData.warAttackerPower || 0;
+                window.warDefenderPower = warData.warDefenderPower || 0;
+                window.warAttackerName = warData.warAttackerName || 'Неизвестный';
+                window.warDefenderName = warData.warDefenderName || 'Неизвестный';
+                window.warAttackerTroops = warData.warAttackerTroops || 0;
+                window.warDefenderTroops = warData.warDefenderTroops || 0;
+                window.warAttackerTroopsHistory = warData.warAttackerTroopsHistory || {};
+                window.warDefenderTroopsHistory = warData.warDefenderTroopsHistory || {};
+                window.warNotificationsSent = warData.warNotificationsSent || { '3h': false, '1h': false, 'end': false };
+                console.log('✅ Активная война загружена из ClanWars/active');
             }
+        } else {
+            // Если нет активной войны, сбрасываем состояние
+            window.warInProgress = false;
+            window.warStartTime = 0;
+            window.warDuration = 0;
+            window.warAttackerClanId = null;
+            window.warDefenderClanId = null;
+            window.warAttackerName = '';
+            window.warDefenderName = '';
+            window.warAttackerTroops = 0;
+            window.warDefenderTroops = 0;
+            window.warAttackerTroopsHistory = {};
+            window.warDefenderTroopsHistory = {};
+            window.warNotificationsSent = { '3h': false, '1h': false, 'end': false };
         }
-    } catch (e) {
-        console.error('❌ Ошибка синхронизации:', e);
-    }
-}
-// ============================================================
-// 25.1.2. ПОДПИСКА НА ИЗМЕНЕНИЯ ВОЙНЫ В РЕАЛЬНОМ ВРЕМЕНИ
-// ============================================================
-function setupWarRealtimeListener() {
-    if (!window.currentPlayer || !window.currentPlayer.clanId) return;
-    if (!isDBReady()) return;
-    
-    console.log('🔄 Настройка реального времени для войны...');
-    
-    // Подписываемся на изменения в клане игрока
-    var clanRef = getDBRef('clans/' + window.currentPlayer.clanId);
-    if (clanRef) {
-        clanRef.on('value', function(snapshot) {
-            if (snapshot.exists()) {
-                var clanData = snapshot.val();
-                
-                // Проверяем, изменился ли статус войны
-                var newWarInProgress = clanData.warInProgress === true;
-                var oldWarInProgress = window.warInProgress;
-                
-                if (newWarInProgress !== oldWarInProgress) {
-                    console.log('⚔️ Статус войны изменился:', newWarInProgress);
-                    window.warInProgress = newWarInProgress;
-                }
-                
-                if (newWarInProgress) {
-                    // Обновляем данные войны
-                    window.warStartTime = clanData.warStartTime || 0;
-                    window.warDuration = clanData.warDuration || 0;
-                    window.warAttackerClanId = clanData.warAttackerClanId || null;
-                    window.warDefenderClanId = clanData.warDefenderClanId || null;
-                    window.warAttackerPower = clanData.warAttackerPower || 0;
-                    window.warDefenderPower = clanData.warDefenderPower || 0;
-                    window.warAttackerName = clanData.warAttackerName || 'Неизвестный';
-                    window.warDefenderName = clanData.warDefenderName || 'Неизвестный';
-                    window.warAttackerTroops = clanData.warAttackerTroops || 0;
-                    window.warDefenderTroops = clanData.warDefenderTroops || 0;
-                    
-                    console.log('✅ Данные войны обновлены в реальном времени');
-                    
-                    // Обновляем UI
-                    updateWarModalUI();
-                    renderClanList();
-                    updateWarCountersOnMap();
-                    updateWarButtonBadge();
+        
+        // Загружаем историю войн из HistoryWars
+        var historySnapshot = await db.ref('HistoryWars').orderByChild('timestamp').limitToLast(50).once('value');
+        if (historySnapshot.exists()) {
+            var historyData = historySnapshot.val();
+            window.warHistory = [];
+            for (var key in historyData) {
+                if (historyData.hasOwnProperty(key)) {
+                    window.warHistory.push(historyData[key]);
                 }
             }
-        });
+            window.warHistory.sort(function(a, b) { return b.timestamp - a.timestamp; });
+            console.log('✅ История войн загружена из HistoryWars, записей:', window.warHistory.length);
+        }
+        
+        // Загружаем кулдауны
+        var cooldownSnapshot = await db.ref('ClanWars/cooldowns').once('value');
+        if (cooldownSnapshot.exists()) {
+            window.warCooldowns = cooldownSnapshot.val();
+        }
+        
+        console.log('✅ Данные войны кланов загружены, война активна:', window.warInProgress);
+    } catch (e) {
+        console.warn('⚠️ Ошибка загрузки данных войны из Firebase:', e);
     }
-    
-    console.log('✅ Подписка на изменения войны настроена');
 }
+
 // ============================================================
-// 25.2. СОХРАНЕНИЕ ДАННЫХ
+// 25.2. СОХРАНЕНИЕ ДАННЫХ ВОЙНЫ В FIREBASE
 // ============================================================
 async function saveWarData() {
     if (!window.currentPlayer || !window.playerId) return;
     try {
-        var updateData = {
-            warHistory: window.warHistory,
-            warCooldowns: window.warCooldowns,
-            warInProgress: window.warInProgress,
-            warStartTime: window.warStartTime,
-            warDuration: window.warDuration,
-            warAttackerClanId: window.warAttackerClanId,
-            warDefenderClanId: window.warDefenderClanId,
-            warAttackerPower: window.warAttackerPower,
-            warDefenderPower: window.warDefenderPower,
-            warAttackerName: window.warAttackerName,
-            warDefenderName: window.warDefenderName,
-            warBattles: window.warBattles,
-            warBattleLog: window.warBattleLog,
-            warClanDefenseActive: window.warClanDefenseActive,
-            warClanDefenseUntil: window.warClanDefenseUntil,
-            warAttackerTroops: window.warAttackerTroops,
-            warDefenderTroops: window.warDefenderTroops,
-            warAttackerTroopsHistory: window.warAttackerTroopsHistory,
-            warDefenderTroopsHistory: window.warDefenderTroopsHistory,
-            warNotificationsSent: window.warNotificationsSent
-        };
-        await dbUpdate('players/' + window.playerId, updateData);
-        console.log('✅ Данные войны кланов сохранены в БД');
+        var updateData = {};
+        
+        if (window.warInProgress) {
+            // Сохраняем активную войну в ClanWars/active
+            updateData['active'] = {
+                warInProgress: window.warInProgress,
+                warStartTime: window.warStartTime,
+                warDuration: window.warDuration,
+                warAttackerClanId: window.warAttackerClanId,
+                warDefenderClanId: window.warDefenderClanId,
+                warAttackerPower: window.warAttackerPower,
+                warDefenderPower: window.warDefenderPower,
+                warAttackerName: window.warAttackerName,
+                warDefenderName: window.warDefenderName,
+                warAttackerTroops: window.warAttackerTroops,
+                warDefenderTroops: window.warDefenderTroops,
+                warAttackerTroopsHistory: window.warAttackerTroopsHistory,
+                warDefenderTroopsHistory: window.warDefenderTroopsHistory,
+                warNotificationsSent: window.warNotificationsSent,
+                updatedAt: Date.now()
+            };
+        } else {
+            // Удаляем активную войну
+            updateData['active'] = null;
+        }
+        
+        // Сохраняем кулдауны
+        updateData['cooldowns'] = window.warCooldowns;
+        
+        await dbUpdate('ClanWars', updateData);
+        console.log('✅ Данные войны сохранены в ClanWars');
+        
+        // Если есть новая запись в истории, сохраняем её в HistoryWars
+        if (window._pendingWarHistory) {
+            var historyRef = db.ref('HistoryWars').push();
+            await historyRef.set(window._pendingWarHistory);
+            window._pendingWarHistory = null;
+            console.log('✅ Запись в истории сохранена в HistoryWars');
+        }
+        
     } catch (e) {
-        console.warn('⚠️ Ошибка сохранения данных войны в БД:', e);
+        console.warn('⚠️ Ошибка сохранения данных войны:', e);
     }
 }
 
@@ -30596,21 +30489,22 @@ async function startClanWar(clanId) {
         var attackerTroops = getClanTotalTroops(attackerClan);
         var defenderTroops = getClanTotalTroops(targetClan);
         
-        if (attackerPower < defenderPower * 0.6) {
-            showToast('⚠️ Клан противника слишком силен! Нужно минимум 60% от его силы.', 'warning');
+        var minPower = window.WAR_SETTINGS?.minAttackPower || 60;
+        if (attackerPower < defenderPower * (minPower / 100)) {
+            showToast('⚠️ Клан противника слишком силен! Нужно минимум ' + minPower + '% от его силы.', 'warning');
             showLoading(false);
             return;
         }
         
         var now = Date.now();
-        var durationMs = 12 * 60 * 60 * 1000;
+        var durationMs = window.WAR_SETTINGS?.duration || (12 * 60 * 60 * 1000);
         
         // ========== СОХРАНЯЕМ ОБА КЛАНА В ГЛОБАЛЬНЫХ ПЕРЕМЕННЫХ ==========
         window.warInProgress = true;
         window.warStartTime = now;
         window.warDuration = durationMs;
         window.warAttackerClanId = window.currentPlayer.clanId;
-        window.warDefenderClanId = clanId;  // <-- ВАЖНО: сохраняем ID защитника
+        window.warDefenderClanId = clanId;
         window.warAttackerPower = attackerPower;
         window.warDefenderPower = defenderPower;
         window.warAttackerName = attackerClan ? attackerClan.name : 'Неизвестный';
@@ -30622,60 +30516,44 @@ async function startClanWar(clanId) {
         window.warAttackerTroopsHistory = {};
         window.warDefenderTroopsHistory = {};
         window.warNotificationsSent = { '3h': false, '1h': false, 'end': false };
-        // ================================================================
         
-        // ========== СОХРАНЯЕМ В КЛАНЕ АТАКУЮЩЕГО ==========
+        // Сохраняем в Firebase
+        await saveWarData();
+        
+        // Обновляем статус в кланах
         var attackerClanRef = getDBRef('clans/' + window.currentPlayer.clanId);
         if (attackerClanRef) {
             await attackerClanRef.update({
                 warInProgress: true,
                 warStartTime: now,
                 warDuration: durationMs,
-                warDefenderClanId: clanId,  // <-- ВАЖНО
-                warDefenderName: targetClan.name,
-                warAttackerPower: attackerPower,
-                warDefenderPower: defenderPower,
-                warAttackerTroops: attackerTroops,
-                warDefenderTroops: defenderTroops,
-                warAttackerClanId: window.currentPlayer.clanId,  // <-- ВАЖНО
-                warAttackerName: attackerClan ? attackerClan.name : 'Неизвестный'
+                warDefenderClanId: clanId,
+                warDefenderName: targetClan.name
             });
         }
-        // ================================================================
         
-        // ========== СОХРАНЯЕМ В КЛАНЕ ЗАЩИТНИКА ==========
         var defenderClanRef = getDBRef('clans/' + clanId);
         if (defenderClanRef) {
             await defenderClanRef.update({
                 warInProgress: true,
                 warStartTime: now,
                 warDuration: durationMs,
-                warAttackerClanId: window.currentPlayer.clanId,  // <-- ВАЖНО
-                warAttackerName: attackerClan ? attackerClan.name : 'Неизвестный',
-                warDefenderClanId: clanId,  // <-- ВАЖНО
-                warDefenderName: targetClan.name,
-                warAttackerPower: attackerPower,
-                warDefenderPower: defenderPower,
-                warAttackerTroops: attackerTroops,
-                warDefenderTroops: defenderTroops
+                warAttackerClanId: window.currentPlayer.clanId,
+                warAttackerName: attackerClan ? attackerClan.name : 'Неизвестный'
             });
         }
-        // ================================================================
-        
-        // ========== СОХРАНЯЕМ В ДАННЫХ ИГРОКА ==========
-        await saveWarData();
-        // ================================================================
         
         updateWarCountersOnMap();
         updateWarButtonBadge();
         
         var attackerName = attackerClan ? attackerClan.name : 'Неизвестный';
-        showToast('⚔️ Война начата против клана "' + targetClan.name + '"! Длится 12 часов.', 'success');
+        showToast('⚔️ Война начата против клана "' + targetClan.name + '"! Длится ' + formatWarTime(durationMs) + '.', 'success');
         showLoading(false);
         
         // ========== УВЕДОМЛЕНИЯ ДЛЯ ОБОИХ КЛАНОВ ==========
-        notifyClanMembers(window.currentPlayer.clanId, '⚔️ Наш клан "' + attackerName + '" начал войну против "' + targetClan.name + '"! Длится 12 часов. Закидывайте войска в войну!', window.currentPlayer.id);
-        notifyClanMembers(clanId, '⚔️ Клан "' + attackerName + '" объявил войну нашему клану "' + targetClan.name + '"! Длится 12 часов. Защищайтесь! Закидывайте войска в войну!');
+        var warMessage = '⚔️ Началась война между кланами "' + attackerName + '" и "' + targetClan.name + '"! Длится ' + formatWarTime(durationMs) + '. Закидывайте войска!';
+        notifyClanMembers(window.currentPlayer.clanId, warMessage, window.currentPlayer.id);
+        notifyClanMembers(clanId, warMessage);
         // =====================================================
         
         updateWarModalUI();
@@ -31145,14 +31023,17 @@ async function checkAndCompleteClanWar() {
     var elapsed = Date.now() - window.warStartTime;
     var remaining = window.warDuration - elapsed;
     
+    // Уведомления о скором окончании
     if (remaining <= 3 * 60 * 60 * 1000 && remaining > 0 && !window.warNotificationsSent['3h']) {
         window.warNotificationsSent['3h'] = true;
         await saveWarData();
+        
+        var message3h = '⚠️ До конца войны осталось 3 часа! Срочно закидывайте войска!';
         if (window.warAttackerClanId) {
-            notifyClanMembers(window.warAttackerClanId, '⚠️ До конца войны осталось 3 часа! Закидывайте войска в войну!');
+            notifyClanMembers(window.warAttackerClanId, message3h);
         }
         if (window.warDefenderClanId) {
-            notifyClanMembers(window.warDefenderClanId, '⚠️ До конца войны осталось 3 часа! Закидывайте войска в войну!');
+            notifyClanMembers(window.warDefenderClanId, message3h);
         }
         showToast('⚠️ До конца войны осталось 3 часа!', 'warning');
     }
@@ -31160,11 +31041,13 @@ async function checkAndCompleteClanWar() {
     if (remaining <= 1 * 60 * 60 * 1000 && remaining > 0 && !window.warNotificationsSent['1h']) {
         window.warNotificationsSent['1h'] = true;
         await saveWarData();
+        
+        var message1h = '⚠️ До конца войны остался 1 час! Срочно закидывайте войска!';
         if (window.warAttackerClanId) {
-            notifyClanMembers(window.warAttackerClanId, '⚠️ До конца войны остался 1 час! Срочно закидывайте войска!');
+            notifyClanMembers(window.warAttackerClanId, message1h);
         }
         if (window.warDefenderClanId) {
-            notifyClanMembers(window.warDefenderClanId, '⚠️ До конца войны остался 1 час! Срочно закидывайте войска!');
+            notifyClanMembers(window.warDefenderClanId, message1h);
         }
         showToast('⚠️ До конца войны остался 1 час!', 'warning');
     }
@@ -31193,6 +31076,7 @@ async function completeClanWar() {
             window.warDefenderPower += powerGain;
         }
         
+        // Обновляем кланы
         if (window.warAttackerClanId) {
             var attackerRef = getDBRef('clans/' + window.warAttackerClanId);
             if (attackerRef) {
@@ -31251,6 +31135,7 @@ async function completeClanWar() {
             }
         }
         
+        // Сохраняем запись в истории
         var warRecord = {
             attackerClanId: window.warAttackerClanId,
             attackerName: window.warAttackerName,
@@ -31267,16 +31152,22 @@ async function completeClanWar() {
             timestamp: Date.now()
         };
         
+        // Сохраняем в локальную историю
         window.warHistory.unshift(warRecord);
         if (window.warHistory.length > 50) {
             window.warHistory.pop();
         }
         
+        // Сохраняем в Firebase HistoryWars
+        window._pendingWarHistory = warRecord;
+        
+        // Обновляем кулдауны
         window.warCooldowns.lastWarTime = Date.now();
         if (window.warDefenderClanId) {
             window.warCooldowns.attackCooldowns[window.warDefenderClanId] = Date.now();
         }
         
+        // Сбрасываем состояние войны
         window.warInProgress = false;
         window.warStartTime = 0;
         window.warDuration = 0;
@@ -31293,6 +31184,7 @@ async function completeClanWar() {
         window.warDefenderTroopsHistory = {};
         window.warNotificationsSent = { '3h': false, '1h': false, 'end': false };
         
+        // Сохраняем изменения
         await saveWarData();
         updateWarCountersOnMap();
         updateWarButtonBadge();
@@ -31301,19 +31193,29 @@ async function completeClanWar() {
         var winnerText = attackerWon ? '🏆 Победа!' : '💔 Поражение!';
         showToast('⚔️ Война кланов завершена! ' + winnerText + ' Атакующий ' + resultText + '! Раненых: ' + (attackerWon ? defenderInjured : attackerInjured), attackerWon ? 'success' : 'error');
         
+        // Уведомления о завершении войны
+        var endMessage = '⚔️ Война завершена! ' + (attackerWon ? 'ПОБЕДА! 🎉' : 'Поражение...') + ' Раненых: ' + (attackerWon ? defenderInjured : attackerInjured);
         if (window.warAttackerClanId) {
-            notifyClanMembers(window.warAttackerClanId, '⚔️ Война завершена! ' + (attackerWon ? 'ПОБЕДА! 🎉' : 'Поражение...') + ' Раненых: ' + attackerInjured);
+            notifyClanMembers(window.warAttackerClanId, endMessage);
         }
         if (window.warDefenderClanId) {
-            notifyClanMembers(window.warDefenderClanId, '⚔️ Война завершена! ' + (attackerWon ? 'Поражение...' : 'ПОБЕДА! 🎉') + ' Раненых: ' + defenderInjured);
+            notifyClanMembers(window.warDefenderClanId, endMessage);
         }
         
+        // Обновляем UI - возвращаем в первоначальное состояние
         updateWarModalUI();
         renderClanList();
         renderHistoryList();
         renderRankingList();
         updateResources();
         updateWarTroopsDisplay();
+        
+        // Закрываем окно войны если открыто
+        var modal = document.getElementById('warFullscreen');
+        if (modal) {
+            // Обновляем окно без перезагрузки
+            updateWarModalUI();
+        }
         
         return true;
     } catch (e) {
@@ -31430,7 +31332,7 @@ function updateWarTroopsDisplay() {
 }
 
 function updateWarButtonBadge() {
-    // ========== ИЗМЕНЕНИЕ: БЕЙДЖ ДЛЯ УЧАСТНИКОВ ОБОИХ КЛАНОВ ==========
+    // ========== БЕЙДЖ ТОЛЬКО ДЛЯ УЧАСТНИКОВ ВОЙНЫ ==========
     if (!window.currentPlayer || !window.warInProgress) {
         var warBtn = document.querySelector('.nav-btn[onclick*="openWarModal"]') || 
                      document.querySelector('.nav-btn[onclick*="switchBottomTab(\'war\')"]');
@@ -31504,7 +31406,7 @@ function updateWarModalUI() {
     var modal = document.getElementById('warFullscreen');
     if (!modal) return;
     
-    // ========== ИЗМЕНЕНИЕ: ЕСЛИ НЕ УЧАСТНИК - ПОКАЗЫВАЕМ СООБЩЕНИЕ ==========
+    // ========== ЕСЛИ НЕ УЧАСТНИК - ПОКАЗЫВАЕМ СООБЩЕНИЕ ==========
     if (window.warInProgress && window.currentPlayer) {
         var playerClanId = window.currentPlayer.clanId;
         var isParticipant = playerClanId === window.warAttackerClanId || 
@@ -31604,10 +31506,9 @@ function updateWarModalUI() {
             var remaining = window.warDuration - (Date.now() - window.warStartTime);
             var progress = Math.min(100, ((Date.now() - window.warStartTime) / window.warDuration) * 100);
             
-            // ========== ИЗМЕНЕНИЕ: УЧАСТНИКИ ОБОИХ КЛАНОВ ВИДЯТ ВОЙНУ ==========
+            // ========== УЧАСТНИКИ ОБОИХ КЛАНОВ ВИДЯТ ВОЙНУ ==========
             var isParticipant = hasClan && (window.currentPlayer.clanId === window.warAttackerClanId || 
                                            window.currentPlayer.clanId === window.warDefenderClanId);
-            var isAttacker = hasClan && (window.currentPlayer.clanId === window.warAttackerClanId);
             // ========================================================================
             
             warStatus.innerHTML = `
@@ -31657,6 +31558,7 @@ function updateWarModalUI() {
                 </div>
             `;
         } else {
+            // Мирное время - показываем список доступных кланов
             warStatus.innerHTML = `
                 <div style="background: rgba(76,175,80,0.1); border: 1px solid rgba(76,175,80,0.2); border-radius: 12px; padding: 12px; margin: 10px 0; text-align: center;">
                     <div style="font-size: 16px; color: #4caf50; font-weight: 700;">✅ МИРНОЕ ВРЕМЯ</div>
@@ -31712,6 +31614,9 @@ function renderClanList() {
         clanList.innerHTML = `
             <div style="text-align:center; padding:20px; color:#ff9800;">
                 ⚔️ Война уже идет! Дождитесь завершения.
+                <div style="font-size: 12px; color: #888; margin-top: 5px;">
+                    ${window.warAttackerName} ⚔️ ${window.warDefenderName}
+                </div>
             </div>
         `;
         return;
@@ -32020,7 +31925,7 @@ async function loadAllPlayersDataForce() {
 // ============================================================
 function initializeWarCounterContainer() {
     try {
-        // ========== ИЗМЕНЕНИЕ: СЧЕТЧИК ДЛЯ УЧАСТНИКОВ ОБОИХ КЛАНОВ ==========
+        // ========== СЧЕТЧИК ДЛЯ УЧАСТНИКОВ ОБОИХ КЛАНОВ ==========
         if (!window.currentPlayer || !window.warInProgress) {
             if (window.warCountersContainer) {
                 window.warCountersContainer.innerHTML = '';
@@ -32033,24 +31938,17 @@ function initializeWarCounterContainer() {
         var isParticipant = playerClanId === window.warAttackerClanId || 
                             playerClanId === window.warDefenderClanId;
         
-        console.log('🏠 Инициализация счетчика, участник:', isParticipant);
-        console.log('  - Клан игрока:', playerClanId);
-        console.log('  - Атакующий:', window.warAttackerClanId);
-        console.log('  - Защитник:', window.warDefenderClanId);
-        
         if (!isParticipant) {
             if (window.warCountersContainer) {
                 window.warCountersContainer.innerHTML = '';
                 window.warCountersContainer.style.display = 'none';
             }
-            console.log('⏭️ Счетчик войны: только для участников войны');
             return false;
         }
         // ========================================================================
         
         var b0Element = document.querySelector('.building.b0');
         if (!b0Element) {
-            console.log('⚠️ Building b0 не найден, пробуем позже...');
             setTimeout(function() { initializeWarCounterContainer(); }, 1000);
             return false;
         }
@@ -32076,15 +31974,12 @@ function initializeWarCounterContainer() {
                 pointer-events: none;
             `;
             b0Element.appendChild(window.warCountersContainer);
-            console.log('✅ Создан контейнер для счетчиков ВОЙНЫ КЛАНОВ на building b0 (для участников)');
         }
         
-        // Показываем контейнер
         window.warCountersContainer.style.display = 'flex';
-        
         return true;
     } catch (e) {
-        console.warn('⚠️ Ошибка инициализации контейнера ВОЙНЫ КЛАНОВ:', e);
+        console.warn('⚠️ Ошибка инициализации контейнера:', e);
         return false;
     }
 }
@@ -32114,7 +32009,7 @@ function removeWarCounterAuto(counterId) {
         }
         delete window.warCounterElements[counterId];
     } catch (e) {
-        console.warn('⚠️ Ошибка удаления счетчика ВОЙНЫ КЛАНОВ:', e);
+        console.warn('⚠️ Ошибка удаления счетчика:', e);
     }
 }
 
@@ -32192,7 +32087,6 @@ function createWarCounterAuto(process) {
     counterDiv.appendChild(timeSpan);
     window.warCountersContainer.appendChild(counterDiv);
     window.warCounterElements[counterId] = counterDiv;
-    console.log('✅ Создан счетчик ВОЙНЫ КЛАНОВ на b0 (для участников):', counterId);
 }
 
 function updateWarCounterTimeAuto(counterId, remaining) {
@@ -32211,7 +32105,7 @@ function updateAllWarCountersAuto() {
     if (window.warIsCounterUpdating) return;
     window.warIsCounterUpdating = true;
     try {
-        // ========== ИЗМЕНЕНИЕ: СЧЕТЧИК ДЛЯ УЧАСТНИКОВ ОБОИХ КЛАНОВ ==========
+        // ========== СЧЕТЧИК ДЛЯ УЧАСТНИКОВ ОБОИХ КЛАНОВ ==========
         if (!window.currentPlayer || !window.warInProgress) {
             var currentIds = Object.keys(window.warCounterElements);
             for (var i = 0; i < currentIds.length; i++) {
@@ -32227,12 +32121,6 @@ function updateAllWarCountersAuto() {
         var playerClanId = window.currentPlayer.clanId;
         var isParticipant = playerClanId === window.warAttackerClanId || 
                             playerClanId === window.warDefenderClanId;
-        
-        console.log('🔍 Проверка участия в войне:');
-        console.log('  - Клан игрока:', playerClanId);
-        console.log('  - Атакующий клан:', window.warAttackerClanId);
-        console.log('  - Защищающийся клан:', window.warDefenderClanId);
-        console.log('  - Участник:', isParticipant);
         
         if (!isParticipant) {
             var currentIds = Object.keys(window.warCounterElements);
@@ -32318,7 +32206,7 @@ function updateAllWarCountersAuto() {
         }
         window.warLastCounterUpdate = Date.now();
     } catch (e) {
-        console.warn('⚠️ Ошибка обновления счетчиков ВОЙНЫ КЛАНОВ:', e);
+        // console.warn('⚠️ Ошибка обновления счетчиков:', e);
     } finally {
         window.warIsCounterUpdating = false;
     }
@@ -32338,7 +32226,6 @@ function startWarCountersOnMap() {
         updateAllWarCountersAuto();
     }, 1000);
     setTimeout(function() { updateAllWarCountersAuto(); }, 100);
-    console.log('✅ Счетчики ВОЙНЫ КЛАНОВ запущены на building b0 (для участников)');
 }
 
 function stopWarCountersOnMap() {
@@ -32349,67 +32236,7 @@ function stopWarCountersOnMap() {
     for (var id in window.warCounterElements) {
         removeWarCounterAuto(id);
     }
-    console.log('🛑 Счетчики ВОЙНЫ КЛАНОВ остановлены');
 }
-// ============================================================
-// 25.12.1. ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ СЧЕТЧИКОВ
-// ============================================================
-function forceUpdateWarCounters() {
-    console.log('🔄 ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ СЧЕТЧИКОВ ВОЙНЫ...');
-    
-    // Проверяем, участвует ли игрок в войне
-    if (!window.currentPlayer || !window.warInProgress) {
-        console.log('❌ Нет активной войны или игрока');
-        return;
-    }
-    
-    var playerClanId = window.currentPlayer.clanId;
-    var isParticipant = playerClanId === window.warAttackerClanId || 
-                        playerClanId === window.warDefenderClanId;
-    
-    if (!isParticipant) {
-        console.log('❌ Игрок не участвует в войне');
-        return;
-    }
-    
-    console.log('✅ Игрок участвует в войне, обновляем счетчики...');
-    
-    // Инициализируем контейнер
-    initializeWarCounterContainer();
-    
-    // Принудительно создаем счетчик
-    var remaining = window.warDuration - (Date.now() - window.warStartTime);
-    if (remaining > 0) {
-        var process = {
-            id: 'war-clan-battle',
-            type: 'war',
-            subtype: 'battle',
-            icon: '⚔️',
-            label: 'ВОЙНА ' + window.warAttackerName + ' vs ' + window.warDefenderName,
-            remaining: remaining,
-            isWork: true
-        };
-        
-        // Удаляем старый счетчик если есть
-        if (window.warCounterElements['war-clan-battle']) {
-            removeWarCounterAuto('war-clan-battle');
-        }
-        
-        // Создаем новый
-        createWarCounterAuto(process);
-        
-        console.log('✅ Счетчик создан/обновлен');
-    }
-    
-    // Запускаем интервал обновления если не запущен
-    if (!window.warCountersInterval) {
-        startWarCountersOnMap();
-    }
-    
-    // Обновляем UI
-    updateWarModalUI();
-}
-
 
 // ============================================================
 // 25.13. ТАЙМЕРЫ
@@ -32530,7 +32357,6 @@ window.switchWarTab = function(tab) {
     }
     
     updateWarModalUI();
-    console.log('✅ Переключено на вкладку:', tab);
 };
 
 // ============================================================
@@ -32593,7 +32419,6 @@ async function loadClansManually() {
         return;
     }
     try {
-        console.log('🔄 Ручная загрузка кланов из Firebase...');
         var snapshot = await db.ref('clans').once('value');
         if (snapshot.exists()) {
             var clansData = snapshot.val();
@@ -32605,9 +32430,7 @@ async function loadClansManually() {
                     window.allClans.push(clan);
                 }
             }
-            console.log('✅ Загружено кланов:', window.allClans.length);
         } else {
-            console.warn('⚠️ Кланы не найдены в БД');
             window.allClans = [];
         }
     } catch (e) {
@@ -32800,7 +32623,7 @@ function createWarModalWindow() {
                 </div>
             </div>
             
-            <!-- НИЖНЯЯ ПАНЕЛЬ -->
+            <!-- НИЖНЯЯ ПАНЕЛЬ - ТОЛЬКО КНОПКА НАЗАД -->
             <div class="war-bottom-nav" style="
                 position: fixed; bottom: 0; left: 0; right: 0;
                 background: rgba(10, 14, 26, 0.95);
@@ -32883,13 +32706,7 @@ function initWarSystemFull() {
         return;
     }
     
-    // Загружаем данные войны из БД игрока
     loadWarData().then(function() {
-        // Если война не найдена в данных игрока, пробуем загрузить из клана
-        if (!window.warInProgress) {
-            return loadWarDataFromClan();
-        }
-    }).then(function() {
         if (window.warInProgress) {
             var remaining = window.warDuration - (Date.now() - window.warStartTime);
             if (remaining <= 0) {
@@ -32902,9 +32719,6 @@ function initWarSystemFull() {
         }
         startWarCountersOnMap();
         startWarPeriodicCheck();
-        
-        // Настраиваем реальное время
-        setupWarRealtimeListener();
     });
     
     if (window.allClans && window.allClans.length > 0) {
@@ -33041,6 +32855,7 @@ console.log('🔙 Нижняя панель - только кнопка НАЗА
 console.log('👥 Участники обоих кланов видят войну и отправляют войска');
 console.log('🏠 Счетчики войны на building b0 (для участников)');
 console.log('📦 Отправка войск: блатные, мужики, фраера отдельно');
+console.log('⚙️ Настройки войны в window.WAR_SETTINGS');
 
 // ============================================================
 // 26. ИГРОВАЯ (КАРТЫ + КРЕСТИКИ-НОЛИКИ) - ИСПРАВЛЕННАЯ ВЕРСИЯ
