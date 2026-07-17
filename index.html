@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>GameZona - 1.0.1.089</title>
+    <title>GameZona - 1.0.1.090</title>
     <!-- Telegram WebApp Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -8743,7 +8743,7 @@ window.openSettingsModal = function() {
                     <div style="font-size: 36px; margin-bottom: 10px;">⚙️</div>
                     <div style="font-size: 16px; font-weight: 700; color: #ffd966;">${escapeHtml(window.currentPlayer.username)}</div>
                     <div style="font-size: 12px; color: #888; margin-top: 4px;">🆔 ${window.playerId}</div>
-                    <div style="font-size: 11px; color: #666; margin-top: 8px;">Версия - 1.0.1.089</div>
+                    <div style="font-size: 11px; color: #666; margin-top: 8px;">Версия - 1.0.1.090</div>
                     <div class="settings-status-info" style="font-size: 10px; color: ${window._settingsHasInternet ? '#4caf50' : '#e94560'}; margin-top: 6px;">
                         ${window._settingsHasInternet ? '🟢 Онлайн' : '🔴 Офлайн'}
                     </div>
@@ -29989,9 +29989,9 @@ if (typeof window.warHistorySaved === 'undefined') {
 // 25.0.1. НАСТРОЙКИ ВОЙНЫ (ДЛЯ ТЕСТИРОВАНИЯ)
 // ============================================================
 window.WAR_SETTINGS = {
-    duration: 3 * 60 * 1000, // 1 минута для теста
-    cooldown: 3 * 60 * 1000, // 1 час - 1 * 60 * 60 * 1000 или 1 минута - 1 * 60 * 1000
-    attackCooldown: 3 * 60 * 1000, // 1 час
+    duration: 3 * 60 * 1000, // 3 минуты для теста
+    cooldown: 3 * 60 * 1000, // 3 минуты
+    attackCooldown: 3 * 60 * 1000, // 3 минуты
     minAttackPower: 60
 };
 
@@ -30466,7 +30466,7 @@ async function getClanWarPower(clanId) {
 }
 
 // ============================================================
-// 25.4. НАЧАЛО ВОЙНЫ
+// 25.4. НАЧАЛО ВОЙНЫ (ИСПРАВЛЕНО - УБРАН ЗАВИСАЮЩИЙ ЗАГРУЗЧИК)
 // ============================================================
 async function startClanWar(clanId) {
     if (maintenanceMode) { 
@@ -30526,7 +30526,9 @@ async function startClanWar(clanId) {
     }
     
     try {
+        // ========== ИСПРАВЛЕНИЕ: Показываем загрузку только на время операции ==========
         showLoading(true, 'Начало войны кланов...');
+        
         var attackerClan = window.allClans.find(function(c) { return c.id === window.currentPlayer.clanId; });
         var attackerPower = await getClanWarPower(window.currentPlayer.clanId);
         var defenderPower = await getClanWarPower(clanId);
@@ -30585,18 +30587,22 @@ async function startClanWar(clanId) {
             });
         }
         
+        // ========== ИСПРАВЛЕНИЕ: Скрываем загрузчик после завершения ==========
+        showLoading(false);
+        // ================================================================
+        
         updateWarCountersOnMap();
         updateWarButtonBadge();
         
-// ========== УВЕДОМЛЕНИЯ ДЛЯ ОБОИХ КЛАНОВ ==========
-var attackerName = attackerClan ? attackerClan.name : 'Неизвестный';
-var warMessageAttacker = '⚔️ Наш клан "' + attackerName + '" начал войну против "' + targetClan.name + '"! Длится ' + formatWarTime(durationMs) + '. Закидывайте войска!';
-var warMessageDefender = '⚔️ Клан "' + attackerName + '" объявил войну нашему клану "' + targetClan.name + '"! Длится ' + formatWarTime(durationMs) + '. Защищайтесь! Закидывайте войска!';
-
-// Отправляем уведомления всем участникам обоих кланов
-notifyClanMembers(window.currentPlayer.clanId, warMessageAttacker, window.currentPlayer.id);
-notifyClanMembers(clanId, warMessageDefender);
-// =====================================================
+        var attackerName = attackerClan ? attackerClan.name : 'Неизвестный';
+        showToast('⚔️ Война начата против клана "' + targetClan.name + '"! Длится ' + formatWarTime(durationMs) + '.', 'success');
+        
+        // ========== УВЕДОМЛЕНИЯ ДЛЯ ОБОИХ КЛАНОВ ==========
+        var warMessageAttacker = '⚔️ Наш клан "' + attackerName + '" начал войну против "' + targetClan.name + '"! Длится ' + formatWarTime(durationMs) + '. Закидывайте войска!';
+        var warMessageDefender = '⚔️ Клан "' + attackerName + '" объявил войну нашему клану "' + targetClan.name + '"! Длится ' + formatWarTime(durationMs) + '. Защищайтесь! Закидывайте войска!';
+        notifyClanMembers(window.currentPlayer.clanId, warMessageAttacker, window.currentPlayer.id);
+        notifyClanMembers(clanId, warMessageDefender);
+        // =====================================================
         
         // ========== ОБНОВЛЕНИЕ UI В ОНЛАЙНЕ ==========
         updateWarModalUI();
@@ -30609,7 +30615,9 @@ notifyClanMembers(clanId, warMessageDefender);
         }
         
     } catch (e) {
+        // ========== ИСПРАВЛЕНИЕ: Скрываем загрузчик при ошибке ==========
         showLoading(false);
+        // ===============================================================
         showToast('❌ Ошибка начала войны: ' + e.message, 'error');
         console.error('Ошибка начала войны:', e);
     }
@@ -30992,24 +31000,24 @@ async function checkAndCompleteClanWar() {
     var remaining = window.warDuration - elapsed;
     
     if (remaining <= 3 * 60 * 60 * 1000 && remaining > 0 && !window.warNotificationsSent['3h']) {
-    window.warNotificationsSent['3h'] = true;
-    await saveWarData();
+        window.warNotificationsSent['3h'] = true;
+        await saveWarData();
+        
+        var message3h = '⚠️ До конца войны осталось 3 часа! Срочно закидывайте войска!';
+        if (window.warAttackerClanId) notifyClanMembers(window.warAttackerClanId, message3h);
+        if (window.warDefenderClanId) notifyClanMembers(window.warDefenderClanId, message3h);
+        showToast('⚠️ До конца войны осталось 3 часа!', 'warning');
+    }
     
-    var message3h = '⚠️ До конца войны осталось 3 часа! Срочно закидывайте войска!';
-    if (window.warAttackerClanId) notifyClanMembers(window.warAttackerClanId, message3h);
-    if (window.warDefenderClanId) notifyClanMembers(window.warDefenderClanId, message3h);
-    showToast('⚠️ До конца войны осталось 3 часа!', 'warning');
-}
-
-if (remaining <= 1 * 60 * 60 * 1000 && remaining > 0 && !window.warNotificationsSent['1h']) {
-    window.warNotificationsSent['1h'] = true;
-    await saveWarData();
-    
-    var message1h = '⚠️ До конца войны остался 1 час! Срочно закидывайте войска!';
-    if (window.warAttackerClanId) notifyClanMembers(window.warAttackerClanId, message1h);
-    if (window.warDefenderClanId) notifyClanMembers(window.warDefenderClanId, message1h);
-    showToast('⚠️ До конца войны остался 1 час!', 'warning');
-}
+    if (remaining <= 1 * 60 * 60 * 1000 && remaining > 0 && !window.warNotificationsSent['1h']) {
+        window.warNotificationsSent['1h'] = true;
+        await saveWarData();
+        
+        var message1h = '⚠️ До конца войны остался 1 час! Срочно закидывайте войска!';
+        if (window.warAttackerClanId) notifyClanMembers(window.warAttackerClanId, message1h);
+        if (window.warDefenderClanId) notifyClanMembers(window.warDefenderClanId, message1h);
+        showToast('⚠️ До конца войны остался 1 час!', 'warning');
+    }
     
     if (remaining <= 0 && !window.warNotificationsSent['end']) {
         window.warNotificationsSent['end'] = true;
@@ -31021,7 +31029,6 @@ if (remaining <= 1 * 60 * 60 * 1000 && remaining > 0 && !window.warNotifications
             console.error('❌ Ошибка завершения войны:', e);
             showToast('❌ Ошибка завершения войны: ' + e.message, 'error');
             
-            // Принудительно сбрасываем войну
             window.warInProgress = false;
             window.warStartTime = 0;
             window.warDuration = 0;
@@ -31076,7 +31083,7 @@ async function completeClanWar() {
         var attackerName = window.warAttackerName;
         var defenderName = window.warDefenderName;
         
-        // ========== ИСПРАВЛЕНИЕ: Обновляем кланы с проверкой ==========
+        // ========== ИСПРАВЛЕНИЕ: Обновляем кланы с try-catch ==========
         if (attackerClanId) {
             var attackerRef = getDBRef('clans/' + attackerClanId);
             if (attackerRef) {
@@ -31143,7 +31150,7 @@ async function completeClanWar() {
             }
         }
         
-        // ========== ИСПРАВЛЕНИЕ: Запись в историю с полными данными ==========
+        // ========== ИСПРАВЛЕНИЕ: Запись в историю ==========
         var winnerName = attackerWon ? attackerName : defenderName;
         var loserName = attackerWon ? defenderName : attackerName;
         var winnerClanId = attackerWon ? attackerClanId : defenderClanId;
@@ -31155,7 +31162,6 @@ async function completeClanWar() {
         var winnerPower = attackerWon ? window.warAttackerPower : window.warDefenderPower;
         var loserPower = attackerWon ? window.warDefenderPower : window.warAttackerPower;
         
-        // Проверяем дублирование
         var lastHistory = window.warHistory.length > 0 ? window.warHistory[0] : null;
         var isDuplicate = false;
         
@@ -31170,38 +31176,27 @@ async function completeClanWar() {
         
         if (!isDuplicate) {
             var warRecord = {
-                // Основные данные
                 attackerClanId: attackerClanId,
                 attackerName: attackerName || 'Неизвестный',
                 defenderClanId: defenderClanId,
                 defenderName: defenderName || 'Неизвестный',
                 attackerWon: attackerWon,
-                
-                // ========== ДОБАВЛЯЕМ ПОЛНЫЕ ДАННЫЕ О ПОБЕДИТЕЛЕ/ПРОИГРАВШЕМ ==========
                 winner: winnerName || 'Неизвестный',
                 loser: loserName || 'Неизвестный',
                 winnerClanId: winnerClanId,
                 loserClanId: loserClanId,
-                
-                // Данные победителя
                 winnerTroops: winnerTroops,
                 winnerPower: winnerPower,
                 winnerInjured: winnerInjured,
-                
-                // Данные проигравшего
                 loserTroops: loserTroops,
                 loserPower: loserPower,
                 loserInjured: loserInjured,
-                
-                // Исходные данные для справки
                 attackerTroops: window.warAttackerTroops,
                 defenderTroops: window.warDefenderTroops,
                 attackerPower: window.warAttackerPower,
                 defenderPower: window.warDefenderPower,
                 attackerInjured: attackerInjured,
                 defenderInjured: defenderInjured,
-                // ================================================================
-                
                 battles: window.warBattles.length,
                 timestamp: Date.now()
             };
@@ -31221,7 +31216,6 @@ async function completeClanWar() {
             window.warCooldowns.attackCooldowns[defenderClanId] = Date.now();
         }
         
-        // Сохраняем ID кланов до сброса
         var savedAttackerClanId = window.warAttackerClanId;
         var savedDefenderClanId = window.warDefenderClanId;
         var savedAttackerName = window.warAttackerName;
@@ -31243,7 +31237,7 @@ async function completeClanWar() {
         window.warDefenderTroopsHistory = {};
         window.warNotificationsSent = { '3h': false, '1h': false, 'end': false };
         
-        // ========== ИСПРАВЛЕНИЕ: Удаляем активную войну с проверкой ==========
+        // ========== ИСПРАВЛЕНИЕ: Удаляем активную войну ==========
         if (isDBReady()) {
             try {
                 await db.ref('ClanWars/active').set(null);
@@ -31270,6 +31264,56 @@ async function completeClanWar() {
         if (savedDefenderClanId) notifyClanMembers(savedDefenderClanId, endMessageDefender);
         // =====================================================
         
+        // ========== ИСПРАВЛЕНИЕ: Отправка раненых в больницу ==========
+        // Раненые распределяются по участникам
+        var allPlayers = {};
+        for (var pid in window.warAttackerTroopsHistory) {
+            if (window.warAttackerTroopsHistory.hasOwnProperty(pid)) {
+                var contribution = window.warAttackerTroopsHistory[pid];
+                var totalAttackerTroops = window.warAttackerTroops || 1;
+                var injuredShare = Math.floor((contribution / totalAttackerTroops) * attackerInjured);
+                if (injuredShare > 0) {
+                    if (!allPlayers[pid]) allPlayers[pid] = 0;
+                    allPlayers[pid] += injuredShare;
+                }
+            }
+        }
+        for (var pid in window.warDefenderTroopsHistory) {
+            if (window.warDefenderTroopsHistory.hasOwnProperty(pid)) {
+                var contribution = window.warDefenderTroopsHistory[pid];
+                var totalDefenderTroops = window.warDefenderTroops || 1;
+                var injuredShare = Math.floor((contribution / totalDefenderTroops) * defenderInjured);
+                if (injuredShare > 0) {
+                    if (!allPlayers[pid]) allPlayers[pid] = 0;
+                    allPlayers[pid] += injuredShare;
+                }
+            }
+        }
+        
+        // Отправляем раненых в больницу каждому игроку
+        for (var playerId in allPlayers) {
+            if (allPlayers.hasOwnProperty(playerId)) {
+                var injuredCount = allPlayers[playerId];
+                try {
+                    var playerRef = getDBRef('players/' + playerId);
+                    if (playerRef) {
+                        var playerSnapshot = await playerRef.once('value');
+                        if (playerSnapshot.exists()) {
+                            var playerData = playerSnapshot.val();
+                            var currentInjured = playerData.injuredFighters || 0;
+                            await playerRef.update({
+                                injuredFighters: currentInjured + injuredCount
+                            });
+                            console.log('🏥 Игрок', playerId, 'получил', injuredCount, 'раненых в больницу');
+                        }
+                    }
+                } catch (e) {
+                    console.warn('⚠️ Ошибка отправки раненых игроку', playerId, ':', e);
+                }
+            }
+        }
+        // ================================================================
+        
         // Останавливаем таймеры
         if (window.warTimerInterval) {
             clearInterval(window.warTimerInterval);
@@ -31287,34 +31331,10 @@ async function completeClanWar() {
         console.log('✅ Война завершена успешно!');
         console.log('🏆 Победитель:', winnerName);
         console.log('💔 Проигравший:', loserName);
-        console.log('📊 Потери победителя:', winnerInjured);
-        console.log('📊 Потери проигравшего:', loserInjured);
+        console.log('🏥 Раненых отправлено в больницу:', Object.keys(allPlayers).length, 'игроков');
         return true;
     } catch (e) {
         console.error('❌ Ошибка завершения войны:', e);
-        // Принудительный сброс
-        try {
-            window.warInProgress = false;
-            window.warStartTime = 0;
-            window.warDuration = 0;
-            window.warAttackerClanId = null;
-            window.warDefenderClanId = null;
-            window.warAttackerTroops = 0;
-            window.warDefenderTroops = 0;
-            window.warAttackerTroopsHistory = {};
-            window.warDefenderTroopsHistory = {};
-            window.warNotificationsSent = { '3h': false, '1h': false, 'end': false };
-            await saveWarData();
-            if (isDBReady()) {
-                await db.ref('ClanWars/active').set(null);
-            }
-            updateWarModalUI();
-            renderClanList();
-            updateWarCountersOnMap();
-            updateWarButtonBadge();
-        } catch (e2) {
-            console.error('❌ Критическая ошибка при сбросе:', e2);
-        }
         throw e;
     }
 }
@@ -31409,7 +31429,6 @@ function notifyClanMembers(clanId, message, excludePlayerId) {
         var memberId = clan.membersIds[i];
         if (memberId !== excludePlayerId) {
             try {
-                // ========== ИСПРАВЛЕНИЕ: Используем addNotification ==========
                 if (typeof addNotification === 'function') {
                     addNotification(memberId, message, 'war');
                     sentCount++;
@@ -31710,7 +31729,6 @@ function updateWarModalUI() {
                 </div>
             `;
         } else {
-            // Мирное время - показываем стандартный статус
             warStatus.innerHTML = `
                 <div style="background: rgba(76,175,80,0.1); border: 1px solid rgba(76,175,80,0.2); border-radius: 12px; padding: 12px; margin: 10px 0; text-align: center;">
                     <div style="font-size: 16px; color: #4caf50; font-weight: 700;">✅ МИРНОЕ ВРЕМЯ</div>
@@ -31921,7 +31939,6 @@ function renderHistoryList() {
     }
     
     historyList.innerHTML = window.warHistory.slice(0, 20).map(function(w) {
-        // ========== ИСПРАВЛЕНИЕ: Получаем данные о победителе/проигравшем ==========
         var winnerName = w.winner || (w.attackerWon ? w.attackerName : w.defenderName) || 'Неизвестный';
         var loserName = w.loser || (w.attackerWon ? w.defenderName : w.attackerName) || 'Неизвестный';
         var winnerTroops = w.winnerTroops || (w.attackerWon ? w.attackerTroops : w.defenderTroops) || 0;
@@ -31946,7 +31963,6 @@ function renderHistoryList() {
                     <span style="color:${resultColor}; font-weight:700;">${resultText}</span>
                 </div>
                 
-                <!-- ========== ИНФОРМАЦИЯ О ПОБЕДИТЕЛЕ/ПРОИГРАВШЕМ ========== -->
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px; background: rgba(0,0,0,0.2); border-radius: 8px; padding: 8px;">
                     <div style="border-right: 1px solid rgba(255,255,255,0.1); padding-right: 8px;">
                         <div style="font-size: 11px; color: #4caf50; font-weight: 700;">🏆 ПОБЕДИТЕЛЬ</div>
@@ -31969,7 +31985,6 @@ function renderHistoryList() {
                         </div>
                     </div>
                 </div>
-                <!-- ==================================================== -->
                 
                 <div style="font-size:11px; color:#888; display:flex; gap:12px; flex-wrap:wrap; margin-top:6px;">
                     <span>📅 ${date}</span>
